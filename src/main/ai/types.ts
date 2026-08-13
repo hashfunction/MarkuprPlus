@@ -6,6 +6,7 @@
  */
 
 import type { Session } from '../SessionController';
+import type { AnalysisProvider } from '../../shared/types';
 
 // =============================================================================
 // Tier & Configuration
@@ -247,6 +248,10 @@ export interface AIPipelineOutput {
   processingTimeMs: number;
   /** Which tier was used. */
   tier: AITier;
+  /** Concrete analysis provider selected for the session. */
+  provider: AnalysisProvider;
+  /** Human-readable provider attribution. */
+  providerLabel?: string;
   /** Error info if AI failed and fell back to free tier. */
   fallbackReason?: string;
 }

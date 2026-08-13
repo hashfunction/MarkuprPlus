@@ -1,23 +1,25 @@
 /**
- * AIPipelineManager - Orchestrator for the AI analysis pipeline
- *
- * Determines which processing tier to use (free vs BYOK), generates output accordingly,
- * and ensures the free-tier safety net is always available as fallback.
- *
- * Key invariant: session data is NEVER lost. Free-tier output is always generated first,
- * and AI enhancement is layered on top only when it succeeds.
+ * Safety-first orchestration for rule-based, Anthropic, and installed-CLI analysis.
  */
 
 import type { Session } from '../SessionController';
 import type { MarkdownDocument } from '../output/FileManager';
 import type { ISettingsManager } from '../settings/SettingsManager';
+import type { AnalysisProvider } from '../../shared/types';
 import { generateDocumentForFileManager } from '../output/sessionAdapter';
 import { ClaudeAnalyzer } from './ClaudeAnalyzer';
+import { CodexAnalyzer } from './CodexAnalyzer';
 import { structuredMarkdownBuilder } from './StructuredMarkdownBuilder';
-import type {
-  AITier,
-  AIPipelineOutput,
-} from './types';
+import type { AIAnalysisResult, AIPipelineOutput } from './types';
+
+interface AnalysisEngine {
+  analyze(session: Session): Promise<AIAnalysisResult | null>;
+}
+
+export interface PipelineDependencies {
+  createCodexAnalyzer(): AnalysisEngine;
+  createClaudeAnalyzer(apiKey: string): AnalysisEngine;
+}
 
 export interface PipelineProcessOptions {
   settingsManager: ISettingsManager;
@@ -25,135 +27,113 @@ export interface PipelineProcessOptions {
   screenshotDir?: string;
   hasRecording?: boolean;
   recordingFilename?: string;
+  dependencies?: Partial<PipelineDependencies>;
 }
 
-/**
- * Determine which AI tier is available based on stored API keys.
- */
-async function determineTier(settingsManager: ISettingsManager): Promise<AITier> {
-  const anthropicKey = await settingsManager.getApiKey('anthropic');
-  if (anthropicKey && anthropicKey.length > 0) {
-    console.log('[AIPipelineManager] Tier decision: BYOK (Anthropic API key found in keychain)');
-    return 'byok';
-  }
-  console.log('[AIPipelineManager] Tier decision: FREE (no Anthropic API key configured)');
-  return 'free';
-}
+const DEFAULT_DEPENDENCIES: PipelineDependencies = {
+  createCodexAnalyzer: () => new CodexAnalyzer(),
+  createClaudeAnalyzer: (apiKey) => new ClaudeAnalyzer(apiKey),
+};
 
-/**
- * Generate a free-tier (rule-based) document. This is the safety net that always works.
- */
 function generateFreeTierDocument(
   session: Session,
   projectName: string,
   screenshotDir: string,
 ): MarkdownDocument {
-  return generateDocumentForFileManager(session, {
-    projectName,
-    screenshotDir,
-  });
+  return generateDocumentForFileManager(session, { projectName, screenshotDir });
+}
+
+function providerDetails(provider: Exclude<AnalysisProvider, 'rules'>): {
+  label: string;
+  modelId?: string;
+} {
+  return provider === 'codex'
+    ? { label: 'Codex CLI' }
+    : { label: 'Claude', modelId: 'claude-sonnet-4-5-20250929' };
+}
+
+function fallbackOutput(
+  document: MarkdownDocument,
+  provider: AnalysisProvider,
+  startedAt: number,
+  reason?: string,
+): { document: MarkdownDocument; pipelineOutput: AIPipelineOutput } {
+  const details = provider === 'rules' ? undefined : providerDetails(provider);
+  return {
+    document,
+    pipelineOutput: {
+      markdown: document.content,
+      aiEnhanced: false,
+      processingTimeMs: Date.now() - startedAt,
+      tier: provider === 'rules' ? 'free' : 'byok',
+      provider,
+      ...(details ? { providerLabel: details.label } : {}),
+      ...(reason ? { fallbackReason: reason } : {}),
+    },
+  };
 }
 
 /**
- * Process a session through the AI pipeline.
- *
- * 1. Always generates free-tier output first (safety net)
- * 2. If BYOK tier is available, attempts AI enhancement
- * 3. On any AI failure, returns the free-tier output
- *
- * @returns A MarkdownDocument compatible with FileManager.saveSession()
+ * Generate the rule-based report first, then enhance it with exactly the selected provider.
  */
 export async function processSession(
   session: Session,
   options: PipelineProcessOptions,
 ): Promise<{ document: MarkdownDocument; pipelineOutput: AIPipelineOutput }> {
-  const startTime = Date.now();
+  const startedAt = Date.now();
   const projectName = options.projectName || session.metadata?.sourceName || 'Feedback Session';
   const screenshotDir = options.screenshotDir || './screenshots';
+  const dependencies = { ...DEFAULT_DEPENDENCIES, ...options.dependencies };
+  const configuredProvider = options.settingsManager.get('analysisProvider');
+  const provider: AnalysisProvider = configuredProvider || 'anthropic';
 
-  // ALWAYS generate free-tier output first as safety net
-  console.log('[AIPipelineManager] Generating free-tier output as safety net...');
-  const freeTierDoc = generateFreeTierDocument(session, projectName, screenshotDir);
-  console.log('[AIPipelineManager] Free-tier output ready (rule-based markdown generated)');
+  console.log('[AIPipelineManager] Generating rule-based output as safety net...');
+  const freeDocument = generateFreeTierDocument(session, projectName, screenshotDir);
 
-  // Determine tier
-  const tier = await determineTier(options.settingsManager);
-
-  if (tier === 'free') {
-    console.log(
-      `[AIPipelineManager] Using free-tier output (no AI enhancement). ` +
-      `Session had ${session.feedbackItems.length} feedback items, ` +
-      `${session.transcriptBuffer.length} transcript events. ` +
-      `Completed in ${Date.now() - startTime}ms.`
-    );
-    return {
-      document: freeTierDoc,
-      pipelineOutput: {
-        markdown: freeTierDoc.content,
-        aiEnhanced: false,
-        processingTimeMs: Date.now() - startTime,
-        tier: 'free',
-      },
-    };
+  if (provider === 'rules') {
+    console.log('[AIPipelineManager] Local rules selected; skipping external AI analysis.');
+    return fallbackOutput(freeDocument, 'rules', startedAt);
   }
 
-  // BYOK tier: attempt AI enhancement
-  console.log('[AIPipelineManager] BYOK tier: attempting Claude AI enhancement...');
+  const details = providerDetails(provider);
   try {
-    const apiKey = await options.settingsManager.getApiKey('anthropic');
-    if (!apiKey) {
-      // Shouldn't happen since determineTier checked, but be defensive
-      console.warn('[AIPipelineManager] BYOK -> FREE fallback: API key disappeared between tier check and usage');
-      return {
-        document: freeTierDoc,
-        pipelineOutput: {
-          markdown: freeTierDoc.content,
-          aiEnhanced: false,
-          processingTimeMs: Date.now() - startTime,
-          tier: 'free',
-          fallbackReason: 'API key not found after tier selection',
-        },
-      };
+    let analyzer: AnalysisEngine;
+    if (provider === 'codex') {
+      analyzer = dependencies.createCodexAnalyzer();
+    } else {
+      const apiKey = await options.settingsManager.getApiKey('anthropic');
+      if (!apiKey) {
+        return fallbackOutput(
+          freeDocument,
+          'anthropic',
+          startedAt,
+          'Anthropic API key is not configured',
+        );
+      }
+      analyzer = dependencies.createClaudeAnalyzer(apiKey);
     }
 
-    console.log(
-      `[AIPipelineManager] Calling Claude API (BYOK) with ` +
-      `${session.feedbackItems.length} feedback items, ` +
-      `${session.transcriptBuffer.length} transcript events...`
-    );
-
-    const analyzer = new ClaudeAnalyzer(apiKey);
+    console.log(`[AIPipelineManager] Running ${details.label} analysis...`);
     const analysis = await analyzer.analyze(session);
-
     if (!analysis) {
-      console.warn(
-        `[AIPipelineManager] BYOK -> FREE fallback: Claude API returned null analysis ` +
-        `after ${Date.now() - startTime}ms. Using free-tier rule-based output instead.`
+      return fallbackOutput(
+        freeDocument,
+        provider,
+        startedAt,
+        `${details.label} analysis returned no result`,
       );
-      return {
-        document: freeTierDoc,
-        pipelineOutput: {
-          markdown: freeTierDoc.content,
-          aiEnhanced: false,
-          processingTimeMs: Date.now() - startTime,
-          tier: 'byok',
-          fallbackReason: 'Claude analysis returned null',
-        },
-      };
     }
 
-    // Build AI-enhanced markdown
-    const aiMarkdown = structuredMarkdownBuilder.buildDocument(session, analysis, {
+    const markdown = structuredMarkdownBuilder.buildDocument(session, analysis, {
       projectName,
       screenshotDir,
       hasRecording: options.hasRecording,
       recordingFilename: options.recordingFilename,
-      modelId: 'claude-sonnet-4-5-20250929',
+      providerLabel: details.label,
+      modelId: details.modelId,
     });
-
-    // Build a MarkdownDocument compatible with FileManager
-    const aiDocument: MarkdownDocument = {
-      content: aiMarkdown,
+    const document: MarkdownDocument = {
+      content: markdown,
       metadata: {
         itemCount: analysis.items.length,
         screenshotCount: session.screenshotBuffer.length,
@@ -162,38 +142,27 @@ export async function processSession(
     };
 
     console.log(
-      `[AIPipelineManager] AI analysis complete: ${analysis.items.length} items, ` +
-      `${analysis.metadata.criticalCount} critical, ${analysis.metadata.highCount} high ` +
-      `(${Date.now() - startTime}ms)`,
+      `[AIPipelineManager] ${details.label} analysis complete: ${analysis.items.length} items ` +
+      `(${Date.now() - startedAt}ms)`,
     );
-
     return {
-      document: aiDocument,
+      document,
       pipelineOutput: {
-        markdown: aiMarkdown,
+        markdown,
         aiEnhanced: true,
         analysis,
-        processingTimeMs: Date.now() - startTime,
+        processingTimeMs: Date.now() - startedAt,
         tier: 'byok',
+        provider,
+        providerLabel: details.label,
       },
     };
   } catch (error) {
-    // ANY error in the AI path falls back to free tier - never lose the session
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const reason = error instanceof Error ? error.message : 'Unknown analysis error';
     console.error(
-      `[AIPipelineManager] BYOK -> FREE fallback: AI pipeline threw after ${Date.now() - startTime}ms. ` +
-      `Error: ${errorMessage}. Using free-tier rule-based output instead.`
+      `[AIPipelineManager] ${details.label} analysis failed after ${Date.now() - startedAt}ms; ` +
+      'using the rule-based report.',
     );
-
-    return {
-      document: freeTierDoc,
-      pipelineOutput: {
-        markdown: freeTierDoc.content,
-        aiEnhanced: false,
-        processingTimeMs: Date.now() - startTime,
-        tier: 'byok',
-        fallbackReason: error instanceof Error ? error.message : 'Unknown error',
-      },
-    };
+    return fallbackOutput(freeDocument, provider, startedAt, reason);
   }
 }

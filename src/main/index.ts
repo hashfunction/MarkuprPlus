@@ -1116,8 +1116,8 @@ async function stopSession(): Promise<{
     windowsTaskbar?.setProgress(0.33);
     emitProcessingProgress(24, 'analyzing');
 
-    // Generate output document -- uses AI pipeline if an Anthropic key is configured,
-    // otherwise falls back to the free-tier rule-based generator.
+    // Generate output through the explicitly selected analysis provider.
+    // The pipeline always retains a rule-based document as its safety net.
     console.log(
       `[Main:stopSession] Step 2/6: Running AI analysis pipeline ` +
       `(settingsManager ${settingsManager ? 'available' : 'NOT available'}, ` +
@@ -1125,6 +1125,7 @@ async function stopSession(): Promise<{
     );
     const aiStartedAt = Date.now();
     let aiTier: 'free' | 'byok' | 'premium' = 'free';
+    let aiProvider: 'rules' | 'anthropic' | 'codex' = 'rules';
     let aiEnhanced = false;
     let aiFallbackReason: string | undefined;
     const { document } = settingsManager
@@ -1136,6 +1137,7 @@ async function stopSession(): Promise<{
           recordingFilename,
         }).then((result) => {
           aiTier = result.pipelineOutput.tier;
+          aiProvider = result.pipelineOutput.provider;
           aiEnhanced = result.pipelineOutput.aiEnhanced;
           aiFallbackReason = result.pipelineOutput.fallbackReason;
           return result;
@@ -1149,7 +1151,8 @@ async function stopSession(): Promise<{
     aiDurationMs = Date.now() - aiStartedAt;
     console.log(
       `[Main:stopSession] Step 2/6 complete: AI analysis took ${aiDurationMs}ms ` +
-      `(tier=${aiTier}, aiEnhanced=${aiEnhanced}${aiFallbackReason ? `, fallback=${aiFallbackReason}` : ''})`
+      `(provider=${aiProvider}, tier=${aiTier}, aiEnhanced=${aiEnhanced}` +
+      `${aiFallbackReason ? `, fallback=${aiFallbackReason}` : ''})`
     );
     emitProcessingProgress(44, 'analyzing');
 
