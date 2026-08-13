@@ -20,97 +20,16 @@ import {
 } from './types';
 import { optimizeForAPI } from './ImageOptimizer';
 import type { ImageOptimizeOptions } from './types';
-
-// =============================================================================
-// System Prompt (from AI_PIPELINE_DESIGN.md)
-// =============================================================================
-
-const SYSTEM_PROMPT = `You are markupR's AI analysis engine. You receive a developer's voice-narrated feedback session: a transcript of everything they said while reviewing software, paired with screenshots captured at natural pause points.
-
-Your job is to transform this raw narration into a structured, actionable feedback document.
-
-## Rules
-
-1. **Preserve the user's voice.** Quote their exact words in blockquotes. Never rephrase their observations.
-2. **Group related feedback.** If the user mentions the same area multiple times, combine those into one item.
-3. **Match screenshots to feedback.** Each screenshot was captured during or after the text segment it accompanies. Reference screenshots by their index (e.g., [Screenshot 1]).
-4. **Extract action items.** For each feedback item, write a concrete 1-sentence action item a developer could act on immediately.
-5. **Assign priority.** Use Critical/High/Medium/Low based on the severity of the issue described.
-6. **Categorize.** Use exactly one of: Bug, UX Issue, Performance, Suggestion, Question, Positive Note.
-7. **Write a summary.** 2-3 sentences capturing the most important findings.
-8. **Be concise.** Developers will paste this into AI coding tools. Every word must earn its place.
-9. **Handle sparse input.** If the transcript is very short or absent, focus on describing what you see in screenshots. If neither transcript nor screenshots are available, return a minimal result with an empty items array.
-
-## Output Format
-
-Respond with ONLY valid JSON matching this schema:
-
-{
-  "summary": "2-3 sentence overview of key findings",
-  "items": [
-    {
-      "title": "Short descriptive title (5-10 words)",
-      "category": "Bug|UX Issue|Performance|Suggestion|Question|Positive Note",
-      "priority": "Critical|High|Medium|Low",
-      "quote": "User's exact words (the relevant excerpt)",
-      "screenshotIndices": [0, 1],
-      "actionItem": "Concrete 1-sentence action for a developer",
-      "area": "Component or area of the app this relates to (e.g., 'Navigation', 'Login Form', 'Dashboard')"
-    }
-  ],
-  "themes": ["theme1", "theme2"],
-  "positiveNotes": ["Things the user explicitly praised"],
-  "metadata": {
-    "totalItems": 5,
-    "criticalCount": 1,
-    "highCount": 2
-  }
-}`;
+import {
+  ANALYSIS_SYSTEM_PROMPT,
+  buildTranscriptText,
+  parseAnalysisResult,
+  toRelativeTimestamp,
+} from './analysisContract';
 
 // =============================================================================
 // Helpers
 // =============================================================================
-
-/**
- * Convert an absolute timestamp to session-relative MM:SS format.
- */
-function toRelativeTimestamp(timestampMs: number, sessionStartMs: number): string {
-  const relSec = Math.max(0, Math.floor((timestampMs - sessionStartMs) / 1000));
-  const mm = Math.floor(relSec / 60).toString().padStart(2, '0');
-  const ss = (relSec % 60).toString().padStart(2, '0');
-  return `${mm}:${ss}`;
-}
-
-/**
- * Build the transcript portion of the user message from session data.
- *
- * Uses final transcripts grouped chronologically. Falls back to all transcripts
- * if no finals exist (e.g., timer-only tier).
- */
-function buildTranscriptText(session: Session): string {
-  const finals = session.transcriptBuffer
-    .filter((e) => e.isFinal && e.text.trim().length > 0)
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  const events = finals.length > 0
-    ? finals
-    : session.transcriptBuffer
-        .filter((e) => e.text.trim().length > 0)
-        .sort((a, b) => a.timestamp - b.timestamp);
-
-  if (events.length === 0) {
-    return '[No transcript available]';
-  }
-
-  return events
-    .map((e) => {
-      // TranscriptEvent timestamps are in seconds; convert to ms for relative calc
-      const tsMs = Math.round(e.timestamp * 1000);
-      const rel = toRelativeTimestamp(tsMs, session.startTime);
-      return `[${rel}] ${e.text.trim()}`;
-    })
-    .join('\n');
-}
 
 /**
  * Build the Claude API message content array with text + image blocks.
@@ -224,7 +143,7 @@ export class ClaudeAnalyzer {
           model: this.options.model,
           max_tokens: this.options.maxTokens,
           temperature: this.options.temperature,
-          system: SYSTEM_PROMPT,
+          system: ANALYSIS_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userContent }],
         }),
         timeoutPromise,
@@ -252,96 +171,4 @@ export class ClaudeAnalyzer {
       return null;
     }
   }
-}
-
-// =============================================================================
-// Response Parsing
-// =============================================================================
-
-/**
- * Parse Claude's JSON response into a validated AIAnalysisResult.
- *
- * Handles common edge cases:
- * - JSON wrapped in markdown code fences
- * - Extra whitespace / trailing commas (via lenient extraction)
- */
-function parseAnalysisResult(text: string): AIAnalysisResult {
-  // Strip markdown code fences if present
-  let jsonStr = text.trim();
-  const fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) {
-    jsonStr = fenceMatch[1].trim();
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new AIPipelineError(
-      `Failed to parse Claude response as JSON: ${jsonStr.slice(0, 200)}...`,
-      'INVALID_RESPONSE',
-    );
-  }
-
-  // Validate required fields
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    !('summary' in parsed) ||
-    !('items' in parsed) ||
-    !Array.isArray((parsed as Record<string, unknown>).items)
-  ) {
-    throw new AIPipelineError(
-      'Claude response JSON missing required fields (summary, items)',
-      'INVALID_RESPONSE',
-    );
-  }
-
-  const obj = parsed as Record<string, unknown>;
-
-  // Build items first so we can compute accurate metadata
-  const items = Array.isArray(obj.items)
-    ? (obj.items as Record<string, unknown>[]).map(validateFeedbackItem)
-    : [];
-
-  const result: AIAnalysisResult = {
-    summary: String(obj.summary ?? ''),
-    items,
-    themes: Array.isArray(obj.themes)
-      ? (obj.themes as unknown[]).map(String)
-      : [],
-    positiveNotes: Array.isArray(obj.positiveNotes)
-      ? (obj.positiveNotes as unknown[]).map(String)
-      : [],
-    metadata: {
-      totalItems: items.length,
-      criticalCount: items.filter((i) => i.priority === 'Critical').length,
-      highCount: items.filter((i) => i.priority === 'High').length,
-    },
-  };
-
-  return result;
-}
-
-/**
- * Validate and coerce a single feedback item from Claude's response.
- */
-function validateFeedbackItem(raw: Record<string, unknown>): AIAnalysisResult['items'][0] {
-  const validCategories = ['Bug', 'UX Issue', 'Performance', 'Suggestion', 'Question', 'Positive Note'];
-  const validPriorities = ['Critical', 'High', 'Medium', 'Low'];
-
-  const category = String(raw.category ?? 'Suggestion');
-  const priority = String(raw.priority ?? 'Medium');
-
-  return {
-    title: String(raw.title ?? 'Untitled Feedback'),
-    category: validCategories.includes(category) ? category as AIAnalysisResult['items'][0]['category'] : 'Suggestion',
-    priority: validPriorities.includes(priority) ? priority as AIAnalysisResult['items'][0]['priority'] : 'Medium',
-    quote: String(raw.quote ?? ''),
-    screenshotIndices: Array.isArray(raw.screenshotIndices)
-      ? (raw.screenshotIndices as unknown[]).filter((v): v is number => typeof v === 'number')
-      : [],
-    actionItem: String(raw.actionItem ?? ''),
-    area: String(raw.area ?? 'General'),
-  };
 }
