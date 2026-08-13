@@ -11,6 +11,8 @@ import { extensionFromMimeType } from '../audio/audioUtils';
 import { getSettingsManager } from '../settings';
 import { whisperService } from './WhisperService';
 import type { TranscriptEvent } from './types';
+import type { TranscriptionFailure } from '../../shared/types';
+export type { TranscriptionFailure, TranscriptionFailureCode } from '../../shared/types';
 
 // =============================================================================
 // Configuration
@@ -32,6 +34,33 @@ export interface RecoveryAudioData {
   capturedAudioAsset: CapturedAudioAsset | null;
   /** Raw PCM Float32 buffer. Used by local Whisper. */
   capturedAudioBuffer: Buffer | null;
+}
+
+export interface TranscriptRecoveryResult {
+  events: TranscriptEvent[];
+  failure?: TranscriptionFailure;
+}
+
+export interface RecoveryAttempt {
+  events: TranscriptEvent[];
+  outcome: 'success' | 'no-speech' | 'provider-error';
+  error?: string;
+}
+
+export interface TranscriptionRecoveryDependencies {
+  getOpenAIApiKey(): Promise<string | null>;
+  recoverWithOpenAI(
+    audioAsset: CapturedAudioAsset,
+    sessionStartSec: number,
+    apiKey: string,
+    maxAttempts: number,
+  ): Promise<RecoveryAttempt>;
+  recoverWithWhisper(
+    audioSamples: Float32Array,
+    sessionStartSec: number,
+    maxAttempts: number,
+  ): Promise<RecoveryAttempt>;
+  isLocalModelAvailable(): boolean;
 }
 
 // =============================================================================
@@ -101,7 +130,9 @@ async function recoverWithOpenAI(
   sessionStartSec: number,
   apiKey: string,
   maxAttempts: number,
-): Promise<TranscriptEvent[]> {
+): Promise<RecoveryAttempt> {
+  let lastError = 'request failed after retries';
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const controller = new AbortController();
@@ -176,15 +207,25 @@ async function recoverWithOpenAI(
       }
 
       if (recoveredEvents.length === 0) {
-        throw new Error('No transcript text recovered from OpenAI transcription');
+        console.warn(
+          `[TranscriptionRecovery] OpenAI recovery attempt ${attempt}/${maxAttempts} detected no speech.`,
+        );
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+        return { events: [], outcome: 'no-speech' };
       }
 
       console.log(
         `[TranscriptionRecovery] Recovered ${recoveredEvents.length} segments via OpenAI (attempt ${attempt}/${maxAttempts}).`,
       );
-      return recoveredEvents;
+      return { events: recoveredEvents, outcome: 'success' };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      lastError = error instanceof Error && error.name === 'AbortError'
+        ? 'request timed out'
+        : 'request failed after retries';
       console.warn(
         `[TranscriptionRecovery] OpenAI recovery attempt ${attempt}/${maxAttempts} failed: ${message}`,
       );
@@ -196,7 +237,7 @@ async function recoverWithOpenAI(
     }
   }
 
-  return [];
+  return { events: [], outcome: 'provider-error', error: lastError };
 }
 
 /**
@@ -206,9 +247,10 @@ async function recoverWithWhisper(
   audioSamples: Float32Array,
   sessionStartSec: number,
   maxAttempts: number,
-): Promise<TranscriptEvent[]> {
+): Promise<RecoveryAttempt> {
   const sampleRate = 16000;
   const chunkSamples = sampleRate * WHISPER_RECOVERY_CHUNK_SECONDS;
+  let lastError = 'local model failed after retries';
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -241,15 +283,23 @@ async function recoverWithWhisper(
         .filter((segment) => segment.text.trim().length > 0);
 
       if (recoveredEvents.length === 0) {
-        throw new Error('No transcript text recovered from captured audio');
+        console.warn(
+          `[TranscriptionRecovery] Whisper recovery attempt ${attempt}/${maxAttempts} detected no speech.`,
+        );
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+          continue;
+        }
+        return { events: [], outcome: 'no-speech' };
       }
 
       console.log(
         `[TranscriptionRecovery] Recovered ${recoveredEvents.length} segments via Whisper (attempt ${attempt}/${maxAttempts}).`,
       );
-      return recoveredEvents;
+      return { events: recoveredEvents, outcome: 'success' };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      lastError = message.trim().slice(0, 180) || 'local model failed after retries';
       console.warn(
         `[TranscriptionRecovery] Whisper recovery attempt ${attempt}/${maxAttempts} failed: ${message}`,
       );
@@ -261,7 +311,7 @@ async function recoverWithWhisper(
     }
   }
 
-  return [];
+  return { events: [], outcome: 'provider-error', error: lastError };
 }
 
 // =============================================================================
@@ -281,60 +331,123 @@ async function recoverWithWhisper(
 export async function recoverTranscript(
   sessionStartSec: number,
   audioData: RecoveryAudioData,
-): Promise<TranscriptEvent[]> {
+  dependencyOverrides: Partial<TranscriptionRecoveryDependencies> = {},
+): Promise<TranscriptRecoveryResult> {
+  const dependencies: TranscriptionRecoveryDependencies = {
+    getOpenAIApiKey,
+    recoverWithOpenAI,
+    recoverWithWhisper,
+    isLocalModelAvailable: () => whisperService.isModelAvailable(),
+    ...dependencyOverrides,
+  };
+  const hasEncodedAudio = Boolean(
+    audioData.capturedAudioAsset && audioData.capturedAudioAsset.buffer.byteLength > 0
+  );
+  const hasPcmAudio = Boolean(
+    audioData.capturedAudioBuffer && audioData.capturedAudioBuffer.byteLength > 0
+  );
+
+  if (!hasEncodedAudio && !hasPcmAudio) {
+    return {
+      events: [],
+      failure: {
+        code: 'audio-unavailable',
+        message: 'No recorded narration audio was available for transcription.',
+      },
+    };
+  }
+
+  let openAiAttempt: RecoveryAttempt | undefined;
+  let localAttempt: RecoveryAttempt | undefined;
+  const openAiApiKey = hasEncodedAudio ? await dependencies.getOpenAIApiKey() : null;
+
   // Try OpenAI first (best quality)
-  if (audioData.capturedAudioAsset && audioData.capturedAudioAsset.buffer.byteLength > 0) {
-    const openAiApiKey = await getOpenAIApiKey();
+  if (hasEncodedAudio && audioData.capturedAudioAsset) {
     if (openAiApiKey) {
-      const openAiRecovered = await recoverWithOpenAI(
+      openAiAttempt = await dependencies.recoverWithOpenAI(
         audioData.capturedAudioAsset,
         sessionStartSec,
         openAiApiKey,
         2,
       );
-      if (openAiRecovered.length > 0) {
-        return openAiRecovered;
+      if (openAiAttempt.events.length > 0) {
+        return { events: openAiAttempt.events };
       }
     } else {
       console.warn('[TranscriptionRecovery] OpenAI recovery skipped: API key not configured.');
     }
-  } else {
-    console.warn('[TranscriptionRecovery] OpenAI recovery skipped: no captured audio asset.');
   }
 
   // Fall back to local Whisper (raw PCM only)
-  if (!audioData.capturedAudioBuffer || audioData.capturedAudioBuffer.byteLength === 0) {
-    console.warn('[TranscriptionRecovery] Whisper recovery skipped: captured audio is encoded-only.');
-    return [];
-  }
-
-  const audioSamples = new Float32Array(
-    audioData.capturedAudioBuffer.buffer,
-    audioData.capturedAudioBuffer.byteOffset,
-    audioData.capturedAudioBuffer.byteLength / 4,
-  );
-  if (audioSamples.length === 0) {
-    return [];
-  }
-
-  const audioDurationSec = audioSamples.length / 16000;
-  if (audioDurationSec > MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC) {
-    console.warn(
-      `[TranscriptionRecovery] Whisper recovery skipped for long session (${Math.round(audioDurationSec)}s).`,
+  const localModelAvailable = dependencies.isLocalModelAvailable();
+  if (hasPcmAudio && audioData.capturedAudioBuffer && localModelAvailable) {
+    const audioSamples = new Float32Array(
+      audioData.capturedAudioBuffer.buffer,
+      audioData.capturedAudioBuffer.byteOffset,
+      audioData.capturedAudioBuffer.byteLength / 4,
     );
-    return [];
+    const audioDurationSec = audioSamples.length / 16000;
+    if (audioDurationSec <= MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC) {
+      localAttempt = await dependencies.recoverWithWhisper(audioSamples, sessionStartSec, 3);
+      if (localAttempt.events.length > 0) {
+        return { events: localAttempt.events };
+      }
+    } else {
+      localAttempt = {
+        events: [],
+        outcome: 'provider-error',
+        error: `session is too long for local recovery (${Math.round(audioDurationSec)}s)`,
+      };
+    }
   }
 
-  if (!whisperService.isModelAvailable()) {
-    console.warn('[TranscriptionRecovery] Whisper recovery skipped: no local model available.');
-    return [];
+  if (localAttempt?.outcome === 'no-speech' || openAiAttempt?.outcome === 'no-speech') {
+    return {
+      events: [],
+      failure: {
+        code: 'no-speech',
+        message: 'No speech was detected in the recorded narration.',
+      },
+    };
   }
 
-  const whisperRecovered = await recoverWithWhisper(audioSamples, sessionStartSec, 3);
-  if (whisperRecovered.length > 0) {
-    return whisperRecovered;
+  if (localAttempt?.outcome === 'provider-error') {
+    return {
+      events: [],
+      failure: {
+        code: 'whisper-failed',
+        message: `Local Whisper transcription failed: ${localAttempt.error || 'local model failed'}`,
+      },
+    };
   }
 
-  console.warn('[TranscriptionRecovery] All recovery strategies exhausted without transcript output.');
-  return [];
+  if (openAiAttempt?.outcome === 'provider-error') {
+    return {
+      events: [],
+      failure: {
+        code: 'openai-failed',
+        message: `OpenAI transcription failed: ${openAiAttempt.error || 'request failed'}`,
+      },
+    };
+  }
+
+  if (!openAiApiKey && !localModelAvailable) {
+    return {
+      events: [],
+      failure: {
+        code: 'not-configured',
+        message: 'Add an OpenAI transcription key or download a local Whisper model, then record again.',
+      },
+    };
+  }
+
+  return {
+    events: [],
+    failure: {
+      code: 'whisper-failed',
+      message: hasPcmAudio
+        ? 'Local Whisper transcription could not process the recorded narration.'
+        : 'Local Whisper transcription could not use the captured audio format.',
+    },
+  };
 }

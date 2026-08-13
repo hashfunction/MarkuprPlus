@@ -16,7 +16,7 @@ import { EventEmitter } from 'events';
 // Hoisted mocks — vi.hoisted runs before vi.mock factory hoisting
 // =============================================================================
 
-const { mockAudioCapture, mockAudioEvents } = vi.hoisted(() => {
+const { mockAudioCapture, mockAudioEvents, mockRecoverTranscript } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { EventEmitter: EE } = require('events');
   const mockAudioEvents = new EE();
@@ -42,7 +42,11 @@ const { mockAudioCapture, mockAudioEvents } = vi.hoisted(() => {
     clearCapturedAudio: vi.fn(),
     exportCapturedAudio: vi.fn(() => Promise.resolve(null)),
   };
-  return { mockAudioCapture, mockAudioEvents };
+  const mockRecoverTranscript = vi.fn((): Promise<{
+    events: unknown[];
+    failure?: { code: string; message: string };
+  }> => Promise.resolve({ events: [] }));
+  return { mockAudioCapture, mockAudioEvents, mockRecoverTranscript };
 });
 
 vi.mock('../../src/main/audio/AudioCapture', () => ({
@@ -50,7 +54,7 @@ vi.mock('../../src/main/audio/AudioCapture', () => ({
 }));
 
 vi.mock('../../src/main/transcription/TranscriptionRecoveryService', () => ({
-  recoverTranscript: vi.fn(() => Promise.resolve([])),
+  recoverTranscript: mockRecoverTranscript,
   normalizeTranscriptTimestamp: vi.fn((ts) => ts),
 }));
 
@@ -223,6 +227,29 @@ describe('Recording Pipeline E2E', () => {
       expect(session!.endTime).toBeDefined();
       expect(session!.endTime!).toBeGreaterThanOrEqual(beforeStop);
       expect(session!.state).toBe('complete');
+    });
+
+    it('should retain an actionable transcription failure on the completed session', async () => {
+      mockRecoverTranscript.mockResolvedValueOnce({
+        events: [],
+        failure: {
+          code: 'not-configured',
+          message: 'Add an OpenAI transcription key or download a local Whisper model, then record again.',
+        },
+      });
+      mockAudioCapture.getCapturedAudioAsset.mockReturnValueOnce({
+        buffer: Buffer.from('encoded narration'),
+        mimeType: 'audio/webm;codecs=opus',
+        durationMs: 2_000,
+      });
+
+      await controller.start('screen:0:0');
+      const session = await controller.stop();
+
+      expect(session?.metadata.transcriptionFailure).toEqual({
+        code: 'not-configured',
+        message: 'Add an OpenAI transcription key or download a local Whisper model, then record again.',
+      });
     });
 
     it('should cancel from recording and return to idle', async () => {

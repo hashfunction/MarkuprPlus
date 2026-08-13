@@ -931,12 +931,14 @@ export class SessionController {
     }
 
     const sessionStartSec = this.session.startTime / 1000;
-    const recoveredEvents = await recoverTranscript(sessionStartSec, {
+    const recovery = await recoverTranscript(sessionStartSec, {
       capturedAudioAsset: this.audioCaptureService.getCapturedAudioAsset(),
       capturedAudioBuffer: this.audioCaptureService.getCapturedAudioBuffer(),
     });
+    const recoveredEvents = recovery.events;
 
     if (recoveredEvents.length > 0) {
+      delete this.session.metadata.transcriptionFailure;
       this.session.transcriptBuffer.push(...recoveredEvents);
       this.session.transcriptBuffer.sort((a, b) => a.timestamp - b.timestamp);
       if (this.session.transcriptBuffer.length > this.MAX_TRANSCRIPT_BUFFER_EVENTS) {
@@ -945,6 +947,8 @@ export class SessionController {
           this.session.transcriptBuffer.length - this.MAX_TRANSCRIPT_BUFFER_EVENTS,
         );
       }
+    } else if (recovery.failure) {
+      this.session.metadata.transcriptionFailure = recovery.failure;
     }
   }
 

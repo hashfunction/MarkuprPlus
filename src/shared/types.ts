@@ -876,6 +876,20 @@ export interface SessionMetadata {
   videoStartTime?: number;
   /** Best-effort cue-time metadata snapshots for marked captures */
   captureContexts?: CaptureContextSnapshot[];
+  /** Actionable reason recorded narration did not produce a transcript. */
+  transcriptionFailure?: TranscriptionFailure;
+}
+
+export type TranscriptionFailureCode =
+  | 'audio-unavailable'
+  | 'not-configured'
+  | 'openai-failed'
+  | 'whisper-failed'
+  | 'no-speech';
+
+export interface TranscriptionFailure {
+  code: TranscriptionFailureCode;
+  message: string;
 }
 
 /**
