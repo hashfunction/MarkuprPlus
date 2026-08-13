@@ -132,6 +132,25 @@ export const DEFAULT_HOTKEY_CONFIG: HotkeyConfig = {
 };
 
 /**
+ * Provider used to turn captured feedback into an enhanced report.
+ */
+export type AnalysisProvider = 'rules' | 'anthropic' | 'codex';
+
+/**
+ * Runtime availability reported by an analysis provider.
+ */
+export interface AnalysisProviderStatus {
+  id: AnalysisProvider;
+  name: string;
+  installed: boolean;
+  executablePath?: string;
+  version?: string;
+  authenticated?: boolean;
+  ready: boolean;
+  diagnostic?: string;
+}
+
+/**
  * Application settings (v2 - expanded schema)
  *
  * Note: API keys are NOT stored in settings.
@@ -171,6 +190,7 @@ export interface AppSettings {
   audioDeviceId: string | null;
 
   // Advanced
+  analysisProvider: AnalysisProvider;
   debugMode: boolean;
   keepAudioBackups: boolean;
 
@@ -236,6 +256,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   audioDeviceId: null,
 
   // Advanced
+  analysisProvider: 'anthropic',
   debugMode: false,
   keepAudioBackups: false,
 

@@ -113,6 +113,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   audioDeviceId: null,
 
   // Advanced
+  analysisProvider: 'anthropic',
   debugMode: false,
   keepAudioBackups: false,
 
@@ -149,6 +150,7 @@ const SETTINGS_SCHEMA = {
   theme: { type: 'string', enum: ['dark', 'light', 'system'] },
   accentColor: { type: 'string' },
   audioDeviceId: { type: ['string', 'null'] },
+  analysisProvider: { type: 'string', enum: ['rules', 'anthropic', 'codex'] },
   debugMode: { type: 'boolean' },
   keepAudioBackups: { type: 'boolean' },
   hasCompletedOnboarding: { type: 'boolean' },
@@ -306,6 +308,9 @@ export class SettingsManager implements ISettingsManager {
 
       case 'transcriptionService':
         return (value as unknown as string) === 'openai';
+
+      case 'analysisProvider':
+        return value === 'rules' || value === 'anthropic' || value === 'codex';
 
       case 'accentColor':
         return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value as string);
