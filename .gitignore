@@ -51,6 +51,9 @@ certificate-base64.txt
 # Claude Code ephemeral state
 .claude/runs/
 
+# Local git worktrees
+.worktrees/
+
 # Playwright MCP
 .playwright-mcp/
 
