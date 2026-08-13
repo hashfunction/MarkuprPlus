@@ -16,7 +16,7 @@ import { basename, join } from 'path';
 // NOTE: 'electron' is NOT imported at the top level. This allows WhisperService
 // to be used in non-Electron environments (e.g. the CLI). The `app` reference
 // is lazily required inside getModelsDirectory() with a try/catch fallback.
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import { readFile, unlink, chmod } from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -32,6 +32,10 @@ const execFileAsync = promisify(execFile);
 // ============================================================================
 
 type TranscriptCallback = (result: WhisperTranscriptResult) => void;
+
+export interface WhisperServiceOptions extends Partial<WhisperConfig> {
+  modelsDirectory?: string;
+}
 
 // Whisper-node module type (loaded dynamically)
 interface WhisperModule {
@@ -71,6 +75,33 @@ const MODEL_MEMORY_REQUIREMENTS_BYTES: Record<string, number> = {
   'ggml-medium.bin': 2800 * 1024 * 1024,
   'ggml-large-v3.bin': 5200 * 1024 * 1024,
 };
+const MODEL_PREFERENCE = [
+  'ggml-medium.bin',
+  'ggml-small.bin',
+  'ggml-base.bin',
+  'ggml-tiny.bin',
+  'ggml-large-v3.bin',
+] as const;
+
+function isUsableModelFile(path: string): boolean {
+  try {
+    const stats = statSync(path);
+    return stats.isFile() && stats.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveDownloadedWhisperModelPath(modelsDirectory: string): string | null {
+  for (const filename of MODEL_PREFERENCE) {
+    const candidate = join(modelsDirectory, filename);
+    if (isUsableModelFile(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
 
 // ============================================================================
 // WhisperService Class
@@ -78,6 +109,8 @@ const MODEL_MEMORY_REQUIREMENTS_BYTES: Record<string, number> = {
 
 export class WhisperService extends EventEmitter {
   private config: WhisperConfig;
+  private readonly modelsDirectory: string;
+  private autoDiscoverModelPath: boolean;
   private isInitialized: boolean = false;
   private isProcessing: boolean = false;
   private whisperModule: WhisperModule | null = null;
@@ -95,13 +128,16 @@ export class WhisperService extends EventEmitter {
   private transcriptCallbacks: TranscriptCallback[] = [];
   private errorCallbacks: ErrorCallback[] = [];
 
-  constructor(config?: Partial<WhisperConfig>) {
+  constructor(options: WhisperServiceOptions = {}) {
     super();
+    const { modelsDirectory, ...config } = options;
+    this.modelsDirectory = modelsDirectory || this.getModelsDirectory();
+    this.autoDiscoverModelPath = !config.modelPath;
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // Set default model path if not specified
-    if (!this.config.modelPath) {
-      this.config.modelPath = this.getDefaultModelPath();
+    if (this.autoDiscoverModelPath) {
+      this.refreshDiscoveredModelPath();
     }
   }
 
@@ -113,7 +149,8 @@ export class WhisperService extends EventEmitter {
    * Check if Whisper model is available
    */
   isModelAvailable(): boolean {
-    return existsSync(this.config.modelPath);
+    this.refreshDiscoveredModelPath();
+    return isUsableModelFile(this.config.modelPath);
   }
 
   /**
@@ -132,10 +169,11 @@ export class WhisperService extends EventEmitter {
   }
 
   /**
-   * Get the default model path (whisper-medium)
+   * Get the best available model path, defaulting to whisper-medium's location.
    */
   getDefaultModelPath(): string {
-    return join(this.getModelsDirectory(), 'ggml-medium.bin');
+    return resolveDownloadedWhisperModelPath(this.modelsDirectory)
+      || join(this.modelsDirectory, 'ggml-medium.bin');
   }
 
   /**
@@ -143,6 +181,7 @@ export class WhisperService extends EventEmitter {
    */
   setModelPath(modelPath: string): void {
     this.config.modelPath = modelPath;
+    this.autoDiscoverModelPath = false;
     this.isInitialized = false; // Need to reinitialize with new model
   }
 
@@ -174,6 +213,7 @@ export class WhisperService extends EventEmitter {
    * Call this once before starting transcription
    */
   async initialize(): Promise<void> {
+    this.refreshDiscoveredModelPath();
     if (this.isInitialized) {
       return;
     }
@@ -218,6 +258,14 @@ export class WhisperService extends EventEmitter {
       this.errorCallbacks.forEach((cb) => cb(initError));
       throw initError;
     }
+  }
+
+  private refreshDiscoveredModelPath(): void {
+    if (!this.autoDiscoverModelPath) {
+      return;
+    }
+
+    this.config.modelPath = this.getDefaultModelPath();
   }
 
   /**

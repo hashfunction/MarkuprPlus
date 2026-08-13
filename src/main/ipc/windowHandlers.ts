@@ -8,6 +8,7 @@
 import { ipcMain, app } from 'electron';
 import { tierManager } from '../transcription/TierManager';
 import { modelDownloadManager } from '../transcription/ModelDownloadManager';
+import { whisperService } from '../transcription/WhisperService';
 import type { WhisperModel } from '../transcription/types';
 import { POPOVER_SIZES } from '../windows';
 import {
@@ -282,6 +283,10 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       });
 
       const result = await modelDownloadManager.downloadModel(model as WhisperModel);
+
+      if (result.success) {
+        whisperService.setModelPath(result.path);
+      }
 
       return { success: result.success };
     } catch (error) {
