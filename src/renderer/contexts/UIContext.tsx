@@ -6,7 +6,9 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AppSettings, SessionState } from '../../shared/types';
+import type { AnalysisProviderStatus, AppSettings, SessionState } from '../../shared/types';
+import { DEFAULT_SETTINGS } from '../../shared/types';
+import { getAnalysisProviderViewState, type AnalysisProviderViewState } from '../components/settings/analysisProviderViewState';
 import { useRecording } from './RecordingContext';
 import { useProcessing } from './ProcessingContext';
 
@@ -32,7 +34,7 @@ export interface UIContextValue {
 
   // Settings
   settings: AppSettings | null;
-  hasRequiredByokKeys: boolean | null;
+  analysisProviderViewState: AnalysisProviderViewState;
   countdownDuration: number;
 
   // Derived state
@@ -106,62 +108,53 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Settings
   // ---------------------------------------------------------------------------
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [hasRequiredByokKeys, setHasRequiredByokKeys] = useState<boolean | null>(null);
+  const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
 
-  const refreshByokStatus = useCallback(async () => {
-    if (!window.markupr?.settings) {
-      setHasRequiredByokKeys(false);
+  const refreshAnalysisProviderStatus = useCallback(async () => {
+    if (!window.markupr?.settings || !window.markupr?.analysisProviders) {
+      setAnalysisProviderStatuses([]);
       return;
     }
     try {
-      const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
-        window.markupr.settings.hasApiKey('openai'),
-        window.markupr.settings.hasApiKey('anthropic'),
+      const [loadedSettings, statuses] = await Promise.all([
+        window.markupr.settings.getAll(),
+        window.markupr.analysisProviders.discover(false),
       ]);
-      setHasRequiredByokKeys(hasOpenAiKey && hasAnthropicKey);
+      setSettings({ ...DEFAULT_SETTINGS, ...loadedSettings });
+      setAnalysisProviderStatuses(statuses);
     } catch {
-      setHasRequiredByokKeys(false);
+      setAnalysisProviderStatuses([]);
     }
   }, []);
 
   useEffect(() => {
     if (!window.markupr?.settings) return;
-    let mounted = true;
     const loadInitialSettings = async () => {
       try {
-        const loadedSettings = await window.markupr.settings.getAll();
-        if (mounted) setSettings(loadedSettings);
+        await refreshAnalysisProviderStatus();
       } catch {
         // Settings load failure is non-fatal
-      }
-
-      if (mounted) {
-        await refreshByokStatus();
       }
     };
 
     void loadInitialSettings();
+  }, [refreshAnalysisProviderStatus]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [refreshByokStatus]);
-
-  // Re-check BYOK readiness when returning to main view from settings.
+  // Re-check provider readiness when returning to the main view from settings.
   useEffect(() => {
     if (!window.markupr?.settings || currentView !== 'main') return;
-    void refreshByokStatus();
-  }, [currentView, refreshByokStatus]);
+    void refreshAnalysisProviderStatus();
+  }, [currentView, refreshAnalysisProviderStatus]);
 
   useEffect(() => {
     const handleSettingsUpdated = () => {
-      void refreshByokStatus();
+      void refreshAnalysisProviderStatus();
     };
     window.addEventListener('markupr:settings-updated', handleSettingsUpdated);
     return () => {
       window.removeEventListener('markupr:settings-updated', handleSettingsUpdated);
     };
-  }, [refreshByokStatus]);
+  }, [refreshAnalysisProviderStatus]);
 
   // ---------------------------------------------------------------------------
   // Navigation event listeners (from main process menu/tray)
@@ -216,6 +209,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const showProcessingProgress = recording.state === 'stopping' || recording.state === 'processing';
   const isHudMode = (showRecordingStatus || showProcessingProgress) && currentView === 'main';
   const countdownDuration = settings?.defaultCountdown ?? 0;
+  const analysisProviderViewState = getAnalysisProviderViewState(
+    settings?.analysisProvider ?? DEFAULT_SETTINGS.analysisProvider,
+    analysisProviderStatuses,
+  );
 
   const primaryActionLabel = recording.state === 'recording' ? 'Stop Session' : 'Start Session';
   const primaryActionDisabled =
@@ -277,12 +274,12 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
     window.markupr?.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
-    void refreshByokStatus();
+    void refreshAnalysisProviderStatus();
     window.markupr?.whisper
       ?.hasTranscriptionCapability()
       .then(() => {})
       .catch(() => {});
-  }, [refreshByokStatus]);
+  }, [refreshAnalysisProviderStatus]);
 
   const handleOnboardingSkip = useCallback(() => {
     setShowOnboarding(false);
@@ -308,7 +305,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       showExportDialog,
       setShowExportDialog,
       settings,
-      hasRequiredByokKeys,
+      analysisProviderViewState,
       countdownDuration,
       isHudMode,
       showRecordingStatus,
@@ -329,7 +326,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       showCountdown,
       showExportDialog,
       settings,
-      hasRequiredByokKeys,
+      analysisProviderViewState,
       countdownDuration,
       isHudMode,
       showRecordingStatus,

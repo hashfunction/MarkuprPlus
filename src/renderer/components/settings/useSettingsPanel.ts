@@ -6,10 +6,11 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { AppSettings, AudioDevice, HotkeyConfig } from '../../../shared/types';
+import type { AnalysisProviderStatus, AppSettings, AudioDevice, HotkeyConfig } from '../../../shared/types';
 import { DEFAULT_SETTINGS, DEFAULT_HOTKEY_CONFIG } from '../../../shared/types';
 import type { ApiKeyState } from '../primitives';
 import type { SettingsTab } from './tabConfig';
+import { getAnalysisProviderViewState } from './analysisProviderViewState';
 
 // ============================================================================
 // Constants
@@ -57,24 +58,38 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const [hasChanges, setHasChanges] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [appVersion, setAppVersion] = useState('');
-  const [hasRequiredByokKeys, setHasRequiredByokKeys] = useState(false);
+  const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
+  const [isScanningProviders, setIsScanningProviders] = useState(false);
   const [isCompact, setIsCompact] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 760
   );
 
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const refreshRequiredByokKeys = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
+  const getApiKeyPresence = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
     try {
       const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
         window.markupr.settings.hasApiKey('openai'),
         window.markupr.settings.hasApiKey('anthropic'),
       ]);
-      setHasRequiredByokKeys(hasOpenAiKey && hasAnthropicKey);
       return { hasOpenAiKey, hasAnthropicKey };
     } catch {
-      setHasRequiredByokKeys(false);
       return { hasOpenAiKey: false, hasAnthropicKey: false };
+    }
+  }, []);
+
+  const refreshAnalysisProviders = useCallback(async (force = true): Promise<AnalysisProviderStatus[]> => {
+    setIsScanningProviders(true);
+    try {
+      const statuses = await window.markupr.analysisProviders.discover(force);
+      setAnalysisProviderStatuses(statuses);
+      return statuses;
+    } catch (error) {
+      console.error('Failed to discover analysis providers:', error);
+      setAnalysisProviderStatuses([]);
+      return [];
+    } finally {
+      setIsScanningProviders(false);
     }
   }, []);
 
@@ -88,19 +103,22 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     const loadSettings = async () => {
       try {
         const allSettings = await window.markupr.settings.getAll();
-        setSettings({ ...DEFAULT_SETTINGS, ...allSettings });
+        const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
+        setSettings(loadedSettings);
 
-        const devices = await window.markupr.audio.getDevices();
+        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }] = await Promise.all([
+          window.markupr.audio.getDevices(),
+          refreshAnalysisProviders(false),
+          getApiKeyPresence(),
+        ]);
         setAudioDevices(devices);
-
-        const { hasOpenAiKey, hasAnthropicKey } = await refreshRequiredByokKeys();
         if (hasOpenAiKey) {
           setOpenAiApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
         }
         if (hasAnthropicKey) {
           setAnthropicApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
         }
-        if (!(hasOpenAiKey && hasAnthropicKey) && initialTab === 'general') {
+        if (!getAnalysisProviderViewState(loadedSettings.analysisProvider, providerStatuses).ready && initialTab === 'general') {
           setActiveTab('advanced');
         }
 
@@ -116,7 +134,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     };
 
     loadSettings();
-  }, [isOpen, initialTab, refreshRequiredByokKeys]);
+  }, [isOpen, initialTab, getApiKeyPresence, refreshAnalysisProviders]);
 
   // ---------------------------------------------------------------------------
   // Setting change handlers
@@ -128,6 +146,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setHasChanges(true);
       try {
         await window.markupr.settings.set(key, value);
+        if (key === 'analysisProvider') {
+          window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'analysis-provider', provider: value } }));
+        }
       } catch (error) {
         console.error('Failed to save setting:', error);
       }
@@ -195,7 +216,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
           }));
           return;
         }
-        await refreshRequiredByokKeys();
         setOpenAiApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'api-key', provider: 'openai' } }));
       } else {
@@ -212,7 +232,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     } finally {
       setOpenAiApiKey((prev) => ({ ...prev, testing: false }));
     }
-  }, [openAiApiKey.value, refreshRequiredByokKeys]);
+  }, [openAiApiKey.value]);
 
   const handleAnthropicApiKeyChange = useCallback((value: string) => {
     setAnthropicApiKey((prev) => ({ ...prev, value, valid: null, error: null }));
@@ -255,7 +275,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
           }));
           return;
         }
-        await refreshRequiredByokKeys();
+        await refreshAnalysisProviders(true);
         setAnthropicApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'api-key', provider: 'anthropic' } }));
       } else {
@@ -272,7 +292,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     } finally {
       setAnthropicApiKey((prev) => ({ ...prev, testing: false }));
     }
-  }, [anthropicApiKey.value, refreshRequiredByokKeys]);
+  }, [anthropicApiKey.value, refreshAnalysisProviders]);
 
   // ---------------------------------------------------------------------------
   // Reset handlers
@@ -326,6 +346,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const resetAdvancedSection = useCallback(async () => {
     const defaults = {
+      analysisProvider: DEFAULT_SETTINGS.analysisProvider,
       debugMode: DEFAULT_SETTINGS.debugMode,
       keepAudioBackups: DEFAULT_SETTINGS.keepAudioBackups,
     };
@@ -333,6 +354,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     for (const [key, value] of Object.entries(defaults)) {
       await window.markupr.settings.set(key as keyof AppSettings, value);
     }
+    window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -345,7 +367,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSettings(DEFAULT_SETTINGS);
       setOpenAiApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnthropicApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
-      setHasRequiredByokKeys(false);
+      setAnalysisProviderStatuses([]);
       window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'reset' } }));
     } catch (error) {
       console.error('Failed to clear data:', error);
@@ -408,6 +430,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   // Return value
   // ---------------------------------------------------------------------------
 
+  const analysisProviderViewState = getAnalysisProviderViewState(settings.analysisProvider, analysisProviderStatuses);
+
   return {
     // State
     activeTab,
@@ -419,13 +443,16 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     hasChanges,
     isAnimating,
     appVersion,
-    hasRequiredByokKeys,
+    analysisProviderStatuses,
+    isScanningProviders,
+    analysisProviderViewState,
     isCompact,
     panelRef,
 
     // Setting handlers
     handleSettingChange,
     handleHotkeyChange,
+    refreshAnalysisProviders,
 
     // API key handlers
     handleOpenAiApiKeyChange,

@@ -8,7 +8,7 @@
  * 2. Microphone - Permission request with audio level preview
  * 3. Screen Recording - Permission request with system settings link
  * 4. OpenAI API Key - Input, test, success/error feedback
- * 5. Anthropic API Key - Input, test, success/error feedback
+ * 5. Optional Anthropic API Key - Input, test, success/error feedback
  * 6. Success - Confetti celebration, Start Recording button
  */
 
@@ -1421,10 +1421,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
       case 'anthropic':
         return (
           <ApiKeyStep
-            title="Anthropic API Key"
+            title="Optional Anthropic API Key"
             helpText={
               <>
-                markupR uses Anthropic to generate structured, agent-ready analysis. Create an API key at{' '}
+                Anthropic is one analysis option. You can skip this and choose your installed Codex CLI or local rules in Settings {'>'} Advanced. To use Anthropic, create an API key at{' '}
                 <a
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
@@ -1445,7 +1445,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             onNext={() => goToStep('success')}
             onSkip={() => goToStep('success')}
             onBack={() => goToStep('openai', 'right')}
-            skipLabel="Skip for now — configure Anthropic in Settings later"
+            skipLabel="Skip — choose an analysis provider later"
           />
         );
 
@@ -1473,7 +1473,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
           {currentStep === 'microphone' && 'Step 1 of 4: Microphone access'}
           {currentStep === 'screen' && 'Step 2 of 4: Screen recording'}
           {currentStep === 'openai' && 'Step 3 of 4: OpenAI API key'}
-          {currentStep === 'anthropic' && 'Step 4 of 4: Anthropic API key'}
+          {currentStep === 'anthropic' && 'Step 4 of 4: Optional Anthropic API key'}
           {currentStep === 'success' && 'Setup complete'}
         </div>
 

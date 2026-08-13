@@ -43,7 +43,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             settings={s.settings}
             openAiApiKey={s.openAiApiKey}
             anthropicApiKey={s.anthropicApiKey}
+            analysisProviderStatuses={s.analysisProviderStatuses}
+            isScanningProviders={s.isScanningProviders}
             onSettingChange={s.handleSettingChange}
+            onRefreshAnalysisProviders={s.refreshAnalysisProviders}
             onOpenAiApiKeyChange={s.handleOpenAiApiKeyChange}
             onToggleOpenAiApiKeyVisibility={s.handleToggleOpenAiApiKeyVisibility}
             onTestOpenAiApiKey={s.handleTestOpenAiApiKey}
@@ -61,6 +64,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   }, [
     s.activeTab, s.settings, s.audioDevices, s.openAiApiKey, s.anthropicApiKey,
+    s.analysisProviderStatuses, s.isScanningProviders, s.refreshAnalysisProviders,
     s.handleSettingChange, s.handleHotkeyChange,
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,
     s.handleAnthropicApiKeyChange, s.handleToggleAnthropicApiKeyVisibility, s.handleTestAnthropicApiKey,
@@ -86,14 +90,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div style={styles.header}>
           <div style={styles.headerTitleWrap}>
             <h2 style={styles.headerTitle}>Settings</h2>
-            {!s.hasRequiredByokKeys && (
+            {!s.analysisProviderViewState.ready && (
               <button
                 type="button"
                 style={styles.byokBadge}
                 onClick={() => s.setActiveTab('advanced')}
-                title="Open BYOK key setup"
+                title="Open AI provider setup"
               >
-                BYOK Setup Required
+                AI Setup Required
               </button>
             )}
           </div>

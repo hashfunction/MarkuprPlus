@@ -294,19 +294,19 @@ const App: React.FC = () => {
           )}
         </section>
 
-        {recording.state === 'idle' && ui.hasRequiredByokKeys === false && (
-          <section className="ff-shell__byok-cta">
-            <p className="ff-shell__byok-title">BYOK setup required for full reports</p>
-            <p className="ff-shell__byok-detail">
-              Add your OpenAI and Anthropic API keys in Settings {'>'} Advanced.
-            </p>
-            <button
-              type="button"
-              className="ff-shell__byok-btn"
-              onClick={() => ui.setCurrentView('settings')}
-            >
-              Open BYOK Setup
-            </button>
+        {recording.state === 'idle' && ui.settings && ui.settings.analysisProvider !== 'rules' && (
+          <section className="ff-shell__byok-cta" data-ready={ui.analysisProviderViewState.ready}>
+            <p className="ff-shell__byok-title">{ui.analysisProviderViewState.title}</p>
+            <p className="ff-shell__byok-detail">{ui.analysisProviderViewState.detail}</p>
+            {ui.analysisProviderViewState.actionLabel && (
+              <button
+                type="button"
+                className="ff-shell__byok-btn"
+                onClick={() => ui.setCurrentView('settings')}
+              >
+                {ui.analysisProviderViewState.actionLabel}
+              </button>
+            )}
           </section>
         )}
 

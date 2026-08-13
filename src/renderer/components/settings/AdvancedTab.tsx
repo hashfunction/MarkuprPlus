@@ -1,15 +1,19 @@
 import React from 'react';
-import type { AppSettings } from '../../../shared/types';
+import type { AnalysisProviderStatus, AppSettings } from '../../../shared/types';
 import { useTheme } from '../../hooks/useTheme';
 import { SettingsSection, ToggleSetting, ApiKeyInput, DangerButton } from '../primitives';
 import type { ApiKeyState } from '../primitives';
 import { styles } from './settingsStyles';
+import { AnalysisProviderSelector } from './AnalysisProviderSelector';
 
 export const AdvancedTab: React.FC<{
   settings: AppSettings;
   openAiApiKey: ApiKeyState;
   anthropicApiKey: ApiKeyState;
+  analysisProviderStatuses: AnalysisProviderStatus[];
+  isScanningProviders: boolean;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onRefreshAnalysisProviders: () => void;
   onOpenAiApiKeyChange: (value: string) => void;
   onToggleOpenAiApiKeyVisibility: () => void;
   onTestOpenAiApiKey: () => void;
@@ -24,7 +28,10 @@ export const AdvancedTab: React.FC<{
   settings,
   openAiApiKey,
   anthropicApiKey,
+  analysisProviderStatuses,
+  isScanningProviders,
   onSettingChange,
+  onRefreshAnalysisProviders,
   onOpenAiApiKeyChange,
   onToggleOpenAiApiKeyVisibility,
   onTestOpenAiApiKey,
@@ -39,6 +46,14 @@ export const AdvancedTab: React.FC<{
   const { colors } = useTheme();
   return (
   <div style={styles.tabContent}>
+    <AnalysisProviderSelector
+      provider={settings.analysisProvider}
+      statuses={analysisProviderStatuses}
+      isScanning={isScanningProviders}
+      onSelect={(provider) => onSettingChange('analysisProvider', provider)}
+      onRefresh={onRefreshAnalysisProviders}
+    />
+
     {/* Transcription workflow */}
     <SettingsSection
       title="Transcription Workflow"
@@ -52,18 +67,18 @@ export const AdvancedTab: React.FC<{
     </SettingsSection>
 
     <SettingsSection
-      title="BYOK Mode"
-      description="This open-source build uses your own keys for both transcription and AI analysis."
+      title="Credentials"
+      description="Keys are stored locally and only used for their named service."
     >
       <div style={styles.settingDescription}>
-        Set both the OpenAI key (transcription) and Anthropic key (analysis) below for full end-to-end reports.
+        OpenAI is an optional cloud transcription path. Analysis uses the provider selected above.
       </div>
     </SettingsSection>
 
     {/* OpenAI API Key (BYOK primary transcription fallback) */}
     <SettingsSection
       title="OpenAI API Key"
-      description="Required for BYOK post-session transcription"
+      description="Optional cloud transcription"
     >
       <div style={styles.serviceInfo}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -85,7 +100,7 @@ export const AdvancedTab: React.FC<{
       </div>
       <ApiKeyInput
         label="API Key"
-        description="Required for BYOK transcription"
+        description="Optional when local transcription is available"
         serviceName="OpenAI"
         apiKey={openAiApiKey}
         onApiKeyChange={onOpenAiApiKeyChange}
@@ -94,11 +109,11 @@ export const AdvancedTab: React.FC<{
       />
     </SettingsSection>
 
-    {/* Anthropic API Key (BYOK AI analysis) */}
-    <SettingsSection
-      title="Anthropic API Key"
-      description="Required for BYOK AI analysis in this version"
-    >
+    {settings.analysisProvider === 'anthropic' && (
+      <SettingsSection
+        title="Anthropic API Key"
+        description="Required only when Anthropic API is selected above"
+      >
       <div style={styles.serviceInfo}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path
@@ -115,14 +130,15 @@ export const AdvancedTab: React.FC<{
       </div>
       <ApiKeyInput
         label="API Key"
-        description="Required for BYOK AI analysis"
+        description="Used only for Anthropic analysis"
         serviceName="Anthropic"
         apiKey={anthropicApiKey}
         onApiKeyChange={onAnthropicApiKeyChange}
         onToggleVisibility={onToggleAnthropicApiKeyVisibility}
         onTest={onTestAnthropicApiKey}
       />
-    </SettingsSection>
+      </SettingsSection>
+    )}
 
     <SettingsSection title="Debug & Backup">
       <ToggleSetting
