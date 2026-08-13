@@ -38,6 +38,7 @@ import {
   type ApiKeyValidationResult,
   type ProcessingProgressPayload,
   type FocusedElementHint,
+  type AnalysisProviderStatus,
 } from '../shared/types';
 
 // =============================================================================
@@ -519,6 +520,18 @@ const markuprApi = {
      */
     import: (): Promise<AppSettings | null> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_IMPORT);
+    },
+  },
+
+  // ===========================================================================
+  // Analysis Provider API
+  // ===========================================================================
+  analysisProviders: {
+    discover: (forceRefresh = false): Promise<AnalysisProviderStatus[]> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER, forceRefresh);
+    },
+    test: (provider: 'codex'): Promise<AnalysisProviderStatus> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST, provider);
     },
   },
 

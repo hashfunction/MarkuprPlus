@@ -365,6 +365,12 @@ export const IPC_CHANNELS = {
   SETTINGS_IMPORT: 'markupr:settings:import',
 
   // ---------------------------------------------------------------------------
+  // Analysis Provider Channels (Renderer -> Main)
+  // ---------------------------------------------------------------------------
+  ANALYSIS_PROVIDERS_DISCOVER: 'markupr:analysis-providers:discover',
+  ANALYSIS_PROVIDER_TEST: 'markupr:analysis-provider:test',
+
+  // ---------------------------------------------------------------------------
   // Permissions Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
   PERMISSIONS_CHECK: 'markupr:permissions:check',

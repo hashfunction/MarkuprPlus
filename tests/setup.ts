@@ -12,6 +12,9 @@ import { vi } from 'vitest';
 // =============================================================================
 
 vi.mock('electron', () => ({
+  contextBridge: {
+    exposeInMainWorld: vi.fn(),
+  },
   app: {
     getPath: vi.fn((name: string) => {
       const paths: Record<string, string> = {

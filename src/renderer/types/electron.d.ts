@@ -30,6 +30,7 @@ import type {
   ApiKeyValidationResult,
   ProcessingProgressPayload,
   FocusedElementHint,
+  AnalysisProviderStatus,
 } from '../../shared/types';
 
 type Unsubscribe = () => void;
@@ -161,6 +162,14 @@ interface SettingsAPI {
   clearAllData: () => Promise<void>;
   export: () => Promise<void>;
   import: () => Promise<AppSettings | null>;
+}
+
+/**
+ * Installed analysis provider discovery API.
+ */
+interface AnalysisProvidersAPI {
+  discover: (forceRefresh?: boolean) => Promise<AnalysisProviderStatus[]>;
+  test: (provider: 'codex') => Promise<AnalysisProviderStatus>;
 }
 
 /**
@@ -362,6 +371,7 @@ export interface MarkuprAPI {
   transcription: TranscriptionControlAPI;
   processing: ProcessingAPI;
   settings: SettingsAPI;
+  analysisProviders: AnalysisProvidersAPI;
   hotkeys: HotkeyAPI;
   permissions: PermissionsAPI;
   output: OutputAPI;
