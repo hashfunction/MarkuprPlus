@@ -9,6 +9,10 @@ export { CodexAnalyzer, CodexCliError } from './CodexAnalyzer';
 export { CodexCliDiscovery, codexCliDiscovery } from './CodexCliDiscovery';
 export { runCliProcess } from './CliProcessRunner';
 export {
+  AnalysisProviderRegistry,
+  createAnalysisProviderRegistry,
+} from './providers/AnalysisProviderRegistry';
+export {
   ANALYSIS_JSON_SCHEMA,
   ANALYSIS_SYSTEM_PROMPT,
   buildTranscriptText,
@@ -18,6 +22,10 @@ export type { PipelineProcessOptions } from './AIPipelineManager';
 export type { CodexAnalyzerDependencies, CodexCliErrorCode } from './CodexAnalyzer';
 export type { CodexCliDiscoveryDependencies } from './CodexCliDiscovery';
 export type { CliProcessOptions, CliProcessResult } from './CliProcessRunner';
+export type {
+  AdapterAnalysisProvider,
+  AnalysisProviderAdapter,
+} from './providers/types';
 export type {
   AITier,
   AIPipelineOutput,
