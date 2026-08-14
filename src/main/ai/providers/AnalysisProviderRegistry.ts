@@ -1,6 +1,10 @@
 import type { AnalysisProvider } from '../../../shared/types';
 import type { Session } from '../../SessionController';
+import { CodexAnalyzer } from '../CodexAnalyzer';
+import { codexCliDiscovery } from '../CodexCliDiscovery';
 import type { AIAnalysisResult } from '../types';
+import { ClaudeCliAnalyzer } from './ClaudeCliAnalyzer';
+import { claudeCliDiscovery } from './ClaudeCliDiscovery';
 import type {
   AdapterAnalysisProvider,
   AnalysisProviderAdapter,
@@ -47,4 +51,25 @@ export function createAnalysisProviderRegistry(
   adapters: AnalysisProviderAdapter[],
 ): AnalysisProviderRegistry {
   return new AnalysisProviderRegistry(adapters);
+}
+
+export function createCliAnalysisProviderRegistry(): AnalysisProviderRegistry {
+  const codexAnalyzer = new CodexAnalyzer();
+  const claudeAnalyzer = new ClaudeCliAnalyzer();
+  return new AnalysisProviderRegistry([
+    {
+      id: 'codex-cli',
+      name: 'Codex CLI',
+      connection: 'cli',
+      discover: (forceRefresh) => codexCliDiscovery.discover(forceRefresh),
+      analyze: (session, modelId) => codexAnalyzer.analyze(session, modelId),
+    },
+    {
+      id: 'claude-cli',
+      name: 'Claude Code CLI',
+      connection: 'cli',
+      discover: (forceRefresh) => claudeCliDiscovery.discover(forceRefresh),
+      analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
+    },
+  ]);
 }

@@ -11,7 +11,16 @@ export { runCliProcess } from './CliProcessRunner';
 export {
   AnalysisProviderRegistry,
   createAnalysisProviderRegistry,
+  createCliAnalysisProviderRegistry,
 } from './providers/AnalysisProviderRegistry';
+export {
+  ClaudeCliAnalyzer,
+  ClaudeCliError,
+} from './providers/ClaudeCliAnalyzer';
+export {
+  ClaudeCliDiscovery,
+  claudeCliDiscovery,
+} from './providers/ClaudeCliDiscovery';
 export {
   ANALYSIS_JSON_SCHEMA,
   ANALYSIS_SYSTEM_PROMPT,

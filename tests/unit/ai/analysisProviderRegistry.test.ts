@@ -6,6 +6,7 @@ import type {
 } from '../../../src/main/ai/providers/types';
 import {
   AnalysisProviderRegistry,
+  createCliAnalysisProviderRegistry,
 } from '../../../src/main/ai/providers/AnalysisProviderRegistry';
 
 const sessionFixture = {
@@ -93,5 +94,20 @@ describe('AnalysisProviderRegistry', () => {
       adapter('ollama', 'Ollama A'),
       adapter('ollama', 'Ollama B'),
     ])).toThrow('Duplicate analysis provider: ollama');
+  });
+
+  it('assembles the two supported CLI adapters', () => {
+    const registry = createCliAnalysisProviderRegistry();
+
+    expect(registry.get('codex-cli')).toMatchObject({
+      id: 'codex-cli',
+      name: 'Codex CLI',
+      connection: 'cli',
+    });
+    expect(registry.get('claude-cli')).toMatchObject({
+      id: 'claude-cli',
+      name: 'Claude Code CLI',
+      connection: 'cli',
+    });
   });
 });

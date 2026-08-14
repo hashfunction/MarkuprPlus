@@ -134,6 +134,22 @@ describe('CodexAnalyzer', () => {
     await expect(access(temporaryDirectory)).rejects.toThrow();
   });
 
+  it('passes a selected report model to Codex', async () => {
+    let invocation: CliProcessOptions | undefined;
+    const analyzer = new CodexAnalyzer(dependencies(async (options) => {
+      invocation = options;
+      await writeFile(outputPath(options), JSON.stringify(validAnalysis));
+      return success();
+    }));
+
+    await analyzer.analyze(sessionFixture, 'gpt-5.6-terra');
+
+    const modelIndex = invocation?.args.indexOf('--model') ?? -1;
+    expect(modelIndex).toBeGreaterThan(-1);
+    expect(invocation?.args[modelIndex + 1]).toBe('gpt-5.6-terra');
+    expect(invocation?.args.at(-1)).toBe('-');
+  });
+
   it('rejects an unavailable or logged-out Codex before spawning analysis', async () => {
     const analyzer = new CodexAnalyzer(dependencies(
       async () => { throw new Error('runner must not be called'); },

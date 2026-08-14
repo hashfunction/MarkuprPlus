@@ -2,7 +2,7 @@ import { constants as fsConstants } from 'node:fs';
 import { access, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
-import type { AnalysisProviderStatus } from '../../shared/types';
+import type { AnalysisModelOption, AnalysisProviderStatus } from '../../shared/types';
 import {
   runCliProcess,
   type CliProcessOptions,
@@ -11,6 +11,35 @@ import {
 
 const PROBE_TIMEOUT_MS = 5_000;
 const PROBE_OUTPUT_BYTES = 16 * 1024;
+const MODEL_CATALOG_OUTPUT_BYTES = 2 * 1024 * 1024;
+const DEFAULT_MODEL: AnalysisModelOption = {
+  id: '',
+  name: 'Codex default',
+  source: 'default',
+};
+
+function parseModelCatalog(result: CliProcessResult): AnalysisModelOption[] {
+  if (result.exitCode !== 0 || result.timedOut || result.truncated) return [];
+  try {
+    const parsed = JSON.parse(result.stdout) as {
+      models?: Array<{ slug?: unknown; display_name?: unknown }>;
+    };
+    const seen = new Set<string>();
+    return (parsed.models ?? []).flatMap((model) => {
+      if (typeof model.slug !== 'string' || !model.slug || seen.has(model.slug)) return [];
+      seen.add(model.slug);
+      return [{
+        id: model.slug,
+        name: typeof model.display_name === 'string' && model.display_name
+          ? model.display_name
+          : model.slug,
+        source: 'discovered' as const,
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
 
 export interface CodexCliDiscoveryDependencies {
   env: NodeJS.ProcessEnv;
@@ -87,15 +116,17 @@ export class CodexCliDiscovery {
       return this.cache({
         id: 'codex-cli',
         name: 'Codex CLI',
+        connection: 'cli',
         installed: false,
         authenticated: false,
         ready: false,
         diagnostic: 'Codex CLI was not found. Install Codex, then scan again.',
+        models: [DEFAULT_MODEL],
       });
     }
 
     const environment = buildCliEnvironment(executablePath, this.dependencies.env);
-    const [versionResult, authResult] = await Promise.all([
+    const [versionResult, authResult, modelResult] = await Promise.all([
       this.dependencies.run({
         executable: executablePath,
         args: ['--version'],
@@ -110,6 +141,13 @@ export class CodexCliDiscovery {
         timeoutMs: PROBE_TIMEOUT_MS,
         maxOutputBytes: PROBE_OUTPUT_BYTES,
       }),
+      this.dependencies.run({
+        executable: executablePath,
+        args: ['debug', 'models', '--bundled'],
+        env: environment,
+        timeoutMs: PROBE_TIMEOUT_MS,
+        maxOutputBytes: MODEL_CATALOG_OUTPUT_BYTES,
+      }),
     ]);
 
     const authenticated = authResult.exitCode === 0 && !authResult.timedOut;
@@ -120,11 +158,13 @@ export class CodexCliDiscovery {
     return this.cache({
       id: 'codex-cli',
       name: 'Codex CLI',
+      connection: 'cli',
       installed: true,
       executablePath,
       ...(version ? { version } : {}),
       authenticated,
       ready: authenticated,
+      models: [DEFAULT_MODEL, ...parseModelCatalog(modelResult)],
       ...(!authenticated
         ? { diagnostic: 'Codex CLI is installed but not authenticated. Run codex login, then scan again.' }
         : {}),

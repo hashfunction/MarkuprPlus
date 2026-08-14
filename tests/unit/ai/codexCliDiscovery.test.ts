@@ -23,9 +23,18 @@ function dependencies(
     shell: '/bin/zsh',
     isExecutable: async (path) => path === '/custom/bin/codex',
     realpath: async (path) => path,
-    run: async ({ args }) => args.includes('--version')
-      ? success('codex-cli 0.147.0\n')
-      : success('Logged in using ChatGPT\n'),
+    run: async ({ args }) => {
+      if (args.includes('--version')) return success('codex-cli 0.147.0\n');
+      if (args[0] === 'debug') {
+        return success(JSON.stringify({
+          models: [
+            { slug: 'gpt-5.6-terra', display_name: 'GPT-5.6 Terra' },
+            { slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol' },
+          ],
+        }));
+      }
+      return success('Logged in using ChatGPT\n');
+    },
     ...overrides,
   };
 }
@@ -37,11 +46,17 @@ describe('CodexCliDiscovery', () => {
     await expect(discovery.discover()).resolves.toEqual({
       id: 'codex-cli',
       name: 'Codex CLI',
+      connection: 'cli',
       installed: true,
       executablePath: '/custom/bin/codex',
       version: 'codex-cli 0.147.0',
       authenticated: true,
       ready: true,
+      models: [
+        { id: '', name: 'Codex default', source: 'default' },
+        { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', source: 'discovered' },
+        { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', source: 'discovered' },
+      ],
     });
   });
 
@@ -89,10 +104,12 @@ describe('CodexCliDiscovery', () => {
     await expect(discovery.discover()).resolves.toEqual({
       id: 'codex-cli',
       name: 'Codex CLI',
+      connection: 'cli',
       installed: false,
       authenticated: false,
       ready: false,
       diagnostic: 'Codex CLI was not found. Install Codex, then scan again.',
+      models: [{ id: '', name: 'Codex default', source: 'default' }],
     });
   });
 
@@ -116,6 +133,25 @@ describe('CodexCliDiscovery', () => {
       authenticated: false,
       ready: false,
       diagnostic: 'Codex CLI is installed but not authenticated. Run codex login, then scan again.',
+    });
+  });
+
+  it('keeps Codex ready when the experimental model catalog fails', async () => {
+    const discovery = new CodexCliDiscovery(dependencies({
+      run: async ({ args }) => {
+        if (args.includes('--version')) return success('codex-cli 0.147.0\n');
+        if (args[0] === 'debug') {
+          return { ...success(''), exitCode: 2, stderr: 'unsupported command' };
+        }
+        return success('Logged in using ChatGPT\n');
+      },
+    }));
+
+    const status = await discovery.discover();
+
+    expect(status).toMatchObject({
+      ready: true,
+      models: [{ id: '', name: 'Codex default', source: 'default' }],
     });
   });
 

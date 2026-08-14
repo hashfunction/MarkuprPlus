@@ -81,7 +81,7 @@ export class CodexAnalyzer {
     };
   }
 
-  async analyze(session: Session): Promise<AIAnalysisResult> {
+  async analyze(session: Session, modelId?: string): Promise<AIAnalysisResult> {
     const status = await this.dependencies.discovery.discover();
     if (!status.ready || !status.executablePath) {
       throw new CodexCliError(
@@ -123,6 +123,9 @@ export class CodexAnalyzer {
       ];
       for (const imagePath of imagePaths) {
         args.push('--image', imagePath);
+      }
+      if (modelId?.trim()) {
+        args.push('--model', modelId.trim());
       }
       args.push('-');
 
