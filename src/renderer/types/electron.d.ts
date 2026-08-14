@@ -100,7 +100,7 @@ interface AudioAPI {
   sendAudioChunk: (data: {
     timestamp: number;
     duration: number;
-    samples?: number[];
+    samples?: number[] | Float32Array;
     encodedChunk?: Uint8Array;
     mimeType?: string;
     audioLevel?: number;

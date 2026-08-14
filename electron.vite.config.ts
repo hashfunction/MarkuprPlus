@@ -45,6 +45,9 @@ export default defineConfig({
     root: 'src/renderer',
     build: {
       outDir: 'dist/renderer',
+      // AudioWorklet modules must remain file-backed so the renderer CSP can
+      // load them without allowing data: or blob: script sources.
+      assetsInlineLimit: 0,
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/index.html')

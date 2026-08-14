@@ -6,6 +6,8 @@
  * and post-session transcription.
  */
 
+import pcmCaptureProcessorUrl from './PcmCaptureProcessor.worklet.js?url';
+
 interface CaptureConfig {
   deviceId: string | null;
   sampleRate: number;
@@ -29,7 +31,7 @@ class AudioCaptureRenderer {
   private audioContext: AudioContext | null = null;
   private analyserNode: AnalyserNode | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private pcmProcessorNode: ScriptProcessorNode | null = null;
+  private pcmProcessorNode: AudioWorkletNode | null = null;
   private silentGainNode: GainNode | null = null;
   private analyserData: Float32Array | null = null;
   private levelMonitorFrame: number | null = null;
@@ -255,7 +257,7 @@ class AudioCaptureRenderer {
     });
   }
 
-  private sendPcmChunkToMain(samples: Float32Array, sampleRate: number): void {
+  private sendPcmChunkToMain(samples: Float32Array, timestamp: number): void {
     if (!this.capturing || samples.length === 0) {
       return;
     }
@@ -267,10 +269,35 @@ class AudioCaptureRenderer {
     }
 
     api.audio.sendAudioChunk({
-      samples: Array.from(samples),
-      timestamp: performance.now(),
-      duration: (samples.length / sampleRate) * 1000,
+      samples,
+      timestamp,
+      duration: (samples.length / this.config.sampleRate) * 1000,
     });
+  }
+
+  private resamplePcmChunk(samples: Float32Array, sourceSampleRate: number): Float32Array {
+    const targetSampleRate = this.config.sampleRate;
+    if (sourceSampleRate === targetSampleRate) {
+      return samples.slice();
+    }
+
+    const outputLength = Math.max(
+      1,
+      Math.floor((samples.length * targetSampleRate) / sourceSampleRate)
+    );
+    const output = new Float32Array(outputLength);
+    const sourceStep = sourceSampleRate / targetSampleRate;
+
+    for (let index = 0; index < outputLength; index += 1) {
+      const sourceIndex = index * sourceStep;
+      const lowerIndex = Math.floor(sourceIndex);
+      const upperIndex = Math.min(lowerIndex + 1, samples.length - 1);
+      const fraction = sourceIndex - lowerIndex;
+      output[index] =
+        samples[lowerIndex] * (1 - fraction) + samples[upperIndex] * fraction;
+    }
+
+    return output;
   }
 
   private async startLevelMonitor(): Promise<void> {
@@ -287,7 +314,7 @@ class AudioCaptureRenderer {
 
     await this.stopLevelMonitor();
 
-    const context = new AudioContextCtor({ sampleRate: this.config.sampleRate });
+    const context = new AudioContextCtor();
     if (context.state === 'suspended') {
       await context.resume().catch(() => {
         // Best effort.
@@ -297,34 +324,54 @@ class AudioCaptureRenderer {
     const source = context.createMediaStreamSource(this.mediaStream);
     const analyser = context.createAnalyser();
     const chunkSamples = Math.max(
-      256,
-      Math.ceil((context.sampleRate * this.config.chunkDurationMs) / 1000)
+      128,
+      Math.round((context.sampleRate * this.config.chunkDurationMs) / 1000)
     );
-    const processorBufferSize = 2 ** Math.ceil(Math.log2(chunkSamples));
-    const pcmProcessor = context.createScriptProcessor(processorBufferSize, 1, 1);
-    const silentGain = context.createGain();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.15;
-    silentGain.gain.value = 0;
-
-    pcmProcessor.onaudioprocess = (event) => {
-      const samples = event.inputBuffer.getChannelData(0);
-      this.sendPcmChunkToMain(samples, context.sampleRate);
-    };
 
     source.connect(analyser);
-    source.connect(pcmProcessor);
-    pcmProcessor.connect(silentGain);
-    silentGain.connect(context.destination);
 
     this.audioContext = context;
     this.sourceNode = source;
     this.analyserNode = analyser;
-    this.pcmProcessorNode = pcmProcessor;
-    this.silentGainNode = silentGain;
     this.analyserData = new Float32Array(analyser.fftSize);
     this.latestRms = 0;
     this.latestLevel = 0;
+
+    try {
+      await context.audioWorklet.addModule(pcmCaptureProcessorUrl);
+      const pcmProcessor = new AudioWorkletNode(context, 'markupr-pcm-capture', {
+        processorOptions: { chunkSamples },
+      });
+      const silentGain = context.createGain();
+      silentGain.gain.value = 0;
+
+      pcmProcessor.port.onmessage = (event: MessageEvent) => {
+        const data = event.data as {
+          samples?: Float32Array;
+          sampleRate?: number;
+          timestamp?: number;
+        };
+        if (!(data.samples instanceof Float32Array) || !Number.isFinite(data.sampleRate)) {
+          return;
+        }
+
+        const resampled = this.resamplePcmChunk(data.samples, Number(data.sampleRate));
+        const timestamp = Number.isFinite(data.timestamp)
+          ? Number(data.timestamp)
+          : performance.now();
+        this.sendPcmChunkToMain(resampled, timestamp);
+      };
+
+      source.connect(pcmProcessor);
+      pcmProcessor.connect(silentGain);
+      silentGain.connect(context.destination);
+      this.pcmProcessorNode = pcmProcessor;
+      this.silentGainNode = silentGain;
+    } catch (error) {
+      console.warn('[AudioCaptureRenderer] PCM capture worklet unavailable:', error);
+    }
 
     const tick = () => {
       if (!this.analyserNode || !this.analyserData) {
@@ -381,7 +428,7 @@ class AudioCaptureRenderer {
     }
 
     if (this.pcmProcessorNode) {
-      this.pcmProcessorNode.onaudioprocess = null;
+      this.pcmProcessorNode.port.onmessage = null;
       try {
         this.pcmProcessorNode.disconnect();
       } catch {

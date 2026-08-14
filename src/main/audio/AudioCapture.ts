@@ -613,7 +613,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   private handleAudioChunk(
     _event: Electron.IpcMainEvent,
     data: {
-      samples?: number[];
+      samples?: number[] | Float32Array | ArrayBuffer;
       encodedChunk?: Buffer | Uint8Array | ArrayBuffer;
       mimeType?: string;
       audioLevel?: number;
@@ -628,9 +628,9 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
       return;
     }
 
-    if (Array.isArray(data.samples) && data.samples.length > 0) {
-      const float32 = new Float32Array(data.samples);
-      const buffer = Buffer.from(float32.buffer);
+    const float32 = this.toFloat32Samples(data.samples);
+    if (float32 && float32.length > 0) {
+      const buffer = Buffer.from(float32.buffer, float32.byteOffset, float32.byteLength);
 
       // Calculate RMS for VAD and level visualization
       const rms = this.calculateRMS(float32);
@@ -1018,6 +1018,24 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
     }
     if (ArrayBuffer.isView(chunk)) {
       return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    }
+    return null;
+  }
+
+  private toFloat32Samples(
+    samples: number[] | Float32Array | ArrayBuffer | undefined
+  ): Float32Array | null {
+    if (!samples) {
+      return null;
+    }
+    if (Array.isArray(samples)) {
+      return samples.length > 0 ? new Float32Array(samples) : null;
+    }
+    if (samples instanceof Float32Array) {
+      return samples.length > 0 ? samples : null;
+    }
+    if (samples instanceof ArrayBuffer && samples.byteLength % Float32Array.BYTES_PER_ELEMENT === 0) {
+      return samples.byteLength > 0 ? new Float32Array(samples) : null;
     }
     return null;
   }
