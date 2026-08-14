@@ -1,9 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Session } from '../../../src/main/SessionController';
 import type { ISettingsManager } from '../../../src/main/settings/SettingsManager';
-import type { AnalysisProvider, AppSettings } from '../../../src/shared/types';
+import type {
+  AnalysisModelSelections,
+  AnalysisProvider,
+  AppSettings,
+} from '../../../src/shared/types';
 import type { AIAnalysisResult } from '../../../src/main/ai/types';
-import { processSession, type PipelineDependencies } from '../../../src/main/ai/AIPipelineManager';
+import {
+  processSession,
+  type PipelineDependencies,
+} from '../../../src/main/ai/AIPipelineManager';
+import { AnalysisProviderRegistry } from '../../../src/main/ai/providers/AnalysisProviderRegistry';
+import type { AnalysisProviderAdapter } from '../../../src/main/ai/providers/types';
 
 const sessionFixture: Session = {
   id: 'pipeline-session',
@@ -41,113 +50,179 @@ function analysis(summary: string): AIAnalysisResult {
   };
 }
 
-function settings(provider: AnalysisProvider, anthropicKey: string | null = null): ISettingsManager {
+function settings(
+  provider: AnalysisProvider,
+  models: AnalysisModelSelections = {},
+): ISettingsManager {
   return {
-    get: ((key: keyof AppSettings) => key === 'analysisProvider' ? provider : undefined) as ISettingsManager['get'],
+    get: ((key: keyof AppSettings) => {
+      if (key === 'analysisProvider') return provider;
+      if (key === 'analysisModelsByProvider') return models;
+      return undefined;
+    }) as ISettingsManager['get'],
     set: () => undefined,
-    getAll: () => ({ analysisProvider: provider } as AppSettings),
+    getAll: () => ({
+      analysisProvider: provider,
+      analysisModelsByProvider: models,
+    } as AppSettings),
     reset: () => undefined,
-    getApiKey: async (service: string) => service === 'anthropic' ? anthropicKey : null,
+    getApiKey: async () => null,
     setApiKey: async () => undefined,
     deleteApiKey: async () => undefined,
-    hasApiKey: async (service: string) => service === 'anthropic' && Boolean(anthropicKey),
+    hasApiKey: async () => false,
     onChange: () => () => undefined,
     migrate: () => undefined,
     registerIpcHandlers: () => undefined,
   };
 }
 
-function dependencies(overrides: Partial<PipelineDependencies>): PipelineDependencies {
+function adapter(
+  id: AnalysisProviderAdapter['id'],
+  name: string,
+  connection: AnalysisProviderAdapter['connection'],
+  analyze: AnalysisProviderAdapter['analyze'],
+): AnalysisProviderAdapter & { analyze: ReturnType<typeof vi.fn> } {
   return {
-    createCodexAnalyzer: () => ({
-      analyze: async () => { throw new Error('Codex adapter must not be selected'); },
+    id,
+    name,
+    connection,
+    discover: async () => ({
+      id,
+      name,
+      connection,
+      installed: true,
+      authenticated: true,
+      ready: true,
     }),
-    createClaudeAnalyzer: () => ({
-      analyze: async () => { throw new Error('Anthropic adapter must not be selected'); },
-    }),
-    ...overrides,
+    analyze: vi.fn(analyze),
+  };
+}
+
+function dependencies(adapters: AnalysisProviderAdapter[]): PipelineDependencies {
+  return {
+    createProviderRegistry: () => new AnalysisProviderRegistry(adapters),
   };
 }
 
 describe('AIPipelineManager provider routing', () => {
-  it('uses Codex output and attribution when Codex is selected', async () => {
+  it.each([
+    ['codex-cli', 'Codex CLI', 'cli', 'gpt-5.6-terra'],
+    ['claude-cli', 'Claude Code CLI', 'cli', 'sonnet'],
+    ['ollama', 'Ollama', 'local', 'qwen2.5:7b'],
+    ['lmstudio', 'LM Studio', 'local', 'qwen2.5-7b-instruct'],
+  ] as const)(
+    'uses only %s with its selected report model',
+    async (provider, label, connection, model) => {
+      const selected = adapter(
+        provider,
+        label,
+        connection,
+        async () => analysis(`${label} found one usability issue.`),
+      );
+      const unrelated = adapter(
+        provider === 'codex-cli' ? 'claude-cli' : 'codex-cli',
+        'Unrelated provider',
+        'cli',
+        async () => { throw new Error('must not run'); },
+      );
+
+      const result = await processSession(sessionFixture, {
+        settingsManager: settings(provider, { [provider]: model }),
+        dependencies: dependencies([selected, unrelated]),
+      });
+
+      expect(selected.analyze).toHaveBeenCalledWith(sessionFixture, model);
+      expect(unrelated.analyze).not.toHaveBeenCalled();
+      expect(result.document.content).toContain(`${label} found one usability issue.`);
+      expect(result.document.content).toContain(`${label} (${model})`);
+      expect(result.pipelineOutput).toMatchObject({
+        aiEnhanced: true,
+        provider,
+        requestedProvider: provider,
+        requestedModel: model,
+        actualProvider: provider,
+        actualModel: model,
+        connection,
+        providerLabel: label,
+      });
+    },
+  );
+
+  it('uses the Anthropic API adapter only when selected', async () => {
+    const anthropic = adapter(
+      'anthropic-api',
+      'Anthropic API',
+      'cloud',
+      async () => analysis('Anthropic found one issue.'),
+    );
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('codex-cli', 'unused-anthropic-key'),
-      dependencies: dependencies({
-        createCodexAnalyzer: () => ({ analyze: async () => analysis('Codex found one usability issue.') }),
+      settingsManager: settings('anthropic-api', {
+        'anthropic-api': 'claude-sonnet-custom',
       }),
+      dependencies: dependencies([anthropic]),
     });
 
-    expect(result.document.content).toContain('Codex found one usability issue.');
-    expect(result.document.content).toContain('AI-analyzed by Codex CLI');
+    expect(anthropic.analyze).toHaveBeenCalledWith(sessionFixture, 'claude-sonnet-custom');
     expect(result.pipelineOutput).toMatchObject({
-      aiEnhanced: true,
-      tier: 'byok',
-      provider: 'codex-cli',
-      providerLabel: 'Codex CLI',
+      requestedProvider: 'anthropic-api',
+      actualProvider: 'anthropic-api',
+      connection: 'cloud',
     });
   });
 
-  it('uses Anthropic only when Anthropic is selected and has a key', async () => {
+  it('returns local rules without constructing a provider registry', async () => {
+    const createProviderRegistry = vi.fn(() => new AnalysisProviderRegistry([]));
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('anthropic-api', 'anthropic-key'),
-      dependencies: dependencies({
-        createClaudeAnalyzer: (apiKey) => {
-          if (apiKey !== 'anthropic-key') throw new Error('Wrong Anthropic key');
-          return { analyze: async () => analysis('Anthropic found one usability issue.') };
-        },
-      }),
+      settingsManager: settings('rules'),
+      dependencies: { createProviderRegistry },
     });
 
-    expect(result.document.content).toContain('Anthropic found one usability issue.');
-    expect(result.document.content).toContain('AI-analyzed by Claude');
-    expect(result.pipelineOutput.provider).toBe('anthropic-api');
-  });
-
-  it('returns local rules without constructing an external analyzer', async () => {
-    const result = await processSession(sessionFixture, {
-      settingsManager: settings('rules', 'unused-anthropic-key'),
-      dependencies: dependencies({}),
-    });
-
+    expect(createProviderRegistry).not.toHaveBeenCalled();
     expect(result.pipelineOutput).toMatchObject({
       aiEnhanced: false,
       tier: 'free',
       provider: 'rules',
+      requestedProvider: 'rules',
+      requestedModel: null,
+      actualProvider: 'rules',
+      actualModel: null,
+      connection: 'local',
     });
     expect(result.pipelineOutput.fallbackReason).toBeUndefined();
   });
 
-  it('falls back to local rules after Codex failure without invoking Anthropic', async () => {
+  it('falls back visibly to Local Rules without invoking another AI provider', async () => {
+    const ollama = adapter(
+      'ollama',
+      'Ollama',
+      'local',
+      async () => { throw new Error('Ollama unavailable\n> injected\u0000'); },
+    );
+    const codex = adapter(
+      'codex-cli',
+      'Codex CLI',
+      'cli',
+      async () => analysis('must not run'),
+    );
+
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('codex-cli', 'must-not-be-used'),
-      dependencies: dependencies({
-        createCodexAnalyzer: () => ({
-          analyze: async () => { throw new Error('Codex CLI is logged out'); },
-        }),
-      }),
+      settingsManager: settings('ollama', { ollama: 'qwen2.5:7b' }),
+      dependencies: dependencies([ollama, codex]),
     });
 
+    expect(codex.analyze).not.toHaveBeenCalled();
     expect(result.pipelineOutput).toMatchObject({
       aiEnhanced: false,
-      tier: 'byok',
-      provider: 'codex-cli',
-      fallbackReason: 'Codex CLI is logged out',
+      provider: 'ollama',
+      requestedProvider: 'ollama',
+      requestedModel: 'qwen2.5:7b',
+      actualProvider: 'rules',
+      actualModel: null,
+      connection: 'local',
+      fallbackReason: 'Ollama unavailable > injected',
     });
-    expect(result.document.content).not.toContain('Anthropic found');
-  });
-
-  it('falls back to local rules when Anthropic is selected without a key', async () => {
-    const result = await processSession(sessionFixture, {
-      settingsManager: settings('anthropic-api'),
-      dependencies: dependencies({}),
-    });
-
-    expect(result.pipelineOutput).toMatchObject({
-      aiEnhanced: false,
-      tier: 'byok',
-      provider: 'anthropic-api',
-      fallbackReason: 'Anthropic API key is not configured',
-    });
+    expect(result.document.content).toContain('AI analysis unavailable; Local Rules used');
+    expect(result.document.content).toContain('Ollama unavailable &gt; injected');
+    expect(result.document.content).not.toContain('\u0000');
   });
 });

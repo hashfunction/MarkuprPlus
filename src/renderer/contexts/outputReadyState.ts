@@ -15,6 +15,14 @@ export function getOutputReadyStatus(payload: OutputReadyPayload): OutputReadySt
     };
   }
 
+  const analysisError = payload.analysisError?.trim();
+  if (analysisError) {
+    return {
+      state: 'error',
+      errorMessage: analysisError,
+    };
+  }
+
   return {
     state: 'complete',
     errorMessage: null,

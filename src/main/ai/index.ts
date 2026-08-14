@@ -12,8 +12,13 @@ export {
   AnalysisProviderRegistry,
   createAnalysisProviderRegistry,
   createCliAnalysisProviderRegistry,
+  createDefaultAnalysisProviderRegistry,
   createLocalAnalysisProviderRegistry,
 } from './providers/AnalysisProviderRegistry';
+export {
+  AnthropicApiProvider,
+  AnthropicApiProviderError,
+} from './providers/AnthropicApiProvider';
 export {
   ClaudeCliAnalyzer,
   ClaudeCliError,

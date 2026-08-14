@@ -9,7 +9,12 @@
 import * as fs from 'fs/promises';
 import { join, basename } from 'path';
 import type { TranscriptSegment, KeyMoment } from '../pipeline';
-import type { CaptureContextSnapshot, TranscriptionFailure } from '../../shared/types';
+import type {
+  AnalysisConnection,
+  AnalysisProvider,
+  CaptureContextSnapshot,
+  TranscriptionFailure,
+} from '../../shared/types';
 
 // =============================================================================
 // Text Normalization Helpers
@@ -342,6 +347,11 @@ export async function writeProcessingTrace(
     extractedFrames: number;
     aiTier: 'free' | 'byok' | 'premium';
     aiEnhanced: boolean;
+    requestedProvider: AnalysisProvider;
+    requestedModel: string | null;
+    actualProvider: AnalysisProvider;
+    actualModel: string | null;
+    connection: AnalysisConnection;
     aiFallbackReason?: string;
     transcriptionFailure?: TranscriptionFailure;
     completedAt: string;

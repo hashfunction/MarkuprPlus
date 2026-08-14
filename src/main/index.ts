@@ -51,6 +51,7 @@ import {
   type SessionPayload,
   type TrayState,
   type CaptureContextSnapshot,
+  type AnalysisConnection,
   type AnalysisProvider,
 } from '../shared/types';
 import { hotkeyManager, type HotkeyAction } from './HotkeyManager';
@@ -1132,6 +1133,11 @@ async function stopSession(): Promise<{
     const aiStartedAt = Date.now();
     let aiTier: 'free' | 'byok' | 'premium' = 'free';
     let aiProvider: AnalysisProvider = 'rules';
+    let requestedProvider: AnalysisProvider = 'rules';
+    let requestedModel: string | null = null;
+    let actualProvider: AnalysisProvider = 'rules';
+    let actualModel: string | null = null;
+    let analysisConnection: AnalysisConnection = 'local';
     let aiEnhanced = false;
     let aiFallbackReason: string | undefined;
     const { document } = settingsManager
@@ -1144,6 +1150,11 @@ async function stopSession(): Promise<{
         }).then((result) => {
           aiTier = result.pipelineOutput.tier;
           aiProvider = result.pipelineOutput.provider;
+          requestedProvider = result.pipelineOutput.requestedProvider;
+          requestedModel = result.pipelineOutput.requestedModel;
+          actualProvider = result.pipelineOutput.actualProvider;
+          actualModel = result.pipelineOutput.actualModel;
+          analysisConnection = result.pipelineOutput.connection;
           aiEnhanced = result.pipelineOutput.aiEnhanced;
           aiFallbackReason = result.pipelineOutput.fallbackReason;
           return result;
@@ -1356,6 +1367,11 @@ async function stopSession(): Promise<{
       extractedFrames: postProcessResult?.extractedFrames.length ?? 0,
       aiTier,
       aiEnhanced,
+      requestedProvider,
+      requestedModel,
+      actualProvider,
+      actualModel,
+      connection: analysisConnection,
       aiFallbackReason,
       transcriptionFailure,
       completedAt: new Date().toISOString(),
@@ -1382,6 +1398,9 @@ async function stopSession(): Promise<{
       audioPath: audioArtifact?.path,
       audioDurationMs: audioArtifact?.durationMs,
       transcriptionError: transcriptionFailure?.message,
+      analysisError: aiFallbackReason
+        ? `${aiFallbackReason} Local Rules report saved.`
+        : undefined,
       videoStartTime: recordingArtifact?.startTime,
       reviewSession,
     });
@@ -1391,6 +1410,11 @@ async function stopSession(): Promise<{
       showErrorNotification(
         'Transcription Failed',
         `${transcriptionFailure.message} Your recording and audio were saved.`,
+      );
+    } else if (aiFallbackReason) {
+      showErrorNotification(
+        'Report Provider Unavailable',
+        `${aiFallbackReason} A Local Rules report was saved.`,
       );
     } else {
       showSuccessNotification(

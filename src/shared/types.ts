@@ -732,6 +732,8 @@ export interface OutputReadyPayload {
   audioDurationMs?: number;
   /** Actionable error when saved narration could not be transcribed. */
   transcriptionError?: string;
+  /** Actionable error when the selected report provider fell back to Local Rules. */
+  analysisError?: string;
   /** Epoch ms when video recording started, for computing video offsets from transcript timestamps */
   videoStartTime?: number;
   /** The full review session for SessionReview component */

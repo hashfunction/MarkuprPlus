@@ -285,7 +285,7 @@ export class StructuredMarkdownBuilder {
 
   private buildFooter(options: MarkdownBuildOptions): string {
     const model = options.modelId
-      ? ` with ${options.modelId}`
+      ? ` with ${options.providerLabel ?? 'AI'} (${options.modelId})`
       : options.providerLabel
         ? ` with ${options.providerLabel}`
         : ' with AI analysis';

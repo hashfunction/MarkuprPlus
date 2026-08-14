@@ -1,24 +1,22 @@
-/**
- * Safety-first orchestration for rule-based, Anthropic, and installed-CLI analysis.
- */
+/** Safety-first orchestration for selectable report-analysis providers. */
 
 import type { Session } from '../SessionController';
 import type { MarkdownDocument } from '../output/FileManager';
 import type { ISettingsManager } from '../settings/SettingsManager';
-import type { AnalysisProvider } from '../../shared/types';
+import type {
+  AnalysisConnection,
+  AnalysisProvider,
+} from '../../shared/types';
 import { generateDocumentForFileManager } from '../output/sessionAdapter';
-import { ClaudeAnalyzer } from './ClaudeAnalyzer';
-import { CodexAnalyzer } from './CodexAnalyzer';
+import {
+  AnalysisProviderRegistry,
+  createDefaultAnalysisProviderRegistry,
+} from './providers/AnalysisProviderRegistry';
 import { structuredMarkdownBuilder } from './StructuredMarkdownBuilder';
-import type { AIAnalysisResult, AIPipelineOutput } from './types';
-
-interface AnalysisEngine {
-  analyze(session: Session): Promise<AIAnalysisResult | null>;
-}
+import type { AIPipelineOutput } from './types';
 
 export interface PipelineDependencies {
-  createCodexAnalyzer(): AnalysisEngine;
-  createClaudeAnalyzer(apiKey: string): AnalysisEngine;
+  createProviderRegistry(settingsManager: ISettingsManager): AnalysisProviderRegistry;
 }
 
 export interface PipelineProcessOptions {
@@ -31,8 +29,7 @@ export interface PipelineProcessOptions {
 }
 
 const DEFAULT_DEPENDENCIES: PipelineDependencies = {
-  createCodexAnalyzer: () => new CodexAnalyzer(),
-  createClaudeAnalyzer: (apiKey) => new ClaudeAnalyzer(apiKey),
+  createProviderRegistry: createDefaultAnalysisProviderRegistry,
 };
 
 function generateFreeTierDocument(
@@ -43,39 +40,87 @@ function generateFreeTierDocument(
   return generateDocumentForFileManager(session, { projectName, screenshotDir });
 }
 
-function providerDetails(provider: Exclude<AnalysisProvider, 'rules'>): {
-  label: string;
-  modelId?: string;
-} {
-  return provider === 'codex-cli'
-    ? { label: 'Codex CLI' }
-    : { label: 'Claude', modelId: 'claude-sonnet-4-5-20250929' };
+function sanitizeFailureReason(error: unknown): string {
+  const raw = error instanceof Error ? error.message : 'Unknown analysis error';
+  const sanitized = raw
+    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (sanitized || 'Unknown analysis error').slice(0, 500);
 }
 
-function fallbackOutput(
+function escapeMarkdownHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function addFallbackWarning(document: MarkdownDocument, reason: string): MarkdownDocument {
+  const warning = [
+    '> **AI analysis unavailable; Local Rules used.**',
+    `> ${escapeMarkdownHtml(reason)}`,
+    '',
+  ].join('\n');
+  const newline = document.content.indexOf('\n');
+  const content = newline >= 0
+    ? `${document.content.slice(0, newline + 1)}\n${warning}${document.content.slice(newline + 1)}`
+    : `${document.content}\n\n${warning}`;
+  return { ...document, content };
+}
+
+function localRulesOutput(
   document: MarkdownDocument,
-  provider: AnalysisProvider,
   startedAt: number,
-  reason?: string,
 ): { document: MarkdownDocument; pipelineOutput: AIPipelineOutput } {
-  const details = provider === 'rules' ? undefined : providerDetails(provider);
   return {
     document,
     pipelineOutput: {
       markdown: document.content,
       aiEnhanced: false,
       processingTimeMs: Date.now() - startedAt,
-      tier: provider === 'rules' ? 'free' : 'byok',
-      provider,
-      ...(details ? { providerLabel: details.label } : {}),
-      ...(reason ? { fallbackReason: reason } : {}),
+      tier: 'free',
+      provider: 'rules',
+      requestedProvider: 'rules',
+      requestedModel: null,
+      actualProvider: 'rules',
+      actualModel: null,
+      connection: 'local',
+      providerLabel: 'Local Rules',
     },
   };
 }
 
-/**
- * Generate the rule-based report first, then enhance it with exactly the selected provider.
- */
+function fallbackOutput(
+  document: MarkdownDocument,
+  provider: Exclude<AnalysisProvider, 'rules'>,
+  modelId: string | null,
+  connection: AnalysisConnection,
+  providerLabel: string,
+  startedAt: number,
+  reason: string,
+): { document: MarkdownDocument; pipelineOutput: AIPipelineOutput } {
+  const warnedDocument = addFallbackWarning(document, reason);
+  return {
+    document: warnedDocument,
+    pipelineOutput: {
+      markdown: warnedDocument.content,
+      aiEnhanced: false,
+      processingTimeMs: Date.now() - startedAt,
+      tier: 'byok',
+      provider,
+      requestedProvider: provider,
+      requestedModel: modelId,
+      actualProvider: 'rules',
+      actualModel: null,
+      connection,
+      providerLabel,
+      fallbackReason: reason,
+    },
+  };
+}
+
+/** Generate Local Rules first, then invoke exactly the selected report provider. */
 export async function processSession(
   session: Session,
   options: PipelineProcessOptions,
@@ -83,45 +128,31 @@ export async function processSession(
   const startedAt = Date.now();
   const projectName = options.projectName || session.metadata?.sourceName || 'Feedback Session';
   const screenshotDir = options.screenshotDir || './screenshots';
-  const dependencies = { ...DEFAULT_DEPENDENCIES, ...options.dependencies };
-  const configuredProvider = options.settingsManager.get('analysisProvider');
-  const provider: AnalysisProvider = configuredProvider || 'anthropic-api';
+  const provider = options.settingsManager.get('analysisProvider') || 'anthropic-api';
 
   console.log('[AIPipelineManager] Generating rule-based output as safety net...');
   const freeDocument = generateFreeTierDocument(session, projectName, screenshotDir);
 
   if (provider === 'rules') {
-    console.log('[AIPipelineManager] Local rules selected; skipping external AI analysis.');
-    return fallbackOutput(freeDocument, 'rules', startedAt);
+    console.log('[AIPipelineManager] Local Rules selected; skipping external AI analysis.');
+    return localRulesOutput(freeDocument, startedAt);
   }
 
-  const details = providerDetails(provider);
+  const models = options.settingsManager.get('analysisModelsByProvider') || {};
+  const modelId = models[provider]?.trim() || null;
+  const dependencies = { ...DEFAULT_DEPENDENCIES, ...options.dependencies };
+  const adapter = dependencies.createProviderRegistry(options.settingsManager).get(provider);
+
   try {
-    let analyzer: AnalysisEngine;
-    if (provider === 'codex-cli') {
-      analyzer = dependencies.createCodexAnalyzer();
-    } else {
-      const apiKey = await options.settingsManager.getApiKey('anthropic');
-      if (!apiKey) {
-        return fallbackOutput(
-          freeDocument,
-          'anthropic-api',
-          startedAt,
-          'Anthropic API key is not configured',
-        );
-      }
-      analyzer = dependencies.createClaudeAnalyzer(apiKey);
+    const status = await adapter.discover(false);
+    if (!status.ready) {
+      throw new Error(status.diagnostic || `${adapter.name} is not ready.`);
     }
 
-    console.log(`[AIPipelineManager] Running ${details.label} analysis...`);
-    const analysis = await analyzer.analyze(session);
+    console.log(`[AIPipelineManager] Running ${adapter.name} analysis...`);
+    const analysis = await adapter.analyze(session, modelId || undefined);
     if (!analysis) {
-      return fallbackOutput(
-        freeDocument,
-        provider,
-        startedAt,
-        `${details.label} analysis returned no result`,
-      );
+      throw new Error(`${adapter.name} analysis returned no result`);
     }
 
     const markdown = structuredMarkdownBuilder.buildDocument(session, analysis, {
@@ -129,8 +160,8 @@ export async function processSession(
       screenshotDir,
       hasRecording: options.hasRecording,
       recordingFilename: options.recordingFilename,
-      providerLabel: details.label,
-      modelId: details.modelId,
+      providerLabel: adapter.name,
+      modelId: modelId || undefined,
     });
     const document: MarkdownDocument = {
       content: markdown,
@@ -141,10 +172,6 @@ export async function processSession(
       },
     };
 
-    console.log(
-      `[AIPipelineManager] ${details.label} analysis complete: ${analysis.items.length} items ` +
-      `(${Date.now() - startedAt}ms)`,
-    );
     return {
       document,
       pipelineOutput: {
@@ -154,15 +181,28 @@ export async function processSession(
         processingTimeMs: Date.now() - startedAt,
         tier: 'byok',
         provider,
-        providerLabel: details.label,
+        requestedProvider: provider,
+        requestedModel: modelId,
+        actualProvider: provider,
+        actualModel: modelId,
+        connection: adapter.connection,
+        providerLabel: adapter.name,
       },
     };
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown analysis error';
+    const reason = sanitizeFailureReason(error);
     console.error(
-      `[AIPipelineManager] ${details.label} analysis failed after ${Date.now() - startedAt}ms; ` +
+      `[AIPipelineManager] ${adapter.name} analysis failed after ${Date.now() - startedAt}ms; ` +
       'using the rule-based report.',
     );
-    return fallbackOutput(freeDocument, provider, startedAt, reason);
+    return fallbackOutput(
+      freeDocument,
+      provider,
+      modelId,
+      adapter.connection,
+      adapter.name,
+      startedAt,
+      reason,
+    );
   }
 }

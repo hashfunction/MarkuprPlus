@@ -67,6 +67,27 @@ describe('transcription failure output', () => {
     });
   });
 
+  it('keeps saved output paths while surfacing a report-provider fallback', () => {
+    expect(getOutputReadyStatus({
+      ...outputPayload,
+      analysisError: 'Ollama was unavailable; Local Rules report saved.',
+    })).toEqual({
+      state: 'error',
+      errorMessage: 'Ollama was unavailable; Local Rules report saved.',
+    });
+  });
+
+  it('gives transcription errors precedence when both stages fail', () => {
+    expect(getOutputReadyStatus({
+      ...outputPayload,
+      transcriptionError: 'Narration could not be transcribed.',
+      analysisError: 'Ollama was unavailable.',
+    })).toEqual({
+      state: 'error',
+      errorMessage: 'Narration could not be transcribed.',
+    });
+  });
+
   it('uses the structured recovery failure for saved narrated audio', () => {
     expect(resolveSavedTranscriptionFailure({
       audioBytes: 42,

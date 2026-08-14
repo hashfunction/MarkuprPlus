@@ -6,7 +6,7 @@
  */
 
 import type { Session } from '../SessionController';
-import type { AnalysisProvider } from '../../shared/types';
+import type { AnalysisConnection, AnalysisProvider } from '../../shared/types';
 
 // =============================================================================
 // Tier & Configuration
@@ -250,6 +250,16 @@ export interface AIPipelineOutput {
   tier: AITier;
   /** Concrete analysis provider selected for the session. */
   provider: AnalysisProvider;
+  /** Provider selected by the user for this report. */
+  requestedProvider: AnalysisProvider;
+  /** Model selected by the user, or the provider default. */
+  requestedModel: string | null;
+  /** Provider that produced the final report. */
+  actualProvider: AnalysisProvider;
+  /** Model that produced the final report, or null for Local Rules. */
+  actualModel: string | null;
+  /** Connection type of the requested provider. */
+  connection: AnalysisConnection;
   /** Human-readable provider attribution. */
   providerLabel?: string;
   /** Error info if AI failed and fell back to free tier. */

@@ -11,6 +11,8 @@ import type {
   AdapterAnalysisProvider,
   AnalysisProviderAdapter,
 } from './types';
+import type { ISettingsManager } from '../../settings/SettingsManager';
+import { AnthropicApiProvider } from './AnthropicApiProvider';
 
 export class AnalysisProviderRegistry {
   private readonly adapters: AnalysisProviderAdapter[];
@@ -80,5 +82,31 @@ export function createLocalAnalysisProviderRegistry(): AnalysisProviderRegistry 
   return new AnalysisProviderRegistry([
     new OllamaProvider(),
     new LmStudioProvider(),
+  ]);
+}
+
+export function createDefaultAnalysisProviderRegistry(
+  settingsManager: ISettingsManager,
+): AnalysisProviderRegistry {
+  const codexAnalyzer = new CodexAnalyzer();
+  const claudeAnalyzer = new ClaudeCliAnalyzer();
+  return new AnalysisProviderRegistry([
+    {
+      id: 'codex-cli',
+      name: 'Codex CLI',
+      connection: 'cli',
+      discover: (forceRefresh) => codexCliDiscovery.discover(forceRefresh),
+      analyze: (session, modelId) => codexAnalyzer.analyze(session, modelId),
+    },
+    {
+      id: 'claude-cli',
+      name: 'Claude Code CLI',
+      connection: 'cli',
+      discover: (forceRefresh) => claudeCliDiscovery.discover(forceRefresh),
+      analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
+    },
+    new OllamaProvider(),
+    new LmStudioProvider(),
+    new AnthropicApiProvider(settingsManager),
   ]);
 }
