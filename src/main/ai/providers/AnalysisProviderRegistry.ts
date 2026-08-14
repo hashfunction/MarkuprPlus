@@ -5,6 +5,8 @@ import { codexCliDiscovery } from '../CodexCliDiscovery';
 import type { AIAnalysisResult } from '../types';
 import { ClaudeCliAnalyzer } from './ClaudeCliAnalyzer';
 import { claudeCliDiscovery } from './ClaudeCliDiscovery';
+import { LmStudioProvider } from './LmStudioProvider';
+import { OllamaProvider } from './OllamaProvider';
 import type {
   AdapterAnalysisProvider,
   AnalysisProviderAdapter,
@@ -71,5 +73,12 @@ export function createCliAnalysisProviderRegistry(): AnalysisProviderRegistry {
       discover: (forceRefresh) => claudeCliDiscovery.discover(forceRefresh),
       analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
     },
+  ]);
+}
+
+export function createLocalAnalysisProviderRegistry(): AnalysisProviderRegistry {
+  return new AnalysisProviderRegistry([
+    new OllamaProvider(),
+    new LmStudioProvider(),
   ]);
 }

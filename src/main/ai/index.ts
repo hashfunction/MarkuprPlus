@@ -12,6 +12,7 @@ export {
   AnalysisProviderRegistry,
   createAnalysisProviderRegistry,
   createCliAnalysisProviderRegistry,
+  createLocalAnalysisProviderRegistry,
 } from './providers/AnalysisProviderRegistry';
 export {
   ClaudeCliAnalyzer,
