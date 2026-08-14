@@ -4,8 +4,12 @@ const { spawnSync } = require('node:child_process');
 
 /** Build whisper.cpp before electron-builder copies production dependencies. */
 module.exports = async function prepareWhisperRuntime(context) {
+  const appDirectory = context.packager?.info?.appDir || context.packager?.projectDir;
+  if (!appDirectory) {
+    throw new Error('electron-builder did not provide an application directory.');
+  }
   const whisperDirectory = join(
-    context.appDir,
+    appDirectory,
     'node_modules',
     'whisper-node',
     'lib',
