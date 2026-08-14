@@ -29,6 +29,8 @@ class AudioCaptureRenderer {
   private audioContext: AudioContext | null = null;
   private analyserNode: AnalyserNode | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
+  private pcmProcessorNode: ScriptProcessorNode | null = null;
+  private silentGainNode: GainNode | null = null;
   private analyserData: Float32Array | null = null;
   private levelMonitorFrame: number | null = null;
   private latestRms = 0;
@@ -253,6 +255,24 @@ class AudioCaptureRenderer {
     });
   }
 
+  private sendPcmChunkToMain(samples: Float32Array, sampleRate: number): void {
+    if (!this.capturing || samples.length === 0) {
+      return;
+    }
+
+    const api = window.markupr;
+    if (!api?.audio) {
+      console.error('[AudioCaptureRenderer] markupR audio API not available');
+      return;
+    }
+
+    api.audio.sendAudioChunk({
+      samples: Array.from(samples),
+      timestamp: performance.now(),
+      duration: (samples.length / sampleRate) * 1000,
+    });
+  }
+
   private async startLevelMonitor(): Promise<void> {
     if (!this.mediaStream) {
       return;
@@ -267,7 +287,7 @@ class AudioCaptureRenderer {
 
     await this.stopLevelMonitor();
 
-    const context = new AudioContextCtor();
+    const context = new AudioContextCtor({ sampleRate: this.config.sampleRate });
     if (context.state === 'suspended') {
       await context.resume().catch(() => {
         // Best effort.
@@ -276,14 +296,32 @@ class AudioCaptureRenderer {
 
     const source = context.createMediaStreamSource(this.mediaStream);
     const analyser = context.createAnalyser();
+    const chunkSamples = Math.max(
+      256,
+      Math.ceil((context.sampleRate * this.config.chunkDurationMs) / 1000)
+    );
+    const processorBufferSize = 2 ** Math.ceil(Math.log2(chunkSamples));
+    const pcmProcessor = context.createScriptProcessor(processorBufferSize, 1, 1);
+    const silentGain = context.createGain();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.15;
+    silentGain.gain.value = 0;
+
+    pcmProcessor.onaudioprocess = (event) => {
+      const samples = event.inputBuffer.getChannelData(0);
+      this.sendPcmChunkToMain(samples, context.sampleRate);
+    };
 
     source.connect(analyser);
+    source.connect(pcmProcessor);
+    pcmProcessor.connect(silentGain);
+    silentGain.connect(context.destination);
 
     this.audioContext = context;
     this.sourceNode = source;
     this.analyserNode = analyser;
+    this.pcmProcessorNode = pcmProcessor;
+    this.silentGainNode = silentGain;
     this.analyserData = new Float32Array(analyser.fftSize);
     this.latestRms = 0;
     this.latestLevel = 0;
@@ -340,6 +378,25 @@ class AudioCaptureRenderer {
         // Best effort.
       }
       this.analyserNode = null;
+    }
+
+    if (this.pcmProcessorNode) {
+      this.pcmProcessorNode.onaudioprocess = null;
+      try {
+        this.pcmProcessorNode.disconnect();
+      } catch {
+        // Best effort.
+      }
+      this.pcmProcessorNode = null;
+    }
+
+    if (this.silentGainNode) {
+      try {
+        this.silentGainNode.disconnect();
+      } catch {
+        // Best effort.
+      }
+      this.silentGainNode = null;
     }
 
     if (this.audioContext) {
