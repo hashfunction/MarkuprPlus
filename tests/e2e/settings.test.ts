@@ -389,7 +389,7 @@ describe('Settings E2E', () => {
 
   describe('Migration', () => {
     it('should define correct settings version', () => {
-      expect(SETTINGS_VERSION).toBe(2);
+      expect(SETTINGS_VERSION).toBe(3);
     });
 
     it('should have correct default settings structure', () => {
