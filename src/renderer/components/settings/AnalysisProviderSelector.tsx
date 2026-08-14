@@ -1,38 +1,26 @@
 import React from 'react';
-import type { AnalysisProvider, AnalysisProviderStatus } from '../../../shared/types';
+import type {
+  AnalysisModelSelections,
+  AnalysisProvider,
+  AnalysisProviderStatus,
+  ModelAnalysisProvider,
+} from '../../../shared/types';
 import { SettingsSection } from '../primitives';
 import { useTheme } from '../../hooks/useTheme';
 import { styles } from './settingsStyles';
-
-const PROVIDERS: Array<{
-  id: AnalysisProvider;
-  title: string;
-  description: string;
-  badge?: string;
-}> = [
-  {
-    id: 'codex-cli',
-    title: 'Codex CLI',
-    description: 'Use your installed Codex CLI and existing ChatGPT login.',
-    badge: 'Recommended',
-  },
-  {
-    id: 'anthropic-api',
-    title: 'Anthropic API',
-    description: 'Analyze reports with an Anthropic API key stored by markupR.',
-  },
-  {
-    id: 'rules',
-    title: 'Local rules only',
-    description: 'Generate a useful local report without an AI CLI or API key.',
-  },
-];
+import {
+  PROVIDER_OPTIONS,
+  getModelControlMode,
+  getModelDefaultLabel,
+} from './analysisProviderOptions';
 
 function describeStatus(provider: AnalysisProvider, status?: AnalysisProviderStatus): string {
   if (provider === 'rules') return 'Ready · no credentials required';
   if (!status) return 'Checking availability…';
   if (status.ready) {
-    const details = [status.version, status.executablePath].filter(Boolean).join(' · ');
+    const details = [status.version, status.endpoint, status.executablePath]
+      .filter(Boolean)
+      .join(' · ');
     return details ? `Ready · ${details}` : 'Ready';
   }
   return status.diagnostic ?? 'Not ready';
@@ -40,20 +28,35 @@ function describeStatus(provider: AnalysisProvider, status?: AnalysisProviderSta
 
 export const AnalysisProviderSelector: React.FC<{
   provider: AnalysisProvider;
+  modelSelections: AnalysisModelSelections;
   statuses: AnalysisProviderStatus[];
   isScanning: boolean;
   onSelect: (provider: AnalysisProvider) => void;
+  onModelChange: (provider: ModelAnalysisProvider, modelId: string) => void;
   onRefresh: () => void;
-}> = ({ provider, statuses, isScanning, onSelect, onRefresh }) => {
+}> = ({
+  provider,
+  modelSelections,
+  statuses,
+  isScanning,
+  onSelect,
+  onModelChange,
+  onRefresh,
+}) => {
   const { colors } = useTheme();
+  const modelProvider = provider === 'rules' ? null : provider as ModelAnalysisProvider;
+  const modelStatus = statuses.find((candidate) => candidate.id === provider);
+  const modelMode = getModelControlMode(provider);
+  const modelValue = modelProvider ? modelSelections[modelProvider] ?? '' : '';
+  const modelListId = modelProvider ? `analysis-models-${modelProvider}` : undefined;
 
   return (
     <SettingsSection
-      title="AI Analysis Provider"
-      description="Choose how markupR turns each capture into an enhanced report."
+      title="Report Generation"
+      description="Choose the provider and model that turn each capture into a structured report."
     >
-      <div role="radiogroup" aria-label="AI analysis provider" style={{ display: 'grid', gap: 10 }}>
-        {PROVIDERS.map((option) => {
+      <div role="radiogroup" aria-label="Report generation provider" style={{ display: 'grid', gap: 10 }}>
+        {PROVIDER_OPTIONS.map((option) => {
           const selected = provider === option.id;
           const status = statuses.find((candidate) => candidate.id === option.id);
           const ready = option.id === 'rules' || status?.ready === true;
@@ -95,9 +98,12 @@ export const AnalysisProviderSelector: React.FC<{
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{option.title}</span>
-                  {option.badge && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: 'uppercase' }}>
+                    {option.connectionBadge}
+                  </span>
+                  {option.recommended && (
                     <span style={{ fontSize: 10, fontWeight: 700, color: colors.accent.default, textTransform: 'uppercase' }}>
-                      {option.badge}
+                      Recommended
                     </span>
                   )}
                 </span>
@@ -123,9 +129,54 @@ export const AnalysisProviderSelector: React.FC<{
         })}
       </div>
 
+      {modelProvider && modelMode !== 'none' && (
+        <div style={{ marginTop: 14 }}>
+          <label
+            htmlFor="analysis-model"
+            style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: colors.text.primary }}
+          >
+            Report model
+          </label>
+          {modelMode === 'discovered-only' ? (
+            <select
+              id="analysis-model"
+              value={modelValue}
+              onChange={(event) => onModelChange(modelProvider, event.target.value)}
+              style={{ ...styles.select, width: '100%' }}
+            >
+              <option value="">{getModelDefaultLabel(modelProvider)}</option>
+              {(modelStatus?.models ?? []).filter(({ id }) => id).map((model) => (
+                <option key={model.id} value={model.id}>{model.name}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <input
+                id="analysis-model"
+                list={modelListId}
+                value={modelValue}
+                placeholder={getModelDefaultLabel(modelProvider)}
+                onChange={(event) => onModelChange(modelProvider, event.target.value)}
+                style={{ ...styles.apiKeyInput, width: '100%', boxSizing: 'border-box' }}
+              />
+              <datalist id={modelListId}>
+                {(modelStatus?.models ?? []).filter(({ id }) => id).map((model) => (
+                  <option key={model.id} value={model.id}>{model.name}</option>
+                ))}
+              </datalist>
+            </>
+          )}
+          <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: colors.text.secondary }}>
+            {modelMode === 'discovered-only'
+              ? 'Only models discovered from the local provider can be selected.'
+              : 'Leave blank for the provider default, choose a suggestion, or enter a model ID.'}
+          </span>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
         <button type="button" style={styles.secondaryButton} onClick={onRefresh} disabled={isScanning}>
-          {isScanning ? 'Scanning…' : 'Refresh CLI Detection'}
+          {isScanning ? 'Refreshing…' : 'Refresh providers'}
         </button>
       </div>
     </SettingsSection>

@@ -1402,7 +1402,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
                 >
                   platform.openai.com
                 </a>{' '}
-                (or skip and use a local Whisper model later).
+                (or skip and configure local transcription later).
               </>
             }
             placeholder="Enter your OpenAI API key"
@@ -1414,17 +1414,17 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             onNext={() => goToStep('anthropic')}
             onSkip={() => goToStep('anthropic')}
             onBack={() => goToStep('screen', 'right')}
-            skipLabel="Skip for now — use local Whisper transcription"
+            skipLabel="Skip for now — use local transcription"
           />
         );
 
       case 'anthropic':
         return (
           <ApiKeyStep
-            title="Optional Anthropic API Key"
+            title="Report Generation (Optional)"
             helpText={
               <>
-                Anthropic is one analysis option. You can skip this and choose your installed Codex CLI or local rules in Settings {'>'} Advanced. To use Anthropic, create an API key at{' '}
+                Choose Codex CLI, Claude Code CLI, Ollama, LM Studio, Anthropic API, or Local Rules later in Settings {'>'} Advanced. If you want Anthropic API, create a key at{' '}
                 <a
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
@@ -1445,7 +1445,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             onNext={() => goToStep('success')}
             onSkip={() => goToStep('success')}
             onBack={() => goToStep('openai', 'right')}
-            skipLabel="Skip — choose an analysis provider later"
+            skipLabel="Skip — configure report generation later"
           />
         );
 
@@ -1473,7 +1473,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
           {currentStep === 'microphone' && 'Step 1 of 4: Microphone access'}
           {currentStep === 'screen' && 'Step 2 of 4: Screen recording'}
           {currentStep === 'openai' && 'Step 3 of 4: OpenAI API key'}
-          {currentStep === 'anthropic' && 'Step 4 of 4: Optional Anthropic API key'}
+          {currentStep === 'anthropic' && 'Step 4 of 4: Optional report generation setup'}
           {currentStep === 'success' && 'Setup complete'}
         </div>
 

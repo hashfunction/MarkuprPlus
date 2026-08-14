@@ -1,5 +1,10 @@
 import React from 'react';
-import type { AnalysisProviderStatus, AppSettings } from '../../../shared/types';
+import type {
+  AnalysisProviderStatus,
+  AppSettings,
+  ModelAnalysisProvider,
+  WhisperModelCheckResult,
+} from '../../../shared/types';
 import { useTheme } from '../../hooks/useTheme';
 import { SettingsSection, ToggleSetting, ApiKeyInput, DangerButton } from '../primitives';
 import type { ApiKeyState } from '../primitives';
@@ -12,8 +17,13 @@ export const AdvancedTab: React.FC<{
   anthropicApiKey: ApiKeyState;
   analysisProviderStatuses: AnalysisProviderStatus[];
   isScanningProviders: boolean;
+  whisperModelStatus: WhisperModelCheckResult | null;
+  isRepairingLocalTranscription: boolean;
+  localTranscriptionError: string | null;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onAnalysisModelChange: (provider: ModelAnalysisProvider, modelId: string) => void;
   onRefreshAnalysisProviders: () => void;
+  onRepairLocalTranscription: () => void;
   onOpenAiApiKeyChange: (value: string) => void;
   onToggleOpenAiApiKeyVisibility: () => void;
   onTestOpenAiApiKey: () => void;
@@ -30,8 +40,13 @@ export const AdvancedTab: React.FC<{
   anthropicApiKey,
   analysisProviderStatuses,
   isScanningProviders,
+  whisperModelStatus,
+  isRepairingLocalTranscription,
+  localTranscriptionError,
   onSettingChange,
+  onAnalysisModelChange,
   onRefreshAnalysisProviders,
+  onRepairLocalTranscription,
   onOpenAiApiKeyChange,
   onToggleOpenAiApiKeyVisibility,
   onTestOpenAiApiKey,
@@ -48,21 +63,51 @@ export const AdvancedTab: React.FC<{
   <div style={styles.tabContent}>
     <AnalysisProviderSelector
       provider={settings.analysisProvider}
+      modelSelections={settings.analysisModelsByProvider}
       statuses={analysisProviderStatuses}
       isScanning={isScanningProviders}
       onSelect={(provider) => onSettingChange('analysisProvider', provider)}
+      onModelChange={onAnalysisModelChange}
       onRefresh={onRefreshAnalysisProviders}
     />
 
-    {/* Transcription workflow */}
     <SettingsSection
-      title="Transcription Workflow"
-      description="Simple and reliable capture pipeline"
+      title="Local Transcription"
+      description="Whisper runs automatically after recording and does not generate the report."
       onReset={onResetSection}
     >
-      <div style={styles.settingDescription}>
-        markupR records screen + microphone first, then runs transcription after you stop.
-        OpenAI is the primary cloud path. Local Whisper is optional fallback when available.
+      <div style={styles.settingRow}>
+        <div style={styles.settingInfo}>
+          <span style={styles.settingLabel}>
+            {whisperModelStatus?.hasAnyModel
+              ? 'Local transcription ready'
+              : whisperModelStatus
+                ? 'Local transcription needs repair'
+                : 'Checking local transcription…'}
+          </span>
+          <span style={styles.settingDescription}>
+            {whisperModelStatus?.hasAnyModel
+              ? `Managed model: ${whisperModelStatus.defaultModel ?? whisperModelStatus.downloadedModels[0]}`
+              : whisperModelStatus
+                ? `Download the managed ${whisperModelStatus.recommendedModel} model for automatic local transcription.`
+                : 'Checking the managed local transcription model.'}
+          </span>
+          {localTranscriptionError && (
+            <span style={{ ...styles.settingDescription, color: colors.status.error }}>
+              {localTranscriptionError}
+            </span>
+          )}
+        </div>
+        {whisperModelStatus && !whisperModelStatus.hasAnyModel && (
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={onRepairLocalTranscription}
+            disabled={isRepairingLocalTranscription}
+          >
+            {isRepairingLocalTranscription ? 'Downloading…' : 'Repair local transcription'}
+          </button>
+        )}
       </div>
     </SettingsSection>
 
@@ -71,7 +116,7 @@ export const AdvancedTab: React.FC<{
       description="Keys are stored locally and only used for their named service."
     >
       <div style={styles.settingDescription}>
-        OpenAI is an optional cloud transcription path. Analysis uses the provider selected above.
+        OpenAI is an optional cloud transcription fallback. Report generation uses the provider and model selected above.
       </div>
     </SettingsSection>
 

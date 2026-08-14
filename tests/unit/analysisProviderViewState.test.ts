@@ -2,53 +2,77 @@ import { describe, expect, it } from 'vitest';
 import type { AnalysisProviderStatus } from '../../src/shared/types';
 import { getAnalysisProviderViewState } from '../../src/renderer/components/settings/analysisProviderViewState';
 
-const statuses = (overrides: Partial<Record<'rules' | 'anthropic-api' | 'codex-cli', Partial<AnalysisProviderStatus>>> = {}): AnalysisProviderStatus[] => [
-  { id: 'rules', name: 'Local rules', installed: true, authenticated: true, ready: true, ...overrides.rules },
-  { id: 'anthropic-api', name: 'Anthropic API', installed: true, authenticated: false, ready: false, diagnostic: 'Add an Anthropic API key.', ...overrides['anthropic-api'] },
-  { id: 'codex-cli', name: 'Codex CLI', installed: false, authenticated: false, ready: false, diagnostic: 'Codex CLI was not found.', ...overrides['codex-cli'] },
-];
+function status(
+  id: AnalysisProviderStatus['id'],
+  overrides: Partial<AnalysisProviderStatus> = {},
+): AnalysisProviderStatus {
+  return {
+    id,
+    name: id,
+    installed: true,
+    authenticated: true,
+    ready: true,
+    ...overrides,
+  };
+}
 
 describe('getAnalysisProviderViewState', () => {
-  it('reports an installed and authenticated Codex CLI as ready', () => {
-    expect(getAnalysisProviderViewState('codex-cli', statuses({ 'codex-cli': { installed: true, authenticated: true, ready: true, diagnostic: undefined } }))).toEqual({
+  it('includes the selected model in a ready CLI provider detail', () => {
+    expect(getAnalysisProviderViewState(
+      'codex-cli',
+      [status('codex-cli', { name: 'Codex CLI', connection: 'cli' })],
+      { 'codex-cli': 'gpt-5.6-terra' },
+    )).toEqual({
       ready: true,
       title: 'Codex CLI ready',
-      detail: 'Reports will be analyzed with your installed Codex CLI.',
+      detail: 'Reports will use Codex CLI with gpt-5.6-terra.',
     });
   });
 
-  it('surfaces the Codex diagnostic when it needs attention', () => {
-    expect(getAnalysisProviderViewState('codex-cli', statuses({ 'codex-cli': { installed: true, diagnostic: 'Codex CLI is installed but not logged in.' } }))).toEqual({
+  it('requires a selected LM Studio model even when the server is ready', () => {
+    expect(getAnalysisProviderViewState(
+      'lmstudio',
+      [status('lmstudio', { name: 'LM Studio', connection: 'local' })],
+      {},
+    )).toEqual({
       ready: false,
-      title: 'Codex needs attention',
-      detail: 'Codex CLI is installed but not logged in.',
-      actionLabel: 'Open AI Settings',
+      title: 'LM Studio model required',
+      detail: 'Select an installed LM Studio model before generating a report.',
+      actionLabel: 'Open Report Settings',
     });
   });
 
-  it('treats local rules as always ready', () => {
-    expect(getAnalysisProviderViewState('rules', [])).toEqual({
-      ready: true,
-      title: 'Local analysis ready',
-      detail: "Reports will use markupR's built-in local analysis.",
-    });
-  });
-
-  it('requires an Anthropic key only when Anthropic is selected', () => {
-    expect(getAnalysisProviderViewState('anthropic-api', statuses()).ready).toBe(false);
-    expect(getAnalysisProviderViewState('anthropic-api', statuses({ 'anthropic-api': { authenticated: true, ready: true, diagnostic: undefined } }))).toEqual({
-      ready: true,
-      title: 'Anthropic analysis ready',
-      detail: 'Reports will be analyzed with Anthropic API.',
-    });
-  });
-
-  it('returns a useful scanning state before discovery completes', () => {
-    expect(getAnalysisProviderViewState('codex-cli', [])).toEqual({
+  it('surfaces provider diagnostics without generic Anthropic copy', () => {
+    expect(getAnalysisProviderViewState(
+      'claude-cli',
+      [status('claude-cli', {
+        name: 'Claude Code CLI',
+        ready: false,
+        diagnostic: 'Claude Code CLI is installed but not signed in.',
+      })],
+      {},
+    )).toEqual({
       ready: false,
-      title: 'Checking Codex CLI',
-      detail: 'Scanning for an installed and authenticated Codex CLI.',
-      actionLabel: 'Open AI Settings',
+      title: 'Claude Code CLI needs attention',
+      detail: 'Claude Code CLI is installed but not signed in.',
+      actionLabel: 'Open Report Settings',
+    });
+  });
+
+  it('treats Local Rules as always ready', () => {
+    expect(getAnalysisProviderViewState('rules', [], {})).toEqual({
+      ready: true,
+      title: 'Local Rules ready',
+      detail: "Reports will use markupR's built-in local rules.",
+    });
+  });
+
+  it('returns provider-specific checking copy before discovery completes', () => {
+    expect(getAnalysisProviderViewState('ollama', [], { ollama: 'qwen2.5:7b' })).toEqual({
+      ready: false,
+      title: 'Checking Ollama',
+      detail: 'Checking the local Ollama service and installed models.',
+      actionLabel: 'Open Report Settings',
     });
   });
 });

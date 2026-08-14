@@ -45,8 +45,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             anthropicApiKey={s.anthropicApiKey}
             analysisProviderStatuses={s.analysisProviderStatuses}
             isScanningProviders={s.isScanningProviders}
+            whisperModelStatus={s.whisperModelStatus}
+            isRepairingLocalTranscription={s.isRepairingLocalTranscription}
+            localTranscriptionError={s.localTranscriptionError}
             onSettingChange={s.handleSettingChange}
+            onAnalysisModelChange={s.handleAnalysisModelChange}
             onRefreshAnalysisProviders={s.refreshAnalysisProviders}
+            onRepairLocalTranscription={s.handleRepairLocalTranscription}
             onOpenAiApiKeyChange={s.handleOpenAiApiKeyChange}
             onToggleOpenAiApiKeyVisibility={s.handleToggleOpenAiApiKeyVisibility}
             onTestOpenAiApiKey={s.handleTestOpenAiApiKey}
@@ -65,7 +70,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, [
     s.activeTab, s.settings, s.audioDevices, s.openAiApiKey, s.anthropicApiKey,
     s.analysisProviderStatuses, s.isScanningProviders, s.refreshAnalysisProviders,
+    s.whisperModelStatus, s.isRepairingLocalTranscription, s.localTranscriptionError,
     s.handleSettingChange, s.handleHotkeyChange,
+    s.handleAnalysisModelChange, s.handleRepairLocalTranscription,
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,
     s.handleAnthropicApiKeyChange, s.handleToggleAnthropicApiKeyVisibility, s.handleTestAnthropicApiKey,
     s.handleClearAllData, s.handleExportSettings, s.handleImportSettings,

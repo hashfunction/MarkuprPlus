@@ -6,7 +6,14 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { AnalysisProviderStatus, AppSettings, AudioDevice, HotkeyConfig } from '../../../shared/types';
+import type {
+  AnalysisProviderStatus,
+  AppSettings,
+  AudioDevice,
+  HotkeyConfig,
+  ModelAnalysisProvider,
+  WhisperModelCheckResult,
+} from '../../../shared/types';
 import { DEFAULT_SETTINGS, DEFAULT_HOTKEY_CONFIG } from '../../../shared/types';
 import type { ApiKeyState } from '../primitives';
 import type { SettingsTab } from './tabConfig';
@@ -60,6 +67,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const [appVersion, setAppVersion] = useState('');
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
   const [isScanningProviders, setIsScanningProviders] = useState(false);
+  const [whisperModelStatus, setWhisperModelStatus] = useState<WhisperModelCheckResult | null>(null);
+  const [isRepairingLocalTranscription, setIsRepairingLocalTranscription] = useState(false);
+  const [localTranscriptionError, setLocalTranscriptionError] = useState<string | null>(null);
   const [isCompact, setIsCompact] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 760
   );
@@ -106,19 +116,25 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
         setSettings(loadedSettings);
 
-        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }] = await Promise.all([
+        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus] = await Promise.all([
           window.markupr.audio.getDevices(),
           refreshAnalysisProviders(false),
           getApiKeyPresence(),
+          window.markupr.whisper.checkModel().catch(() => null),
         ]);
         setAudioDevices(devices);
+        setWhisperModelStatus(localModelStatus);
         if (hasOpenAiKey) {
           setOpenAiApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
         }
         if (hasAnthropicKey) {
           setAnthropicApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
         }
-        if (!getAnalysisProviderViewState(loadedSettings.analysisProvider, providerStatuses).ready && initialTab === 'general') {
+        if (!getAnalysisProviderViewState(
+          loadedSettings.analysisProvider,
+          providerStatuses,
+          loadedSettings.analysisModelsByProvider,
+        ).ready && initialTab === 'general') {
           setActiveTab('advanced');
         }
 
@@ -146,15 +162,51 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setHasChanges(true);
       try {
         await window.markupr.settings.set(key, value);
-        if (key === 'analysisProvider') {
-          window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'analysis-provider', provider: value } }));
+        if (key === 'analysisProvider' || key === 'analysisModelsByProvider') {
+          await refreshAnalysisProviders(true);
+          window.dispatchEvent(new CustomEvent('markupr:settings-updated', {
+            detail: { type: 'analysis-provider', provider: key === 'analysisProvider' ? value : undefined },
+          }));
         }
       } catch (error) {
         console.error('Failed to save setting:', error);
       }
     },
-    []
+    [refreshAnalysisProviders]
   );
+
+  const handleAnalysisModelChange = useCallback(async (
+    provider: ModelAnalysisProvider,
+    modelId: string,
+  ) => {
+    const next = { ...settings.analysisModelsByProvider };
+    const trimmed = modelId.trim();
+    if (trimmed) next[provider] = trimmed;
+    else delete next[provider];
+    await handleSettingChange('analysisModelsByProvider', next);
+  }, [settings.analysisModelsByProvider, handleSettingChange]);
+
+  const handleRepairLocalTranscription = useCallback(async () => {
+    setIsRepairingLocalTranscription(true);
+    setLocalTranscriptionError(null);
+    try {
+      const result = await window.markupr.whisper.downloadModel('tiny');
+      if (!result.success) {
+        throw new Error(result.error || 'The local transcription model download failed.');
+      }
+      const updated = await window.markupr.whisper.checkModel();
+      setWhisperModelStatus(updated);
+      if (!updated.hasAnyModel) {
+        throw new Error('The downloaded local transcription model could not be verified.');
+      }
+    } catch (error) {
+      setLocalTranscriptionError(
+        error instanceof Error ? error.message : 'Local transcription repair failed.',
+      );
+    } finally {
+      setIsRepairingLocalTranscription(false);
+    }
+  }, []);
 
   const handleHotkeyChange = useCallback(
     async (key: keyof HotkeyConfig, value: string) => {
@@ -347,6 +399,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const resetAdvancedSection = useCallback(async () => {
     const defaults = {
       analysisProvider: DEFAULT_SETTINGS.analysisProvider,
+      analysisModelsByProvider: DEFAULT_SETTINGS.analysisModelsByProvider,
       debugMode: DEFAULT_SETTINGS.debugMode,
       keepAudioBackups: DEFAULT_SETTINGS.keepAudioBackups,
     };
@@ -355,7 +408,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       await window.markupr.settings.set(key as keyof AppSettings, value);
     }
     window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
-  }, []);
+    await refreshAnalysisProviders(true);
+  }, [refreshAnalysisProviders]);
 
   // ---------------------------------------------------------------------------
   // Data management handlers
@@ -430,7 +484,11 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   // Return value
   // ---------------------------------------------------------------------------
 
-  const analysisProviderViewState = getAnalysisProviderViewState(settings.analysisProvider, analysisProviderStatuses);
+  const analysisProviderViewState = getAnalysisProviderViewState(
+    settings.analysisProvider,
+    analysisProviderStatuses,
+    settings.analysisModelsByProvider,
+  );
 
   return {
     // State
@@ -445,12 +503,17 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     appVersion,
     analysisProviderStatuses,
     isScanningProviders,
+    whisperModelStatus,
+    isRepairingLocalTranscription,
+    localTranscriptionError,
     analysisProviderViewState,
     isCompact,
     panelRef,
 
     // Setting handlers
     handleSettingChange,
+    handleAnalysisModelChange,
+    handleRepairLocalTranscription,
     handleHotkeyChange,
     refreshAnalysisProviders,
 
