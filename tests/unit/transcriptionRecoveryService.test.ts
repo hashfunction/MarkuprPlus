@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   recoverTranscript,
   type RecoveryAudioData,
@@ -100,6 +100,37 @@ describe('recoverTranscript outcomes', () => {
       code: 'openai-failed',
       message: 'OpenAI transcription failed: request timed out',
     });
+  });
+
+  it('does not read or log an OpenAI error response body', async () => {
+    const responseBody = vi.fn(async () => 'sensitive provider response');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: responseBody,
+    } as unknown as Response);
+    const warnMock = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const result = await recoverTranscript(
+        sessionStartSec,
+        encodedAudio(false),
+        {
+          getOpenAIApiKey: async () => 'configured',
+          isLocalModelAvailable: () => false,
+        },
+      );
+
+      expect(result.failure).toEqual({
+        code: 'openai-failed',
+        message: 'OpenAI transcription failed: request failed after retries',
+      });
+      expect(responseBody).not.toHaveBeenCalled();
+      expect(warnMock.mock.calls.flat().join(' ')).not.toContain('sensitive provider response');
+    } finally {
+      fetchMock.mockRestore();
+      warnMock.mockRestore();
+    }
   });
 
   it('reports a local Whisper runtime failure', async () => {

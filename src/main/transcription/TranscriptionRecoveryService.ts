@@ -82,28 +82,6 @@ export function normalizeTranscriptTimestamp(timestamp: number, sessionStartSec:
 }
 
 /**
- * Extract a user-friendly error message from an OpenAI API error response.
- */
-async function extractOpenAiError(response: Response): Promise<string> {
-  try {
-    const raw = await response.text();
-    const trimmed = raw.trim();
-    if (trimmed.length === 0) {
-      return 'Unknown API error';
-    }
-
-    const parsed = JSON.parse(trimmed) as { error?: { message?: string } };
-    const message = parsed?.error?.message;
-    if (message && message.trim().length > 0) {
-      return message.trim();
-    }
-    return trimmed.length > 220 ? `${trimmed.slice(0, 220)}...` : trimmed;
-  } catch {
-    return `HTTP ${response.status}`;
-  }
-}
-
-/**
  * Read the OpenAI API key from secure storage.
  */
 async function getOpenAIApiKey(): Promise<string | null> {
@@ -163,8 +141,7 @@ async function recoverWithOpenAI(
         });
 
         if (!response.ok) {
-          const detail = await extractOpenAiError(response);
-          throw new Error(`OpenAI transcription failed (${response.status}): ${detail}`);
+          throw new Error(`OpenAI transcription failed (HTTP ${response.status})`);
         }
 
         const payload = (await response.json()) as {
