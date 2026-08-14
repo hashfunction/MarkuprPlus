@@ -30,6 +30,14 @@ extraResources:
       - "overlay-*.png"
       - "toolbar-*.png"
 
+# whisper.cpp is executed as a child process and its Metal shader is loaded at
+# runtime, so both files must live outside the read-only app.asar archive.
+asarUnpack:
+  - "node_modules/whisper-node/lib/whisper.cpp/main*"
+  - "node_modules/whisper-node/lib/whisper.cpp/ggml-metal.metal"
+
+beforePack: scripts/prepare-whisper-runtime.cjs
+
 # =============================================================================
 # macOS Configuration
 # =============================================================================

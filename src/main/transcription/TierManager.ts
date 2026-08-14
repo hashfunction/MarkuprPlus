@@ -11,9 +11,9 @@
  */
 
 import { EventEmitter } from 'events';
-import * as os from 'os';
 import { modelDownloadManager } from './ModelDownloadManager';
 import { getSettingsManager } from '../settings';
+import { getAvailableMemoryBytes } from '../system/AvailableMemory';
 import type {
   TranscriptionTier,
   WhisperModel,
@@ -183,14 +183,14 @@ export class TierManager extends EventEmitter {
     const selectedModel = modelDownloadManager.getDefaultModel();
     const requiredMemory = MODEL_MEMORY_REQUIREMENT_BYTES[selectedModel] ?? WHISPER_MIN_MEMORY;
 
-    const freeMemory = os.freemem();
+    const freeMemory = getAvailableMemoryBytes();
     if (freeMemory < requiredMemory) {
       return {
         tier: 'whisper',
         available: false,
         reason:
           `Insufficient memory for ${selectedModel} model ` +
-          `(${Math.round(freeMemory / 1024 / 1024)}MB free, need ~${Math.round(requiredMemory / 1024 / 1024)}MB)`,
+          `(${Math.round(freeMemory / 1024 / 1024)}MB available, need ~${Math.round(requiredMemory / 1024 / 1024)}MB)`,
       };
     }
 

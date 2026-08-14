@@ -24,6 +24,8 @@ import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import * as os from 'os';
 import type { WhisperTranscriptResult, WhisperConfig, ErrorCallback } from './types';
+import { getAvailableMemoryBytes } from '../system/AvailableMemory';
+import { runWhisperCppOnSamples } from './WhisperCppRunner';
 
 const execFileAsync = promisify(execFile);
 
@@ -35,19 +37,6 @@ type TranscriptCallback = (result: WhisperTranscriptResult) => void;
 
 export interface WhisperServiceOptions extends Partial<WhisperConfig> {
   modelsDirectory?: string;
-}
-
-// Whisper-node module type (loaded dynamically)
-interface WhisperModule {
-  whisper: (
-    samples: Float32Array,
-    options: {
-      modelPath: string;
-      language?: string;
-      threads?: number;
-      translate?: boolean;
-    }
-  ) => Promise<Array<{ text: string; start: number; end: number }>>;
 }
 
 // ============================================================================
@@ -113,7 +102,6 @@ export class WhisperService extends EventEmitter {
   private autoDiscoverModelPath: boolean;
   private isInitialized: boolean = false;
   private isProcessing: boolean = false;
-  private whisperModule: WhisperModule | null = null;
 
   // Audio buffering for batch processing
   private audioBuffer: Float32Array[] = [];
@@ -190,7 +178,7 @@ export class WhisperService extends EventEmitter {
    * Requirement is model-aware (tiny/base/small/medium/large).
    */
   hasEnoughMemory(): boolean {
-    const freeMemory = os.freemem();
+    const freeMemory = getAvailableMemoryBytes();
     const requiredMemory = this.getRequiredMemoryBytes();
     return freeMemory >= requiredMemory;
   }
@@ -199,7 +187,7 @@ export class WhisperService extends EventEmitter {
    * Get current memory info
    */
   getMemoryInfo(): { freeMemoryMB: number; requiredMemoryMB: number; sufficient: boolean } {
-    const freeMemory = os.freemem();
+    const freeMemory = getAvailableMemoryBytes();
     const requiredMemory = this.getRequiredMemoryBytes();
     return {
       freeMemoryMB: Math.round(freeMemory / 1024 / 1024),
@@ -225,30 +213,23 @@ export class WhisperService extends EventEmitter {
     if (!this.hasEnoughMemory()) {
       const memInfo = this.getMemoryInfo();
       throw new Error(
-        `Insufficient memory for Whisper. Need ~${memInfo.requiredMemoryMB}MB free, only ${memInfo.freeMemoryMB}MB available.`
+        `Insufficient memory for Whisper. Need ~${memInfo.requiredMemoryMB}MB available, only ${memInfo.freeMemoryMB}MB available.`
       );
     }
 
     this.log('Initializing Whisper model...');
 
     try {
-      // Dynamically import whisper-node to avoid startup crashes if not installed
-      // @ts-expect-error - whisper-node may not have types
-      this.whisperModule = await import('whisper-node');
-
-      // Verify the module loaded correctly
-      if (!this.whisperModule || typeof this.whisperModule.whisper !== 'function') {
-        throw new Error('whisper-node module loaded but whisper function not found');
-      }
-
-      // Do a test transcription with tiny audio to pre-load the model
-      this.log('Pre-loading model with test transcription...');
+      // Validate the bundled runtime and selected model before accepting work.
+      this.log('Validating model with test transcription...');
       const testBuffer = new Float32Array(1600); // 16kHz * 0.1s = 100ms of silence
-
-      await this.whisperModule.whisper(testBuffer, {
+      await runWhisperCppOnSamples({
+        samples: testBuffer,
+        startTimeSec: 0,
         modelPath: this.config.modelPath,
         language: this.config.language,
         threads: this.config.threads,
+        translateToEnglish: this.config.translateToEnglish,
       });
 
       this.isInitialized = true;
@@ -272,7 +253,7 @@ export class WhisperService extends EventEmitter {
    * Check if service is initialized and ready
    */
   isReady(): boolean {
-    return this.isInitialized && this.whisperModule !== null;
+    return this.isInitialized;
   }
 
   /**
@@ -381,48 +362,15 @@ export class WhisperService extends EventEmitter {
       await this.initialize();
     }
 
-    if (!this.whisperModule) {
-      throw new Error('Whisper module not loaded');
-    }
-
-    // Timeout per 30-second chunk to prevent infinite hangs from corrupt models
-    const CHUNK_TIMEOUT_MS = 60_000;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(
-        () => reject(new Error('Whisper transcription timed out after 60s')),
-        CHUNK_TIMEOUT_MS
-      );
+    return runWhisperCppOnSamples({
+      samples,
+      startTimeSec,
+      modelPath: this.config.modelPath,
+      language: this.config.language,
+      threads: this.config.threads,
+      translateToEnglish: this.config.translateToEnglish,
+      timeoutMs: 60_000,
     });
-
-    let result: Array<{ text: string; start: number; end: number }>;
-    try {
-      result = await Promise.race([
-        this.whisperModule.whisper(samples, {
-          modelPath: this.config.modelPath,
-          language: this.config.language,
-          threads: this.config.threads,
-          translate: this.config.translateToEnglish,
-        }),
-        timeoutPromise,
-      ]);
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-    }
-
-    if (!result || result.length === 0) {
-      return [];
-    }
-
-    return result
-      .map((segment) => ({
-        text: segment.text.trim(),
-        startTime: startTimeSec + segment.start,
-        endTime: startTimeSec + segment.end,
-        confidence: 0.9,
-      }))
-      .filter((segment) => segment.text.length > 0);
   }
 
   /**
@@ -729,8 +677,8 @@ export class WhisperService extends EventEmitter {
       return;
     }
 
-    if (!this.whisperModule) {
-      this.logError('Cannot process: Whisper module not loaded');
+    if (!this.isInitialized) {
+      this.logError('Cannot process: Whisper service not initialized');
       return;
     }
 
@@ -758,22 +706,12 @@ export class WhisperService extends EventEmitter {
       // Run Whisper transcription
       this.log(`Processing ${Math.round(processedDuration)}ms of audio...`);
 
-      const result = await this.whisperModule.whisper(combinedAudio, {
-        modelPath: this.config.modelPath,
-        language: this.config.language,
-        threads: this.config.threads,
-        translate: this.config.translateToEnglish,
-      });
+      const result = await this.transcribeSamples(combinedAudio, processStartTime / 1000);
 
       // Parse result and emit transcript
       if (result && result.length > 0) {
         for (const segment of result) {
-          const transcriptResult: WhisperTranscriptResult = {
-            text: segment.text.trim(),
-            startTime: processStartTime / 1000 + segment.start,
-            endTime: processStartTime / 1000 + segment.end,
-            confidence: 0.9, // Whisper doesn't provide confidence, use default
-          };
+          const transcriptResult: WhisperTranscriptResult = segment;
 
           if (transcriptResult.text) {
             this.transcriptCallbacks.forEach((cb) => cb(transcriptResult));
