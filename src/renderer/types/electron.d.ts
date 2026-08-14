@@ -43,7 +43,15 @@ interface SessionAPI {
     sourceId?: string,
     sourceName?: string
   ) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
-  stop: () => Promise<{ success: boolean; session?: SessionPayload; error?: string }>;
+  stop: () => Promise<{
+    success: boolean;
+    session?: SessionPayload;
+    reportPath?: string;
+    sessionDir?: string;
+    recordingPath?: string;
+    audioPath?: string;
+    error?: string;
+  }>;
   pause: () => Promise<{ success: boolean; error?: string }>;
   resume: () => Promise<{ success: boolean; error?: string }>;
   cancel: () => Promise<{ success: boolean }>;

@@ -87,10 +87,12 @@ import { probeCaptureContext } from './capture/CaptureContextProbe';
 import {
   extractAiFrameHintsFromMarkdown,
   appendExtractedFramesToReport,
+  appendTranscriptionFailureToReport,
   syncExtractedFrameMetadata,
   syncExtractedFrameSummary,
   writeProcessingTrace,
 } from './output/MarkdownPatcher';
+import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
 
 // Guard against stdio EIO crashes when the parent terminal/PTY closes.
 type ConsoleMethod = (...args: unknown[]) => void;
@@ -1012,6 +1014,9 @@ async function stopSession(): Promise<{
   success: boolean;
   session?: SessionPayload;
   reportPath?: string;
+  sessionDir?: string;
+  recordingPath?: string;
+  audioPath?: string;
   error?: string;
 }> {
   let stoppedSessionId: string | null = null;
@@ -1297,6 +1302,20 @@ async function stopSession(): Promise<{
       );
     }
 
+    const transcriptionFailure = resolveSavedTranscriptionFailure({
+      audioBytes: audioArtifact?.bytesWritten ?? 0,
+      transcriptTexts: session.transcriptBuffer.map((entry) => entry.text),
+      recoveryFailure: session.metadata.transcriptionFailure,
+    });
+    if (transcriptionFailure) {
+      await appendTranscriptionFailureToReport(
+        saveResult.markdownPath,
+        transcriptionFailure,
+      ).catch((error) => {
+        console.warn('[Main] Failed to append transcription failure to report:', error);
+      });
+    }
+
     const markdownForPayload = await fs
       .readFile(saveResult.markdownPath, 'utf-8')
       .catch(() => document.content);
@@ -1337,6 +1356,7 @@ async function stopSession(): Promise<{
       aiTier,
       aiEnhanced,
       aiFallbackReason,
+      transcriptionFailure,
       completedAt: new Date().toISOString(),
     }).catch((error) => {
       console.warn('[Main] Failed to write processing trace:', error);
@@ -1360,22 +1380,34 @@ async function stopSession(): Promise<{
       recordingPath: recordingArtifact?.path,
       audioPath: audioArtifact?.path,
       audioDurationMs: audioArtifact?.durationMs,
+      transcriptionError: transcriptionFailure?.message,
       videoStartTime: recordingArtifact?.startTime,
       reviewSession,
     });
 
     // Show completion notification only after trace/write pipeline is done.
-    showSuccessNotification(
-      'Feedback Captured!',
-      clipboardCopied
-        ? `${session.feedbackItems.length} items saved. Report path copied to clipboard.`
-        : `${session.feedbackItems.length} items saved. Clipboard copy failed, use Copy Path in the app.`
-    );
+    if (transcriptionFailure) {
+      showErrorNotification(
+        'Transcription Failed',
+        `${transcriptionFailure.message} Your recording and audio were saved.`,
+      );
+    } else {
+      showSuccessNotification(
+        'Feedback Captured!',
+        clipboardCopied
+          ? `${session.feedbackItems.length} items saved. Report path copied to clipboard.`
+          : `${session.feedbackItems.length} items saved. Clipboard copy failed, use Copy Path in the app.`
+      );
+    }
 
     return {
-      success: true,
+      success: !transcriptionFailure,
       session: serializeSession(session),
       reportPath: saveResult.markdownPath,
+      sessionDir: saveResult.sessionDir,
+      recordingPath: recordingArtifact?.path,
+      audioPath: audioArtifact?.path,
+      error: transcriptionFailure?.message,
     };
   } catch (error) {
     if (stoppedSessionId) {

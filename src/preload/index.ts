@@ -82,7 +82,15 @@ const markuprApi = {
     /**
      * Stop the current recording session
      */
-    stop: (): Promise<{ success: boolean; session?: SessionPayload; error?: string }> => {
+    stop: (): Promise<{
+      success: boolean;
+      session?: SessionPayload;
+      reportPath?: string;
+      sessionDir?: string;
+      recordingPath?: string;
+      audioPath?: string;
+      error?: string;
+    }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SESSION_STOP);
     },
 

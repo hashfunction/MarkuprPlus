@@ -45,6 +45,9 @@ export interface SessionActions {
     success: boolean;
     session?: SessionPayload;
     reportPath?: string;
+    sessionDir?: string;
+    recordingPath?: string;
+    audioPath?: string;
     error?: string;
   }>;
   pauseSession: () => { success: boolean; error?: string };

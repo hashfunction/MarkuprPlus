@@ -671,6 +671,8 @@ export interface OutputReadyPayload {
   recordingPath?: string;
   audioPath?: string;
   audioDurationMs?: number;
+  /** Actionable error when saved narration could not be transcribed. */
+  transcriptionError?: string;
   /** Epoch ms when video recording started, for computing video offsets from transcript timestamps */
   videoStartTime?: number;
   /** The full review session for SessionReview component */

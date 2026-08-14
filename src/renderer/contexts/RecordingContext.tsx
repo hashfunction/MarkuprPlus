@@ -15,6 +15,7 @@ import type {
 } from '../../shared/types';
 import { getScreenRecordingRenderer } from '../capture/ScreenRecordingRenderer';
 import { useCrashRecovery } from '../components';
+import { getOutputReadyStatus } from './outputReadyState';
 
 // ============================================================================
 // Types
@@ -439,8 +440,9 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       stopRequestedRef.current = false;
       outputReadyRef.current = true;
       setRawProcessingProgress({ percent: 100, step: 'complete' });
-      setState('complete');
-      setErrorMessage(null);
+      const outputStatus = getOutputReadyStatus(payload);
+      setState(outputStatus.state);
+      setErrorMessage(outputStatus.errorMessage);
       setReportPath(payload.path || payload.reportPath || null);
       setRecordingPath(payload.recordingPath || null);
       setAudioPath(payload.audioPath || null);
@@ -580,6 +582,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const result = await window.markupr.session.stop();
       if (!result.success) {
+        setReportPath(result.reportPath || null);
+        setSessionDir(result.sessionDir || null);
+        setRecordingPath(result.recordingPath || null);
+        setAudioPath(result.audioPath || null);
         setState('error');
         setErrorMessage(result.error || 'Unable to stop session.');
       }

@@ -9,7 +9,7 @@
 import * as fs from 'fs/promises';
 import { join, basename } from 'path';
 import type { TranscriptSegment, KeyMoment } from '../pipeline';
-import type { CaptureContextSnapshot } from '../../shared/types';
+import type { CaptureContextSnapshot, TranscriptionFailure } from '../../shared/types';
 
 // =============================================================================
 // Text Normalization Helpers
@@ -175,6 +175,33 @@ export function extractAiFrameHintsFromMarkdown(
 // =============================================================================
 
 /**
+ * Append an actionable transcription failure without hiding or replacing the
+ * report and captured artifacts. Safe to call more than once.
+ */
+export async function appendTranscriptionFailureToReport(
+  markdownPath: string,
+  failure: TranscriptionFailure,
+): Promise<void> {
+  const heading = '## Transcription Error';
+  const markdown = await fs.readFile(markdownPath, 'utf-8');
+  if (markdown.includes(heading)) {
+    return;
+  }
+
+  const separator = markdown.endsWith('\n') ? '\n' : '\n\n';
+  const notice = [
+    heading,
+    '',
+    '> Narration was recorded, but markupR could not transcribe it. Your recording and audio were saved.',
+    '',
+    failure.message.trim(),
+    '',
+  ].join('\n');
+
+  await fs.writeFile(markdownPath, `${markdown}${separator}${notice}`, 'utf-8');
+}
+
+/**
  * Append extracted video frames to the markdown report.
  * Verifies each frame path exists before linking to avoid broken images.
  */
@@ -316,6 +343,7 @@ export async function writeProcessingTrace(
     aiTier: 'free' | 'byok' | 'premium';
     aiEnhanced: boolean;
     aiFallbackReason?: string;
+    transcriptionFailure?: TranscriptionFailure;
     completedAt: string;
   }
 ): Promise<void> {
