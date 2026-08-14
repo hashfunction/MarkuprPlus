@@ -175,6 +175,13 @@ const MODEL_ANALYSIS_PROVIDERS = new Set<ModelAnalysisProvider>([
   'lmstudio',
 ]);
 
+function containsControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+}
+
 export function isValidAnalysisModelSelections(
   value: unknown,
 ): value is AnalysisModelSelections {
@@ -184,7 +191,7 @@ export function isValidAnalysisModelSelections(
     && typeof model === 'string'
     && model.length > 0
     && model.length <= 200
-    && !/[\u0000-\u001F\u007F]/.test(model)
+    && !containsControlCharacter(model)
   );
 }
 

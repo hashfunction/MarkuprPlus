@@ -42,8 +42,11 @@ function generateFreeTierDocument(
 
 function sanitizeFailureReason(error: unknown): string {
   const raw = error instanceof Error ? error.message : 'Unknown analysis error';
-  const sanitized = raw
-    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
+  const withoutControls = Array.from(raw, (character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ? ' ' : character;
+  }).join('');
+  const sanitized = withoutControls
     .replace(/\s+/g, ' ')
     .trim();
   return (sanitized || 'Unknown analysis error').slice(0, 500);
