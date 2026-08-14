@@ -428,6 +428,7 @@ export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   ANALYSIS_PROVIDERS_DISCOVER: 'markupr:analysis-providers:discover',
   ANALYSIS_PROVIDER_TEST: 'markupr:analysis-provider:test',
+  ANALYSIS_PROVIDER_MODELS: 'markupr:analysis-provider:models',
 
   // ---------------------------------------------------------------------------
   // Permissions Channels (Renderer -> Main)

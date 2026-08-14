@@ -31,6 +31,9 @@ import type {
   ProcessingProgressPayload,
   FocusedElementHint,
   AnalysisProviderStatus,
+  AnalysisProvider,
+  AnalysisModelOption,
+  ModelAnalysisProvider,
 } from '../../shared/types';
 
 type Unsubscribe = () => void;
@@ -177,7 +180,11 @@ interface SettingsAPI {
  */
 interface AnalysisProvidersAPI {
   discover: (forceRefresh?: boolean) => Promise<AnalysisProviderStatus[]>;
-  test: (provider: 'codex-cli') => Promise<AnalysisProviderStatus>;
+  test: (provider: AnalysisProvider) => Promise<AnalysisProviderStatus>;
+  models: (
+    provider: ModelAnalysisProvider,
+    forceRefresh?: boolean,
+  ) => Promise<AnalysisModelOption[]>;
 }
 
 /**

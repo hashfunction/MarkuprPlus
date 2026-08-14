@@ -39,6 +39,9 @@ import {
   type ProcessingProgressPayload,
   type FocusedElementHint,
   type AnalysisProviderStatus,
+  type AnalysisProvider,
+  type AnalysisModelOption,
+  type ModelAnalysisProvider,
 } from '../shared/types';
 
 // =============================================================================
@@ -538,8 +541,18 @@ const markuprApi = {
     discover: (forceRefresh = false): Promise<AnalysisProviderStatus[]> => {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER, forceRefresh);
     },
-    test: (provider: 'codex-cli'): Promise<AnalysisProviderStatus> => {
+    test: (provider: AnalysisProvider): Promise<AnalysisProviderStatus> => {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST, provider);
+    },
+    models: (
+      provider: ModelAnalysisProvider,
+      forceRefresh = false,
+    ): Promise<AnalysisModelOption[]> => {
+      return ipcRenderer.invoke(
+        IPC_CHANNELS.ANALYSIS_PROVIDER_MODELS,
+        provider,
+        forceRefresh,
+      );
     },
   },
 
