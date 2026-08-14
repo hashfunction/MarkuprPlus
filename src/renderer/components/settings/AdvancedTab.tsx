@@ -109,7 +109,7 @@ export const AdvancedTab: React.FC<{
       />
     </SettingsSection>
 
-    {settings.analysisProvider === 'anthropic' && (
+    {settings.analysisProvider === 'anthropic-api' && (
       <SettingsSection
         title="Anthropic API Key"
         description="Required only when Anthropic API is selected above"

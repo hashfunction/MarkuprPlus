@@ -134,7 +134,59 @@ export const DEFAULT_HOTKEY_CONFIG: HotkeyConfig = {
 /**
  * Provider used to turn captured feedback into an enhanced report.
  */
-export type AnalysisProvider = 'rules' | 'anthropic' | 'codex';
+export const ANALYSIS_PROVIDERS = [
+  'rules',
+  'anthropic-api',
+  'codex-cli',
+  'claude-cli',
+  'ollama',
+  'lmstudio',
+] as const;
+
+export type AnalysisProvider = typeof ANALYSIS_PROVIDERS[number];
+export type ModelAnalysisProvider = Exclude<AnalysisProvider, 'rules'>;
+export type AnalysisConnection = 'local' | 'cli' | 'cloud';
+export type AnalysisModelSource = 'default' | 'preset' | 'discovered';
+export type AnalysisModelSelections = Partial<Record<ModelAnalysisProvider, string>>;
+
+export interface AnalysisModelOption {
+  id: string;
+  name: string;
+  source: AnalysisModelSource;
+  supportsImages?: boolean;
+}
+
+export function isAnalysisProvider(value: unknown): value is AnalysisProvider {
+  return typeof value === 'string'
+    && (ANALYSIS_PROVIDERS as readonly string[]).includes(value);
+}
+
+export function normalizeAnalysisProvider(value: unknown): AnalysisProvider {
+  if (value === 'codex') return 'codex-cli';
+  if (value === 'anthropic') return 'anthropic-api';
+  return isAnalysisProvider(value) ? value : 'anthropic-api';
+}
+
+const MODEL_ANALYSIS_PROVIDERS = new Set<ModelAnalysisProvider>([
+  'anthropic-api',
+  'codex-cli',
+  'claude-cli',
+  'ollama',
+  'lmstudio',
+]);
+
+export function isValidAnalysisModelSelections(
+  value: unknown,
+): value is AnalysisModelSelections {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.entries(value).every(([provider, model]) =>
+    MODEL_ANALYSIS_PROVIDERS.has(provider as ModelAnalysisProvider)
+    && typeof model === 'string'
+    && model.length > 0
+    && model.length <= 200
+    && !/[\u0000-\u001F\u007F]/.test(model)
+  );
+}
 
 /**
  * Runtime availability reported by an analysis provider.
@@ -142,12 +194,17 @@ export type AnalysisProvider = 'rules' | 'anthropic' | 'codex';
 export interface AnalysisProviderStatus {
   id: AnalysisProvider;
   name: string;
+  connection?: AnalysisConnection;
   installed: boolean;
   executablePath?: string;
+  endpoint?: string;
   version?: string;
   authenticated?: boolean;
   ready: boolean;
   diagnostic?: string;
+  models?: AnalysisModelOption[];
+  modelsLoading?: boolean;
+  refreshedAt?: string;
 }
 
 /**
@@ -191,6 +248,7 @@ export interface AppSettings {
 
   // Advanced
   analysisProvider: AnalysisProvider;
+  analysisModelsByProvider: AnalysisModelSelections;
   debugMode: boolean;
   keepAudioBackups: boolean;
 
@@ -256,7 +314,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   audioDeviceId: null,
 
   // Advanced
-  analysisProvider: 'anthropic',
+  analysisProvider: 'anthropic-api',
+  analysisModelsByProvider: {},
   debugMode: false,
   keepAudioBackups: false,
 

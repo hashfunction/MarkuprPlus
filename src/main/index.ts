@@ -51,6 +51,7 @@ import {
   type SessionPayload,
   type TrayState,
   type CaptureContextSnapshot,
+  type AnalysisProvider,
 } from '../shared/types';
 import { hotkeyManager, type HotkeyAction } from './HotkeyManager';
 import { formatHotkeyForDisplay } from '../shared/hotkeys';
@@ -1130,7 +1131,7 @@ async function stopSession(): Promise<{
     );
     const aiStartedAt = Date.now();
     let aiTier: 'free' | 'byok' | 'premium' = 'free';
-    let aiProvider: 'rules' | 'anthropic' | 'codex' = 'rules';
+    let aiProvider: AnalysisProvider = 'rules';
     let aiEnhanced = false;
     let aiFallbackReason: string | undefined;
     const { document } = settingsManager

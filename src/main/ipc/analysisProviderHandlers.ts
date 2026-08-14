@@ -23,7 +23,7 @@ export function registerAnalysisProviderHandlers(
           ready: true,
         },
         {
-          id: 'anthropic',
+          id: 'anthropic-api',
           name: 'Anthropic API',
           installed: true,
           authenticated: hasAnthropicKey,
@@ -40,7 +40,7 @@ export function registerAnalysisProviderHandlers(
   ipcMain.handle(
     IPC_CHANNELS.ANALYSIS_PROVIDER_TEST,
     async (_, provider: unknown): Promise<AnalysisProviderStatus> => {
-      if (provider !== 'codex') {
+      if (provider !== 'codex-cli') {
         throw new Error('Unsupported analysis provider');
       }
       return discovery.discover(true);

@@ -538,7 +538,7 @@ const markuprApi = {
     discover: (forceRefresh = false): Promise<AnalysisProviderStatus[]> => {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER, forceRefresh);
     },
-    test: (provider: 'codex'): Promise<AnalysisProviderStatus> => {
+    test: (provider: 'codex-cli'): Promise<AnalysisProviderStatus> => {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST, provider);
     },
   },

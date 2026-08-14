@@ -72,7 +72,7 @@ function dependencies(overrides: Partial<PipelineDependencies>): PipelineDepende
 describe('AIPipelineManager provider routing', () => {
   it('uses Codex output and attribution when Codex is selected', async () => {
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('codex', 'unused-anthropic-key'),
+      settingsManager: settings('codex-cli', 'unused-anthropic-key'),
       dependencies: dependencies({
         createCodexAnalyzer: () => ({ analyze: async () => analysis('Codex found one usability issue.') }),
       }),
@@ -83,14 +83,14 @@ describe('AIPipelineManager provider routing', () => {
     expect(result.pipelineOutput).toMatchObject({
       aiEnhanced: true,
       tier: 'byok',
-      provider: 'codex',
+      provider: 'codex-cli',
       providerLabel: 'Codex CLI',
     });
   });
 
   it('uses Anthropic only when Anthropic is selected and has a key', async () => {
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('anthropic', 'anthropic-key'),
+      settingsManager: settings('anthropic-api', 'anthropic-key'),
       dependencies: dependencies({
         createClaudeAnalyzer: (apiKey) => {
           if (apiKey !== 'anthropic-key') throw new Error('Wrong Anthropic key');
@@ -101,7 +101,7 @@ describe('AIPipelineManager provider routing', () => {
 
     expect(result.document.content).toContain('Anthropic found one usability issue.');
     expect(result.document.content).toContain('AI-analyzed by Claude');
-    expect(result.pipelineOutput.provider).toBe('anthropic');
+    expect(result.pipelineOutput.provider).toBe('anthropic-api');
   });
 
   it('returns local rules without constructing an external analyzer', async () => {
@@ -120,7 +120,7 @@ describe('AIPipelineManager provider routing', () => {
 
   it('falls back to local rules after Codex failure without invoking Anthropic', async () => {
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('codex', 'must-not-be-used'),
+      settingsManager: settings('codex-cli', 'must-not-be-used'),
       dependencies: dependencies({
         createCodexAnalyzer: () => ({
           analyze: async () => { throw new Error('Codex CLI is logged out'); },
@@ -131,7 +131,7 @@ describe('AIPipelineManager provider routing', () => {
     expect(result.pipelineOutput).toMatchObject({
       aiEnhanced: false,
       tier: 'byok',
-      provider: 'codex',
+      provider: 'codex-cli',
       fallbackReason: 'Codex CLI is logged out',
     });
     expect(result.document.content).not.toContain('Anthropic found');
@@ -139,14 +139,14 @@ describe('AIPipelineManager provider routing', () => {
 
   it('falls back to local rules when Anthropic is selected without a key', async () => {
     const result = await processSession(sessionFixture, {
-      settingsManager: settings('anthropic'),
+      settingsManager: settings('anthropic-api'),
       dependencies: dependencies({}),
     });
 
     expect(result.pipelineOutput).toMatchObject({
       aiEnhanced: false,
       tier: 'byok',
-      provider: 'anthropic',
+      provider: 'anthropic-api',
       fallbackReason: 'Anthropic API key is not configured',
     });
   });

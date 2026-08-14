@@ -11,13 +11,13 @@ const PROVIDERS: Array<{
   badge?: string;
 }> = [
   {
-    id: 'codex',
+    id: 'codex-cli',
     title: 'Codex CLI',
     description: 'Use your installed Codex CLI and existing ChatGPT login.',
     badge: 'Recommended',
   },
   {
-    id: 'anthropic',
+    id: 'anthropic-api',
     title: 'Anthropic API',
     description: 'Analyze reports with an Anthropic API key stored by markupR.',
   },

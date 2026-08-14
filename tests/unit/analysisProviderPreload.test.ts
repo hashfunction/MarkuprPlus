@@ -4,7 +4,7 @@ import type { AnalysisProviderStatus } from '../../src/shared/types';
 
 interface ExposedAnalysisProvidersApi {
   discover(forceRefresh?: boolean): Promise<AnalysisProviderStatus[]>;
-  test(provider: 'codex'): Promise<AnalysisProviderStatus>;
+  test(provider: 'codex-cli'): Promise<AnalysisProviderStatus>;
 }
 
 let analysisProviders: ExposedAnalysisProvidersApi;
@@ -24,7 +24,7 @@ describe('analysis provider preload bridge', () => {
 
   it('discovers providers through the fixed discovery channel', async () => {
     const statuses: AnalysisProviderStatus[] = [{
-      id: 'codex',
+      id: 'codex-cli',
       name: 'Codex CLI',
       installed: true,
       ready: true,
@@ -37,14 +37,14 @@ describe('analysis provider preload bridge', () => {
 
   it('tests only Codex through the fixed test channel', async () => {
     const status: AnalysisProviderStatus = {
-      id: 'codex',
+      id: 'codex-cli',
       name: 'Codex CLI',
       installed: true,
       ready: true,
     };
     vi.mocked(ipcRenderer.invoke).mockResolvedValue(status);
 
-    await expect(analysisProviders.test('codex')).resolves.toEqual(status);
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markupr:analysis-provider:test', 'codex');
+    await expect(analysisProviders.test('codex-cli')).resolves.toEqual(status);
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markupr:analysis-provider:test', 'codex-cli');
   });
 });

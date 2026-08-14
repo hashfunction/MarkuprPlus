@@ -23,8 +23,8 @@ export function getAnalysisProviderViewState(
   if (!status) {
     return {
       ready: false,
-      title: provider === 'codex' ? 'Checking Codex CLI' : 'Checking Anthropic setup',
-      detail: provider === 'codex'
+      title: provider === 'codex-cli' ? 'Checking Codex CLI' : 'Checking Anthropic setup',
+      detail: provider === 'codex-cli'
         ? 'Scanning for an installed and authenticated Codex CLI.'
         : 'Checking for a saved Anthropic API key.',
       actionLabel: 'Open AI Settings',
@@ -32,7 +32,7 @@ export function getAnalysisProviderViewState(
   }
 
   if (status.ready) {
-    return provider === 'codex'
+    return provider === 'codex-cli'
       ? {
           ready: true,
           title: 'Codex CLI ready',
@@ -47,9 +47,9 @@ export function getAnalysisProviderViewState(
 
   return {
     ready: false,
-    title: provider === 'codex' ? 'Codex needs attention' : 'Anthropic setup required',
+    title: provider === 'codex-cli' ? 'Codex needs attention' : 'Anthropic setup required',
     detail: status.diagnostic ?? (
-      provider === 'codex'
+      provider === 'codex-cli'
         ? 'Install Codex CLI and sign in before selecting it for analysis.'
         : 'Add an Anthropic API key to use Anthropic analysis.'
     ),

@@ -35,7 +35,7 @@ describe('CodexCliDiscovery', () => {
     const discovery = new CodexCliDiscovery(dependencies());
 
     await expect(discovery.discover()).resolves.toEqual({
-      id: 'codex',
+      id: 'codex-cli',
       name: 'Codex CLI',
       installed: true,
       executablePath: '/custom/bin/codex',
@@ -87,7 +87,7 @@ describe('CodexCliDiscovery', () => {
     }));
 
     await expect(discovery.discover()).resolves.toEqual({
-      id: 'codex',
+      id: 'codex-cli',
       name: 'Codex CLI',
       installed: false,
       authenticated: false,

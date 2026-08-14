@@ -85,7 +85,7 @@ export class CodexCliDiscovery {
     const executablePath = await this.resolveExecutable();
     if (!executablePath) {
       return this.cache({
-        id: 'codex',
+        id: 'codex-cli',
         name: 'Codex CLI',
         installed: false,
         authenticated: false,
@@ -118,7 +118,7 @@ export class CodexCliDiscovery {
       : undefined;
 
     return this.cache({
-      id: 'codex',
+      id: 'codex-cli',
       name: 'Codex CLI',
       installed: true,
       executablePath,

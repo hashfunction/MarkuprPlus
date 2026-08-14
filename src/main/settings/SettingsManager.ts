@@ -21,7 +21,13 @@ import * as keytar from 'keytar';
 import { app, ipcMain, safeStorage } from 'electron';
 import { join } from 'path';
 import { chmod } from 'fs/promises';
-import { IPC_CHANNELS, type AppSettings, type HotkeyConfig } from '../../shared/types';
+import {
+  IPC_CHANNELS,
+  isValidAnalysisModelSelections,
+  normalizeAnalysisProvider,
+  type AppSettings,
+  type HotkeyConfig,
+} from '../../shared/types';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -65,7 +71,7 @@ const LEGACY_KEYTAR_SERVICES = ['com.feedbackflow.app', 'feedbackflow'] as const
 const FALLBACK_SECRET_STORE_NAME = 'secure-keys';
 const LEGACY_INSECURE_SECRET_STORE_KEY = '__plaintext_fallback__';
 const INSECURE_SECRET_PREFIX = 'plaintext:';
-const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION = 3;
 
 /**
  * Default hotkey configuration
@@ -113,7 +119,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   audioDeviceId: null,
 
   // Advanced
-  analysisProvider: 'anthropic',
+  analysisProvider: 'anthropic-api',
+  analysisModelsByProvider: {},
   debugMode: false,
   keepAudioBackups: false,
 
@@ -150,7 +157,23 @@ const SETTINGS_SCHEMA = {
   theme: { type: 'string', enum: ['dark', 'light', 'system'] },
   accentColor: { type: 'string' },
   audioDeviceId: { type: ['string', 'null'] },
-  analysisProvider: { type: 'string', enum: ['rules', 'anthropic', 'codex'] },
+  analysisProvider: {
+    type: 'string',
+    enum: [
+      'rules',
+      'anthropic-api',
+      'codex-cli',
+      'claude-cli',
+      'ollama',
+      'lmstudio',
+      'anthropic',
+      'codex',
+    ],
+  },
+  analysisModelsByProvider: {
+    type: 'object',
+    additionalProperties: { type: 'string', minLength: 1, maxLength: 200 },
+  },
   debugMode: { type: 'boolean' },
   keepAudioBackups: { type: 'boolean' },
   hasCompletedOnboarding: { type: 'boolean' },
@@ -310,7 +333,10 @@ export class SettingsManager implements ISettingsManager {
         return (value as unknown as string) === 'openai';
 
       case 'analysisProvider':
-        return value === 'rules' || value === 'anthropic' || value === 'codex';
+        return normalizeAnalysisProvider(value) === value;
+
+      case 'analysisModelsByProvider':
+        return isValidAnalysisModelSelections(value);
 
       case 'accentColor':
         return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value as string);
@@ -589,6 +615,10 @@ export class SettingsManager implements ISettingsManager {
       this.migrateV1ToV2();
     }
 
+    if (!currentVersion || currentVersion < 3) {
+      this.migrateV2ToV3();
+    }
+
     // Set current version
     this.store.set('_version' as keyof AppSettings, SETTINGS_VERSION as unknown as AppSettings[keyof AppSettings]);
   }
@@ -640,6 +670,20 @@ export class SettingsManager implements ISettingsManager {
       if (!this.store.has(key as keyof AppSettings)) {
         this.store.set(key as keyof AppSettings, value as AppSettings[keyof AppSettings]);
       }
+    }
+  }
+
+  /**
+   * Normalize report-provider IDs and initialize per-provider model choices.
+   */
+  private migrateV2ToV3(): void {
+    console.log('[SettingsManager] Running v2 -> v3 migration');
+    const provider = this.store.get('analysisProvider') as unknown;
+    this.store.set('analysisProvider', normalizeAnalysisProvider(provider));
+
+    const models = this.store.get('analysisModelsByProvider') as unknown;
+    if (!isValidAnalysisModelSelections(models)) {
+      this.store.set('analysisModelsByProvider', {});
     }
   }
 

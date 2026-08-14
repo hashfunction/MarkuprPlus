@@ -6,7 +6,7 @@ import { IPC_CHANNELS } from '../../src/shared/types';
 import { registerAnalysisProviderHandlers } from '../../src/main/ipc/analysisProviderHandlers';
 
 const codexStatus: AnalysisProviderStatus = {
-  id: 'codex',
+  id: 'codex-cli',
   name: 'Codex CLI',
   installed: true,
   executablePath: '/opt/homebrew/bin/codex',
@@ -56,7 +56,7 @@ describe('analysis provider IPC', () => {
         ready: true,
       },
       {
-        id: 'anthropic',
+        id: 'anthropic-api',
         name: 'Anthropic API',
         installed: true,
         authenticated: true,
@@ -74,7 +74,7 @@ describe('analysis provider IPC', () => {
     const handler = registeredHandler(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER);
     const statuses = await handler({}, false) as AnalysisProviderStatus[];
 
-    expect(statuses.find(({ id }) => id === 'anthropic')).toMatchObject({
+    expect(statuses.find(({ id }) => id === 'anthropic-api')).toMatchObject({
       ready: false,
       diagnostic: 'Add an Anthropic API key to use Anthropic analysis.',
     });
@@ -90,8 +90,8 @@ describe('analysis provider IPC', () => {
     });
 
     const handler = registeredHandler(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST);
-    await expect(handler({}, 'codex')).resolves.toEqual(codexStatus);
+    await expect(handler({}, 'codex-cli')).resolves.toEqual(codexStatus);
     expect(forcedRefresh).toBe(true);
-    await expect(handler({}, 'anthropic')).rejects.toThrow('Unsupported analysis provider');
+    await expect(handler({}, 'anthropic-api')).rejects.toThrow('Unsupported analysis provider');
   });
 });

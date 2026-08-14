@@ -177,7 +177,7 @@ interface SettingsAPI {
  */
 interface AnalysisProvidersAPI {
   discover: (forceRefresh?: boolean) => Promise<AnalysisProviderStatus[]>;
-  test: (provider: 'codex') => Promise<AnalysisProviderStatus>;
+  test: (provider: 'codex-cli') => Promise<AnalysisProviderStatus>;
 }
 
 /**

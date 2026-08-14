@@ -47,7 +47,7 @@ function providerDetails(provider: Exclude<AnalysisProvider, 'rules'>): {
   label: string;
   modelId?: string;
 } {
-  return provider === 'codex'
+  return provider === 'codex-cli'
     ? { label: 'Codex CLI' }
     : { label: 'Claude', modelId: 'claude-sonnet-4-5-20250929' };
 }
@@ -85,7 +85,7 @@ export async function processSession(
   const screenshotDir = options.screenshotDir || './screenshots';
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...options.dependencies };
   const configuredProvider = options.settingsManager.get('analysisProvider');
-  const provider: AnalysisProvider = configuredProvider || 'anthropic';
+  const provider: AnalysisProvider = configuredProvider || 'anthropic-api';
 
   console.log('[AIPipelineManager] Generating rule-based output as safety net...');
   const freeDocument = generateFreeTierDocument(session, projectName, screenshotDir);
@@ -98,14 +98,14 @@ export async function processSession(
   const details = providerDetails(provider);
   try {
     let analyzer: AnalysisEngine;
-    if (provider === 'codex') {
+    if (provider === 'codex-cli') {
       analyzer = dependencies.createCodexAnalyzer();
     } else {
       const apiKey = await options.settingsManager.getApiKey('anthropic');
       if (!apiKey) {
         return fallbackOutput(
           freeDocument,
-          'anthropic',
+          'anthropic-api',
           startedAt,
           'Anthropic API key is not configured',
         );

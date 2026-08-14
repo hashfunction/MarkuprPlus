@@ -10,7 +10,7 @@ import {
 } from '../../../src/main/ai/CodexAnalyzer';
 
 const readyCodex: AnalysisProviderStatus = {
-  id: 'codex',
+  id: 'codex-cli',
   name: 'Codex CLI',
   installed: true,
   executablePath: '/opt/homebrew/bin/codex',
