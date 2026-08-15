@@ -61,7 +61,7 @@ All IPC channels are defined in `src/shared/types.ts` with the `IPC_CHANNELS` co
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:session:start` | invoke | Start recording | `{success, sessionId?, error?}` |
+| `markupr:session:start` | invoke | Select a target and start recording | `{success, sessionId?, cancelled?, error?}` |
 | `markupr:session:stop` | invoke | Stop recording | `{success, session?, error?}` |
 | `markupr:session:cancel` | invoke | Cancel without saving | `{success}` |
 | `markupr:session:get-status` | invoke | Get current status | `SessionStatusPayload` |
@@ -84,7 +84,21 @@ All IPC channels are defined in `src/shared/types.ts` with the `IPC_CHANNELS` co
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
 | `markupr:capture:get-sources` | invoke | List sources | `CaptureSource[]` |
+| `markupr:capture:select-target` | invoke | Open the protected target selector | `CaptureTarget | null` |
+| `markupr:capture:annotation-begin` | invoke | Open the protected annotation layer | `{success, error?}` |
+| `markupr:capture:annotation-end` | invoke | Close the annotation layer | `{success}` |
+| `markupr:capture:annotation-set-mode` | invoke | Switch interaction/drawing mode | `{success, error?}` |
 | `markupr:capture:manual-screenshot` | invoke | Take screenshot | `{success}` |
+
+Protected selector/annotation renderer windows additionally use:
+
+| Channel | Method | Description | Returns |
+|---------|--------|-------------|---------|
+| `markupr:capture-overlay:get-state` | invoke | Read the calling overlay's issued state | `CaptureOverlayState \| null` |
+| `markupr:capture-overlay:confirm` | invoke | Confirm an issued exact target | `{success, error?}` |
+| `markupr:capture-overlay:cancel` | invoke | Cancel all selector windows | `{success}` |
+| `markupr:capture-overlay:set-selection-mode` | invoke | Synchronize Window/Region/Screen across displays | `{success, error?}` |
+| `markupr:capture-overlay:annotation-event` | invoke | Submit one bounded, normalized draw event | `{success, error?}` |
 
 #### Main to Renderer
 
@@ -92,6 +106,8 @@ All IPC channels are defined in `src/shared/types.ts` with the `IPC_CHANNELS` co
 |---------|-------------|---------|
 | `markupr:capture:screenshot-taken` | Screenshot captured | `ScreenshotCapturedPayload` |
 | `markupr:capture:manual-triggered` | Manual hotkey used | `{timestamp}` |
+| `markupr:capture:annotation-event` | Validated normalized cursor/stroke event | `AnnotationEvent` |
+| `markupr:capture:annotation-state` | Annotation overlay lifecycle/mode | `AnnotationStatePayload` |
 
 ### Audio Channels
 
@@ -144,9 +160,12 @@ The preload script (`src/preload/index.ts`) exposes a safe API to the renderer v
 ### Session API
 
 ```typescript
-// Start a recording session
-const result = await window.markupr.session.start(sourceId);
-// Returns: { success: boolean; sessionId?: string; error?: string }
+// Interactive start: opens the selector in Window mode by default
+const result = await window.markupr.session.start();
+// Returns: { success: boolean; sessionId?: string; cancelled?: boolean; error?: string }
+
+// An already validated target can also be passed explicitly
+const explicitResult = await window.markupr.session.start(captureTarget);
 
 // Stop the current session
 const result = await window.markupr.session.stop();
@@ -186,6 +205,24 @@ const unsubscribe = window.markupr.session.onError(({ message }) => {
 // Get available capture sources
 const sources = await window.markupr.capture.getSources();
 // Returns: CaptureSource[]
+
+// Open the protected Window / Region / Full Screen selector
+const target = await window.markupr.capture.selectTarget();
+// Returns: CaptureTarget | null (null means the user cancelled)
+
+// Annotation lifecycle for the active target
+await window.markupr.capture.beginAnnotation(sessionId, target);
+await window.markupr.capture.setAnnotationMode('draw');
+await window.markupr.capture.setAnnotationMode('interact');
+await window.markupr.capture.endAnnotation();
+
+const unsubscribeAnnotation = window.markupr.capture.onAnnotationEvent((event) => {
+  console.log(event.type, event.sessionId);
+});
+
+const unsubscribeAnnotationState = window.markupr.capture.onAnnotationState(({ active, mode }) => {
+  console.log({ active, mode });
+});
 
 // Trigger manual screenshot
 await window.markupr.capture.manualScreenshot();
@@ -509,6 +546,42 @@ interface DisplayInfo {
   rotation: 0 | 90 | 180 | 270;
   internal: boolean;
 }
+
+type CaptureTarget =
+  | {
+      kind: 'window'; sourceId: string; sourceName: string;
+      nativeWindowId: string; appName: string; bounds: CaptureBounds;
+      geometryAvailable?: boolean;
+    }
+  | {
+      kind: 'region'; sourceId: string; sourceName: string;
+      displayId: string; displayBounds: CaptureBounds; scaleFactor: number;
+      region: CaptureBounds;
+    }
+  | {
+      kind: 'screen'; sourceId: string; sourceName: string;
+      displayId: string; displayBounds: CaptureBounds; scaleFactor: number;
+    };
+
+type CaptureSelectionMode = 'window' | 'region' | 'screen';
+
+interface CaptureSelectionOverlayState {
+  kind: 'selection';
+  overlayId: string;
+  mode: CaptureSelectionMode;
+  display: CaptureDisplay;
+  displays: CaptureDisplay[];
+  windows: CapturableWindow[];
+  windowSources: CaptureSource[];
+}
+
+type AnnotationEvent =
+  | { type: 'cursor'; sessionId: string; point: NormalizedPoint | null }
+  | { type: 'stroke-start'; sessionId: string; stroke: AnnotationStroke }
+  | { type: 'stroke-points'; sessionId: string; strokeId: string; points: NormalizedPoint[] }
+  | { type: 'stroke-end'; sessionId: string; strokeId: string }
+  | { type: 'undo' | 'clear'; sessionId: string }
+  | { type: 'mode'; sessionId: string; mode: 'interact' | 'draw' };
 ```
 
 For the complete type definitions, see `src/shared/types.ts`.

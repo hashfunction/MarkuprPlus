@@ -39,7 +39,7 @@ markupr uses keyboard shortcuts for efficient workflows. This guide covers all a
 
 This is the primary shortcut that:
 - Starts a new recording session when idle
-- Shows the window selector on first press
+- Shows the desktop selector in Window mode on first press
 - Stops recording and saves when recording
 
 **Customizable**: Yes (Settings > Hotkeys)
@@ -152,6 +152,30 @@ Redoes the last undone action.
 Selects all feedback items in the current session.
 
 ## Annotation Shortcuts
+
+### Capture Selection
+
+These keys work while choosing what to record:
+
+| Action | Shortcut |
+|--------|----------|
+| Select application windows | `W` |
+| Drag an arbitrary region | `R` |
+| Select an entire display | `S` |
+| Cancel selection | `Escape` |
+
+### Live Recording Annotations
+
+Choose **Draw** in the recording HUD first. While the protected drawing surface is active:
+
+| Action | Shortcut |
+|--------|----------|
+| Undo the last completed stroke | `Cmd+Z` / `Ctrl+Z` |
+| Return to application interaction | `Escape` |
+
+Pen, circle, highlighter, colors, Clear, and Done are available in the live toolbar. Drawing is disabled while recording is paused. The toolbar is excluded from the recording; the marker and strokes are burned into the saved video and extracted report frames.
+
+### Review Annotations
 
 These shortcuts work when an item is selected for annotation.
 

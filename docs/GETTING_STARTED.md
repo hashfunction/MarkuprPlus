@@ -126,7 +126,7 @@ markupR needs microphone access to capture your voice narration.
 
 #### Screen Recording
 
-markupR needs screen recording permission to capture screenshots.
+markupR needs screen recording permission to record the selected window, region, or display and extract report frames.
 
 1. When prompted, click **Open System Preferences**
 2. Go to Security & Privacy > Privacy > Screen Recording
@@ -170,26 +170,36 @@ Press the global hotkey:
 - **macOS**: `Cmd+Shift+F`
 - **Windows/Linux**: `Ctrl+Shift+F`
 
-### Step 2: Select a Source
+### Step 2: Select What to Record
 
-The Window Selector will appear. Choose what to capture:
-- **Entire Screen** - Capture everything on one monitor
-- **Specific Window** - Capture just one application window
+A QuickTime-style desktop selector appears. **Window** mode is the default:
 
-Click on your selection to start.
+- Move over an application window to highlight its exact bounds, then click it to record only that application.
+- Choose **Region** (or press `R`) and drag any area at least 32 × 32 pixels.
+- Choose **Full Screen** (or press `S`) only when you explicitly want an entire display.
+- Press `W` to return to Window mode or `Escape` to cancel without starting a session.
 
-### Step 3: Narrate Your Feedback
+On window systems that do not expose trustworthy window geometry, markupR offers an exact-source thumbnail gallery instead of guessing. That exact window can still be recorded, but live drawing is disabled because markupR will not fabricate annotation bounds. Region and Full Screen remain available when the display can be matched to its exact capture source.
+
+### Step 3: Reproduce and Narrate
 
 Start speaking! Some tips:
 - Speak naturally and clearly
-- Pause briefly when you want a screenshot captured
-- The live transcription preview shows what markupR hears
+- Keep the pointer over the recorded area to show its red marker halo in the video
+- Use the recording HUD to confirm microphone activity
 
-### Step 4: Screenshots
+### Step 4: Draw Over the Recording
 
-markupR captures screenshots automatically when you pause speaking. You can also:
-- Press `Cmd+Shift+S` (or `Ctrl+Shift+S`) to manually capture
-- Watch the screenshot count in the overlay
+Choose **Draw** in the recording HUD to annotate the recorded area while you talk. The protected toolbar offers:
+
+- Pen, circle, and translucent highlighter tools
+- Red, yellow, green, and blue
+- Undo and Clear
+- **Done** or `Escape` to return control to the recorded application
+
+The toolbar itself is excluded from capture. The marker and drawings are composited into the saved video. Finishing a stroke also marks that moment for report-frame extraction.
+
+You can still press `Cmd+Shift+S` (or `Ctrl+Shift+S`) to place a manual report-frame cue.
 
 ### Step 5: Stop Recording
 
@@ -199,7 +209,7 @@ Press the hotkey again (`Cmd+Shift+F` or `Ctrl+Shift+F`) to stop.
 
 After stopping:
 1. The Session Review panel opens
-2. Review your feedback items
+2. Review your feedback items and extracted frames; completed annotations appear in the video and annotated report frames
 3. Edit or delete items as needed
 4. Click **Copy to Clipboard** or choose an export format
 
