@@ -34,6 +34,11 @@ import type {
   AnalysisProvider,
   AnalysisModelOption,
   ModelAnalysisProvider,
+  AnnotationEvent,
+  AnnotationMode,
+  AnnotationStatePayload,
+  CaptureOverlayState,
+  CaptureTarget,
 } from '../../shared/types';
 
 type Unsubscribe = () => void;
@@ -73,11 +78,25 @@ interface SessionAPI {
  */
 interface CaptureAPI {
   getSources: () => Promise<CaptureSource[]>;
+  selectTarget: () => Promise<CaptureTarget | null>;
+  beginAnnotation: (sessionId: string, target: CaptureTarget) => Promise<{ success: boolean; error?: string }>;
+  endAnnotation: () => Promise<{ success: boolean }>;
+  setAnnotationMode: (mode: AnnotationMode) => Promise<{ success: boolean; error?: string }>;
+  onAnnotationEvent: (callback: (event: AnnotationEvent) => void) => Unsubscribe;
+  onAnnotationState: (callback: (state: AnnotationStatePayload) => void) => Unsubscribe;
   manualScreenshot: (context?: {
     focusedElementHint?: FocusedElementHint;
   }) => Promise<{ success: boolean; error?: string }>;
   onScreenshot: (callback: (data: ScreenshotCapturedPayload) => void) => Unsubscribe;
   onManualTrigger: (callback: (data: { timestamp: number }) => void) => Unsubscribe;
+}
+
+interface CaptureOverlayAPI {
+  getState: () => Promise<CaptureOverlayState | null>;
+  confirmTarget: (target: CaptureTarget) => Promise<{ success: boolean; error?: string }>;
+  cancel: () => Promise<{ success: boolean }>;
+  sendAnnotation: (event: AnnotationEvent) => Promise<{ success: boolean; error?: string }>;
+  onStateChange: (callback: (state: CaptureOverlayState) => void) => Unsubscribe;
 }
 
 /**
@@ -380,6 +399,7 @@ export interface MarkuprAPI {
   // Domain APIs
   session: SessionAPI;
   capture: CaptureAPI;
+  captureOverlay: CaptureOverlayAPI;
   audio: AudioAPI;
   screenRecording: ScreenRecordingAPI;
   transcript: TranscriptAPI;

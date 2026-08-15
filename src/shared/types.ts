@@ -370,6 +370,14 @@ export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   CAPTURE_GET_SOURCES: 'markupr:capture:get-sources',
   CAPTURE_MANUAL_SCREENSHOT: 'markupr:capture:manual-screenshot',
+  CAPTURE_SELECT_TARGET: 'markupr:capture:select-target',
+  CAPTURE_ANNOTATION_BEGIN: 'markupr:capture:annotation-begin',
+  CAPTURE_ANNOTATION_END: 'markupr:capture:annotation-end',
+  CAPTURE_ANNOTATION_SET_MODE: 'markupr:capture:annotation-set-mode',
+  CAPTURE_OVERLAY_GET_STATE: 'markupr:capture-overlay:get-state',
+  CAPTURE_OVERLAY_CONFIRM: 'markupr:capture-overlay:confirm',
+  CAPTURE_OVERLAY_CANCEL: 'markupr:capture-overlay:cancel',
+  CAPTURE_OVERLAY_ANNOTATION_EVENT: 'markupr:capture-overlay:annotation-event',
   SCREEN_RECORDING_START: 'markupr:screen-recording:start',
   SCREEN_RECORDING_CHUNK: 'markupr:screen-recording:chunk',
   SCREEN_RECORDING_STOP: 'markupr:screen-recording:stop',
@@ -379,6 +387,9 @@ export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   SCREENSHOT_CAPTURED: 'markupr:capture:screenshot-taken',
   MANUAL_SCREENSHOT: 'markupr:capture:manual-triggered',
+  CAPTURE_ANNOTATION_EVENT: 'markupr:capture:annotation-event',
+  CAPTURE_ANNOTATION_STATE: 'markupr:capture:annotation-state',
+  CAPTURE_OVERLAY_STATE_CHANGED: 'markupr:capture-overlay:state-changed',
 
   // ---------------------------------------------------------------------------
   // Display Channels (Main -> Renderer) - Multi-monitor support
@@ -1029,6 +1040,30 @@ export type AnnotationEvent =
   | (AnnotationEventBase & { type: 'clear' })
   | (AnnotationEventBase & { type: 'mode'; mode: AnnotationMode })
   | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds });
+
+export interface CaptureSelectionOverlayState {
+  kind: 'selection';
+  overlayId: string;
+  display: CaptureDisplay;
+  displays: CaptureDisplay[];
+  windows: CapturableWindow[];
+  windowSources: CaptureSource[];
+}
+
+export interface CaptureAnnotationOverlayState {
+  kind: 'annotation';
+  overlayId: string;
+  sessionId: string;
+  target: CaptureTarget;
+  mode: AnnotationMode;
+}
+
+export type CaptureOverlayState = CaptureSelectionOverlayState | CaptureAnnotationOverlayState;
+
+export interface AnnotationStatePayload {
+  active: boolean;
+  mode: AnnotationMode;
+}
 
 // =============================================================================
 // Session Types (for IPC)
