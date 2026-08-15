@@ -100,6 +100,10 @@ import {
   writeProcessingTrace,
 } from './output/MarkdownPatcher';
 import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
+import {
+  captureContextsToKeyMoments,
+  nearestCaptureContext,
+} from './pipeline/CaptureMomentHints';
 
 // Guard against stdio EIO crashes when the parent terminal/PTY closes.
 type ConsoleMethod = (...args: unknown[]) => void;
@@ -793,24 +797,16 @@ function attachCaptureContextsToExtractedFrames(
   }
 
   const maxDistanceMs = 5_000;
+  const videoStartTime = session.metadata.videoStartTime || session.startTime;
 
   return extractedFrames.map((frame) => {
-    const frameAtMs = session.startTime + Math.round(frame.timestamp * 1000);
-    let bestMatch: CaptureContextSnapshot | undefined;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (const context of captureContexts) {
-      const distance = Math.abs(frameAtMs - context.recordedAt);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestMatch = context;
-      }
-      if (context.recordedAt > frameAtMs && distance > bestDistance) {
-        break;
-      }
-    }
-
-    if (!bestMatch || bestDistance > maxDistanceMs) {
+    const bestMatch = nearestCaptureContext(
+      frame.timestamp,
+      videoStartTime,
+      captureContexts,
+      maxDistanceMs,
+    );
+    if (!bestMatch) {
       return frame;
     }
 
@@ -1203,6 +1199,7 @@ async function stopSession(): Promise<{
         recordingPath: recordingArtifact.path,
         recordingMimeType: recordingArtifact.mimeType,
         recordingBytes: recordingArtifact.bytesWritten,
+        videoStartTime: recordingArtifact.startTime || session.metadata.videoStartTime,
       });
     }
     if (audioArtifact) {
@@ -1230,12 +1227,17 @@ async function stopSession(): Promise<{
       document.content,
       providedTranscriptSegments
     );
+    const annotationMomentHints = captureContextsToKeyMoments(
+      captureContexts,
+      session.metadata.videoStartTime || recordingArtifact?.startTime || session.startTime,
+    );
+    const frameMomentHints = [...aiMomentHints, ...annotationMomentHints];
     aiFrameHintCount = aiMomentHints.length;
 
     console.log(
       `[Main:stopSession] Step 5/6: Post-processing pipeline ` +
       `(${providedTranscriptSegments.length} pre-provided segments, ` +
-      `${aiMomentHints.length} AI frame hints, ` +
+      `${aiMomentHints.length} AI frame hints, ${annotationMomentHints.length} annotation hints, ` +
       `hasAudio=${!!audioArtifact}, hasRecording=${!!recordingArtifact})...`
     );
 
@@ -1247,7 +1249,7 @@ async function stopSession(): Promise<{
           videoPath: recordingArtifact?.path ?? '',
           audioPath: audioArtifact?.path ?? '',
           sessionDir: saveResult.sessionDir,
-          aiMomentHints,
+          aiMomentHints: frameMomentHints,
           transcriptSegments:
             providedTranscriptSegments.length > 0
               ? providedTranscriptSegments
@@ -1393,7 +1395,7 @@ async function stopSession(): Promise<{
       analysisError: aiFallbackReason
         ? `${aiFallbackReason} Local Rules report saved.`
         : undefined,
-      videoStartTime: recordingArtifact?.startTime,
+      videoStartTime: session.metadata.videoStartTime || recordingArtifact?.startTime,
       reviewSession,
     });
 

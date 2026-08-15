@@ -56,7 +56,7 @@ export interface FeedbackItem {
 export interface SessionMetadata {
   os?: string;
   sourceName?: string;
-  sourceType?: 'screen' | 'window';
+  sourceType?: 'screen' | 'window' | 'region';
   captureContexts?: CaptureContextSnapshot[];
 }
 

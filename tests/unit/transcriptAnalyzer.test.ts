@@ -61,4 +61,33 @@ describe('TranscriptAnalyzer', () => {
     expect(result.length).toBeLessThanOrEqual(20);
     expect(aiCount).toBeGreaterThanOrEqual(2);
   });
+
+  it('extracts annotation hints even when narration is unavailable', () => {
+    const analyzer = new TranscriptAnalyzer();
+    const result = analyzer.analyze([], [
+      { timestamp: 4.2, reason: 'Annotation completed: circle', confidence: 1 },
+    ]);
+
+    expect(result).toEqual([
+      { timestamp: 4.2, reason: 'Annotation completed: circle', confidence: 1 },
+    ]);
+  });
+
+  it('ignores invalid hints when narration is unavailable', () => {
+    const analyzer = new TranscriptAnalyzer();
+    expect(analyzer.analyze([], [
+      { timestamp: Number.NaN, reason: 'Annotation completed: circle', confidence: 1 },
+    ])).toEqual([]);
+  });
+
+  it('prefers the later completed annotation when strokes land within one second', () => {
+    const analyzer = new TranscriptAnalyzer();
+    const result = analyzer.analyze(makeSegments(), [
+      { timestamp: 2, reason: 'Annotation completed: circle', confidence: 1 },
+      { timestamp: 2.6, reason: 'Annotation completed: highlight', confidence: 1 },
+    ]);
+
+    expect(result.some((moment) => moment.timestamp === 2.6 && /highlight/.test(moment.reason))).toBe(true);
+    expect(result.some((moment) => moment.timestamp === 2 && /circle/.test(moment.reason))).toBe(false);
+  });
 });

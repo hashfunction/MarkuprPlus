@@ -726,7 +726,7 @@ export interface ReviewFeedbackItem {
 export interface ReviewSessionMetadata {
   os?: string;
   sourceName?: string;
-  sourceType?: 'screen' | 'window';
+  sourceType?: 'screen' | 'window' | 'region';
   /** Epoch ms when video recording started, for computing video offsets */
   videoStartTime?: number;
 }

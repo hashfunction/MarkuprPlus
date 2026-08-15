@@ -729,10 +729,10 @@ export class SessionController {
       mergedContext.trigger = context.trigger || trigger;
       mergedContext.recordedAt = context.recordedAt ?? timestamp;
       mergedContext.activeWindow = {
+        ...(context.activeWindow || {}),
         sourceId: this.session.sourceId,
         sourceName: this.session.metadata?.sourceName,
         sourceType,
-        ...(context.activeWindow || {}),
       };
     }
 

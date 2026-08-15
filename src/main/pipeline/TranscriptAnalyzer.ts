@@ -57,7 +57,9 @@ export class TranscriptAnalyzer {
    */
   analyze(segments: TranscriptSegment[], aiHints: KeyMoment[] = []): KeyMoment[] {
     if (segments.length === 0) {
-      return [];
+      return this.finalizeMoments(
+        aiHints.filter((hint) => Number.isFinite(hint.timestamp)).map((hint) => this.normalizeHint(hint)),
+      );
     }
 
     const moments: KeyMoment[] = [];
@@ -134,41 +136,37 @@ export class TranscriptAnalyzer {
       if (!Number.isFinite(hint.timestamp)) {
         continue;
       }
-      moments.push({
-        timestamp: Math.max(0, hint.timestamp),
-        reason: hint.reason?.trim() || 'AI-highlighted context',
-        confidence: Math.max(0, Math.min(1, Number.isFinite(hint.confidence) ? hint.confidence : 0.8)),
-      });
+      moments.push(this.normalizeHint(hint));
     }
 
-    // Deduplicate moments that are very close together (within 1 second)
+    return this.finalizeMoments(moments);
+  }
+
+  private normalizeHint(hint: KeyMoment): KeyMoment {
+    return {
+      timestamp: Math.max(0, Number.isFinite(hint.timestamp) ? hint.timestamp : 0),
+      reason: hint.reason?.trim() || 'AI-highlighted context',
+      confidence: Math.max(0, Math.min(1, Number.isFinite(hint.confidence) ? hint.confidence : 0.8)),
+    };
+  }
+
+  private finalizeMoments(moments: KeyMoment[]): KeyMoment[] {
     const deduped = this.deduplicateMoments(moments);
-
-    // Sort by timestamp
     deduped.sort((a, b) => a.timestamp - b.timestamp);
+    if (deduped.length <= MAX_KEY_MOMENTS) return deduped;
 
-    // Cap at MAX_KEY_MOMENTS, keeping highest confidence ones
-    if (deduped.length > MAX_KEY_MOMENTS) {
-      // Always keep first and last; rank the rest by confidence
-      const first = deduped[0];
-      const last = deduped[deduped.length - 1];
-      const middle = deduped
-        .slice(1, -1)
-        .sort((a, b) => {
-          const priorityDelta = this.momentPriority(b) - this.momentPriority(a);
-          if (priorityDelta !== 0) {
-            return priorityDelta;
-          }
-          return b.confidence - a.confidence;
-        })
-        .slice(0, MAX_KEY_MOMENTS - 2);
-
-      const capped = [first, ...middle, last];
-      capped.sort((a, b) => a.timestamp - b.timestamp);
-      return capped;
-    }
-
-    return deduped;
+    const first = deduped[0];
+    const last = deduped[deduped.length - 1];
+    const middle = deduped
+      .slice(1, -1)
+      .sort((a, b) => {
+        const priorityDelta = this.momentPriority(b) - this.momentPriority(a);
+        return priorityDelta || b.confidence - a.confidence;
+      })
+      .slice(0, MAX_KEY_MOMENTS - 2);
+    const capped = [first, ...middle, last];
+    capped.sort((a, b) => a.timestamp - b.timestamp);
+    return capped;
   }
 
   /**
@@ -194,7 +192,10 @@ export class TranscriptAnalyzer {
         const prevPriority = this.momentPriority(prev);
         if (
           currPriority > prevPriority ||
-          (currPriority === prevPriority && curr.confidence > prev.confidence)
+          (currPriority === prevPriority && (
+            curr.confidence > prev.confidence
+            || (this.isAnnotationMoment(curr) && this.isAnnotationMoment(prev))
+          ))
         ) {
           result[result.length - 1] = curr;
         }
@@ -208,6 +209,9 @@ export class TranscriptAnalyzer {
 
   private momentPriority(moment: KeyMoment): number {
     const reason = (moment.reason || '').toLowerCase();
+    if (reason.includes('annotation completed')) {
+      return 5;
+    }
     if (reason.includes('session start') || reason.includes('session end')) {
       return 4;
     }
@@ -221,6 +225,10 @@ export class TranscriptAnalyzer {
       return 0;
     }
     return 1;
+  }
+
+  private isAnnotationMoment(moment: KeyMoment): boolean {
+    return (moment.reason || '').toLowerCase().includes('annotation completed');
   }
 }
 
