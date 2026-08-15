@@ -19,6 +19,7 @@ import {
   type AnnotationMode,
   type CaptureTarget,
 } from '../../shared/types';
+import { sameCaptureTarget } from '../../shared/captureGeometry';
 import type { IpcContext } from './types';
 import { probeCaptureContext } from '../capture/CaptureContextProbe';
 import { captureOverlayManager } from '../capture/CaptureOverlayManager';
@@ -143,6 +144,12 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
         return { success: false, error: 'Invalid annotation target.' };
       }
       try {
+        const activeSession = sessionController.getSession();
+        const expectedTarget = activeSession?.metadata.captureTarget;
+        if (!activeSession || activeSession.id !== sessionId || !expectedTarget
+          || !sameCaptureTarget(expectedTarget, target as CaptureTarget)) {
+          return { success: false, error: 'Annotation target does not match the active recording.' };
+        }
         await captureOverlayManager.beginAnnotation(sessionId, target as CaptureTarget);
         return { success: true };
       } catch (error) {
@@ -180,6 +187,13 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
   ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_CANCEL, () => {
     captureOverlayManager.cancelSelection();
     return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_SET_SELECTION_MODE, (event, mode: unknown) => {
+    if (mode !== 'window' && mode !== 'region' && mode !== 'screen') {
+      return { success: false, error: 'Invalid selection mode.' };
+    }
+    return captureOverlayManager.setSelectionMode(event.sender.id, mode);
   });
 
   ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_ANNOTATION_EVENT, (event, annotationEvent: unknown) => {

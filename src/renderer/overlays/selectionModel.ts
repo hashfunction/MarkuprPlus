@@ -3,11 +3,12 @@ import type {
   CaptureDisplay,
   CapturePoint,
   CaptureSource,
+  CaptureSelectionMode,
   CaptureTarget,
 } from '../../shared/types';
 import { findWindowAtPoint, normalizeRegion } from '../../shared/captureGeometry';
 
-export type SelectionMode = 'window' | 'region' | 'screen';
+export type SelectionMode = CaptureSelectionMode;
 
 export interface SelectionState {
   mode: SelectionMode;
@@ -38,9 +39,9 @@ export interface SelectionResult {
   effect: SelectionEffect | null;
 }
 
-export function createSelectionState(): SelectionState {
+export function createSelectionState(mode: SelectionMode = 'window'): SelectionState {
   return {
-    mode: 'window',
+    mode,
     hoveredSourceId: null,
     dragStart: null,
     dragCurrent: null,

@@ -69,8 +69,10 @@ export class RecordingCompositor {
     video.srcObject = sourceStream;
 
     try {
-      await this.waitForMetadata(video);
-      await video.play();
+      // Detached capture videos do not reliably honor `autoplay` on every
+      // Electron/macOS combination. Explicitly starting playback first lets
+      // the desktop track begin producing metadata and frames.
+      await Promise.all([video.play(), this.waitForMetadata(video)]);
       const initialCrop = regionToSourceCrop(target, {
         width: video.videoWidth,
         height: video.videoHeight,
@@ -128,7 +130,13 @@ export class RecordingCompositor {
       destination.width,
       destination.height,
     );
-    drawAnnotationScene(context, this.scene, { width: canvas.width, height: canvas.height });
+    context.save();
+    context.translate(destination.x, destination.y);
+    drawAnnotationScene(context, this.scene, {
+      width: destination.width,
+      height: destination.height,
+    });
+    context.restore();
   }
 
   stop(): void {
@@ -163,9 +171,9 @@ export class RecordingCompositor {
   private waitForMetadata(video: HTMLVideoElement): Promise<void> {
     if (video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0) return Promise.resolve();
     return new Promise((resolve, reject) => {
-      let timeout: unknown;
+      const timeoutRef: { current?: unknown } = {};
       const cleanup = () => {
-        this.dependencies.clearTimeout(timeout);
+        this.dependencies.clearTimeout(timeoutRef.current);
         video.removeEventListener('loadedmetadata', onLoaded);
         video.removeEventListener('error', onError);
       };
@@ -183,7 +191,7 @@ export class RecordingCompositor {
       };
       video.addEventListener('loadedmetadata', onLoaded);
       video.addEventListener('error', onError);
-      timeout = this.dependencies.setTimeout(() => {
+      timeoutRef.current = this.dependencies.setTimeout(() => {
         cleanup();
         reject(new Error('Timed out waiting for the selected capture source.'));
       }, 4_000);

@@ -86,4 +86,20 @@ describe('annotationOverlayModel', () => {
     expect(reduceAnnotationOverlay(interact.model, { type: 'clear' }).events)
       .toEqual([{ type: 'clear', sessionId: 'session-1' }]);
   });
+
+  it('ends the remote active stroke when pointer capture is cancelled', () => {
+    let model = reduceAnnotationOverlay(createAnnotationOverlayModel('session-1'), {
+      type: 'set-mode', mode: 'draw',
+    }).model;
+    model = reduceAnnotationOverlay(model, {
+      type: 'pointer-down', strokeId: 'stroke-1', point: { x: 0.1, y: 0.1 },
+    }).model;
+
+    const cancelled = reduceAnnotationOverlay(model, { type: 'pointer-cancel' });
+
+    expect(cancelled.events).toEqual([
+      { type: 'stroke-end', sessionId: 'session-1', strokeId: 'stroke-1' },
+    ]);
+    expect(cancelled.model.activeStrokeId).toBeNull();
+  });
 });

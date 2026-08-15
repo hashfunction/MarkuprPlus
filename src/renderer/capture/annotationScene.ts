@@ -12,6 +12,7 @@ export interface AnnotationScene {
 }
 
 const MAX_STROKE_POINTS = 2_000;
+const MAX_COMPLETED_STROKES = 250;
 const ALLOWED_COLORS = new Set<AnnotationColor>(['#ff3b30', '#ffcc00', '#34c759', '#0a84ff']);
 const ALLOWED_TOOLS = new Set(['freehand', 'circle', 'highlight']);
 
@@ -79,11 +80,12 @@ export function reduceAnnotationEvent(
     }
     case 'stroke-end': {
       if (!scene.activeStroke || scene.activeStroke.id !== event.strokeId) return scene;
+      const completed = enoughPoints(scene.activeStroke)
+        ? [...scene.completedStrokes, scene.activeStroke]
+        : scene.completedStrokes;
       return {
         ...scene,
-        completedStrokes: enoughPoints(scene.activeStroke)
-          ? [...scene.completedStrokes, scene.activeStroke]
-          : scene.completedStrokes,
+        completedStrokes: completed.slice(-MAX_COMPLETED_STROKES),
         activeStroke: null,
       };
     }

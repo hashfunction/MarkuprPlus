@@ -22,7 +22,10 @@ class MockMediaStream {
     kind: string;
     enabled: boolean;
     readyState: string;
+    addEventListener: ReturnType<typeof vi.fn>;
+    removeEventListener: ReturnType<typeof vi.fn>;
   }> = [];
+  private endedListeners = new Set<() => void>();
 
   constructor(readonly label = 'stream') {
     this.tracks = [{
@@ -30,11 +33,22 @@ class MockMediaStream {
       kind: 'video',
       enabled: true,
       readyState: 'live',
+      addEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === 'ended') this.endedListeners.add(listener);
+      }),
+      removeEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === 'ended') this.endedListeners.delete(listener);
+      }),
     }];
   }
 
   getTracks() {
     return this.tracks;
+  }
+
+  endVideoTrack() {
+    this.tracks[0].readyState = 'ended';
+    this.endedListeners.forEach((listener) => listener());
   }
 }
 
@@ -44,6 +58,7 @@ let mockRecorderInstance: {
   stop: ReturnType<typeof vi.fn>;
   requestData: ReturnType<typeof vi.fn>;
   ondataavailable: ((event: { data: Blob }) => void) | null;
+  onerror: ((event: { error?: Error }) => void) | null;
   onstop: (() => void) | null;
   stream: MediaStream;
 };
@@ -52,6 +67,7 @@ class MockMediaRecorder {
   static isTypeSupported = vi.fn(() => true);
   state = 'inactive';
   ondataavailable: ((event: { data: Blob }) => void) | null = null;
+  onerror: ((event: { error?: Error }) => void) | null = null;
   onstop: (() => void) | null = null;
   requestData = vi.fn();
   stream: MediaStream;
@@ -90,6 +106,9 @@ const mockScreenRecordingIPC = {
     Promise.resolve({ success: true, path: '/tmp/rec.webm', bytes: 1024, mimeType: 'video/webm' })
   ),
 };
+const mockSessionIPC = {
+  stop: vi.fn(() => Promise.resolve({ success: true })),
+};
 
 const annotationListeners = new Set<(event: AnnotationEvent) => void>();
 const mockCaptureIPC = {
@@ -100,12 +119,14 @@ const mockCaptureIPC = {
     annotationListeners.add(listener);
     return () => annotationListeners.delete(listener);
   }),
+  endAnnotation: vi.fn(() => Promise.resolve({ success: true })),
 };
 
 vi.stubGlobal('window', {
   markupr: {
     screenRecording: mockScreenRecordingIPC,
     capture: mockCaptureIPC,
+    session: mockSessionIPC,
   },
 });
 
@@ -224,13 +245,57 @@ describe('ScreenRecordingRenderer', () => {
     });
 
     it('releases the selected source when composition cannot initialize', async () => {
-      compositor.start.mockRejectedValueOnce(new Error('canvas unavailable'));
+      compositor.start.mockRejectedValue(new Error('canvas unavailable'));
 
       await expect(renderer.start({ sessionId: 'sess-1', target: screenTarget }))
         .rejects.toThrow('canvas unavailable');
 
       expect(rawStream.getTracks()[0].stop).toHaveBeenCalled();
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
       expect(mockScreenRecordingIPC.start).not.toHaveBeenCalled();
+    });
+
+    it('retries basic exact-source capture when a constrained stream never becomes frame-ready', async () => {
+      const constrainedStream = new MockMediaStream('constrained');
+      const fallbackStream = new MockMediaStream('fallback');
+      vi.mocked(navigator.mediaDevices.getUserMedia)
+        .mockResolvedValueOnce(constrainedStream as unknown as MediaStream)
+        .mockResolvedValueOnce(fallbackStream as unknown as MediaStream);
+      compositor.start
+        .mockRejectedValueOnce(new Error('Timed out waiting for the selected capture source.'))
+        .mockResolvedValueOnce(composedStream as unknown as MediaStream);
+
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+      expect(constrainedStream.getTracks()[0].stop).toHaveBeenCalled();
+      expect(compositor.start).toHaveBeenNthCalledWith(1, constrainedStream, screenTarget);
+      expect(compositor.start).toHaveBeenNthCalledWith(2, fallbackStream, screenTarget);
+      expect(mockRecorderInstance.stream).toBe(composedStream);
+    });
+
+    it('finalizes recording and the session when the selected source ends', async () => {
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+
+      rawStream.endVideoTrack();
+
+      await vi.waitFor(() => expect(mockSessionIPC.stop).toHaveBeenCalledOnce());
+      expect(compositor.stop).toHaveBeenCalled();
+      expect(mockScreenRecordingIPC.stop).toHaveBeenCalledWith('sess-1');
+    });
+
+    it('finalizes and surfaces the selected source when MediaRecorder fails', async () => {
+      const onFatalError = vi.fn();
+      renderer.setFatalErrorHandler(onFatalError);
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+
+      mockRecorderInstance.onerror?.({ error: new Error('encoder crashed') });
+
+      await vi.waitFor(() => expect(mockSessionIPC.stop).toHaveBeenCalledOnce());
+      expect(mockScreenRecordingIPC.stop).toHaveBeenCalledWith('sess-1');
+      expect(mockCaptureIPC.endAnnotation).toHaveBeenCalledOnce();
+      expect(onFatalError).toHaveBeenCalledWith(expect.stringContaining('Primary Display'));
+      expect(onFatalError).toHaveBeenCalledWith(expect.stringContaining('encoder crashed'));
     });
 
     it('should request getUserMedia with desktop source constraints', async () => {
@@ -240,6 +305,7 @@ describe('ScreenRecordingRenderer', () => {
         expect.objectContaining({
           audio: false,
           video: expect.objectContaining({
+            cursor: 'never',
             mandatory: expect.objectContaining({
               chromeMediaSource: 'desktop',
               chromeMediaSourceId: 'screen:0:0',

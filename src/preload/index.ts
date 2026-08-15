@@ -16,6 +16,7 @@ import {
   IPC_CHANNELS,
   type AppSettings,
   type CaptureSource,
+  type CaptureSelectionMode,
   type AudioDevice,
   type PermissionType,
   type PermissionStatus,
@@ -241,6 +242,11 @@ const markuprApi = {
     },
     cancel: (): Promise<{ success: boolean }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_CANCEL);
+    },
+    setSelectionMode: (
+      mode: CaptureSelectionMode
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_SET_SELECTION_MODE, mode);
     },
     sendAnnotation: (
       event: AnnotationEvent

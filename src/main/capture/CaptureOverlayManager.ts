@@ -10,16 +10,22 @@ import {
   type CaptureDisplay,
   type CaptureOverlayState,
   type CaptureSelectionOverlayState,
+  type CaptureSelectionMode,
   type CaptureSource,
   type CaptureTarget,
 } from '../../shared/types';
-import { validateCaptureTarget } from '../../shared/captureGeometry';
+import {
+  matchCaptureDisplays,
+  validateAnnotationEvent,
+  validateCaptureTarget,
+} from '../../shared/captureGeometry';
 import { windowGeometryProvider } from './WindowGeometryProvider';
 
 export interface CaptureOverlayWindow {
   webContents: {
     id: number;
     send(channel: string, payload: unknown): void;
+    on(event: string, callback: () => void): void;
   };
   setContentProtection(enabled: boolean): void;
   setAlwaysOnTop(enabled: boolean, level?: string): void;
@@ -94,22 +100,15 @@ async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
     appIcon: toDataUrl(source.appIcon),
   }));
   const rawScreenSources = rawSources.filter((source) => source.id.startsWith('screen:'));
-  const electronDisplays = screen.getAllDisplays();
-  const primaryId = String(screen.getPrimaryDisplay().id);
-  const displays = electronDisplays.flatMap((display, index): CaptureDisplay[] => {
-    const rawSource = rawScreenSources.find((source) => source.display_id === String(display.id))
-      || rawScreenSources[index];
-    if (!rawSource) return [];
-    return [{
-      id: String(display.id),
-      label: display.label || rawSource.name || `Display ${index + 1}`,
-      sourceId: rawSource.id,
-      sourceName: rawSource.name,
-      bounds: { ...display.bounds },
-      scaleFactor: display.scaleFactor,
-      isPrimary: String(display.id) === primaryId,
-    }];
-  });
+  const displays = matchCaptureDisplays(
+    screen.getAllDisplays(),
+    rawScreenSources.map((source) => ({
+      id: source.id,
+      name: source.name,
+      displayId: source.display_id || undefined,
+    })),
+    String(screen.getPrimaryDisplay().id),
+  );
 
   return {
     displays,
@@ -208,6 +207,7 @@ export class CaptureOverlayManager {
   private dependencies: CaptureOverlayManagerDependencies;
   private overlays = new Map<number, ActiveOverlay>();
   private pendingSelection: PendingSelection | null = null;
+  private selectionMode: CaptureSelectionMode = 'window';
   private annotation: ActiveOverlay | null = null;
   private annotationMode: AnnotationMode = 'interact';
   private intervalHandles = new Set<unknown>();
@@ -216,7 +216,10 @@ export class CaptureOverlayManager {
 
   constructor(dependencies?: CaptureOverlayManagerDependencies) {
     this.dependencies = dependencies || defaultDependencies();
-    this.subscribeToDisplayChanges();
+    // The Electron screen module is unavailable before app.whenReady(). The
+    // singleton receives configure() during ready initialization; injected
+    // test/alternate dependencies are safe to subscribe immediately.
+    if (dependencies) this.subscribeToDisplayChanges();
   }
 
   configure(dependencies: Partial<CaptureOverlayManagerDependencies>): void {
@@ -232,10 +235,13 @@ export class CaptureOverlayManager {
     const promise = new Promise<CaptureTarget | null>((resolve) => {
       resolveSelection = resolve;
     });
-    this.pendingSelection = { promise, resolve: resolveSelection };
+    const request: PendingSelection = { promise, resolve: resolveSelection };
+    this.pendingSelection = request;
+    this.selectionMode = 'window';
 
     try {
       const prepared = await this.dependencies.prepareSelection();
+      if (this.pendingSelection !== request) return promise;
       if (prepared.displays.length === 0) {
         this.finishSelection(null, true);
         return promise;
@@ -243,25 +249,38 @@ export class CaptureOverlayManager {
       this.dependencies.getHostWindow()?.hide();
 
       await Promise.all(prepared.displays.map(async (display, index) => {
+        if (this.pendingSelection !== request) return;
         const overlayId = `selection-${display.id}-${index}`;
         const state: CaptureSelectionOverlayState = {
           kind: 'selection',
           overlayId,
+          mode: this.selectionMode,
           display,
           displays: prepared.displays,
           windows: prepared.windows,
           windowSources: prepared.windowSources,
         };
         const window = this.createProtectedWindow('selection');
+        const senderId = window.webContents.id;
         window.setBounds(display.bounds);
-        this.overlays.set(window.webContents.id, { window, state });
+        this.overlays.set(senderId, { window, state });
         window.on('closed', () => {
-          if (this.overlays.has(window.webContents.id)) this.cancelSelection();
+          if (this.overlays.has(senderId)) this.cancelSelection();
         });
         await this.dependencies.loadRenderer(window, 'selection', overlayId);
-        if (!window.isDestroyed()) window.showInactive();
+        if (!window.isDestroyed()) {
+          const shouldFocus = display.isPrimary
+            || (!prepared.displays.some((candidate) => candidate.isPrimary) && index === 0);
+          if (shouldFocus) {
+            window.show();
+            window.focus();
+          } else {
+            window.showInactive();
+          }
+        }
       }));
     } catch (error) {
+      if (this.pendingSelection !== request) return promise;
       console.error('[CaptureOverlayManager] Failed to open selector:', error);
       this.finishSelection(null, true);
     }
@@ -273,12 +292,13 @@ export class CaptureOverlayManager {
     return this.overlays.get(senderId)?.state || null;
   }
 
-  confirmTarget(senderId: number, target: CaptureTarget): { success: boolean; error?: string } {
+  async confirmTarget(senderId: number, target: CaptureTarget): Promise<{ success: boolean; error?: string }> {
     const overlay = this.overlays.get(senderId);
     if (!overlay || overlay.state.kind !== 'selection' || !this.pendingSelection) {
       return { success: false, error: 'Unknown capture overlay.' };
     }
 
+    let resolvedTarget = target;
     if (target.kind === 'window') {
       const issued = overlay.state.windows.find((window) =>
         window.sourceId === target.sourceId
@@ -296,11 +316,48 @@ export class CaptureOverlayManager {
       if (!issued && !issuedGallerySource) {
         return { success: false, error: 'The selected window is no longer available.' };
       }
+      if (issued) {
+        const refreshed = await this.dependencies.refreshWindow(target);
+        if (!refreshed
+          || refreshed.sourceId !== target.sourceId
+          || refreshed.nativeWindowId !== target.nativeWindowId) {
+          return { success: false, error: 'The selected window is no longer available.' };
+        }
+        if (!this.pendingSelection || this.overlays.get(senderId) !== overlay) {
+          return { success: false, error: 'Unknown capture overlay.' };
+        }
+        resolvedTarget = {
+          ...target,
+          sourceName: refreshed.sourceName,
+          appName: refreshed.appName,
+          bounds: refreshed.bounds,
+          geometryAvailable: true,
+        };
+      }
     } else if (!validateCaptureTarget(target, overlay.state.displays)) {
       return { success: false, error: 'The selected capture area is invalid.' };
     }
 
-    this.finishSelection(target, false);
+    this.finishSelection(resolvedTarget, false);
+    return { success: true };
+  }
+
+  setSelectionMode(senderId: number, mode: CaptureSelectionMode): { success: boolean; error?: string } {
+    const sender = this.overlays.get(senderId);
+    if (!this.pendingSelection || !sender || sender.state.kind !== 'selection') {
+      return { success: false, error: 'Unknown capture overlay.' };
+    }
+    if (mode !== 'window' && mode !== 'region' && mode !== 'screen') {
+      return { success: false, error: 'Invalid selection mode.' };
+    }
+
+    this.selectionMode = mode;
+    for (const [webContentsId, overlay] of this.overlays) {
+      if (overlay.state.kind !== 'selection' || overlay.window.isDestroyed()) continue;
+      overlay.state = { ...overlay.state, mode };
+      this.overlays.set(webContentsId, overlay);
+      overlay.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, overlay.state);
+    }
     return { success: true };
   }
 
@@ -310,6 +367,9 @@ export class CaptureOverlayManager {
 
   async beginAnnotation(sessionId: string, target: CaptureTarget): Promise<void> {
     this.endAnnotation();
+    if (target.kind === 'window' && target.geometryAvailable === false) {
+      throw new Error('Live annotation is unavailable because this window system did not provide trustworthy window geometry.');
+    }
     this.annotationMode = 'interact';
     const overlayId = `annotation-${sessionId}`;
     const state: CaptureOverlayState = {
@@ -320,18 +380,24 @@ export class CaptureOverlayManager {
       mode: this.annotationMode,
     };
     const window = this.createProtectedWindow('annotation');
+    const senderId = window.webContents.id;
     window.setBounds(annotationBounds(target));
     window.setIgnoreMouseEvents(true, { forward: true });
     this.annotation = { window, state };
-    this.overlays.set(window.webContents.id, this.annotation);
+    this.overlays.set(senderId, this.annotation);
     window.on('closed', () => this.endAnnotation());
-    await this.dependencies.loadRenderer(window, 'annotation', overlayId);
+    try {
+      await this.dependencies.loadRenderer(window, 'annotation', overlayId);
+    } catch (error) {
+      this.endAnnotation();
+      throw error;
+    }
     if (!window.isDestroyed()) window.showInactive();
     this.emitAnnotationState();
     this.startAnnotationPolling();
   }
 
-  endAnnotation(): void {
+  endAnnotation(error?: string): void {
     for (const handle of this.intervalHandles) this.dependencies.clearInterval(handle);
     this.intervalHandles.clear();
     this.windowRefreshInFlight = false;
@@ -342,7 +408,7 @@ export class CaptureOverlayManager {
       this.overlays.delete(active.window.webContents.id);
       if (!active.window.isDestroyed()) active.window.destroy();
     }
-    this.emitAnnotationState();
+    this.emitAnnotationState(error);
   }
 
   setAnnotationMode(mode: AnnotationMode): { success: boolean; error?: string } {
@@ -379,7 +445,18 @@ export class CaptureOverlayManager {
     if (event.sessionId !== overlay.state.sessionId) {
       return { success: false, error: 'Annotation session does not match the active recording.' };
     }
-    this.sendAnnotationToHost(event);
+    if (!validateAnnotationEvent(event)) {
+      return { success: false, error: 'Invalid annotation event.' };
+    }
+    const requiresDrawMode = event.type === 'stroke-start'
+      || event.type === 'stroke-points'
+      || event.type === 'stroke-end'
+      || event.type === 'undo'
+      || event.type === 'clear';
+    if (requiresDrawMode && this.annotationMode !== 'draw') {
+      return { success: false, error: 'Drawing is not active.' };
+    }
+    this.sendAnnotationToHost(event, false);
     return { success: true };
   }
 
@@ -392,10 +469,29 @@ export class CaptureOverlayManager {
 
   private createProtectedWindow(kind: CaptureOverlayState['kind']): CaptureOverlayWindow {
     const window = this.dependencies.createWindow(kind);
+    const senderId = window.webContents.id;
     window.setContentProtection(true);
     window.setAlwaysOnTop(true, 'screen-saver');
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    window.webContents.on('render-process-gone', () => {
+      this.handleOverlayRendererFailure(senderId);
+    });
+    window.on('unresponsive', () => {
+      this.handleOverlayRendererFailure(senderId);
+    });
     return window;
+  }
+
+  private handleOverlayRendererFailure(senderId: number): void {
+    const overlay = this.overlays.get(senderId);
+    if (!overlay) return;
+    if (overlay.state.kind === 'selection') {
+      this.cancelSelection();
+      return;
+    }
+    if (overlay === this.annotation) {
+      this.endAnnotation('The drawing overlay stopped unexpectedly. Recording continues without live drawing.');
+    }
   }
 
   private finishSelection(target: CaptureTarget | null, restoreHost: boolean): void {
@@ -411,21 +507,32 @@ export class CaptureOverlayManager {
     pending?.resolve(target);
   }
 
-  private emitAnnotationState(): void {
+  private emitAnnotationState(error?: string): void {
     const payload: AnnotationStatePayload = {
       active: Boolean(this.annotation),
       mode: this.annotation ? this.annotationMode : 'interact',
+      ...(error ? { error } : {}),
     };
-    this.dependencies.getHostWindow()?.webContents.send(IPC_CHANNELS.CAPTURE_ANNOTATION_STATE, payload);
+    this.sendToHost(IPC_CHANNELS.CAPTURE_ANNOTATION_STATE, payload);
   }
 
-  private sendAnnotationToHost(event: AnnotationEvent): void {
-    this.dependencies.getHostWindow()?.webContents.send(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT, event);
+  private sendAnnotationToHost(event: AnnotationEvent, echoToOverlay = true): void {
+    this.sendToHost(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT, event);
     const active = this.annotation;
-    if (active && active.state.kind === 'annotation' && !active.window.isDestroyed()) {
+    if (echoToOverlay && active && active.state.kind === 'annotation' && !active.window.isDestroyed()) {
       active.window.webContents.send(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT, event);
     }
     this.dependencies.onAnnotationEvent?.(event);
+  }
+
+  private sendToHost(channel: string, payload: unknown): void {
+    try {
+      this.dependencies.getHostWindow()?.webContents.send(channel, payload);
+    } catch (error) {
+      // The host renderer may already be gone during app shutdown. Overlay
+      // cleanup must remain synchronous and idempotent in that ordering.
+      console.warn('[CaptureOverlayManager] Host renderer unavailable during overlay teardown:', error);
+    }
   }
 
   private startAnnotationPolling(): void {

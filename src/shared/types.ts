@@ -377,6 +377,7 @@ export const IPC_CHANNELS = {
   CAPTURE_OVERLAY_GET_STATE: 'markupr:capture-overlay:get-state',
   CAPTURE_OVERLAY_CONFIRM: 'markupr:capture-overlay:confirm',
   CAPTURE_OVERLAY_CANCEL: 'markupr:capture-overlay:cancel',
+  CAPTURE_OVERLAY_SET_SELECTION_MODE: 'markupr:capture-overlay:set-selection-mode',
   CAPTURE_OVERLAY_ANNOTATION_EVENT: 'markupr:capture-overlay:annotation-event',
   SCREEN_RECORDING_START: 'markupr:screen-recording:start',
   SCREEN_RECORDING_CHUNK: 'markupr:screen-recording:chunk',
@@ -1013,6 +1014,7 @@ export type CaptureTarget =
   | ScreenCaptureTarget;
 
 export type AnnotationMode = 'interact' | 'draw';
+export type CaptureSelectionMode = 'window' | 'region' | 'screen';
 export type AnnotationTool = 'freehand' | 'circle' | 'highlight';
 export type AnnotationColor = '#ff3b30' | '#ffcc00' | '#34c759' | '#0a84ff';
 
@@ -1046,6 +1048,7 @@ export type AnnotationEvent =
 export interface CaptureSelectionOverlayState {
   kind: 'selection';
   overlayId: string;
+  mode: CaptureSelectionMode;
   display: CaptureDisplay;
   displays: CaptureDisplay[];
   windows: CapturableWindow[];
@@ -1065,6 +1068,7 @@ export type CaptureOverlayState = CaptureSelectionOverlayState | CaptureAnnotati
 export interface AnnotationStatePayload {
   active: boolean;
   mode: AnnotationMode;
+  error?: string;
 }
 
 // =============================================================================

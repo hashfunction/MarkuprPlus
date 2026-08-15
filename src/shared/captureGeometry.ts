@@ -1,4 +1,5 @@
 import type {
+  AnnotationEvent,
   CapturableWindow,
   CaptureBounds,
   CaptureDisplay,
@@ -7,6 +8,22 @@ import type {
 } from './types';
 
 const MIN_REGION_SIZE = 32;
+const MAX_ANNOTATION_BATCH_POINTS = 256;
+const ANNOTATION_TOOLS = new Set(['freehand', 'circle', 'highlight']);
+const ANNOTATION_COLORS = new Set(['#ff3b30', '#ffcc00', '#34c759', '#0a84ff']);
+
+interface DisplayDescription {
+  id: string | number;
+  label?: string;
+  bounds: CaptureBounds;
+  scaleFactor: number;
+}
+
+interface ScreenSourceDescription {
+  id: string;
+  name: string;
+  displayId?: string;
+}
 
 function isFiniteNumber(value: number): boolean {
   return typeof value === 'number' && Number.isFinite(value);
@@ -19,6 +36,57 @@ export function isFiniteBounds(bounds: CaptureBounds): boolean {
     && isFiniteNumber(bounds.height)
     && bounds.width > 0
     && bounds.height > 0;
+}
+
+function isNormalizedPoint(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const point = value as { x?: unknown; y?: unknown };
+  return typeof point.x === 'number' && Number.isFinite(point.x)
+    && typeof point.y === 'number' && Number.isFinite(point.y)
+    && point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1;
+}
+
+function validIdentifier(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 160;
+}
+
+function validPointBatch(value: unknown, allowEmpty = false): boolean {
+  return Array.isArray(value)
+    && (allowEmpty || value.length > 0)
+    && value.length <= MAX_ANNOTATION_BATCH_POINTS
+    && value.every(isNormalizedPoint);
+}
+
+/** Validate renderer-supplied annotation IPC before it reaches host or compositor state. */
+export function validateAnnotationEvent(value: unknown): value is AnnotationEvent {
+  if (!value || typeof value !== 'object') return false;
+  const event = value as Record<string, unknown>;
+  if (!validIdentifier(event.sessionId) || typeof event.type !== 'string') return false;
+
+  if (event.type === 'cursor') return event.point === null || isNormalizedPoint(event.point);
+  if (event.type === 'stroke-start') {
+    if (!event.stroke || typeof event.stroke !== 'object') return false;
+    const stroke = event.stroke as Record<string, unknown>;
+    return validIdentifier(stroke.id)
+      && ANNOTATION_TOOLS.has(String(stroke.tool))
+      && ANNOTATION_COLORS.has(String(stroke.color))
+      && typeof stroke.width === 'number'
+      && Number.isFinite(stroke.width)
+      && stroke.width >= 0.001
+      && stroke.width <= 0.1
+      && validPointBatch(stroke.points);
+  }
+  if (event.type === 'stroke-points') {
+    return validIdentifier(event.strokeId) && validPointBatch(event.points);
+  }
+  if (event.type === 'stroke-end') return validIdentifier(event.strokeId);
+  if (event.type === 'undo' || event.type === 'clear') return true;
+  if (event.type === 'mode') return event.mode === 'interact' || event.mode === 'draw';
+  if (event.type === 'bounds') {
+    return Boolean(event.bounds && typeof event.bounds === 'object')
+      && isFiniteBounds(event.bounds as CaptureBounds);
+  }
+  return false;
 }
 
 export function findWindowAtPoint(
@@ -115,6 +183,70 @@ function sameBounds(left: CaptureBounds, right: CaptureBounds): boolean {
     && left.y === right.y
     && left.width === right.width
     && left.height === right.height;
+}
+
+/**
+ * Pair Electron displays to desktop capture sources without relying on list
+ * order. Recording the wrong display is a privacy boundary, so ambiguous
+ * multi-display results are deliberately omitted. A single-display machine is
+ * the only safe case for a source without platform display metadata.
+ */
+export function matchCaptureDisplays(
+  displays: DisplayDescription[],
+  screenSources: ScreenSourceDescription[],
+  primaryDisplayId: string,
+): CaptureDisplay[] {
+  const singleDisplayFallback = displays.length === 1 && screenSources.length === 1
+    ? screenSources[0]
+    : null;
+
+  return displays.flatMap((display, index): CaptureDisplay[] => {
+    const displayId = String(display.id);
+    const exactMatches = screenSources.filter((source) => source.displayId === displayId);
+    const source = exactMatches.length === 1 ? exactMatches[0] : singleDisplayFallback;
+    if (!source) return [];
+
+    return [{
+      id: displayId,
+      label: display.label || source.name || `Display ${index + 1}`,
+      sourceId: source.id,
+      sourceName: source.name,
+      bounds: { ...display.bounds },
+      scaleFactor: display.scaleFactor,
+      isPrimary: displayId === primaryDisplayId,
+    }];
+  });
+}
+
+/** Compare the discriminated capture-target payload field by field. */
+export function sameCaptureTarget(left: CaptureTarget, right: CaptureTarget): boolean {
+  if (left.kind !== right.kind
+    || left.sourceId !== right.sourceId
+    || left.sourceName !== right.sourceName) {
+    return false;
+  }
+
+  if (left.kind === 'window' && right.kind === 'window') {
+    return left.nativeWindowId === right.nativeWindowId
+      && left.appName === right.appName
+      && left.geometryAvailable === right.geometryAvailable
+      && sameBounds(left.bounds, right.bounds);
+  }
+
+  if (left.kind === 'screen' && right.kind === 'screen') {
+    return left.displayId === right.displayId
+      && left.scaleFactor === right.scaleFactor
+      && sameBounds(left.displayBounds, right.displayBounds);
+  }
+
+  if (left.kind === 'region' && right.kind === 'region') {
+    return left.displayId === right.displayId
+      && left.scaleFactor === right.scaleFactor
+      && sameBounds(left.displayBounds, right.displayBounds)
+      && sameBounds(left.region, right.region);
+  }
+
+  return false;
 }
 
 export function validateCaptureTarget(

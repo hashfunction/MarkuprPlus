@@ -8,6 +8,7 @@
 import type {
   AppSettings,
   CaptureSource,
+  CaptureSelectionMode,
   AudioDevice,
   PermissionType,
   PermissionStatus,
@@ -95,6 +96,7 @@ interface CaptureOverlayAPI {
   getState: () => Promise<CaptureOverlayState | null>;
   confirmTarget: (target: CaptureTarget) => Promise<{ success: boolean; error?: string }>;
   cancel: () => Promise<{ success: boolean }>;
+  setSelectionMode: (mode: CaptureSelectionMode) => Promise<{ success: boolean; error?: string }>;
   sendAnnotation: (event: AnnotationEvent) => Promise<{ success: boolean; error?: string }>;
   onStateChange: (callback: (state: CaptureOverlayState) => void) => Unsubscribe;
 }

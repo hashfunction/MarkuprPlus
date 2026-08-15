@@ -421,6 +421,17 @@ function mapToTrayState(state: SessionState): TrayState {
 function handleSessionStateChange(state: SessionState, session: Session | null): void {
   console.log(`[Main] Session state changed: ${state}`);
   if (state === 'idle') annotationCueTracker.clear();
+  if (state === 'stopping' || state === 'processing' || state === 'complete'
+    || state === 'error' || state === 'idle') {
+    captureOverlayManager.endAnnotation();
+  }
+  try {
+    mainWindow?.setContentProtection(
+      state === 'starting' || state === 'recording' || state === 'stopping',
+    );
+  } catch (error) {
+    console.warn('[Main] Failed to update recording HUD content protection:', error);
+  }
 
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
@@ -434,6 +445,7 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
     state === 'stopping' ||
     state === 'processing';
   popover?.setKeepVisibleOnBlur(keepVisibleOnBlur);
+  popover?.setRecordingHudPriority(state === 'recording');
 
   if (popover && (state === 'recording' || state === 'stopping' || state === 'processing')) {
     const hudState = state === 'recording' ? 'recording' : 'processing';
@@ -1813,6 +1825,7 @@ app.on('will-quit', async () => {
   teardownSettingsListeners.forEach((teardown) => teardown());
   teardownSettingsListeners = [];
   hotkeyManager.unregisterAll();
+  captureOverlayManager.destroy();
   popover?.destroy();
   trayManager.destroy();
   menuManager.destroy();

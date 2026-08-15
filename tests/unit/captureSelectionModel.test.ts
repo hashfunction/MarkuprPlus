@@ -39,6 +39,9 @@ const front: CapturableWindow = {
 const context = { display, windows: [front, back] };
 
 describe('capture selection model', () => {
+  it('can initialize from manager-owned selection mode', () => {
+    expect(createSelectionState('region').mode).toBe('region');
+  });
   it('starts in Window mode', () => {
     expect(createSelectionState().mode).toBe('window');
   });

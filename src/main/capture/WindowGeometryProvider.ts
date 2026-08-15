@@ -68,12 +68,14 @@ public static class MarkuprWindowProbe {
   [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+  [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int size);
 }
 '@
 Add-Type -TypeDefinition $signature
+$previousDpiContext = [MarkuprWindowProbe]::SetThreadDpiAwarenessContext([IntPtr](-1))
 $result = @()
 $handle = [MarkuprWindowProbe]::GetTopWindow([IntPtr]::Zero)
 while ($handle -ne [IntPtr]::Zero) {
@@ -103,6 +105,7 @@ while ($handle -ne [IntPtr]::Zero) {
   $handle = [MarkuprWindowProbe]::GetWindow($handle, 2)
 }
 $result | ConvertTo-Json -Compress
+[void][MarkuprWindowProbe]::SetThreadDpiAwarenessContext($previousDpiContext)
 `;
 
 function safeJsonArray(stdout: string): unknown[] {
@@ -229,6 +232,7 @@ export function parseX11WindowList(
   stdout: string,
   sources: CaptureSource[],
   ownPid: number,
+  stackingOutput?: string,
 ): CapturableWindow[] {
   const windows: CapturableWindow[] = [];
   for (const rawLine of stdout.split(/\r?\n/)) {
@@ -260,7 +264,20 @@ export function parseX11WindowList(
       bounds: { x, y, width, height },
     }, source));
   }
-  return windows;
+  if (stackingOutput === undefined) return windows;
+
+  // EWMH lists clients from bottom to top. Reverse it so findWindowAtPoint
+  // sees front-most windows first, and omit anything without authoritative
+  // stacking metadata rather than guessing from wmctrl output order.
+  const frontToBackIds = (stackingOutput.match(/0x[0-9a-f]+/gi) || [])
+    .map((id) => String(Number.parseInt(id, 16)))
+    .filter((id) => id !== 'NaN')
+    .reverse();
+  const byNativeId = new Map(windows.map((window) => [window.nativeWindowId, window]));
+  return frontToBackIds.flatMap((id) => {
+    const window = byNativeId.get(id);
+    return window ? [window] : [];
+  });
 }
 
 export class WindowGeometryProvider {
@@ -290,8 +307,10 @@ export class WindowGeometryProvider {
     }
 
     if (this.platform === 'linux' && (this.env.XDG_SESSION_TYPE || '').toLowerCase() !== 'wayland') {
+      const stacking = await this.run('xprop', ['-root', '_NET_CLIENT_LIST_STACKING']);
+      if (stacking === null) return [];
       const stdout = await this.run('wmctrl', ['-lGpx']);
-      return stdout === null ? [] : parseX11WindowList(stdout, sources, this.ownPid);
+      return stdout === null ? [] : parseX11WindowList(stdout, sources, this.ownPid, stacking);
     }
 
     return [];
@@ -307,6 +326,9 @@ export class WindowGeometryProvider {
       TEMP: this.env.TEMP,
       XDG_SESSION_TYPE: this.env.XDG_SESSION_TYPE,
       DISPLAY: this.env.DISPLAY,
+      SystemRoot: this.env.SystemRoot,
+      ComSpec: this.env.ComSpec,
+      PATHEXT: this.env.PATHEXT,
     };
 
     return new Promise((resolve) => {

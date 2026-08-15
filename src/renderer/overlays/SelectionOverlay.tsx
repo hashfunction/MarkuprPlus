@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CapturePoint,
   CaptureSelectionOverlayState,
-  CaptureTarget,
 } from '../../shared/types';
 import {
   createSelectionState,
@@ -44,7 +43,7 @@ function localRect(
 }
 
 export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React.ReactElement {
-  const [selection, setSelection] = useState<SelectionState>(() => createSelectionState());
+  const [selection, setSelection] = useState<SelectionState>(() => createSelectionState(overlayState.mode));
   const selectionRef = useRef(selection);
   const [busy, setBusy] = useState(false);
 
@@ -103,17 +102,36 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
   }, [applyEffect, busy, overlayState.display, overlayState.windows]);
 
   useEffect(() => {
+    if (selectionRef.current.mode === overlayState.mode) return;
+    const next = reduceSelection(
+      selectionRef.current,
+      { type: 'set-mode', mode: overlayState.mode },
+      { display: overlayState.display, windows: overlayState.windows },
+    ).state;
+    selectionRef.current = next;
+    setSelection(next);
+  }, [overlayState.display, overlayState.mode, overlayState.windows]);
+
+  const setMode = useCallback(async (mode: SelectionMode) => {
+    if (busy) return;
+    const result = await window.markupr.captureOverlay.setSelectionMode(mode);
+    if (!result.success) {
+      const next = { ...selectionRef.current, error: result.error || 'Unable to change capture mode.' };
+      selectionRef.current = next;
+      setSelection(next);
+    }
+  }, [busy]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') act({ type: 'cancel' });
-      if (event.key.toLowerCase() === 'w') act({ type: 'set-mode', mode: 'window' });
-      if (event.key.toLowerCase() === 'r') act({ type: 'set-mode', mode: 'region' });
-      if (event.key.toLowerCase() === 's') act({ type: 'set-mode', mode: 'screen' });
+      if (event.key.toLowerCase() === 'w') void setMode('window');
+      if (event.key.toLowerCase() === 'r') void setMode('region');
+      if (event.key.toLowerCase() === 's') void setMode('screen');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [act]);
-
-  const setMode = (mode: SelectionMode) => act({ type: 'set-mode', mode });
+  }, [act, setMode]);
 
   const confirmGallerySource = async (source: CaptureSelectionOverlayState['windowSources'][number]) => {
     if (busy) return;
@@ -256,7 +274,7 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
               key={mode}
               type="button"
               aria-pressed={selection.mode === mode}
-              onClick={() => setMode(mode)}
+              onClick={() => { void setMode(mode); }}
               style={{
                 padding: '8px 12px',
                 borderRadius: 9,

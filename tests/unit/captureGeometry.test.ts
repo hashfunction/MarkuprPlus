@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   containRect,
   findWindowAtPoint,
+  matchCaptureDisplays,
   normalizeRegion,
   regionToSourceCrop,
+  sameCaptureTarget,
   validateCaptureTarget,
 } from '../../src/shared/captureGeometry';
 import type {
@@ -37,6 +39,60 @@ function windowFixture(
 }
 
 describe('capture geometry', () => {
+  it('maps displays by explicit display id even when capture sources are reversed', () => {
+    const displays = matchCaptureDisplays(
+      [
+        { id: '1', label: 'Left', bounds: { x: -1440, y: 0, width: 1440, height: 900 }, scaleFactor: 1 },
+        { id: '2', label: 'Right', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, scaleFactor: 2 },
+      ],
+      [
+        { id: 'screen:1:0', name: 'Right source', displayId: '2' },
+        { id: 'screen:0:0', name: 'Left source', displayId: '1' },
+      ],
+      '2',
+    );
+
+    expect(displays.map(({ id, sourceId }) => ({ id, sourceId }))).toEqual([
+      { id: '1', sourceId: 'screen:0:0' },
+      { id: '2', sourceId: 'screen:1:0' },
+    ]);
+    expect(displays[1].isPrimary).toBe(true);
+  });
+
+  it('does not pair unidentified sources to multiple displays by array order', () => {
+    const displays = matchCaptureDisplays(
+      [
+        { id: '1', label: 'Left', bounds: { x: -1440, y: 0, width: 1440, height: 900 }, scaleFactor: 1 },
+        { id: '2', label: 'Right', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, scaleFactor: 2 },
+      ],
+      [
+        { id: 'screen:0:0', name: 'Unknown A' },
+        { id: 'screen:1:0', name: 'Unknown B' },
+      ],
+      '2',
+    );
+
+    expect(displays).toEqual([]);
+  });
+
+  it('permits unidentified source fallback only when there is one display and one source', () => {
+    const displays = matchCaptureDisplays(
+      [{ id: '9', label: '', bounds: { x: 0, y: 0, width: 1280, height: 720 }, scaleFactor: 1 }],
+      [{ id: 'screen:0:0', name: 'Only display' }],
+      '9',
+    );
+
+    expect(displays).toEqual([{
+      id: '9',
+      label: 'Only display',
+      sourceId: 'screen:0:0',
+      sourceName: 'Only display',
+      bounds: { x: 0, y: 0, width: 1280, height: 720 },
+      scaleFactor: 1,
+      isPrimary: true,
+    }]);
+  });
+
   it('selects the first matching window because input order is front to back', () => {
     const front = windowFixture('window:22:0', { x: 100, y: 50, width: 400, height: 300 });
     const back = windowFixture('window:11:0', { x: 0, y: 0, width: 800, height: 600 });
@@ -134,5 +190,29 @@ describe('capture geometry', () => {
     };
 
     expect(validateCaptureTarget(target, [display])).toBe(false);
+  });
+
+  it('compares capture targets structurally without depending on property order', () => {
+    const target: CaptureTarget = {
+      kind: 'window',
+      sourceId: 'window:12:0',
+      sourceName: 'Editor',
+      nativeWindowId: '12',
+      appName: 'Editor App',
+      bounds: { x: 10, y: 20, width: 400, height: 300 },
+      geometryAvailable: true,
+    };
+    const reordered = {
+      geometryAvailable: true,
+      bounds: { height: 300, width: 400, y: 20, x: 10 },
+      appName: 'Editor App',
+      nativeWindowId: '12',
+      sourceName: 'Editor',
+      sourceId: 'window:12:0',
+      kind: 'window',
+    } as CaptureTarget;
+
+    expect(sameCaptureTarget(target, reordered)).toBe(true);
+    expect(sameCaptureTarget(target, { ...target, bounds: { ...target.bounds, width: 401 } })).toBe(false);
   });
 });

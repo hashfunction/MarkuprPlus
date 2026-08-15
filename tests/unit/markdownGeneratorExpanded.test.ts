@@ -196,6 +196,31 @@ describe('MarkdownGenerator (expanded)', () => {
 
       // When no segments, it should show the "no speech detected" message
       expect(md).toContain('_No speech was detected');
+      expect(md).toContain('## Captured Moments');
+      expect(md).toContain('![Frame at 0:05](screenshots/frame-001.png)');
+    });
+
+    it('describes burned-in annotation context beside a generated frame', () => {
+      const result: PostProcessResult = {
+        transcriptSegments: [
+          { text: 'This control is broken.', startTime: 0, endTime: 5, confidence: 0.9 },
+        ],
+        extractedFrames: [{
+          path: 'screenshots/frame-annotation.png',
+          timestamp: 2,
+          reason: 'Annotation completed: circle',
+          captureContext: {
+            recordedAt: 2_000,
+            trigger: 'annotation',
+            annotation: { strokeId: 'circle-1', tool: 'circle', color: '#ff3b30' },
+          },
+        }],
+        reportPath: '/tmp/report.md',
+      };
+
+      const md = generator.generateFromPostProcess(result, '/tmp/session');
+
+      expect(md).toContain('Annotation: circle (#ff3b30)');
     });
   });
 

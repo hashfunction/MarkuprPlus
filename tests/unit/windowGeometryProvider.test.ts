@@ -106,6 +106,21 @@ describe('X11 window geometry parsing', () => {
       }),
     ]);
   });
+
+  it('uses EWMH stacking order instead of wmctrl listing order for overlap hit testing', () => {
+    const x11Sources: CaptureSource[] = [
+      { id: 'window:16:0', name: 'Back', type: 'window' },
+      { id: 'window:32:0', name: 'Front', type: 'window' },
+    ];
+    const stdout = [
+      '0x00000010 0 10 0 0 500 500 host Back.App Back',
+      '0x00000020 0 20 0 0 500 500 host Front.App Front',
+    ].join('\n');
+    const stacking = '_NET_CLIENT_LIST_STACKING(WINDOW): window id # 0x00000010, 0x00000020';
+
+    expect(parseX11WindowList(stdout, x11Sources, 999, stacking).map((window) => window.sourceId))
+      .toEqual(['window:32:0', 'window:16:0']);
+  });
 });
 
 describe('WindowGeometryProvider', () => {
@@ -134,5 +149,44 @@ describe('WindowGeometryProvider', () => {
 
     await expect(provider.listWindows(sources)).resolves.toEqual([]);
     expect(execFile).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on X11 when authoritative stacking metadata is unavailable', async () => {
+    const execFile = vi.fn((file, _args, _options, callback) => {
+      if (file === 'xprop') callback(new Error('xprop unavailable'), '', '');
+      else callback(null, '', '');
+      return {};
+    });
+    const provider = new WindowGeometryProvider({
+      platform: 'linux',
+      ownPid: 999,
+      env: { XDG_SESSION_TYPE: 'x11', DISPLAY: ':0' },
+      execFile: execFile as never,
+    });
+
+    await expect(provider.listWindows(sources)).resolves.toEqual([]);
+    expect(execFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('requests DPI-virtualized Windows coordinates and preserves required system environment', async () => {
+    let capturedArgs: readonly string[] = [];
+    let capturedEnv: NodeJS.ProcessEnv = {};
+    const execFile = vi.fn((_file, args, options, callback) => {
+      capturedArgs = args;
+      capturedEnv = options.env;
+      callback(null, '[]', '');
+      return {};
+    });
+    const provider = new WindowGeometryProvider({
+      platform: 'win32',
+      ownPid: 999,
+      env: { PATH: 'C:\\Windows\\System32', SystemRoot: 'C:\\Windows' },
+      execFile: execFile as never,
+    });
+
+    await expect(provider.listWindows(sources)).resolves.toEqual([]);
+    expect(execFile).toHaveBeenCalledOnce();
+    expect(capturedArgs.join(' ')).toContain('SetThreadDpiAwarenessContext');
+    expect(capturedEnv.SystemRoot).toBe('C:\\Windows');
   });
 });

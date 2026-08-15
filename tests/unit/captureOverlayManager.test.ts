@@ -37,6 +37,7 @@ const windowTarget: CaptureTarget = {
   nativeWindowId: capturableWindow.nativeWindowId,
   appName: capturableWindow.appName,
   bounds: capturableWindow.bounds,
+  geometryAvailable: true,
 };
 
 class FakeOverlayWindow implements CaptureOverlayWindow {
@@ -44,6 +45,11 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
   readonly webContents = {
     id: FakeOverlayWindow.nextId++,
     send: vi.fn(),
+    on: vi.fn((event: string, callback: () => void) => {
+      const handlers = this.webContentsHandlers.get(event) || [];
+      handlers.push(callback);
+      this.webContentsHandlers.set(event, handlers);
+    }),
   };
   readonly setContentProtection = vi.fn();
   readonly setAlwaysOnTop = vi.fn();
@@ -53,9 +59,13 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
   readonly showInactive = vi.fn();
   readonly show = vi.fn();
   readonly focus = vi.fn();
-  readonly destroy = vi.fn(() => { this.destroyed = true; });
+  readonly destroy = vi.fn(() => {
+    this.destroyed = true;
+    this.handlers.get('closed')?.forEach((callback) => callback());
+  });
   destroyed = false;
   private handlers = new Map<string, Array<() => void>>();
+  private webContentsHandlers = new Map<string, Array<() => void>>();
 
   isDestroyed(): boolean {
     return this.destroyed;
@@ -66,9 +76,14 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
     handlers.push(callback);
     this.handlers.set(event, handlers);
   }
+
+  emitWebContents(event: string): void {
+    this.webContentsHandlers.get(event)?.forEach((callback) => callback());
+  }
 }
 
 function createHarness(selectionOverrides: Partial<{
+  displays: CaptureDisplay[];
   windows: CapturableWindow[];
   windowSources: Array<{ id: string; name: string; type: 'window' }>;
 }> = {}) {
@@ -79,7 +94,7 @@ function createHarness(selectionOverrides: Partial<{
   let displayChangeHandler: (() => void) | null = null;
   const dependencies: CaptureOverlayManagerDependencies = {
     prepareSelection: vi.fn().mockResolvedValue({
-      displays: [display],
+      displays: selectionOverrides.displays ?? [display],
       windows: selectionOverrides.windows ?? [capturableWindow],
       windowSources: selectionOverrides.windowSources ?? [],
     }),
@@ -125,6 +140,8 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     expect(windows[0].setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
     expect(windows[0].setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { visibleOnFullScreen: true });
     expect(windows[0].setBounds).toHaveBeenCalledWith(display.bounds);
+    expect(windows[0].show).toHaveBeenCalledOnce();
+    expect(windows[0].focus).toHaveBeenCalledOnce();
 
     manager.cancelSelection();
     await expect(selection).resolves.toBeNull();
@@ -147,8 +164,8 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     const selection = manager.selectTarget();
     await vi.waitFor(() => expect(windows).toHaveLength(1));
 
-    expect(manager.confirmTarget(9999, windowTarget)).toEqual({ success: false, error: 'Unknown capture overlay.' });
-    expect(manager.confirmTarget(windows[0].webContents.id, windowTarget)).toEqual({ success: true });
+    await expect(manager.confirmTarget(9999, windowTarget)).resolves.toEqual({ success: false, error: 'Unknown capture overlay.' });
+    await expect(manager.confirmTarget(windows[0].webContents.id, windowTarget)).resolves.toEqual({ success: true });
 
     await expect(selection).resolves.toEqual(windowTarget);
     expect(host.show).not.toHaveBeenCalled();
@@ -160,7 +177,7 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     await vi.waitFor(() => expect(windows).toHaveLength(1));
     const stale = { ...windowTarget, sourceId: 'window:999:0' } as CaptureTarget;
 
-    expect(manager.confirmTarget(windows[0].webContents.id, stale)).toEqual({
+    await expect(manager.confirmTarget(windows[0].webContents.id, stale)).resolves.toEqual({
       success: false,
       error: 'The selected window is no longer available.',
     });
@@ -184,7 +201,7 @@ describe('CaptureOverlayManager selection lifecycle', () => {
       geometryAvailable: false,
     };
 
-    expect(manager.confirmTarget(windows[0].webContents.id, galleryTarget)).toEqual({ success: true });
+    await expect(manager.confirmTarget(windows[0].webContents.id, galleryTarget)).resolves.toEqual({ success: true });
     await expect(selection).resolves.toEqual(galleryTarget);
   });
 
@@ -199,9 +216,158 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     expect(windows[0].destroy).toHaveBeenCalledOnce();
     expect(host.show).toHaveBeenCalledOnce();
   });
+
+  it('does not let a cancelled selector load failure cancel the next request', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    let rejectFirstLoad!: (error: Error) => void;
+    vi.mocked(dependencies.loadRenderer)
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirstLoad = reject; }))
+      .mockResolvedValueOnce(undefined);
+
+    const firstSelection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    manager.cancelSelection();
+    const secondSelection = manager.selectTarget();
+    rejectFirstLoad(new Error('cancelled navigation'));
+    await expect(firstSelection).resolves.toBeNull();
+    await vi.waitFor(() => expect(windows).toHaveLength(2));
+    expect(windows[1].destroy).not.toHaveBeenCalled();
+
+    manager.cancelSelection();
+    await expect(secondSelection).resolves.toBeNull();
+  });
+
+  it('does not create orphan overlays if cancellation wins while sources are loading', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    let resolvePreparation!: (value: {
+      displays: CaptureDisplay[];
+      windows: CapturableWindow[];
+      windowSources: [];
+    }) => void;
+    vi.mocked(dependencies.prepareSelection).mockImplementationOnce(() => new Promise((resolve) => {
+      resolvePreparation = resolve;
+    }));
+
+    const selection = manager.selectTarget();
+    manager.cancelSelection();
+    resolvePreparation({ displays: [display], windows: [capturableWindow], windowSources: [] });
+
+    await expect(selection).resolves.toBeNull();
+    await Promise.resolve();
+    expect(windows).toHaveLength(0);
+  });
+
+  it('broadcasts selection mode changes to every display overlay', async () => {
+    const secondary: CaptureDisplay = {
+      ...display,
+      id: '2',
+      label: 'Secondary',
+      sourceId: 'screen:1:0',
+      bounds: { x: 1440, y: 0, width: 1920, height: 1080 },
+      isPrimary: false,
+    };
+    const { manager, windows } = createHarness({ displays: [display, secondary] });
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(2));
+
+    expect(manager.setSelectionMode(windows[1].webContents.id, 'region')).toEqual({ success: true });
+    for (const window of windows) {
+      expect(window.webContents.send).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ kind: 'selection', mode: 'region' }),
+      );
+    }
+
+    manager.cancelSelection();
+    await selection;
+  });
+
+  it('refreshes exact window geometry once before confirmation', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    vi.mocked(dependencies.refreshWindow).mockResolvedValueOnce({
+      ...capturableWindow,
+      bounds: { x: 120, y: 90, width: 920, height: 710 },
+    });
+
+    await expect(manager.confirmTarget(windows[0].webContents.id, windowTarget))
+      .resolves.toEqual({ success: true });
+    await expect(selection).resolves.toEqual({
+      ...windowTarget,
+      bounds: { x: 120, y: 90, width: 920, height: 710 },
+    });
+  });
+
+  it('keeps selection open when the exact window disappears during confirmation', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    vi.mocked(dependencies.refreshWindow).mockResolvedValueOnce(null);
+
+    await expect(manager.confirmTarget(windows[0].webContents.id, windowTarget)).resolves.toEqual({
+      success: false,
+      error: 'The selected window is no longer available.',
+    });
+    expect(windows[0].destroy).not.toHaveBeenCalled();
+
+    manager.cancelSelection();
+    await selection;
+  });
 });
 
 describe('CaptureOverlayManager annotation lifecycle', () => {
+  it('does not throw when the host renderer is already destroyed during app teardown', () => {
+    const { manager, host } = createHarness();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    host.webContents.send.mockImplementation(() => {
+      throw new Error('Object has been destroyed');
+    });
+
+    expect(() => manager.destroy()).not.toThrow();
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it('fails closed when gallery fallback has no trustworthy annotation geometry', async () => {
+    const { manager, windows } = createHarness();
+    const fallbackTarget: CaptureTarget = {
+      ...windowTarget,
+      geometryAvailable: false,
+    };
+
+    await expect(manager.beginAnnotation('session-1', fallbackTarget))
+      .rejects.toThrow(/geometry/i);
+    expect(windows).toHaveLength(0);
+  });
+
+  it('cleans up a protected annotation overlay when its renderer fails to load', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    vi.mocked(dependencies.loadRenderer).mockRejectedValueOnce(new Error('renderer failed'));
+
+    await expect(manager.beginAnnotation('session-1', windowTarget)).rejects.toThrow('renderer failed');
+
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true });
+    expect(windows[0].destroy).toHaveBeenCalledOnce();
+  });
+
+  it('tears down a click-blocking annotation overlay when its renderer crashes', async () => {
+    const { manager, windows, host } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget);
+
+    windows[0].emitWebContents('render-process-gone');
+
+    expect(windows[0].destroy).toHaveBeenCalledOnce();
+    expect(host.webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      {
+        active: false,
+        mode: 'interact',
+        error: 'The drawing overlay stopped unexpectedly. Recording continues without live drawing.',
+      },
+    );
+  });
+
   it('starts click-through and switches atomically into draw mode', async () => {
     const { manager, windows, host } = createHarness();
 
@@ -226,6 +392,7 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
   it('routes only active-session annotation events from its annotation window', async () => {
     const { manager, windows, host } = createHarness();
     await manager.beginAnnotation('session-1', windowTarget);
+    manager.setAnnotationMode('draw');
     const valid: AnnotationEvent = {
       type: 'clear',
       sessionId: 'session-1',
@@ -235,7 +402,48 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     expect(manager.submitAnnotationEvent(windows[0].webContents.id, { ...valid, sessionId: 'session-2' }).success).toBe(false);
     expect(manager.submitAnnotationEvent(windows[0].webContents.id, valid)).toEqual({ success: true });
     expect(host.webContents.send).toHaveBeenCalledWith(expect.any(String), valid);
-    expect(windows[0].webContents.send).toHaveBeenCalledWith(expect.any(String), valid);
+    expect(windows[0].webContents.send).not.toHaveBeenCalledWith(expect.any(String), valid);
+  });
+
+  it('rejects malformed or oversized annotation payloads at the main-process boundary', async () => {
+    const { manager, windows, host } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget);
+    manager.setAnnotationMode('draw');
+    const invalidColor = {
+      type: 'stroke-start',
+      sessionId: 'session-1',
+      stroke: {
+        id: 'bad', tool: 'freehand', color: '#000000', width: 0.01,
+        points: [{ x: 0.2, y: 0.2 }],
+      },
+    } as unknown as AnnotationEvent;
+    const oversized = {
+      type: 'stroke-points',
+      sessionId: 'session-1',
+      strokeId: 'bad',
+      points: Array.from({ length: 257 }, () => ({ x: 0.2, y: 0.2 })),
+    } as AnnotationEvent;
+
+    expect(manager.submitAnnotationEvent(windows[0].webContents.id, invalidColor).success).toBe(false);
+    expect(manager.submitAnnotationEvent(windows[0].webContents.id, oversized).success).toBe(false);
+    expect(host.webContents.send).not.toHaveBeenCalledWith(expect.any(String), invalidColor);
+    expect(host.webContents.send).not.toHaveBeenCalledWith(expect.any(String), oversized);
+  });
+
+  it('rejects drawing events while the annotation overlay is click-through', async () => {
+    const { manager, windows, host } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget);
+    const drawEvent: AnnotationEvent = {
+      type: 'stroke-start',
+      sessionId: 'session-1',
+      stroke: {
+        id: 'stroke-1', tool: 'freehand', color: '#ff3b30', width: 0.008,
+        points: [{ x: 0.2, y: 0.2 }],
+      },
+    };
+
+    expect(manager.submitAnnotationEvent(windows[0].webContents.id, drawEvent).success).toBe(false);
+    expect(host.webContents.send).not.toHaveBeenCalledWith(expect.any(String), drawEvent);
   });
 
   it('refreshes selected-window bounds and tears all timers down on end', async () => {

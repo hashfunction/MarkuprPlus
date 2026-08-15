@@ -83,6 +83,25 @@ describe('annotation scene reducer', () => {
     expect(scene).toEqual(createAnnotationScene());
   });
 
+  it('caps retained completed strokes to the newest 250', () => {
+    let scene = createAnnotationScene();
+    for (let index = 0; index < 260; index += 1) {
+      const id = `stroke-${index}`;
+      scene = reduceAnnotationEvent(scene, event({
+        type: 'stroke-start',
+        stroke: { ...stroke, id },
+      }));
+      scene = reduceAnnotationEvent(scene, event({
+        type: 'stroke-points', strokeId: id, points: [{ x: 0.8, y: 0.8 }],
+      }));
+      scene = reduceAnnotationEvent(scene, event({ type: 'stroke-end', strokeId: id }));
+    }
+
+    expect(scene.completedStrokes).toHaveLength(250);
+    expect(scene.completedStrokes[0].id).toBe('stroke-10');
+    expect(scene.completedStrokes.at(-1)?.id).toBe('stroke-259');
+  });
+
   it('coalesces marker updates to the latest normalized cursor point', () => {
     let scene = reduceAnnotationEvent(createAnnotationScene(), event({ type: 'cursor', point: { x: 0.2, y: 0.3 } }));
     scene = reduceAnnotationEvent(scene, event({ type: 'cursor', point: { x: 0.7, y: 0.8 } }));

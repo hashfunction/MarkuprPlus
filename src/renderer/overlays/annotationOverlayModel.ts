@@ -93,7 +93,12 @@ export function reduceAnnotationOverlay(
     };
   }
   if (action.type === 'pointer-cancel') {
-    return { model: { ...model, activeStrokeId: null, lastPoint: null }, events: [] };
+    return {
+      model: { ...model, activeStrokeId: null, lastPoint: null },
+      events: model.activeStrokeId
+        ? [{ type: 'stroke-end', sessionId: model.sessionId, strokeId: model.activeStrokeId }]
+        : [],
+    };
   }
   if (model.mode !== 'draw') return { model, events: [] };
 

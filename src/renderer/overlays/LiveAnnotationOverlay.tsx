@@ -18,6 +18,7 @@ import {
   type AnnotationOverlayAction,
   type AnnotationOverlayModel,
 } from './annotationOverlayModel';
+import { appendCoalescedAnnotationEvents } from './annotationEventQueue';
 
 interface LiveAnnotationOverlayProps {
   overlayState: CaptureAnnotationOverlayState;
@@ -42,6 +43,8 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
   const sceneRef = useRef<AnnotationScene>(createAnnotationScene());
   const modelRef = useRef<AnnotationOverlayModel>(createAnnotationOverlayModel(overlayState.sessionId));
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingEventsRef = useRef<AnnotationEvent[]>([]);
+  const flushFrameRef = useRef<number | null>(null);
   const [model, setModel] = useState(modelRef.current);
 
   const renderScene = useCallback(() => {
@@ -92,21 +95,50 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
     renderScene();
   }), [overlayState.sessionId, renderScene]);
 
-  const dispatch = useCallback((action: AnnotationOverlayAction) => {
-    const result = reduceAnnotationOverlay(modelRef.current, action);
-    modelRef.current = result.model;
-    setModel(result.model);
-    if (result.events.length === 0) return;
+  const flushPendingEvents = useCallback(() => {
+    flushFrameRef.current = null;
+    const events = pendingEventsRef.current;
+    pendingEventsRef.current = [];
+    if (events.length === 0) return;
     sendChainRef.current = sendChainRef.current
       .catch(() => {})
       .then(async () => {
-        for (const event of result.events) {
+        for (const event of events) {
           const response = await window.markupr.captureOverlay.sendAnnotation(event);
           if (!response.success) throw new Error(response.error || 'Annotation event was rejected.');
         }
       })
       .catch((error) => console.warn('[LiveAnnotationOverlay] Annotation send failed:', error));
   }, []);
+
+  const queueEvents = useCallback((events: AnnotationEvent[], immediate: boolean) => {
+    pendingEventsRef.current = appendCoalescedAnnotationEvents(pendingEventsRef.current, events);
+    if (immediate) {
+      if (flushFrameRef.current !== null) cancelAnimationFrame(flushFrameRef.current);
+      flushPendingEvents();
+      return;
+    }
+    if (flushFrameRef.current === null) {
+      flushFrameRef.current = requestAnimationFrame(flushPendingEvents);
+    }
+  }, [flushPendingEvents]);
+
+  useEffect(() => () => {
+    if (flushFrameRef.current !== null) cancelAnimationFrame(flushFrameRef.current);
+    flushPendingEvents();
+  }, [flushPendingEvents]);
+
+  const dispatch = useCallback((action: AnnotationOverlayAction) => {
+    const result = reduceAnnotationOverlay(modelRef.current, action);
+    modelRef.current = result.model;
+    setModel(result.model);
+    if (result.events.length === 0) return;
+    for (const event of result.events) {
+      sceneRef.current = reduceAnnotationEvent(sceneRef.current, event);
+    }
+    renderScene();
+    queueEvents(result.events, action.type !== 'pointer-move');
+  }, [queueEvents, renderScene]);
 
   const pointFromEvent = (event: React.PointerEvent) => normalizeOverlayPoint(
     event.clientX,
