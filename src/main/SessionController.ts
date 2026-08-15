@@ -23,6 +23,7 @@ import {
   type SessionState,
   type SessionMetadata,
   type CaptureContextSnapshot,
+  type CaptureTarget,
 } from '../shared/types';
 import { errorHandler } from './ErrorHandler';
 import { type PostProcessResult, type PostProcessProgress } from './pipeline';
@@ -404,7 +405,7 @@ export class SessionController {
    * Start a new recording session.
    * Transitions: idle -> starting -> recording
    */
-  async start(sourceId: string, sourceName?: string): Promise<void> {
+  async start(sourceId: string, sourceName?: string, captureTarget?: CaptureTarget): Promise<void> {
     if (this.state !== 'idle') {
       throw new Error(`Cannot start a new session while in "${this.state}" state. Wait for the current session to finish or cancel it first.`);
     }
@@ -434,6 +435,9 @@ export class SessionController {
       metadata: {
         sourceId,
         sourceName,
+        sourceType: captureTarget?.kind
+          || (sourceId.startsWith('window:') ? 'window' : 'screen'),
+        captureTarget,
       },
     };
 
@@ -694,13 +698,13 @@ export class SessionController {
   }
 
   registerCaptureCue(
-    trigger: 'pause' | 'manual' | 'voice-command' = 'manual',
+    trigger: 'pause' | 'manual' | 'voice-command' | 'annotation' = 'manual',
     context?: CaptureContextSnapshot,
   ): {
     id: string;
     timestamp: number;
     count: number;
-    trigger: 'pause' | 'manual' | 'voice-command';
+    trigger: 'pause' | 'manual' | 'voice-command' | 'annotation';
     context?: CaptureContextSnapshot;
   } | null {
     if (this.state !== 'recording' || this.isPaused || !this.session) {
@@ -709,7 +713,8 @@ export class SessionController {
 
     this.captureCount += 1;
     const timestamp = Date.now();
-    const sourceType = this.session.sourceId.startsWith('window') ? 'window' : 'screen';
+    const sourceType = this.session.metadata.sourceType
+      || (this.session.sourceId.startsWith('window') ? 'window' : 'screen');
     const mergedContext: CaptureContextSnapshot = {
       recordedAt: timestamp,
       trigger,

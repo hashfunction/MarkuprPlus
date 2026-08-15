@@ -81,10 +81,10 @@ const markuprApi = {
      * @param sourceId - ID of the capture source (screen or window)
      */
     start: (
-      sourceId?: string,
+      target?: CaptureTarget | string,
       sourceName?: string
-    ): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_START, sourceId, sourceName);
+    ): Promise<{ success: boolean; sessionId?: string; cancelled?: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_START, target, sourceName);
     },
 
     /**

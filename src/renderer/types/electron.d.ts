@@ -48,9 +48,9 @@ type Unsubscribe = () => void;
  */
 interface SessionAPI {
   start: (
-    sourceId?: string,
+    target?: CaptureTarget | string,
     sourceName?: string
-  ) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
+  ) => Promise<{ success: boolean; sessionId?: string; cancelled?: boolean; error?: string }>;
   stop: () => Promise<{
     success: boolean;
     session?: SessionPayload;

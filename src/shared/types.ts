@@ -49,7 +49,7 @@ export interface CaptureCursorContext {
 export interface CaptureWindowContext {
   sourceId?: string;
   sourceName?: string;
-  sourceType?: 'screen' | 'window';
+  sourceType?: 'screen' | 'window' | 'region';
   appName?: string;
   title?: string;
   pid?: number;
@@ -666,7 +666,7 @@ export interface ScreenshotCapturedPayload {
   count: number;
   width?: number;
   height?: number;
-  trigger?: 'pause' | 'manual' | 'voice-command';
+  trigger?: 'pause' | 'manual' | 'voice-command' | 'annotation';
   context?: CaptureContextSnapshot;
 }
 
@@ -1077,6 +1077,8 @@ export interface AnnotationStatePayload {
 export interface SessionMetadata {
   sourceId: string;
   sourceName?: string;
+  sourceType?: 'screen' | 'window' | 'region';
+  captureTarget?: CaptureTarget;
   windowTitle?: string;
   appName?: string;
   recordingPath?: string;

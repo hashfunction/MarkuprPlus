@@ -7,14 +7,19 @@
 
 import { ipcMain } from 'electron';
 import { sessionController } from '../SessionController';
-import { IPC_CHANNELS, type SessionStatusPayload, type SessionPayload } from '../../shared/types';
+import {
+  IPC_CHANNELS,
+  type CaptureTarget,
+  type SessionStatusPayload,
+  type SessionPayload,
+} from '../../shared/types';
 import type { IpcContext, SessionActions } from './types';
 
 export function registerSessionHandlers(ctx: IpcContext, actions: SessionActions): void {
-  ipcMain.handle(IPC_CHANNELS.SESSION_START, async (_, sourceId?: string, sourceName?: string) => {
+  ipcMain.handle(IPC_CHANNELS.SESSION_START, async (_, target?: CaptureTarget | string, sourceName?: string) => {
     try {
       console.log('[Main] Starting session');
-      return await actions.startSession(sourceId, sourceName);
+      return await actions.startSession(target, sourceName);
     } catch (error) {
       console.error('[IPC] SESSION_START failed:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to start session' };

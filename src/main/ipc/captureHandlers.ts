@@ -252,6 +252,7 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
           lastChunkAt: Date.now(),
           startTime,
         });
+        if (Number.isFinite(startTime)) currentSession.metadata.videoStartTime = startTime;
 
         return { success: true, path: tempPath };
       } catch (error) {

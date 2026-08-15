@@ -23,8 +23,6 @@
 import {
   app,
   BrowserWindow,
-  desktopCapturer,
-  screen,
   shell,
   Notification,
 } from 'electron';
@@ -51,6 +49,8 @@ import {
   type SessionPayload,
   type TrayState,
   type CaptureContextSnapshot,
+  type AnnotationEvent,
+  type CaptureTarget,
   type AnalysisConnection,
   type AnalysisProvider,
 } from '../shared/types';
@@ -86,6 +86,11 @@ import {
   getFinalizedScreenRecordings,
 } from './ipc';
 import { probeCaptureContext } from './capture/CaptureContextProbe';
+import { captureOverlayManager } from './capture/CaptureOverlayManager';
+import {
+  AnnotationCueTracker,
+  resolveCaptureTarget,
+} from './capture/CaptureSessionLifecycle';
 import {
   extractAiFrameHintsFromMarkdown,
   appendExtractedFramesToReport,
@@ -156,6 +161,7 @@ let hasCompletedOnboarding = false;
 const rendererRecoveryAttempts = new WeakMap<BrowserWindow, number>();
 let teardownAudioTelemetry: Array<() => void> = [];
 let teardownSettingsListeners: Array<() => void> = [];
+const annotationCueTracker = new AnnotationCueTracker();
 
 // Windows taskbar integration (Windows only)
 let windowsTaskbar: WindowsTaskbar | null = null;
@@ -410,6 +416,7 @@ function mapToTrayState(state: SessionState): TrayState {
  */
 function handleSessionStateChange(state: SessionState, session: Session | null): void {
   console.log(`[Main] Session state changed: ${state}`);
+  if (state === 'idle') annotationCueTracker.clear();
 
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
@@ -444,6 +451,15 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
 
   // Also send status update
   safeSendToRenderer(IPC_CHANNELS.SESSION_STATUS, sessionController.getStatus());
+}
+
+function handleAnnotationEvent(event: AnnotationEvent): void {
+  const session = sessionController.getSession();
+  if (!session || session.id !== event.sessionId) return;
+  const context = annotationCueTracker.consume(event);
+  if (!context) return;
+  const cue = sessionController.registerCaptureCue('annotation', context);
+  if (cue) crashRecovery.updateSession({ screenshotCount: cue.count });
 }
 
 /**
@@ -732,36 +748,6 @@ function resumeSession(): { success: boolean; error?: string } {
 // Session Control
 // =============================================================================
 
-/**
- * Resolve the default capture source for zero-friction recording start.
- * Prefers the primary display to match what users are actively looking at.
- */
-async function resolveDefaultCaptureSource(): Promise<{ sourceId: string; sourceName: string }> {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: 1, height: 1 },
-  });
-
-  if (!sources.length) {
-    const settingsHint = process.platform === 'darwin'
-      ? 'System Settings > Privacy & Security > Screen Recording'
-      : process.platform === 'win32'
-        ? 'Windows Settings > Privacy > Screen capture'
-        : 'your system settings';
-    throw new Error(`No screen capture source is available. Check that markupR has screen recording permission in ${settingsHint}.`);
-  }
-
-  const primaryDisplayId = String(screen.getPrimaryDisplay().id);
-  const preferredSource = sources.find((source) => source.display_id === primaryDisplayId);
-  const fallbackSource = sources.find((source) => source.id.startsWith('screen')) || sources[0];
-  const selected = preferredSource || fallbackSource;
-
-  return {
-    sourceId: selected.id,
-    sourceName: selected.name || 'Main Display',
-  };
-}
-
 function buildPostProcessTranscriptSegments(session: Session): TranscriptSegment[] {
   const sessionStartSec = session.startTime / 1000;
   const events = session.transcriptBuffer
@@ -926,9 +912,10 @@ async function attachAudioToSessionOutput(
 /**
  * Start a recording session.
  */
-async function startSession(sourceId?: string, sourceName?: string): Promise<{
+async function startSession(sourceId?: CaptureTarget | string, sourceName?: string): Promise<{
   success: boolean;
   sessionId?: string;
+  cancelled?: boolean;
   error?: string;
 }> {
   try {
@@ -962,17 +949,22 @@ async function startSession(sourceId?: string, sourceName?: string): Promise<{
       };
     }
 
-    let resolvedSourceId = sourceId;
-    let resolvedSourceName = sourceName;
-
+    const explicitTarget = typeof sourceId === 'object' ? sourceId as CaptureTarget : undefined;
+    const captureTarget = typeof sourceId === 'string'
+      ? undefined
+      : await resolveCaptureTarget(explicitTarget, () => captureOverlayManager.selectTarget());
+    if (typeof sourceId !== 'string' && !captureTarget) {
+      return { success: false, cancelled: true };
+    }
+    const legacySourceId = typeof sourceId === 'string' ? sourceId : undefined;
+    const resolvedSourceId = captureTarget?.sourceId || legacySourceId;
+    const resolvedSourceName = captureTarget?.sourceName || sourceName;
     if (!resolvedSourceId) {
-      const defaultSource = await resolveDefaultCaptureSource();
-      resolvedSourceId = defaultSource.sourceId;
-      resolvedSourceName = defaultSource.sourceName;
+      return { success: false, error: 'No capture target was selected.' };
     }
 
     // Start the session
-    await sessionController.start(resolvedSourceId, resolvedSourceName);
+    await sessionController.start(resolvedSourceId, resolvedSourceName, captureTarget || undefined);
 
     const session = sessionController.getSession();
 
@@ -1666,6 +1658,11 @@ app.whenReady().then(async () => {
     createWindow();
     console.log('[Main] Fallback: Regular window created (no tray)');
   }
+
+  captureOverlayManager.configure({
+    getHostWindow: () => mainWindow,
+    onAnnotationEvent: handleAnnotationEvent,
+  });
 
   wireAudioTelemetry();
 

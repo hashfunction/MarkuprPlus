@@ -39,7 +39,7 @@ export interface RecentSession {
 }
 
 export interface LastCapture {
-  trigger?: 'pause' | 'manual' | 'voice-command';
+  trigger?: 'pause' | 'manual' | 'voice-command' | 'annotation';
   timestamp: number;
 }
 
@@ -167,6 +167,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const stopRequestedRef = useRef(false);
   const screenRecorderRef = useRef(getScreenRecordingRenderer());
   const screenSyncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const annotationSessionIdRef = useRef<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Crash recovery
@@ -267,52 +268,43 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return;
         }
 
-        if (!recorder.isRecording()) {
-          let activeSession = session;
-          if (!activeSession) {
-            for (let attempt = 0; attempt < 4; attempt += 1) {
-              activeSession = await window.markupr.session.getCurrent();
-              if (activeSession) break;
-              if (attempt < 3) {
-                await new Promise((resolve) => setTimeout(resolve, 180));
-              }
+        let activeSession = session;
+        if (!activeSession) {
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            activeSession = await window.markupr.session.getCurrent();
+            if (activeSession) break;
+            if (attempt < 3) {
+              await new Promise((resolve) => setTimeout(resolve, 180));
             }
           }
+        }
 
-          if (!activeSession) {
-            setErrorMessage((prev) => prev || 'Session started, but screen recorder could not find an active capture target.');
+        if (!activeSession) {
+          setErrorMessage((prev) => prev || 'Session started, but screen recorder could not find an active capture target.');
+          return;
+        }
+
+        if (!recorder.isRecording()) {
+          try {
+            const captureTarget = activeSession.metadata.captureTarget;
+            await recorder.start(captureTarget
+              ? { sessionId: activeSession.id, target: captureTarget }
+              : { sessionId: activeSession.id, sourceId: activeSession.sourceId });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown screen recording error.';
+            console.warn('[RecordingContext] Continuous screen recording failed for selected source:', message);
+            setErrorMessage((prev) => prev || `Screen recording unavailable: ${message}`);
             return;
           }
+        }
 
-          try {
-            await recorder.start({
-              sessionId: activeSession.id,
-              sourceId: activeSession.sourceId,
-            });
-          } catch (error) {
-            console.warn('[RecordingContext] Continuous screen recording failed to start with primary source:', error);
-
-            try {
-              const sources = await window.markupr.capture.getSources();
-              const fallbackSource = sources.find((source) => source.type === 'screen');
-
-              if (!fallbackSource || fallbackSource.id === activeSession.sourceId) {
-                throw error;
-              }
-
-              await recorder.start({
-                sessionId: activeSession.id,
-                sourceId: fallbackSource.id,
-              });
-            } catch (fallbackError) {
-              const message =
-                fallbackError instanceof Error
-                  ? fallbackError.message
-                  : 'Unknown screen recording error.';
-              console.warn('[RecordingContext] Continuous screen recording fallback also failed:', message);
-              setErrorMessage((prev) => prev || `Screen recording unavailable: ${message}`);
-              return;
-            }
+        const captureTarget = activeSession?.metadata.captureTarget;
+        if (activeSession && captureTarget && annotationSessionIdRef.current !== activeSession.id) {
+          const result = await window.markupr.capture.beginAnnotation(activeSession.id, captureTarget);
+          if (result.success) {
+            annotationSessionIdRef.current = activeSession.id;
+          } else {
+            setErrorMessage((prev) => prev || result.error || 'Live annotation could not be started.');
           }
         }
 
@@ -324,6 +316,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
 
+      if (annotationSessionIdRef.current) {
+        await window.markupr.capture.endAnnotation().catch(() => ({ success: false }));
+        annotationSessionIdRef.current = null;
+      }
       recorder.releaseCaptureTracks();
       if (recorder.isRecording() || recorder.getSessionId()) {
         await recorder.stop().catch((error) => {
@@ -546,6 +542,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const result = await window.markupr.session.start();
       if (!result.success) {
+        if (result.cancelled) {
+          setState('idle');
+          return;
+        }
         setState('error');
         setErrorMessage(result.error || 'Unable to start session.');
         window.markupr?.whisper
