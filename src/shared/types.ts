@@ -987,6 +987,8 @@ export interface WindowCaptureTarget extends CaptureTargetBase {
   nativeWindowId: string;
   appName: string;
   bounds: CaptureBounds;
+  /** False for privacy-preserving gallery fallback when the OS hides geometry. */
+  geometryAvailable?: boolean;
 }
 
 export interface RegionCaptureTarget extends CaptureTargetBase {

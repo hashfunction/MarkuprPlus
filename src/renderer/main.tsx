@@ -8,6 +8,7 @@ import AppWrapper from './AppWrapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './components/ThemeProvider';
 import { initAudioCapture, destroyAudioCapture } from './audio/AudioCaptureRenderer';
+import CaptureOverlayApp from './overlays/CaptureOverlayApp';
 
 // Import global styles (includes CSS reset and theme utilities)
 import './styles/globals.css';
@@ -19,11 +20,16 @@ if (!container) {
   throw new Error('Root element not found');
 }
 
-// Initialize renderer-side audio capture bridge for main-process orchestration.
-initAudioCapture();
-window.addEventListener('beforeunload', () => {
-  destroyAudioCapture();
-});
+const isCaptureOverlay = new URLSearchParams(window.location.search).has('overlay');
+
+// Overlay windows share this renderer bundle but must not initialize microphone
+// capture or the primary app contexts.
+if (!isCaptureOverlay) {
+  initAudioCapture();
+  window.addEventListener('beforeunload', () => {
+    destroyAudioCapture();
+  });
+}
 
 // Global error handler for uncaught errors
 window.addEventListener('error', (event) => {
@@ -39,14 +45,20 @@ window.addEventListener('unhandledrejection', (event) => {
 const root = createRoot(container);
 root.render(
   <React.StrictMode>
-    <ThemeProvider defaultMode="light" defaultAccentColor="blue">
-      <ErrorBoundary
-        onError={(error, errorInfo) => {
-          console.error('[App ErrorBoundary]', error, errorInfo);
-        }}
-      >
-        <AppWrapper />
+    {isCaptureOverlay ? (
+      <ErrorBoundary>
+        <CaptureOverlayApp />
       </ErrorBoundary>
-    </ThemeProvider>
+    ) : (
+      <ThemeProvider defaultMode="light" defaultAccentColor="blue">
+        <ErrorBoundary
+          onError={(error, errorInfo) => {
+            console.error('[App ErrorBoundary]', error, errorInfo);
+          }}
+        >
+          <AppWrapper />
+        </ErrorBoundary>
+      </ThemeProvider>
+    )}
   </React.StrictMode>
 );

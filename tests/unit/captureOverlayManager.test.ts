@@ -68,7 +68,10 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
   }
 }
 
-function createHarness() {
+function createHarness(selectionOverrides: Partial<{
+  windows: CapturableWindow[];
+  windowSources: Array<{ id: string; name: string; type: 'window' }>;
+}> = {}) {
   const windows: FakeOverlayWindow[] = [];
   const host = { hide: vi.fn(), show: vi.fn(), webContents: { send: vi.fn() } };
   const intervals = new Map<number, () => void>();
@@ -77,8 +80,8 @@ function createHarness() {
   const dependencies: CaptureOverlayManagerDependencies = {
     prepareSelection: vi.fn().mockResolvedValue({
       displays: [display],
-      windows: [capturableWindow],
-      windowSources: [],
+      windows: selectionOverrides.windows ?? [capturableWindow],
+      windowSources: selectionOverrides.windowSources ?? [],
     }),
     createWindow: vi.fn(() => {
       const window = new FakeOverlayWindow();
@@ -164,6 +167,25 @@ describe('CaptureOverlayManager selection lifecycle', () => {
 
     manager.cancelSelection();
     await selection;
+  });
+
+  it('accepts an exact gallery window source when native geometry is unavailable', async () => {
+    const source = { id: 'window:300:0', name: 'Mail', type: 'window' as const };
+    const { manager, windows } = createHarness({ windows: [], windowSources: [source] });
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    const galleryTarget: CaptureTarget = {
+      kind: 'window',
+      sourceId: source.id,
+      sourceName: source.name,
+      nativeWindowId: '300',
+      appName: 'Mail',
+      bounds: display.bounds,
+      geometryAvailable: false,
+    };
+
+    expect(manager.confirmTarget(windows[0].webContents.id, galleryTarget)).toEqual({ success: true });
+    await expect(selection).resolves.toEqual(galleryTarget);
   });
 
   it('cancels selection when the display topology changes', async () => {

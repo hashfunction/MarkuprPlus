@@ -285,7 +285,17 @@ export class CaptureOverlayManager {
         && window.nativeWindowId === target.nativeWindowId
         && sameBounds(window.bounds, target.bounds)
       );
-      if (!issued) return { success: false, error: 'The selected window is no longer available.' };
+      const issuedGallerySource = target.geometryAvailable === false
+        && sameBounds(target.bounds, overlay.state.display.bounds)
+        && overlay.state.windowSources.some((source) => {
+          const nativeId = /^window:([^:]+):[01]$/.exec(source.id)?.[1];
+          return source.id === target.sourceId
+            && source.name === target.sourceName
+            && nativeId === target.nativeWindowId;
+        });
+      if (!issued && !issuedGallerySource) {
+        return { success: false, error: 'The selected window is no longer available.' };
+      }
     } else if (!validateCaptureTarget(target, overlay.state.displays)) {
       return { success: false, error: 'The selected capture area is invalid.' };
     }
