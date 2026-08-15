@@ -12,6 +12,7 @@ import type {
   SessionState,
   ReviewSession,
   FocusedElementHint,
+  AnnotationMode,
 } from '../../shared/types';
 import { getScreenRecordingRenderer } from '../capture/ScreenRecordingRenderer';
 import { useCrashRecovery } from '../components';
@@ -50,6 +51,8 @@ export interface RecordingContextValue {
   screenshotCount: number;
   isPaused: boolean;
   isMutating: boolean;
+  annotationActive: boolean;
+  annotationMode: AnnotationMode;
 
   // Audio
   audioLevel: number;
@@ -87,6 +90,7 @@ export interface RecordingContextValue {
   startSession: () => Promise<void>;
   stopSession: () => Promise<void>;
   togglePause: () => Promise<void>;
+  toggleAnnotation: () => Promise<void>;
   manualCapture: () => Promise<void>;
   copyReportPath: () => Promise<void>;
   openReportFolder: () => Promise<void>;
@@ -147,6 +151,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [screenshotCount, setScreenshotCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const [annotationActive, setAnnotationActive] = useState(false);
+  const [annotationMode, setAnnotationMode] = useState<AnnotationMode>('interact');
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [lastCapture, setLastCapture] = useState<LastCapture | null>(null);
@@ -501,6 +507,11 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
+  useEffect(() => window.markupr.capture.onAnnotationState((annotationState) => {
+    setAnnotationActive(annotationState.active);
+    setAnnotationMode(annotationState.mode);
+  }), []);
+
   // ---------------------------------------------------------------------------
   // Post-processing progress listeners
   // ---------------------------------------------------------------------------
@@ -638,6 +649,15 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [state, isPaused, isMutating]);
 
+  const toggleAnnotation = useCallback(async () => {
+    if (state !== 'recording' || !annotationActive || isPaused || isMutating) return;
+    const nextMode: AnnotationMode = annotationMode === 'draw' ? 'interact' : 'draw';
+    const result = await window.markupr.capture.setAnnotationMode(nextMode);
+    if (!result.success) {
+      setErrorMessage(result.error || 'Unable to change annotation mode.');
+    }
+  }, [annotationActive, annotationMode, isMutating, isPaused, state]);
+
   const copyReportPath = useCallback(async () => {
     if (!reportPath) return;
     await window.markupr.copyToClipboard(reportPath);
@@ -703,6 +723,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     screenshotCount,
     isPaused,
     isMutating,
+    annotationActive,
+    annotationMode,
     audioLevel,
     isVoiceActive,
     lastCapture,
@@ -724,6 +746,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     startSession,
     stopSession,
     togglePause,
+    toggleAnnotation,
     manualCapture,
     copyReportPath,
     openReportFolder,
@@ -741,6 +764,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     screenshotCount,
     isPaused,
     isMutating,
+    annotationActive,
+    annotationMode,
     audioLevel,
     isVoiceActive,
     lastCapture,
@@ -764,6 +789,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     startSession,
     stopSession,
     togglePause,
+    toggleAnnotation,
     manualCapture,
     copyReportPath,
     openReportFolder,

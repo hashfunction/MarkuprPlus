@@ -191,6 +191,9 @@ const App: React.FC = () => {
             manualShortcut={ui.settings?.hotkeys?.manualScreenshot}
             toggleShortcut={ui.settings?.hotkeys?.toggleRecording}
             pauseShortcut={ui.settings?.hotkeys?.pauseResume}
+            annotationActive={recording.annotationActive}
+            annotationMode={recording.annotationMode}
+            onToggleAnnotation={() => { void recording.toggleAnnotation(); }}
           />
         )}
 

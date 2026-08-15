@@ -362,6 +362,11 @@ export class CaptureOverlayManager {
       active.window.showInactive();
     }
     active.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, active.state);
+    this.sendAnnotationToHost({
+      type: 'mode',
+      sessionId: active.state.sessionId,
+      mode,
+    });
     this.emitAnnotationState();
     return { success: true };
   }
@@ -416,6 +421,10 @@ export class CaptureOverlayManager {
 
   private sendAnnotationToHost(event: AnnotationEvent): void {
     this.dependencies.getHostWindow()?.webContents.send(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT, event);
+    const active = this.annotation;
+    if (active && active.state.kind === 'annotation' && !active.window.isDestroyed()) {
+      active.window.webContents.send(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT, event);
+    }
     this.dependencies.onAnnotationEvent?.(event);
   }
 

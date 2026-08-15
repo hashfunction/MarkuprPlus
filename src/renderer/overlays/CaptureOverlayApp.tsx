@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { CaptureOverlayState } from '../../shared/types';
 import { SelectionOverlay } from './SelectionOverlay';
+import { LiveAnnotationOverlay } from './LiveAnnotationOverlay';
 
 export function CaptureOverlayApp(): React.ReactElement {
   const [state, setState] = useState<CaptureOverlayState | null>(null);
@@ -27,7 +28,7 @@ export function CaptureOverlayApp(): React.ReactElement {
   }, []);
 
   if (state?.kind === 'selection') return <SelectionOverlay overlayState={state} />;
-  if (state?.kind === 'annotation') return <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }} />;
+  if (state?.kind === 'annotation') return <LiveAnnotationOverlay overlayState={state} />;
 
   return (
     <main style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(5,8,14,.48)', color: '#fff', fontFamily: '-apple-system, sans-serif' }}>

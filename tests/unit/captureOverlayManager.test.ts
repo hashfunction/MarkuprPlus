@@ -217,6 +217,10 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
       expect.any(String),
       { active: true, mode: 'draw' },
     );
+    expect(windows[0].webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      { type: 'mode', sessionId: 'session-1', mode: 'draw' },
+    );
   });
 
   it('routes only active-session annotation events from its annotation window', async () => {
@@ -231,6 +235,7 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     expect(manager.submitAnnotationEvent(windows[0].webContents.id, { ...valid, sessionId: 'session-2' }).success).toBe(false);
     expect(manager.submitAnnotationEvent(windows[0].webContents.id, valid)).toEqual({ success: true });
     expect(host.webContents.send).toHaveBeenCalledWith(expect.any(String), valid);
+    expect(windows[0].webContents.send).toHaveBeenCalledWith(expect.any(String), valid);
   });
 
   it('refreshes selected-window bounds and tears all timers down on end', async () => {
