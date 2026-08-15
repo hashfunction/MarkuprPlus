@@ -60,10 +60,15 @@ export interface CaptureWindowContext {
  */
 export interface CaptureContextSnapshot {
   recordedAt: number;
-  trigger: 'pause' | 'manual' | 'voice-command';
+  trigger: 'pause' | 'manual' | 'voice-command' | 'annotation';
   cursor?: CaptureCursorContext;
   activeWindow?: CaptureWindowContext;
   focusedElement?: FocusedElementHint;
+  annotation?: {
+    strokeId: string;
+    tool: AnnotationTool;
+    color: AnnotationColor;
+  };
 }
 
 /**
@@ -924,6 +929,106 @@ export interface CaptureSource {
   /** Display info for screen sources (multi-monitor support) */
   display?: DisplayInfo;
 }
+
+/** Integer rectangle expressed in Electron device-independent screen pixels. */
+export interface CaptureBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CapturePoint {
+  x: number;
+  y: number;
+}
+
+/** Display details used by the full-desktop selection overlay. */
+export interface CaptureDisplay {
+  id: string;
+  label: string;
+  sourceId: string;
+  sourceName: string;
+  bounds: CaptureBounds;
+  scaleFactor: number;
+  isPrimary: boolean;
+}
+
+/** A visible OS window matched to the exact Electron desktop source. */
+export interface CapturableWindow {
+  sourceId: string;
+  sourceName: string;
+  nativeWindowId: string;
+  appName: string;
+  bounds: CaptureBounds;
+  ownerPid?: number;
+  appIcon?: string;
+  thumbnail?: string;
+}
+
+interface CaptureTargetBase {
+  sourceId: string;
+  sourceName: string;
+}
+
+export interface WindowCaptureTarget extends CaptureTargetBase {
+  kind: 'window';
+  nativeWindowId: string;
+  appName: string;
+  bounds: CaptureBounds;
+}
+
+export interface RegionCaptureTarget extends CaptureTargetBase {
+  kind: 'region';
+  displayId: string;
+  displayBounds: CaptureBounds;
+  scaleFactor: number;
+  /** Crop expressed relative to the display's top-left corner. */
+  region: CaptureBounds;
+}
+
+export interface ScreenCaptureTarget extends CaptureTargetBase {
+  kind: 'screen';
+  displayId: string;
+  displayBounds: CaptureBounds;
+  scaleFactor: number;
+}
+
+export type CaptureTarget =
+  | WindowCaptureTarget
+  | RegionCaptureTarget
+  | ScreenCaptureTarget;
+
+export type AnnotationMode = 'interact' | 'draw';
+export type AnnotationTool = 'freehand' | 'circle' | 'highlight';
+export type AnnotationColor = '#ff3b30' | '#ffcc00' | '#34c759' | '#0a84ff';
+
+export interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+export interface AnnotationStroke {
+  id: string;
+  tool: AnnotationTool;
+  color: AnnotationColor;
+  width: number;
+  points: NormalizedPoint[];
+}
+
+interface AnnotationEventBase {
+  sessionId: string;
+}
+
+export type AnnotationEvent =
+  | (AnnotationEventBase & { type: 'cursor'; point: NormalizedPoint | null })
+  | (AnnotationEventBase & { type: 'stroke-start'; stroke: AnnotationStroke })
+  | (AnnotationEventBase & { type: 'stroke-points'; strokeId: string; points: NormalizedPoint[] })
+  | (AnnotationEventBase & { type: 'stroke-end'; strokeId: string })
+  | (AnnotationEventBase & { type: 'undo' })
+  | (AnnotationEventBase & { type: 'clear' })
+  | (AnnotationEventBase & { type: 'mode'; mode: AnnotationMode })
+  | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds });
 
 // =============================================================================
 // Session Types (for IPC)
