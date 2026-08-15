@@ -261,7 +261,10 @@ export async function appendExtractedFramesToReport(
       const focused = frame.captureContext?.focusedElement?.textPreview
         || frame.captureContext?.focusedElement?.label
         || frame.captureContext?.focusedElement?.role;
-      const contextLine = [cursor, app ? `App: ${app}` : undefined, focused ? `Focus: ${focused}` : undefined]
+      const annotation = frame.captureContext?.annotation
+        ? `Annotation: ${frame.captureContext.annotation.tool} (${frame.captureContext.annotation.color})`
+        : undefined;
+      const contextLine = [annotation, cursor, app ? `App: ${app}` : undefined, focused ? `Focus: ${focused}` : undefined]
         .filter(Boolean)
         .join(' | ');
 

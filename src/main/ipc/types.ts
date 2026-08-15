@@ -14,6 +14,7 @@ import type { Session } from '../SessionController';
 import type {
   SessionPayload,
   PermissionType,
+  CaptureTarget,
 } from '../../shared/types';
 
 /**
@@ -36,9 +37,10 @@ export interface IpcContext {
  * passed to handler modules rather than imported.
  */
 export interface SessionActions {
-  startSession: (sourceId?: string, sourceName?: string) => Promise<{
+  startSession: (target?: CaptureTarget | string, sourceName?: string) => Promise<{
     success: boolean;
     sessionId?: string;
+    cancelled?: boolean;
     error?: string;
   }>;
   stopSession: () => Promise<{

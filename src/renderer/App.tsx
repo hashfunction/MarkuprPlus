@@ -51,8 +51,10 @@ function formatRelativeTime(timestamp: number): string {
   return `${Math.floor(diff / day)}d ago`;
 }
 
-function formatCaptureTrigger(trigger?: 'pause' | 'manual' | 'voice-command'): string {
+function formatCaptureTrigger(trigger?: 'pause' | 'manual' | 'voice-command' | 'annotation'): string {
   switch (trigger) {
+    case 'annotation':
+      return 'Annotation Frame Marker';
     case 'manual':
       return 'Manual Shot Marker';
     case 'voice-command':
@@ -189,6 +191,9 @@ const App: React.FC = () => {
             manualShortcut={ui.settings?.hotkeys?.manualScreenshot}
             toggleShortcut={ui.settings?.hotkeys?.toggleRecording}
             pauseShortcut={ui.settings?.hotkeys?.pauseResume}
+            annotationActive={recording.annotationActive}
+            annotationMode={recording.annotationMode}
+            onToggleAnnotation={() => { void recording.toggleAnnotation(); }}
           />
         )}
 

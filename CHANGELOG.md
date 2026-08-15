@@ -5,6 +5,18 @@ All notable changes to markupR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added a protected QuickTime-style capture selector with exact Window capture by default, arbitrary Region capture, and explicit Full Screen capture across multiple displays.
+- Added a live pointer marker plus pen, circle, and highlighter annotations that are composited into the saved video and prioritized as frames in the final report.
+
+### Changed
+
+- Capture selection now fails closed when monitor/source identity or native window geometry is ambiguous instead of widening to another screen.
+- Recording startup, pause, source-close, encoder-error, overlay-crash, and rapid teardown paths now release capture, audio, annotation, and persistence state together.
+
 ## [2.6.8] - 2026-02-17
 
 - fix: resolve macOS DMG mount collision during parallel builds (arm64/x64 volumes now use unique names)

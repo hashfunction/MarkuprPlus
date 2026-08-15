@@ -23,8 +23,6 @@
 import {
   app,
   BrowserWindow,
-  desktopCapturer,
-  screen,
   shell,
   Notification,
 } from 'electron';
@@ -51,6 +49,8 @@ import {
   type SessionPayload,
   type TrayState,
   type CaptureContextSnapshot,
+  type AnnotationEvent,
+  type CaptureTarget,
   type AnalysisConnection,
   type AnalysisProvider,
 } from '../shared/types';
@@ -86,6 +86,11 @@ import {
   getFinalizedScreenRecordings,
 } from './ipc';
 import { probeCaptureContext } from './capture/CaptureContextProbe';
+import { captureOverlayManager } from './capture/CaptureOverlayManager';
+import {
+  AnnotationCueTracker,
+  resolveCaptureTarget,
+} from './capture/CaptureSessionLifecycle';
 import {
   extractAiFrameHintsFromMarkdown,
   appendExtractedFramesToReport,
@@ -95,6 +100,10 @@ import {
   writeProcessingTrace,
 } from './output/MarkdownPatcher';
 import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
+import {
+  captureContextsToKeyMoments,
+  nearestCaptureContext,
+} from './pipeline/CaptureMomentHints';
 
 // Guard against stdio EIO crashes when the parent terminal/PTY closes.
 type ConsoleMethod = (...args: unknown[]) => void;
@@ -156,6 +165,7 @@ let hasCompletedOnboarding = false;
 const rendererRecoveryAttempts = new WeakMap<BrowserWindow, number>();
 let teardownAudioTelemetry: Array<() => void> = [];
 let teardownSettingsListeners: Array<() => void> = [];
+const annotationCueTracker = new AnnotationCueTracker();
 
 // Windows taskbar integration (Windows only)
 let windowsTaskbar: WindowsTaskbar | null = null;
@@ -410,6 +420,18 @@ function mapToTrayState(state: SessionState): TrayState {
  */
 function handleSessionStateChange(state: SessionState, session: Session | null): void {
   console.log(`[Main] Session state changed: ${state}`);
+  if (state === 'idle') annotationCueTracker.clear();
+  if (state === 'stopping' || state === 'processing' || state === 'complete'
+    || state === 'error' || state === 'idle') {
+    captureOverlayManager.endAnnotation();
+  }
+  try {
+    mainWindow?.setContentProtection(
+      state === 'starting' || state === 'recording' || state === 'stopping',
+    );
+  } catch (error) {
+    console.warn('[Main] Failed to update recording HUD content protection:', error);
+  }
 
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
@@ -423,6 +445,7 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
     state === 'stopping' ||
     state === 'processing';
   popover?.setKeepVisibleOnBlur(keepVisibleOnBlur);
+  popover?.setRecordingHudPriority(state === 'recording');
 
   if (popover && (state === 'recording' || state === 'stopping' || state === 'processing')) {
     const hudState = state === 'recording' ? 'recording' : 'processing';
@@ -444,6 +467,15 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
 
   // Also send status update
   safeSendToRenderer(IPC_CHANNELS.SESSION_STATUS, sessionController.getStatus());
+}
+
+function handleAnnotationEvent(event: AnnotationEvent): void {
+  const session = sessionController.getSession();
+  if (!session || session.id !== event.sessionId) return;
+  const context = annotationCueTracker.consume(event);
+  if (!context) return;
+  const cue = sessionController.registerCaptureCue('annotation', context);
+  if (cue) crashRecovery.updateSession({ screenshotCount: cue.count });
 }
 
 /**
@@ -732,36 +764,6 @@ function resumeSession(): { success: boolean; error?: string } {
 // Session Control
 // =============================================================================
 
-/**
- * Resolve the default capture source for zero-friction recording start.
- * Prefers the primary display to match what users are actively looking at.
- */
-async function resolveDefaultCaptureSource(): Promise<{ sourceId: string; sourceName: string }> {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: 1, height: 1 },
-  });
-
-  if (!sources.length) {
-    const settingsHint = process.platform === 'darwin'
-      ? 'System Settings > Privacy & Security > Screen Recording'
-      : process.platform === 'win32'
-        ? 'Windows Settings > Privacy > Screen capture'
-        : 'your system settings';
-    throw new Error(`No screen capture source is available. Check that markupR has screen recording permission in ${settingsHint}.`);
-  }
-
-  const primaryDisplayId = String(screen.getPrimaryDisplay().id);
-  const preferredSource = sources.find((source) => source.display_id === primaryDisplayId);
-  const fallbackSource = sources.find((source) => source.id.startsWith('screen')) || sources[0];
-  const selected = preferredSource || fallbackSource;
-
-  return {
-    sourceId: selected.id,
-    sourceName: selected.name || 'Main Display',
-  };
-}
-
 function buildPostProcessTranscriptSegments(session: Session): TranscriptSegment[] {
   const sessionStartSec = session.startTime / 1000;
   const events = session.transcriptBuffer
@@ -807,24 +809,16 @@ function attachCaptureContextsToExtractedFrames(
   }
 
   const maxDistanceMs = 5_000;
+  const videoStartTime = session.metadata.videoStartTime || session.startTime;
 
   return extractedFrames.map((frame) => {
-    const frameAtMs = session.startTime + Math.round(frame.timestamp * 1000);
-    let bestMatch: CaptureContextSnapshot | undefined;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (const context of captureContexts) {
-      const distance = Math.abs(frameAtMs - context.recordedAt);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestMatch = context;
-      }
-      if (context.recordedAt > frameAtMs && distance > bestDistance) {
-        break;
-      }
-    }
-
-    if (!bestMatch || bestDistance > maxDistanceMs) {
+    const bestMatch = nearestCaptureContext(
+      frame.timestamp,
+      videoStartTime,
+      captureContexts,
+      maxDistanceMs,
+    );
+    if (!bestMatch) {
       return frame;
     }
 
@@ -926,9 +920,10 @@ async function attachAudioToSessionOutput(
 /**
  * Start a recording session.
  */
-async function startSession(sourceId?: string, sourceName?: string): Promise<{
+async function startSession(sourceId?: CaptureTarget | string, sourceName?: string): Promise<{
   success: boolean;
   sessionId?: string;
+  cancelled?: boolean;
   error?: string;
 }> {
   try {
@@ -962,17 +957,22 @@ async function startSession(sourceId?: string, sourceName?: string): Promise<{
       };
     }
 
-    let resolvedSourceId = sourceId;
-    let resolvedSourceName = sourceName;
-
+    const explicitTarget = typeof sourceId === 'object' ? sourceId as CaptureTarget : undefined;
+    const captureTarget = typeof sourceId === 'string'
+      ? undefined
+      : await resolveCaptureTarget(explicitTarget, () => captureOverlayManager.selectTarget());
+    if (typeof sourceId !== 'string' && !captureTarget) {
+      return { success: false, cancelled: true };
+    }
+    const legacySourceId = typeof sourceId === 'string' ? sourceId : undefined;
+    const resolvedSourceId = captureTarget?.sourceId || legacySourceId;
+    const resolvedSourceName = captureTarget?.sourceName || sourceName;
     if (!resolvedSourceId) {
-      const defaultSource = await resolveDefaultCaptureSource();
-      resolvedSourceId = defaultSource.sourceId;
-      resolvedSourceName = defaultSource.sourceName;
+      return { success: false, error: 'No capture target was selected.' };
     }
 
     // Start the session
-    await sessionController.start(resolvedSourceId, resolvedSourceName);
+    await sessionController.start(resolvedSourceId, resolvedSourceName, captureTarget || undefined);
 
     const session = sessionController.getSession();
 
@@ -1211,6 +1211,7 @@ async function stopSession(): Promise<{
         recordingPath: recordingArtifact.path,
         recordingMimeType: recordingArtifact.mimeType,
         recordingBytes: recordingArtifact.bytesWritten,
+        videoStartTime: recordingArtifact.startTime || session.metadata.videoStartTime,
       });
     }
     if (audioArtifact) {
@@ -1238,12 +1239,17 @@ async function stopSession(): Promise<{
       document.content,
       providedTranscriptSegments
     );
+    const annotationMomentHints = captureContextsToKeyMoments(
+      captureContexts,
+      session.metadata.videoStartTime || recordingArtifact?.startTime || session.startTime,
+    );
+    const frameMomentHints = [...aiMomentHints, ...annotationMomentHints];
     aiFrameHintCount = aiMomentHints.length;
 
     console.log(
       `[Main:stopSession] Step 5/6: Post-processing pipeline ` +
       `(${providedTranscriptSegments.length} pre-provided segments, ` +
-      `${aiMomentHints.length} AI frame hints, ` +
+      `${aiMomentHints.length} AI frame hints, ${annotationMomentHints.length} annotation hints, ` +
       `hasAudio=${!!audioArtifact}, hasRecording=${!!recordingArtifact})...`
     );
 
@@ -1255,7 +1261,7 @@ async function stopSession(): Promise<{
           videoPath: recordingArtifact?.path ?? '',
           audioPath: audioArtifact?.path ?? '',
           sessionDir: saveResult.sessionDir,
-          aiMomentHints,
+          aiMomentHints: frameMomentHints,
           transcriptSegments:
             providedTranscriptSegments.length > 0
               ? providedTranscriptSegments
@@ -1401,7 +1407,7 @@ async function stopSession(): Promise<{
       analysisError: aiFallbackReason
         ? `${aiFallbackReason} Local Rules report saved.`
         : undefined,
-      videoStartTime: recordingArtifact?.startTime,
+      videoStartTime: session.metadata.videoStartTime || recordingArtifact?.startTime,
       reviewSession,
     });
 
@@ -1667,6 +1673,11 @@ app.whenReady().then(async () => {
     console.log('[Main] Fallback: Regular window created (no tray)');
   }
 
+  captureOverlayManager.configure({
+    getHostWindow: () => mainWindow,
+    onAnnotationEvent: handleAnnotationEvent,
+  });
+
   wireAudioTelemetry();
 
   // Set error handler main window
@@ -1814,6 +1825,7 @@ app.on('will-quit', async () => {
   teardownSettingsListeners.forEach((teardown) => teardown());
   teardownSettingsListeners = [];
   hotkeyManager.unregisterAll();
+  captureOverlayManager.destroy();
   popover?.destroy();
   trayManager.destroy();
   menuManager.destroy();

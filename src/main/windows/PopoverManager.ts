@@ -244,6 +244,20 @@ export class PopoverManager {
     this.keepVisibleOnBlur = enabled;
   }
 
+  /** Keep the compact Stop/Pause HUD above the interactive annotation layer. */
+  setRecordingHudPriority(enabled: boolean): void {
+    if (!this.window || this.window.isDestroyed()) return;
+    try {
+      this.window.setAlwaysOnTop(
+        true,
+        enabled ? 'screen-saver' : 'floating',
+        enabled ? 1 : 0,
+      );
+    } catch (error) {
+      console.warn('[PopoverManager] Failed to update recording HUD priority:', error);
+    }
+  }
+
   /**
    * Update the tray reference (if tray is recreated)
    */

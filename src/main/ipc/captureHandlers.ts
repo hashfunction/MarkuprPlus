@@ -15,9 +15,14 @@ import {
   type CaptureSource,
   type AudioDevice,
   type FocusedElementHint,
+  type AnnotationEvent,
+  type AnnotationMode,
+  type CaptureTarget,
 } from '../../shared/types';
+import { sameCaptureTarget } from '../../shared/captureGeometry';
 import type { IpcContext } from './types';
 import { probeCaptureContext } from '../capture/CaptureContextProbe';
+import { captureOverlayManager } from '../capture/CaptureOverlayManager';
 
 // =============================================================================
 // Screen Recording State
@@ -128,6 +133,76 @@ export function getFinalizedScreenRecordings(): Map<string, FinalizedRecordingAr
 // =============================================================================
 
 export function registerCaptureHandlers(ctx: IpcContext): void {
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_SELECT_TARGET, async (): Promise<CaptureTarget | null> => {
+    return captureOverlayManager.selectTarget();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.CAPTURE_ANNOTATION_BEGIN,
+    async (_, sessionId: unknown, target: unknown): Promise<{ success: boolean; error?: string }> => {
+      if (typeof sessionId !== 'string' || !sessionId || !target || typeof target !== 'object') {
+        return { success: false, error: 'Invalid annotation target.' };
+      }
+      try {
+        const activeSession = sessionController.getSession();
+        const expectedTarget = activeSession?.metadata.captureTarget;
+        if (!activeSession || activeSession.id !== sessionId || !expectedTarget
+          || !sameCaptureTarget(expectedTarget, target as CaptureTarget)) {
+          return { success: false, error: 'Annotation target does not match the active recording.' };
+        }
+        await captureOverlayManager.beginAnnotation(sessionId, target as CaptureTarget);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to open annotation overlay.',
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_ANNOTATION_END, () => {
+    captureOverlayManager.endAnnotation();
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_ANNOTATION_SET_MODE, (_, mode: unknown) => {
+    if (mode !== 'interact' && mode !== 'draw') {
+      return { success: false, error: 'Invalid annotation mode.' };
+    }
+    return captureOverlayManager.setAnnotationMode(mode as AnnotationMode);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_GET_STATE, (event) => {
+    return captureOverlayManager.getOverlayState(event.sender.id);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_CONFIRM, (event, target: unknown) => {
+    if (!target || typeof target !== 'object') {
+      return { success: false, error: 'Invalid capture target.' };
+    }
+    return captureOverlayManager.confirmTarget(event.sender.id, target as CaptureTarget);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_CANCEL, () => {
+    captureOverlayManager.cancelSelection();
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_SET_SELECTION_MODE, (event, mode: unknown) => {
+    if (mode !== 'window' && mode !== 'region' && mode !== 'screen') {
+      return { success: false, error: 'Invalid selection mode.' };
+    }
+    return captureOverlayManager.setSelectionMode(event.sender.id, mode);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_OVERLAY_ANNOTATION_EVENT, (event, annotationEvent: unknown) => {
+    if (!annotationEvent || typeof annotationEvent !== 'object') {
+      return { success: false, error: 'Invalid annotation event.' };
+    }
+    return captureOverlayManager.submitAnnotationEvent(event.sender.id, annotationEvent as AnnotationEvent);
+  });
+
   ipcMain.handle(IPC_CHANNELS.CAPTURE_GET_SOURCES, async (): Promise<CaptureSource[]> => {
     try {
       const sources = await desktopCapturer.getSources({
@@ -191,6 +266,7 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
           lastChunkAt: Date.now(),
           startTime,
         });
+        if (Number.isFinite(startTime)) currentSession.metadata.videoStartTime = startTime;
 
         return { success: true, path: tempPath };
       } catch (error) {

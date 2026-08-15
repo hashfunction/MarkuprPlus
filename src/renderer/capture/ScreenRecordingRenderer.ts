@@ -5,10 +5,31 @@
  * streams chunks to the main process for durable file writing.
  */
 
-interface StartOptions {
+import type { AnnotationEvent, CaptureTarget } from '../../shared/types';
+import RecordingCompositor from './RecordingCompositor';
+
+interface TargetStartOptions {
+  sessionId: string;
+  target: CaptureTarget;
+  sourceId?: never;
+}
+
+interface LegacyStartOptions {
   sessionId: string;
   sourceId: string;
+  target?: never;
 }
+
+type StartOptions = TargetStartOptions | LegacyStartOptions;
+
+export interface RecordingCompositorLike {
+  start(sourceStream: MediaStream, target: CaptureTarget): Promise<MediaStream>;
+  applyAnnotationEvent(event: AnnotationEvent): void;
+  stop(): void;
+}
+
+type RecordingCompositorFactory = () => RecordingCompositorLike;
+type FatalErrorHandler = (message: string) => void;
 
 interface StopResult {
   success: boolean;
@@ -19,6 +40,7 @@ interface StopResult {
 }
 
 interface DesktopVideoConstraints extends MediaTrackConstraints {
+  cursor?: 'never';
   mandatory?: {
     chromeMediaSource: 'desktop';
     chromeMediaSourceId: string;
@@ -46,14 +68,24 @@ function chooseMimeType(): string {
 }
 
 export class ScreenRecordingRenderer {
+  private readonly createCompositor: RecordingCompositorFactory;
   private mediaStream: MediaStream | null = null;
   private mediaRecorder: MediaRecorder | null = null;
+  private compositor: RecordingCompositorLike | null = null;
+  private annotationUnsubscribe: (() => void) | null = null;
+  private selectedSourceTrack: MediaStreamTrack | null = null;
   private activeSessionId: string | null = null;
   private inFlightWrites: Set<Promise<void>> = new Set();
   private startPromise: Promise<void> | null = null;
   private stopping = false;
   private stopPromise: Promise<StopResult> | null = null;
   private recordingStartTime: number | null = null;
+  private activeSourceName: string | null = null;
+  private fatalErrorHandler: FatalErrorHandler | null = null;
+
+  constructor(createCompositor: RecordingCompositorFactory = () => new RecordingCompositor()) {
+    this.createCompositor = createCompositor;
+  }
 
   private stopTracks(stream: MediaStream | null | undefined): void {
     if (!stream) {
@@ -88,6 +120,7 @@ export class ScreenRecordingRenderer {
       return {
         audio: false,
         video: {
+          cursor: 'never',
           mandatory: {
             chromeMediaSource: 'desktop',
             chromeMediaSourceId: sourceId,
@@ -104,6 +137,7 @@ export class ScreenRecordingRenderer {
     return {
       audio: false,
       video: {
+        cursor: 'never',
         mandatory: {
           chromeMediaSource: 'desktop',
           chromeMediaSourceId: sourceId,
@@ -112,61 +146,76 @@ export class ScreenRecordingRenderer {
     };
   }
 
-  private async getCandidateSourceIds(preferredSourceId: string): Promise<string[]> {
-    const candidates = new Set<string>([preferredSourceId]);
-    const captureApi = window.markupr?.capture;
-    if (!captureApi?.getSources) {
-      return Array.from(candidates);
-    }
-
-    try {
-      const sources = await captureApi.getSources();
-      for (const source of sources) {
-        if (source.type === 'screen') {
-          candidates.add(source.id);
+  private async acquireAndComposeExactSource(
+    sourceId: string,
+    target: CaptureTarget,
+  ): Promise<MediaStream> {
+    for (const highQuality of [true, false]) {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(
+          this.getDesktopConstraints(sourceId, highQuality)
+        );
+      } catch (error) {
+        if (highQuality) {
+          console.warn(
+            `[ScreenRecordingRenderer] High-quality capture failed for ${sourceId}, retrying exact-source fallback:`,
+            error
+          );
+          continue;
         }
+        console.warn(`[ScreenRecordingRenderer] Exact-source fallback failed for ${sourceId}:`, error);
+        const message = error instanceof Error
+          ? error.message
+          : 'Unable to acquire the selected desktop capture stream.';
+        throw new Error(message);
       }
-    } catch (error) {
-      console.warn('[ScreenRecordingRenderer] Failed to enumerate capture sources:', error);
+
+      this.mediaStream = stream;
+      const compositor = this.createCompositor();
+      this.compositor = compositor;
+      try {
+        const composedStream = await compositor.start(stream, target);
+        this.watchSelectedSource(stream);
+        return composedStream;
+      } catch (error) {
+        this.cleanupStream();
+        if (highQuality) {
+          console.warn(
+            `[ScreenRecordingRenderer] High-quality stream for ${sourceId} did not become frame-ready, retrying exact-source fallback:`,
+            error
+          );
+          continue;
+        }
+        throw error;
+      }
     }
 
-    return Array.from(candidates);
+    throw new Error('Unable to acquire the selected desktop capture stream.');
   }
 
-  private async acquireScreenStream(sourceId: string): Promise<MediaStream> {
-    let lastError: unknown;
-    const candidates = await this.getCandidateSourceIds(sourceId);
-
-    for (const candidateId of candidates) {
-      const highQualityConstraints = this.getDesktopConstraints(candidateId, true);
-      const fallbackConstraints = this.getDesktopConstraints(candidateId, false);
-
-      try {
-        return await navigator.mediaDevices.getUserMedia(highQualityConstraints);
-      } catch (primaryError) {
-        console.warn(
-          `[ScreenRecordingRenderer] High-quality capture failed for ${candidateId}, retrying fallback:`,
-          primaryError
-        );
-        lastError = primaryError;
-      }
-
-      try {
-        return await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-      } catch (fallbackError) {
-        console.warn(
-          `[ScreenRecordingRenderer] Fallback capture failed for ${candidateId}:`,
-          fallbackError
-        );
-        lastError = fallbackError;
-      }
+  private resolveTarget(options: StartOptions): CaptureTarget {
+    if ('target' in options && options.target) return options.target;
+    const sourceId = options.sourceId;
+    if (sourceId.startsWith('screen:')) {
+      return {
+        kind: 'screen',
+        sourceId,
+        sourceName: 'Selected display',
+        displayId: sourceId.split(':')[1] || '0',
+        displayBounds: { x: 0, y: 0, width: 1, height: 1 },
+        scaleFactor: 1,
+      };
     }
-
-    const message =
-      lastError instanceof Error
-        ? lastError.message
-        : 'Unable to acquire a desktop capture stream.';
-    throw new Error(message);
+    return {
+      kind: 'window',
+      sourceId,
+      sourceName: 'Selected window',
+      nativeWindowId: sourceId.split(':')[1] || sourceId,
+      appName: 'Selected application',
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      geometryAvailable: false,
+    };
   }
 
   isRecording(): boolean {
@@ -185,6 +234,10 @@ export class ScreenRecordingRenderer {
     return this.recordingStartTime;
   }
 
+  setFatalErrorHandler(handler: FatalErrorHandler | null): void {
+    this.fatalErrorHandler = handler;
+  }
+
   async start(options: StartOptions): Promise<void> {
     if (this.startPromise) {
       return this.startPromise;
@@ -197,14 +250,14 @@ export class ScreenRecordingRenderer {
         });
       }
 
-      this.forceReleaseOrphanedCapture();
-
       if (this.isRecording()) {
         return;
       }
+      this.forceReleaseOrphanedCapture();
 
+      const target = this.resolveTarget(options);
       const mimeType = chooseMimeType();
-      const stream = await this.acquireScreenStream(options.sourceId);
+      const composedStream = await this.acquireAndComposeExactSource(target.sourceId, target);
 
       const recordingStartTime = Date.now();
       const startResult = await window.markupr.screenRecording.start(
@@ -213,16 +266,16 @@ export class ScreenRecordingRenderer {
         recordingStartTime
       );
       if (!startResult.success) {
-        stream.getTracks().forEach((track) => track.stop());
+        this.cleanupStream();
         throw new Error(startResult.error || 'Unable to start screen recording persistence.');
       }
 
       let recorder: MediaRecorder;
       try {
-        recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 });
+        recorder = new MediaRecorder(composedStream, { mimeType, videoBitsPerSecond: 5_000_000 });
       } catch (error) {
         // MediaRecorder construction failed — clean up the main-process artifact and stream.
-        stream.getTracks().forEach((track) => track.stop());
+        this.cleanupStream();
         await window.markupr.screenRecording.stop(options.sessionId).catch(() => {});
         throw error;
       }
@@ -252,12 +305,22 @@ export class ScreenRecordingRenderer {
 
         this.inFlightWrites.add(writePromise);
       };
+      recorder.onerror = (event) => {
+        const recorderError = (event as Event & { error?: Error }).error;
+        const reason = recorderError?.message || 'The video encoder stopped unexpectedly.';
+        this.handleFatalCaptureEnd(reason);
+      };
 
-      this.mediaStream = stream;
       this.mediaRecorder = recorder;
       this.activeSessionId = options.sessionId;
+      this.activeSourceName = target.sourceName;
       this.stopping = false;
       this.recordingStartTime = recordingStartTime;
+      this.annotationUnsubscribe = window.markupr.capture?.onAnnotationEvent?.((event) => {
+        if (event.sessionId === this.activeSessionId) {
+          this.compositor?.applyAnnotationEvent(event);
+        }
+      }) || null;
 
       // Emit chunks every second for near-real-time persistence.
       try {
@@ -267,6 +330,7 @@ export class ScreenRecordingRenderer {
         this.cleanupStream();
         this.mediaRecorder = null;
         this.activeSessionId = null;
+        this.activeSourceName = null;
         this.recordingStartTime = null;
         await window.markupr.screenRecording.stop(options.sessionId).catch(() => {});
         throw error;
@@ -299,6 +363,7 @@ export class ScreenRecordingRenderer {
       this.cleanupStream();
       this.mediaRecorder = null;
       this.activeSessionId = null;
+      this.activeSourceName = null;
       this.stopping = false;
       this.recordingStartTime = null;
       return { success: true };
@@ -314,6 +379,7 @@ export class ScreenRecordingRenderer {
         this.cleanupStream();
         this.mediaRecorder = null;
         this.activeSessionId = null;
+        this.activeSourceName = null;
         this.recordingStartTime = null;
         this.stopping = false;
         return result;
@@ -351,6 +417,7 @@ export class ScreenRecordingRenderer {
         this.cleanupStream();
         this.mediaRecorder = null;
         this.activeSessionId = null;
+        this.activeSourceName = null;
         this.recordingStartTime = null;
 
         await Promise.allSettled(Array.from(this.inFlightWrites));
@@ -382,6 +449,7 @@ export class ScreenRecordingRenderer {
         this.cleanupStream();
         this.mediaRecorder = null;
         this.activeSessionId = null;
+        this.activeSourceName = null;
         this.stopping = false;
         this.recordingStartTime = null;
       }
@@ -428,10 +496,7 @@ export class ScreenRecordingRenderer {
    * Idempotent: safe to call multiple times or when no tracks are active.
    */
   releaseCaptureTracks(): void {
-    if (this.mediaStream) {
-      this.stopTracks(this.mediaStream);
-      this.mediaStream = null;
-    }
+    this.cleanupStream();
     // Also stop tracks on the recorder's internal stream reference if it differs
     // from the stored mediaStream (e.g. after partial cleanup).
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
@@ -467,16 +532,53 @@ export class ScreenRecordingRenderer {
     this.cleanupStream();
     this.mediaRecorder = null;
     this.activeSessionId = null;
+    this.activeSourceName = null;
     this.stopping = false;
     this.recordingStartTime = null;
   }
 
   private cleanupStream(): void {
-    if (!this.mediaStream) {
-      return;
+    if (this.selectedSourceTrack) {
+      this.selectedSourceTrack.removeEventListener('ended', this.handleSelectedSourceEnded);
+      this.selectedSourceTrack = null;
     }
+    this.annotationUnsubscribe?.();
+    this.annotationUnsubscribe = null;
+    try { this.compositor?.stop(); } catch { /* best effort */ }
+    this.compositor = null;
     this.stopTracks(this.mediaStream);
     this.mediaStream = null;
+  }
+
+  private watchSelectedSource(stream: MediaStream): void {
+    const tracks = typeof stream.getVideoTracks === 'function'
+      ? stream.getVideoTracks()
+      : stream.getTracks().filter((track) => track.kind === 'video');
+    const selectedTrack = tracks[0] || null;
+    if (!selectedTrack || typeof selectedTrack.addEventListener !== 'function') return;
+    this.selectedSourceTrack = selectedTrack;
+    selectedTrack.addEventListener('ended', this.handleSelectedSourceEnded, { once: true });
+  }
+
+  private readonly handleSelectedSourceEnded = (): void => {
+    this.handleFatalCaptureEnd('The selected capture source closed or became unavailable.');
+  };
+
+  private handleFatalCaptureEnd(reason: string): void {
+    if (!this.activeSessionId || this.stopping) return;
+    const endedSessionId = this.activeSessionId;
+    const sourceName = this.activeSourceName || 'selected source';
+    const message = `Recording of “${sourceName}” ended: ${reason}`;
+    console.error(`[ScreenRecordingRenderer] ${message} (${endedSessionId}).`);
+    this.fatalErrorHandler?.(message);
+    void this.stop().finally(() => {
+      // End the owning desktop session as well. This preserves already-written
+      // chunks and never substitutes a broader capture source.
+      void window.markupr.capture?.endAnnotation?.().catch(() => undefined);
+      void window.markupr.session?.stop().catch((error) => {
+        console.error('[ScreenRecordingRenderer] Failed to stop session after capture failure:', error);
+      });
+    });
   }
 }
 

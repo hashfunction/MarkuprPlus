@@ -26,9 +26,12 @@ interface RecordingOverlayProps {
   manualShortcut?: string;
   toggleShortcut?: string;
   pauseShortcut?: string;
+  annotationActive?: boolean;
+  annotationMode?: 'interact' | 'draw';
+  onToggleAnnotation?: () => void;
 }
 
-const DEFAULT_WIDTH = 300;
+const DEFAULT_WIDTH = 350;
 
 function formatCompactShortcut(accelerator: string, isMac: boolean): string {
   if (!accelerator || accelerator.trim().length === 0) {
@@ -85,6 +88,9 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   manualShortcut = 'CommandOrControl+Shift+S',
   toggleShortcut = 'CommandOrControl+Shift+F',
   pauseShortcut = 'CommandOrControl+Shift+P',
+  annotationActive = false,
+  annotationMode = 'interact',
+  onToggleAnnotation,
 }) => {
   const [showBadge, setShowBadge] = useState(false);
   const [badgeKey, setBadgeKey] = useState(0);
@@ -307,6 +313,28 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             {screenshotCount} marked
           </span>
 
+          <button
+            type="button"
+            onClick={onToggleAnnotation}
+            disabled={!annotationActive || !onToggleAnnotation || isPaused}
+            aria-pressed={annotationMode === 'draw'}
+            title={annotationActive ? 'Draw directly over the recorded area' : 'Annotation overlay unavailable'}
+            style={{
+              padding: '3px 6px',
+              border: `1px solid ${annotationMode === 'draw' ? '#ff8178' : theme.border}`,
+              borderRadius: 9,
+              background: annotationMode === 'draw' ? 'rgba(255,59,48,.2)' : theme.hintBg,
+              color: theme.text,
+              fontSize: 8.5,
+              fontWeight: 700,
+              cursor: annotationActive && !isPaused ? 'pointer' : 'not-allowed',
+              opacity: annotationActive && !isPaused ? 1 : 0.45,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {annotationMode === 'draw' ? 'Done' : 'Draw'}
+          </button>
+
           {/* Stop button */}
           <button
             type="button"
@@ -368,7 +396,7 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                 background: theme.hintBg,
               }}
             >
-            <strong style={{ fontWeight: 700 }}>Mark {manualShortcutText}</strong>
+            <strong style={{ fontWeight: 700 }}>Cue {manualShortcutText}</strong>
           </span>
           <span
               style={{

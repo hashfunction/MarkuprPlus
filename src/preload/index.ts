@@ -16,6 +16,7 @@ import {
   IPC_CHANNELS,
   type AppSettings,
   type CaptureSource,
+  type CaptureSelectionMode,
   type AudioDevice,
   type PermissionType,
   type PermissionStatus,
@@ -42,6 +43,11 @@ import {
   type AnalysisProvider,
   type AnalysisModelOption,
   type ModelAnalysisProvider,
+  type AnnotationEvent,
+  type AnnotationMode,
+  type AnnotationStatePayload,
+  type CaptureOverlayState,
+  type CaptureTarget,
 } from '../shared/types';
 
 // =============================================================================
@@ -76,10 +82,10 @@ const markuprApi = {
      * @param sourceId - ID of the capture source (screen or window)
      */
     start: (
-      sourceId?: string,
+      target?: CaptureTarget | string,
       sourceName?: string
-    ): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_START, sourceId, sourceName);
+    ): Promise<{ success: boolean; sessionId?: string; cancelled?: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_START, target, sourceName);
     },
 
     /**
@@ -177,6 +183,31 @@ const markuprApi = {
       return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_GET_SOURCES);
     },
 
+    selectTarget: (): Promise<CaptureTarget | null> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_SELECT_TARGET);
+    },
+
+    beginAnnotation: (
+      sessionId: string,
+      target: CaptureTarget
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_BEGIN, sessionId, target);
+    },
+
+    endAnnotation: (): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_END);
+    },
+
+    setAnnotationMode: (
+      mode: AnnotationMode
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_SET_MODE, mode);
+    },
+
+    onAnnotationEvent: createEventSubscriber<AnnotationEvent>(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT),
+
+    onAnnotationState: createEventSubscriber<AnnotationStatePayload>(IPC_CHANNELS.CAPTURE_ANNOTATION_STATE),
+
     /**
      * Trigger a manual screenshot during recording
      */
@@ -195,6 +226,34 @@ const markuprApi = {
      * Subscribe to manual screenshot trigger events (from hotkey)
      */
     onManualTrigger: createEventSubscriber<{ timestamp: number }>(IPC_CHANNELS.MANUAL_SCREENSHOT),
+  },
+
+  // ==========================================================================
+  // Capture Overlay API (used only by protected overlay renderer windows)
+  // ==========================================================================
+  captureOverlay: {
+    getState: (): Promise<CaptureOverlayState | null> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_GET_STATE);
+    },
+    confirmTarget: (
+      target: CaptureTarget
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_CONFIRM, target);
+    },
+    cancel: (): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_CANCEL);
+    },
+    setSelectionMode: (
+      mode: CaptureSelectionMode
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_SET_SELECTION_MODE, mode);
+    },
+    sendAnnotation: (
+      event: AnnotationEvent
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_OVERLAY_ANNOTATION_EVENT, event);
+    },
+    onStateChange: createEventSubscriber<CaptureOverlayState>(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED),
   },
 
   // ===========================================================================

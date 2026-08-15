@@ -203,17 +203,11 @@ export class PostProcessor {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         this.log(`Whisper last-resort transcription failed: ${message}`);
-
-        // No segments from any source - return empty result
-        return {
-          transcriptSegments: [],
-          extractedFrames: [],
-          reportPath: sessionDir,
-        };
       }
     }
 
-    if (segments.length === 0) {
+    const hasVideoMomentHints = Boolean(videoPath) && Boolean(aiMomentHints?.length);
+    if (segments.length === 0 && !hasVideoMomentHints) {
       this.log('No transcript segments found, returning empty result');
       emitProgress({
         step: 'generating-report',
@@ -226,6 +220,9 @@ export class PostProcessor {
         extractedFrames: [],
         reportPath: sessionDir,
       };
+    }
+    if (segments.length === 0) {
+      this.log(`No transcript segments found; continuing with ${aiMomentHints?.length || 0} video moment hints`);
     }
 
     // -----------------------------------------------------------------------

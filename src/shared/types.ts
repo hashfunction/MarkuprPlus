@@ -49,7 +49,7 @@ export interface CaptureCursorContext {
 export interface CaptureWindowContext {
   sourceId?: string;
   sourceName?: string;
-  sourceType?: 'screen' | 'window';
+  sourceType?: 'screen' | 'window' | 'region';
   appName?: string;
   title?: string;
   pid?: number;
@@ -60,10 +60,15 @@ export interface CaptureWindowContext {
  */
 export interface CaptureContextSnapshot {
   recordedAt: number;
-  trigger: 'pause' | 'manual' | 'voice-command';
+  trigger: 'pause' | 'manual' | 'voice-command' | 'annotation';
   cursor?: CaptureCursorContext;
   activeWindow?: CaptureWindowContext;
   focusedElement?: FocusedElementHint;
+  annotation?: {
+    strokeId: string;
+    tool: AnnotationTool;
+    color: AnnotationColor;
+  };
 }
 
 /**
@@ -365,6 +370,15 @@ export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   CAPTURE_GET_SOURCES: 'markupr:capture:get-sources',
   CAPTURE_MANUAL_SCREENSHOT: 'markupr:capture:manual-screenshot',
+  CAPTURE_SELECT_TARGET: 'markupr:capture:select-target',
+  CAPTURE_ANNOTATION_BEGIN: 'markupr:capture:annotation-begin',
+  CAPTURE_ANNOTATION_END: 'markupr:capture:annotation-end',
+  CAPTURE_ANNOTATION_SET_MODE: 'markupr:capture:annotation-set-mode',
+  CAPTURE_OVERLAY_GET_STATE: 'markupr:capture-overlay:get-state',
+  CAPTURE_OVERLAY_CONFIRM: 'markupr:capture-overlay:confirm',
+  CAPTURE_OVERLAY_CANCEL: 'markupr:capture-overlay:cancel',
+  CAPTURE_OVERLAY_SET_SELECTION_MODE: 'markupr:capture-overlay:set-selection-mode',
+  CAPTURE_OVERLAY_ANNOTATION_EVENT: 'markupr:capture-overlay:annotation-event',
   SCREEN_RECORDING_START: 'markupr:screen-recording:start',
   SCREEN_RECORDING_CHUNK: 'markupr:screen-recording:chunk',
   SCREEN_RECORDING_STOP: 'markupr:screen-recording:stop',
@@ -374,6 +388,9 @@ export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   SCREENSHOT_CAPTURED: 'markupr:capture:screenshot-taken',
   MANUAL_SCREENSHOT: 'markupr:capture:manual-triggered',
+  CAPTURE_ANNOTATION_EVENT: 'markupr:capture:annotation-event',
+  CAPTURE_ANNOTATION_STATE: 'markupr:capture:annotation-state',
+  CAPTURE_OVERLAY_STATE_CHANGED: 'markupr:capture-overlay:state-changed',
 
   // ---------------------------------------------------------------------------
   // Display Channels (Main -> Renderer) - Multi-monitor support
@@ -650,7 +667,7 @@ export interface ScreenshotCapturedPayload {
   count: number;
   width?: number;
   height?: number;
-  trigger?: 'pause' | 'manual' | 'voice-command';
+  trigger?: 'pause' | 'manual' | 'voice-command' | 'annotation';
   context?: CaptureContextSnapshot;
 }
 
@@ -710,7 +727,7 @@ export interface ReviewFeedbackItem {
 export interface ReviewSessionMetadata {
   os?: string;
   sourceName?: string;
-  sourceType?: 'screen' | 'window';
+  sourceType?: 'screen' | 'window' | 'region';
   /** Epoch ms when video recording started, for computing video offsets */
   videoStartTime?: number;
 }
@@ -925,6 +942,135 @@ export interface CaptureSource {
   display?: DisplayInfo;
 }
 
+/** Integer rectangle expressed in Electron device-independent screen pixels. */
+export interface CaptureBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CapturePoint {
+  x: number;
+  y: number;
+}
+
+/** Display details used by the full-desktop selection overlay. */
+export interface CaptureDisplay {
+  id: string;
+  label: string;
+  sourceId: string;
+  sourceName: string;
+  bounds: CaptureBounds;
+  scaleFactor: number;
+  isPrimary: boolean;
+}
+
+/** A visible OS window matched to the exact Electron desktop source. */
+export interface CapturableWindow {
+  sourceId: string;
+  sourceName: string;
+  nativeWindowId: string;
+  appName: string;
+  bounds: CaptureBounds;
+  ownerPid?: number;
+  appIcon?: string;
+  thumbnail?: string;
+}
+
+interface CaptureTargetBase {
+  sourceId: string;
+  sourceName: string;
+}
+
+export interface WindowCaptureTarget extends CaptureTargetBase {
+  kind: 'window';
+  nativeWindowId: string;
+  appName: string;
+  bounds: CaptureBounds;
+  /** False for privacy-preserving gallery fallback when the OS hides geometry. */
+  geometryAvailable?: boolean;
+}
+
+export interface RegionCaptureTarget extends CaptureTargetBase {
+  kind: 'region';
+  displayId: string;
+  displayBounds: CaptureBounds;
+  scaleFactor: number;
+  /** Crop expressed relative to the display's top-left corner. */
+  region: CaptureBounds;
+}
+
+export interface ScreenCaptureTarget extends CaptureTargetBase {
+  kind: 'screen';
+  displayId: string;
+  displayBounds: CaptureBounds;
+  scaleFactor: number;
+}
+
+export type CaptureTarget =
+  | WindowCaptureTarget
+  | RegionCaptureTarget
+  | ScreenCaptureTarget;
+
+export type AnnotationMode = 'interact' | 'draw';
+export type CaptureSelectionMode = 'window' | 'region' | 'screen';
+export type AnnotationTool = 'freehand' | 'circle' | 'highlight';
+export type AnnotationColor = '#ff3b30' | '#ffcc00' | '#34c759' | '#0a84ff';
+
+export interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+export interface AnnotationStroke {
+  id: string;
+  tool: AnnotationTool;
+  color: AnnotationColor;
+  width: number;
+  points: NormalizedPoint[];
+}
+
+interface AnnotationEventBase {
+  sessionId: string;
+}
+
+export type AnnotationEvent =
+  | (AnnotationEventBase & { type: 'cursor'; point: NormalizedPoint | null })
+  | (AnnotationEventBase & { type: 'stroke-start'; stroke: AnnotationStroke })
+  | (AnnotationEventBase & { type: 'stroke-points'; strokeId: string; points: NormalizedPoint[] })
+  | (AnnotationEventBase & { type: 'stroke-end'; strokeId: string })
+  | (AnnotationEventBase & { type: 'undo' })
+  | (AnnotationEventBase & { type: 'clear' })
+  | (AnnotationEventBase & { type: 'mode'; mode: AnnotationMode })
+  | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds });
+
+export interface CaptureSelectionOverlayState {
+  kind: 'selection';
+  overlayId: string;
+  mode: CaptureSelectionMode;
+  display: CaptureDisplay;
+  displays: CaptureDisplay[];
+  windows: CapturableWindow[];
+  windowSources: CaptureSource[];
+}
+
+export interface CaptureAnnotationOverlayState {
+  kind: 'annotation';
+  overlayId: string;
+  sessionId: string;
+  target: CaptureTarget;
+  mode: AnnotationMode;
+}
+
+export type CaptureOverlayState = CaptureSelectionOverlayState | CaptureAnnotationOverlayState;
+
+export interface AnnotationStatePayload {
+  active: boolean;
+  mode: AnnotationMode;
+  error?: string;
+}
+
 // =============================================================================
 // Session Types (for IPC)
 // =============================================================================
@@ -935,6 +1081,8 @@ export interface CaptureSource {
 export interface SessionMetadata {
   sourceId: string;
   sourceName?: string;
+  sourceType?: 'screen' | 'window' | 'region';
+  captureTarget?: CaptureTarget;
   windowTitle?: string;
   appName?: string;
   recordingPath?: string;
