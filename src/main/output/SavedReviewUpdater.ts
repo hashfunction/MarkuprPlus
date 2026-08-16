@@ -143,6 +143,13 @@ function sanitizeReviewSession(input: ReviewSession): ReviewSession {
         : {}),
     };
   });
+  const feedbackIdentifiers = new Set<string>();
+  for (const item of feedbackItems) {
+    if (feedbackIdentifiers.has(item.id)) {
+      throw new Error('Invalid review duplicate feedback identifier.');
+    }
+    feedbackIdentifiers.add(item.id);
+  }
 
   const startTime = finiteTimestamp(input.startTime, 'start time');
   const endTime = input.endTime === undefined
@@ -236,6 +243,29 @@ export async function updateSavedReviewSession(
   const metadata = JSON.parse(metadataText) as StoredReviewMetadata;
   if (metadata.sessionId !== sanitized.id) {
     throw new Error('The review session does not match the saved report.');
+  }
+
+  const savedMarkedIssues = new Map(
+    (metadata.markedIssues ?? []).map((issue) => [issue.id, issue]),
+  );
+  const collidingOrdinaryItem = sanitized.feedbackItems.find((item) =>
+    item.reviewItemKind !== 'marked-issue' && savedMarkedIssues.has(item.id));
+  if (collidingOrdinaryItem) {
+    throw new Error('The review feedback identifier collides with saved marked evidence.');
+  }
+  const unmatchedMarkedItem = sanitized.feedbackItems.find((item) =>
+    item.reviewItemKind === 'marked-issue' && !savedMarkedIssues.has(item.id));
+  if (unmatchedMarkedItem) {
+    throw new Error('The review marked issue does not match saved marked evidence.');
+  }
+  const mismatchedOrdinalItem = sanitized.feedbackItems.find((item) => {
+    if (item.reviewItemKind !== 'marked-issue' || item.markedIssueOrdinal === undefined) {
+      return false;
+    }
+    return savedMarkedIssues.get(item.id)?.ordinal !== item.markedIssueOrdinal;
+  });
+  if (mismatchedOrdinalItem) {
+    throw new Error('The review marked issue ordinal does not match saved marked evidence.');
   }
 
   const markedReviewItems = new Map(

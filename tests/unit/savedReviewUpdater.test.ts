@@ -187,4 +187,122 @@ describe('SavedReviewUpdater', () => {
     expect(metadata.screenshotCount).toBe(2);
     expect(metadata.markedIssues[0].comment).toBe('Edited marked checkout comment.');
   });
+
+  it('rejects a marked review row that is not backed by saved evidence', async () => {
+    const { outputRoot, sessionDir, sessionId } = await fixture();
+    const reportPath = join(sessionDir, 'feedback-report.md');
+    const originalReport = await readFile(reportPath, 'utf8');
+    const review = reviewSession(sessionId);
+    review.feedbackItems = [{
+      id: 'forged-marked-issue',
+      transcription: 'This must not silently disappear.',
+      timestamp: 1_700_000_002_000,
+      screenshots: [],
+      reviewItemKind: 'marked-issue',
+      markedIssueOrdinal: 2,
+    }];
+
+    await expect(updateSavedReviewSession(review, sessionDir, outputRoot))
+      .rejects.toThrow('does not match saved marked evidence');
+    expect(await readFile(reportPath, 'utf8')).toBe(originalReport);
+  });
+
+  it('rejects duplicate review item identities before changing saved files', async () => {
+    const { outputRoot, sessionDir, sessionId } = await fixture();
+    const metadataPath = join(sessionDir, 'metadata.json');
+    const originalMetadata = await readFile(metadataPath, 'utf8');
+    const review = reviewSession(sessionId);
+    review.feedbackItems.push({
+      ...review.feedbackItems[0],
+      transcription: 'A second row reused the same identity.',
+    });
+
+    await expect(updateSavedReviewSession(review, sessionDir, outputRoot))
+      .rejects.toThrow('duplicate feedback identifier');
+    expect(await readFile(metadataPath, 'utf8')).toBe(originalMetadata);
+  });
+
+  it('rejects a marked review row whose ordinal targets different evidence', async () => {
+    const { outputRoot, sessionDir, sessionId } = await fixture();
+    const review = reviewSession(sessionId);
+    review.feedbackItems = [{
+      id: 'marked-issue-001',
+      transcription: 'Do not attach this to the wrong evidence.',
+      timestamp: 1_700_000_002_000,
+      screenshots: [],
+      reviewItemKind: 'marked-issue',
+      markedIssueOrdinal: 2,
+    }];
+
+    await expect(updateSavedReviewSession(review, sessionDir, outputRoot))
+      .rejects.toThrow('ordinal does not match saved marked evidence');
+  });
+
+  it('rejects an ordinary row that reuses a saved marked-evidence identity', async () => {
+    const { outputRoot, sessionDir, sessionId } = await fixture();
+    const review = reviewSession(sessionId);
+    review.feedbackItems[0].id = 'marked-issue-001';
+
+    await expect(updateSavedReviewSession(review, sessionDir, outputRoot))
+      .rejects.toThrow('identifier collides with saved marked evidence');
+  });
+
+  it.each([
+    [
+      'more than 200 feedback items',
+      (review: ReviewSession) => {
+        review.feedbackItems = Array.from({ length: 201 }, (_, index) => ({
+          id: `item-${index}`,
+          transcription: `Feedback ${index}`,
+          timestamp: index,
+          screenshots: [],
+        }));
+      },
+      'feedback item count',
+    ],
+    [
+      'an overlong transcription',
+      (review: ReviewSession) => {
+        review.feedbackItems[0].transcription = 'x'.repeat(20_001);
+      },
+      'feedback transcription',
+    ],
+    [
+      'a negative item timestamp',
+      (review: ReviewSession) => {
+        review.feedbackItems[0].timestamp = -1;
+      },
+      'feedback timestamp',
+    ],
+    [
+      'a non-finite session end time',
+      (review: ReviewSession) => {
+        review.endTime = Number.POSITIVE_INFINITY;
+      },
+      'end time',
+    ],
+    [
+      'a non-finite screenshot timestamp',
+      (review: ReviewSession) => {
+        review.feedbackItems[0].screenshots = [{
+          id: 'bad-screenshot',
+          timestamp: Number.NaN,
+          imagePath: 'screenshots/frame.png',
+          width: 10,
+          height: 10,
+        }];
+      },
+      'screenshot timestamp',
+    ],
+  ])('rejects %s without mutating the report', async (_label, mutate, expectedError) => {
+    const { outputRoot, sessionDir, sessionId } = await fixture();
+    const reportPath = join(sessionDir, 'feedback-report.md');
+    const originalReport = await readFile(reportPath, 'utf8');
+    const review = reviewSession(sessionId);
+    mutate(review);
+
+    await expect(updateSavedReviewSession(review, sessionDir, outputRoot))
+      .rejects.toThrow(expectedError);
+    expect(await readFile(reportPath, 'utf8')).toBe(originalReport);
+  });
 });
