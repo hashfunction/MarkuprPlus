@@ -4,7 +4,6 @@ import {
   CrashRecoveryDialog,
   Onboarding,
   SettingsPanel,
-  UpdateNotification,
   CountdownTimer,
   CompactAudioIndicator,
   DonateButton,
@@ -128,8 +127,6 @@ const App: React.FC = () => {
   return (
     <div className={`ff-shell ff-shell--${recording.state}${ui.isHudMode ? ' ff-shell--hud' : ''}`}>
       {/* === Global overlays === */}
-      <UpdateNotification />
-
       {recording.incompleteSession && !recording.isCheckingRecovery && (
         <CrashRecoveryDialog
           session={recording.incompleteSession}

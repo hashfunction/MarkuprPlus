@@ -41,25 +41,17 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Setup
 
-1. **Fork the repository** on GitHub
-
-2. **Clone your fork**:
+1. **Open an authorized source checkout**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/markuprx.git
    cd markuprx
    ```
 
-3. **Add upstream remote**:
-   ```bash
-   git remote add upstream https://github.com/eddiesanjuan/markuprx.git
-   ```
-
-4. **Install dependencies**:
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-5. **Start development**:
+3. **Start development**:
    ```bash
    npm run dev
    ```
@@ -287,16 +279,9 @@ Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening
 
 Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). Describe the problem you're trying to solve, not just the solution you want.
 
-## Finding Issues to Work On
-
-- Check [issues labeled "good first issue"](https://github.com/eddiesanjuan/markuprx/labels/good%20first%20issue) for beginner-friendly tasks
-- Check [issues labeled "help wanted"](https://github.com/eddiesanjuan/markuprx/labels/help%20wanted) for tasks where we need help
-- For significant changes, open an issue first to discuss the approach
-
 ## Questions?
 
-- Open a [discussion](https://github.com/eddiesanjuan/markuprx/discussions)
 - Check the [documentation](docs/)
-- Review existing [issues](https://github.com/eddiesanjuan/markuprx/issues)
+- Visit [markuprx.com](https://markuprx.com) for current project information
 
 Thank you for contributing to MarkuprX!

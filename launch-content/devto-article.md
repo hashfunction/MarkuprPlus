@@ -24,7 +24,7 @@ Screenshot? Better. But now you're screenshotting, uploading, switching context,
 
 ## The Solution
 
-I built [markuprx](https://github.com/eddiesanjuan/markuprx). It records your screen and microphone, then runs a post-processing pipeline that:
+I built [markuprx](https://markuprx.com). It records your screen and microphone, then runs a post-processing pipeline that:
 
 1. Transcribes your voice with local Whisper
 2. Analyzes the transcript to find key moments
@@ -300,8 +300,7 @@ You control when and whether data leaves your machine.
 
 ## Links
 
-- **GitHub**: [github.com/eddiesanjuan/markuprx](https://github.com/eddiesanjuan/markuprx)
-- **Site**: [markuprx.com](https://markuprx.com)
+- **Website**: [markuprx.com](https://markuprx.com)
 - **MCP server**: `npx --package markuprx markuprx-mcp` (zero install)
 - **CLI**: `npx markuprx analyze ./video.mov`
 - **GitHub Action**: `eddiesanjuan/markuprx-action@v1`

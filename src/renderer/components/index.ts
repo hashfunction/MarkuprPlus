@@ -15,7 +15,6 @@ export { ErrorBoundary, MinimalErrorBoundary } from './ErrorBoundary';
 export { AnnotationOverlay } from './AnnotationOverlay';
 export { AudioWaveform, CompactAudioIndicator, AudioLevelMeter } from './AudioWaveform';
 export { WindowSelector } from './WindowSelector';
-export { UpdateNotification } from './UpdateNotification';
 export { CrashRecoveryDialog, useCrashRecovery } from './CrashRecoveryDialog';
 export { ExportDialog } from './ExportDialog';
 export { ClarificationQuestions } from './ClarificationQuestions';

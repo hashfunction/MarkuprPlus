@@ -1,7 +1,7 @@
 # MCP Registry & Directory Submissions for markuprx
 
 > **Package:** `markuprx` on npm (includes `markuprx-mcp` binary)
-> **Repo:** https://github.com/eddiesanjuan/markuprx
+> **Website:** https://markuprx.com
 > **Version:** 2.5.0
 > **Transport:** stdio
 > **Tools:** capture_screenshot, capture_with_voice, analyze_video, analyze_screenshot, start_recording, stop_recording
@@ -24,7 +24,7 @@
 
 1. **Add `mcpName` to `package.json`:**
 ```json
-"mcpName": "io.github.eddiesanjuan/markuprx"
+"mcpName": "com.markuprx/markuprx"
 ```
 
 2. **Publish updated package to npm:**
@@ -43,12 +43,8 @@ curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/downlo
 ```json
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.eddiesanjuan/markuprx",
+  "name": "com.markuprx/markuprx",
   "description": "Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice narration, analyze video, generate structured feedback, and push to GitHub Issues or Linear.",
-  "repository": {
-    "url": "https://github.com/eddiesanjuan/markuprx",
-    "source": "github"
-  },
   "version": "2.5.0",
   "packages": [
     {
@@ -73,7 +69,7 @@ mcp-publisher publish
 
 6. **Verify:**
 ```bash
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.eddiesanjuan/markuprx"
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.markuprx/markuprx"
 ```
 
 ---
@@ -88,7 +84,7 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.edd
 Add under the **Developer Tools** section, maintaining alphabetical order:
 
 ```markdown
-- [markuprx](https://github.com/eddiesanjuan/markuprx) 📇 🏠 🍎 🪟 - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, generate structured Markdown feedback, and push to GitHub Issues or Linear. Includes output templates, watch mode, and GitHub Action.
+- [markuprx](https://markuprx.com) 📇 🏠 🍎 🪟 - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, generate structured Markdown feedback, and push to GitHub Issues or Linear. Includes output templates, watch mode, and GitHub Action.
 ```
 
 ### PR Instructions
@@ -101,7 +97,7 @@ Add under the **Developer Tools** section, maintaining alphabetical order:
 ## New Server: markuprx
 
 - **Name:** markuprx
-- **URL:** https://github.com/eddiesanjuan/markuprx
+- **URL:** https://markuprx.com
 - **npm:** `npx --package markuprx markuprx-mcp`
 - **Language:** TypeScript
 - **Scope:** Local (runs on device)
@@ -122,7 +118,7 @@ Add under the **Developer Tools** section, maintaining alphabetical order:
 Add under the **Development Tools** section:
 
 ```markdown
-- **[markuprx](https://github.com/eddiesanjuan/markuprx)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, generate structured feedback, and push to GitHub Issues or Linear.
+- **[markuprx](https://markuprx.com)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, generate structured feedback, and push to GitHub Issues or Linear.
 ```
 
 ---
@@ -143,7 +139,7 @@ Add under the **Development Tools** section:
 
 ### Via CLI (stdio transport)
 ```bash
-npx @anthropic-ai/smithery-cli mcp publish --name @eddiesanjuan/markuprx --transport stdio
+npx @anthropic-ai/smithery-cli mcp publish --name markuprx --transport stdio
 ```
 
 ### Via Web UI
@@ -175,7 +171,7 @@ If not indexed within a week, join their Discord to request manual addition.
 ### Form Fields
 - **Server Name:** markuprx
 - **Short Description:** Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice narration, analyze video, generate structured Markdown feedback, and push to GitHub Issues or Linear.
-- **Link:** https://github.com/eddiesanjuan/markuprx
+- **Link:** https://markuprx.com
 - **Category:** development
 - **Contact Email:** eddie@markuprx.com
 
@@ -190,7 +186,7 @@ If not indexed within a week, join their Discord to request manual addition.
 ### Steps
 1. Publish to official MCP Registry first (#1 above)
 2. PulseMCP ingests from the official registry daily and processes weekly
-3. If not listed after a week, submit manually at https://www.pulsemcp.com/submit with URL: `https://github.com/eddiesanjuan/markuprx`
+3. If not listed after a week, submit manually at https://www.pulsemcp.com/submit with URL: `https://markuprx.com`
 4. Or email hello@pulsemcp.com
 
 ---
@@ -204,7 +200,7 @@ If not indexed within a week, join their Discord to request manual addition.
 ### Issue Comment Format
 ```
 **Server Name:** markuprx
-**GitHub:** https://github.com/eddiesanjuan/markuprx
+**Website:** https://markuprx.com
 **npm:** markuprx (run via `npx --package markuprx markuprx-mcp`)
 **Description:** Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, generate structured Markdown feedback, and push to GitHub Issues or Linear. v2.5.0 includes output templates, watch mode, and GitHub Action.
 **Tools:** capture_screenshot, capture_with_voice, analyze_video, analyze_screenshot, start_recording, stop_recording
@@ -253,7 +249,7 @@ If not indexed within a week, join their Discord to request manual addition.
 
 Add `mcpName` field for official registry:
 ```json
-"mcpName": "io.github.eddiesanjuan/markuprx"
+"mcpName": "com.markuprx/markuprx"
 ```
 
 Add MCP-relevant keywords:

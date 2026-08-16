@@ -273,5 +273,5 @@ MarkuprX turns the way you naturally think about software -- talking through wha
 ---
 
 *Built by Eddie San Juan. Open source. MIT licensed.*
-*[github.com/eddiesanjuan/markuprx](https://github.com/eddiesanjuan/markuprx)*
+*[markuprx.com](https://markuprx.com)*
 *[ko-fi.com/eddiesanjuan](https://ko-fi.com/eddiesanjuan)*

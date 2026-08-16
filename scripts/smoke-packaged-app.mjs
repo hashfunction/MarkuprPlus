@@ -4,7 +4,7 @@ import { _electron as electron } from '@playwright/test';
 import { constants } from 'node:fs';
 import { access, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 function defaultExecutablePath() {
   if (process.platform !== 'darwin') {
@@ -31,6 +31,8 @@ const executablePath = process.env.MARKUPRX_PACKAGED_EXECUTABLE
   ? resolve(process.env.MARKUPRX_PACKAGED_EXECUTABLE)
   : defaultExecutablePath();
 const expectedArch = process.env.MARKUPRX_EXPECTED_ARCH || process.arch;
+const resourcesPath = join(dirname(dirname(executablePath)), 'Resources');
+const updaterConfigPath = join(resourcesPath, 'app-update.yml');
 const temporaryRoot = await mkdtemp(join(tmpdir(), 'markuprx-packaged-smoke-'));
 const outputRoot = join(temporaryRoot, 'output');
 const userDataDir = join(temporaryRoot, 'user-data');
@@ -39,6 +41,16 @@ let application;
 
 try {
   await access(executablePath, constants.X_OK);
+  let updaterMetadataPresent = true;
+  try {
+    await access(updaterConfigPath, constants.F_OK);
+  } catch {
+    updaterMetadataPresent = false;
+  }
+  assertRuntime(
+    !updaterMetadataPresent,
+    `Packaged app must not contain updater metadata: ${updaterConfigPath}`,
+  );
   await Promise.all([
     mkdir(outputRoot, { recursive: true }),
     mkdir(userDataDir, { recursive: true }),
@@ -87,6 +99,7 @@ try {
     runtime,
     title,
     onboardingVisible: true,
+    updaterMetadataPresent,
   }, null, 2));
 } finally {
   if (application) await application.close().catch(() => undefined);

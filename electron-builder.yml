@@ -11,6 +11,10 @@ directories:
   output: release
   buildResources: build
 
+# Explicit null prevents electron-builder from inferring a GitHub updater feed
+# from the local git remote and embedding app-update.yml in packaged apps.
+publish: null
+
 # Rebuild native modules for Electron's Node.js version
 npmRebuild: true
 
@@ -141,12 +145,3 @@ linux:
 # Code Signing & Notarization
 # =============================================================================
 afterSign: scripts/notarize.cjs
-
-# =============================================================================
-# Publishing Configuration
-# =============================================================================
-publish:
-  provider: github
-  owner: eddiesanjuan
-  repo: markuprx
-  releaseType: release

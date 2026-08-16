@@ -137,15 +137,6 @@ export class WindowsTaskbar {
           iconPath: process.execPath,
           iconIndex: 0,
         },
-        {
-          type: 'task',
-          title: 'Check for Updates',
-          description: 'Check for application updates',
-          program: process.execPath,
-          args: '--check-updates',
-          iconPath: process.execPath,
-          iconIndex: 0,
-        },
       ];
 
       jumpListItems.push({

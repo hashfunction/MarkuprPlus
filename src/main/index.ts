@@ -65,7 +65,6 @@ import { fileManager, clipboardService, generateDocumentForFileManager, adaptSes
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
 import { errorHandler } from './ErrorHandler';
-import { autoUpdaterManager } from './AutoUpdater';
 import { crashRecovery, type RecoverableFeedbackItem } from './CrashRecovery';
 import {
   postProcessor,
@@ -180,7 +179,6 @@ let isQuitting = false;
 let hasCompletedOnboarding = false;
 const rendererRecoveryAttempts = new WeakMap<BrowserWindow, number>();
 let teardownAudioTelemetry: Array<() => void> = [];
-let teardownSettingsListeners: Array<() => void> = [];
 const annotationCueTracker = new AnnotationCueTracker();
 
 // Windows taskbar integration (Windows only)
@@ -627,9 +625,6 @@ function handleMenuAction(action: string, data?: unknown): void {
     case 'show-shortcuts':
       showWindow();
       mainWindow?.webContents.send(IPC_CHANNELS.SHOW_SHORTCUTS);
-      break;
-    case 'check-updates':
-      void autoUpdaterManager.checkForUpdates({ userInitiated: true });
       break;
     case 'open-session':
       showWindow();
@@ -1852,16 +1847,6 @@ app.whenReady().then(async () => {
   }
   console.log('[Main] Settings loaded');
 
-  teardownSettingsListeners.forEach((teardown) => teardown());
-  teardownSettingsListeners = [];
-  teardownSettingsListeners.push(
-    settingsManager.onChange((key, newValue) => {
-      if (key === 'checkForUpdates') {
-        autoUpdaterManager.setAutoCheckEnabled(Boolean(newValue));
-      }
-    }),
-  );
-
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path
   const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
     settingsManager.hasApiKey('openai'),
@@ -1996,14 +1981,7 @@ app.whenReady().then(async () => {
     onError: handleSessionError,
   });
 
-  // 12. Initialize auto-updater
-  // Always initialize so IPC handlers are registered and Settings UI can show
-  // update status. The updater internally disables itself for dev/unpackaged builds.
-  autoUpdaterManager.setAutoCheckEnabled(settingsManager.get('checkForUpdates'));
-  autoUpdaterManager.initialize(mainWindow!);
-  console.log('[Main] Auto-updater initialized');
-
-  // 13. Check permissions on startup (macOS only)
+  // 12. Check permissions on startup (macOS only)
   // Delay slightly to ensure window is fully ready
   setTimeout(async () => {
     await checkStartupPermissions();
@@ -2073,8 +2051,6 @@ app.on('will-quit', async () => {
   // Cleanup services
   teardownAudioTelemetry.forEach((teardown) => teardown());
   teardownAudioTelemetry = [];
-  teardownSettingsListeners.forEach((teardown) => teardown());
-  teardownSettingsListeners = [];
   hotkeyManager.unregisterAll();
   captureOverlayManager.destroy();
   popover?.destroy();
@@ -2082,7 +2058,6 @@ app.on('will-quit', async () => {
   menuManager.destroy();
   windowsTaskbar?.destroy();
   sessionController.destroy();
-  autoUpdaterManager.destroy();
   crashRecovery.destroy();
 
   // Clean up error handler

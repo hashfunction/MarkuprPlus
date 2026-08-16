@@ -593,7 +593,7 @@ Apply the mappings `MARKUPRX` -> `MARKUPRX`, `markuprx` -> `markuprx`, and old m
     "markuprx": "./dist/cli/index.mjs",
     "markuprx-mcp": "./dist/mcp/index.mjs"
   },
-  "mcpName": "io.github.eddiesanjuan/markuprx"
+  "mcpName": "com.markuprx/markuprx"
 }
 ```
 
@@ -648,7 +648,7 @@ Use `markuprx-action`, `eddiesanjuan/markuprx-action@v1`, and update test-action
 
 - [ ] **Step 2: Replace all human-facing copy, commands, URLs, email domains, badges, structured data, and generated attribution**
 
-Use `MarkuprX`, `markuprx`, `https://markuprx.com`, and `https://github.com/eddiesanjuan/markuprx` consistently. Historical release pages are rebranded because they are shipping website content.
+Use `MarkuprX`, `markuprx`, and `https://markuprx.com` consistently. Historical release pages are rebranded because they are shipping website content.
 
 - [ ] **Step 3: Update and regenerate logos, icons, installer art, Open Graph assets, and tray assets**
 

@@ -268,6 +268,26 @@ test.describe('MarkuprX desktop application', () => {
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
   });
 
+  test('does not expose an unconfigured repository update channel', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const helpMenuLabels = await application.evaluate(({ Menu }) => {
+      const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'Help');
+      return helpMenu?.submenu?.items.map((item) => item.label).filter(Boolean) ?? [];
+    });
+    expect(helpMenuLabels).not.toContain('Check for Updates...');
+    expect(helpMenuLabels).not.toContain('Release Notes');
+    expect(helpMenuLabels).not.toContain('Report Issue...');
+    expect(helpMenuLabels).not.toContain('Feature Request...');
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'General', exact: true }).click();
+    await expect(window.getByText('Software Update', { exact: true })).toHaveCount(0);
+    await expect(window.getByRole('button', { name: 'Check for Updates' })).toHaveCount(0);
+  });
+
   test('blocks renderer-initiated navigation away from the trusted application page', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;

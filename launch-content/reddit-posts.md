@@ -110,7 +110,7 @@ The desktop app, CLI, and MCP server all share the same post-processing pipeline
 
 Everything runs locally. Whisper transcription is on your machine. No telemetry, no data collection. External calls only happen if you explicitly add API keys for cloud transcription.
 
-Open source, MIT: https://github.com/eddiesanjuan/markuprx
+Open source, MIT: https://markuprx.com
 
 ---
 
@@ -166,9 +166,9 @@ For more complex feedback, `capture_with_voice({ duration: 30 })` records your s
 - ffmpeg (`brew install ffmpeg`) for recording tools
 - Screenshot tools work without ffmpeg
 
-Open source, MIT licensed, 860 tests: https://github.com/eddiesanjuan/markuprx
+Open source, MIT licensed, 860 tests: https://markuprx.com
 
-Full MCP docs: https://github.com/eddiesanjuan/markuprx/blob/main/README-MCP.md
+Full MCP docs: https://markuprx.com
 
 ---
 
@@ -239,8 +239,7 @@ The result isn't "screenshots taken every 5 seconds." It's contextually-aware fr
 
 Everything runs locally. Open source, MIT licensed. 860 tests.
 
-GitHub: https://github.com/eddiesanjuan/markuprx
-Site: https://markuprx.com
+Website: https://markuprx.com
 GitHub Action: https://github.com/marketplace/actions/markuprx-action
 
 ---
@@ -334,4 +333,4 @@ There's also a template system (`--template github-issue`, `--template linear`, 
 
 Other additions: a watch mode (`markuprx watch ./dir`) that auto-processes recordings from a directory, and a GitHub Action (`eddiesanjuan/markuprx-action@v1`) that runs the pipeline in CI and posts visual feedback as PR comments.
 
-Open source, MIT, 860 tests: https://github.com/eddiesanjuan/markuprx
+Open source, MIT, 860 tests: https://markuprx.com

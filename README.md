@@ -11,9 +11,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/v/markuprx?style=flat-square" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/dm/markuprx?style=flat-square" alt="npm downloads"></a>
-  <a href="https://github.com/eddiesanjuan/markuprx/actions/workflows/ci.yml"><img src="https://github.com/eddiesanjuan/markuprx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
-  <a href="https://github.com/eddiesanjuan/markuprx/stargazers"><img src="https://img.shields.io/github/stars/eddiesanjuan/markuprx?style=flat-square" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
@@ -55,7 +53,7 @@ Cmd+Shift+F  -->  talk  -->  Cmd+Shift+F  -->  Cmd+V into your agent
 
 ### Desktop App (recommended)
 
-Download from [markuprx.com](https://markuprx.com) or [GitHub Releases](https://github.com/eddiesanjuan/markuprx/releases).
+Desktop distribution information is available at [markuprx.com](https://markuprx.com).
 
 > **macOS install note:** Apple notarization is currently rolling out. If macOS warns on first launch, use **Right-click -> Open** once to trust the app. If needed, run: `xattr -dr com.apple.quarantine /Applications/MarkuprX.app`
 
@@ -270,8 +268,7 @@ For architecture details, see [CLAUDE.md](CLAUDE.md).
 ## Development
 
 ```bash
-git clone https://github.com/eddiesanjuan/markuprx.git
-cd MarkuprX
+# From an existing MarkuprX source checkout:
 npm install
 npm run dev
 ```

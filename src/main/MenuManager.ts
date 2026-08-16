@@ -7,7 +7,7 @@
  * - Recent Sessions submenu with quick access
  * - Dynamic menu updates based on app state
  * - Theme switching via View menu
- * - Auto-updater integration via Help menu
+ * - Product website access via Help menu
  *
  * This module follows the singleton pattern used throughout MarkuprX.
  */
@@ -39,7 +39,6 @@ export type MenuAction =
   | 'show-history'
   | 'show-export'
   | 'show-shortcuts'
-  | 'check-updates'
   | 'open-session'
   | 'open-session-path';
 
@@ -315,34 +314,8 @@ export class MenuManager {
           },
           { type: 'separator' },
           {
-            label: 'MarkuprX Documentation',
-            click: () =>
-              shell.openExternal('https://github.com/eddiesanjuan/markuprx#readme'),
-          },
-          {
-            label: 'Release Notes',
-            click: () =>
-              shell.openExternal(
-                'https://github.com/eddiesanjuan/markuprx/releases'
-              ),
-          },
-          { type: 'separator' },
-          {
-            label: 'Report Issue...',
-            click: () =>
-              shell.openExternal('https://github.com/eddiesanjuan/markuprx/issues'),
-          },
-          {
-            label: 'Feature Request...',
-            click: () =>
-              shell.openExternal(
-                'https://github.com/eddiesanjuan/markuprx/discussions/new?category=ideas'
-              ),
-          },
-          { type: 'separator' },
-          {
-            label: 'Check for Updates...',
-            click: () => this.handleAction('check-updates'),
+            label: 'MarkuprX Website',
+            click: () => shell.openExternal('https://markuprx.com'),
           },
           { type: 'separator' },
           {

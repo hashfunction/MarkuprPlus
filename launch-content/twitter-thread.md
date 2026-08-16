@@ -9,7 +9,7 @@
 >
 > Open source. Free. Zero config.
 >
-> https://github.com/eddiesanjuan/markuprx
+> https://markuprx.com
 
 **Characters:** ~280
 
@@ -127,8 +127,7 @@
 ## Tweet 9 (CTA)
 > If you're tired of describing visual bugs in text, give it a try.
 >
-> GitHub: https://github.com/eddiesanjuan/markuprx
-> Site: https://markuprx.com
+> Website: https://markuprx.com
 > npm: `npx --package markuprx markuprx-mcp`
 > Action: `eddiesanjuan/markuprx-action@v1`
 >

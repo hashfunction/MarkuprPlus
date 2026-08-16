@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.0] - 2026-08-15
+### Fixed
+
+- Removed the unconfigured repository update feed and its dead update/support entry points.
+
+## 3.0.0 - 2026-08-15
 
 ### Added
 
@@ -23,12 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recording startup, pause, source-close, encoder-error, overlay-crash, and rapid teardown paths now release capture, audio, annotation, and persistence state together.
 - Rebranded the desktop app, CLI, MCP server, packages, IPC namespace, context bridge, installers, action, site, documentation, and storage defaults to MarkuprX / `markuprx`.
 
-## [2.6.8] - 2026-02-17
+## 2.6.8 - 2026-02-17
 
 - fix: resolve macOS DMG mount collision during parallel builds (arm64/x64 volumes now use unique names)
 - chore: bump version to 2.6.8
 
-## [2.6.7] - 2026-02-16
+## 2.6.7 - 2026-02-16
 
 - feat: context-aware capture with cue-time alignment across app and MCP
 - fix: stabilize BYOK dark mode and readiness sync
@@ -36,14 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add CLI demo GIF and logo PNG to README
 - release: v2.6.7 stability and launch polish
 
-## [2.6.6] - 2026-02-15
+## 2.6.6 - 2026-02-15
 
 ### Fixed
 - Removed duplicate renderer `ThemeProvider` nesting that could apply conflicting theme variables and cause low-contrast/dark text in BYOK settings under dark mode.
 - Fixed BYOK key readiness sync in Settings > Advanced by recalculating both OpenAI and Anthropic key presence after each successful key save.
 - Fixed main capture card readiness state so successful OpenAI key setup is reflected immediately instead of getting stuck on `Add OpenAI Key`.
 
-## [2.6.5] - 2026-02-15
+## 2.6.5 - 2026-02-15
 
 ### Added
 - Added cue-time capture context snapshots for marked screenshots:
@@ -62,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded session metadata schemas (desktop + MCP) to include capture context history.
 - Manual screenshot IPC now accepts optional focused-element context from renderer.
 
-## [2.6.4] - 2026-02-15
+## 2.6.4 - 2026-02-15
 
 ### Fixed
 - Added Anthropic API key setup directly into onboarding (OpenAI step followed by Anthropic step).
@@ -74,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Standardized user-facing branding text to `MarkuprX` across updated onboarding/settings/landing surfaces.
 
-## [2.3.0] - 2026-02-14
+## 2.3.0 - 2026-02-14
 
 ### Security
 - Removed `dangerouslySetInnerHTML` XSS vector from UpdateNotification (React component rendering)
@@ -158,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - FrameExtractor (24 tests): command building, timestamp distribution, normalization
   - ExportService (19 tests): all formats, error handling, filename generation
 
-## [2.2.0] - 2026-02-13
+## 2.2.0 - 2026-02-13
 
 ### Highlights
 **Standalone CLI mode and npm distribution.** MarkuprX can now be installed via `npm install -g markuprx` or run with `npx markuprx analyze` -- no Electron or desktop app required.
@@ -186,7 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `@electron/notarize` from 2.2.1 to 3.1.1 (#18)
 - Bumped npm minor/patch dependencies (#22)
 
-## [2.1.0] - 2026-02-08
+## 2.1.0 - 2026-02-08
 
 ### Highlights
 **Architecture refactor.** Decomposed god components, adopted a unified theme system, and improved accessibility across the entire UI.
@@ -201,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Shell styling regression
 
-## [2.0.0] - 2026-02-05
+## 2.0.0 - 2026-02-05
 
 ### Highlights
 **Public launch release.** MarkuprX goes open source under MIT license.
@@ -224,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deepgram transcription integration
 - Real-time screenshot capture (replaced by post-processing frame extraction)
 
-## [1.0.0] - 2026-02-04
+## 1.0.0 - 2026-02-04
 
 ### Highlights
 **MarkuprX Initial Public Release** - Voice-to-AI feedback for developers. Free and open source.
@@ -249,7 +253,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Watchdog monitors state transitions with configurable timeouts
 - Recovery manager handles unexpected exits gracefully
 
-## [0.4.0] - 2026-02-02
+## 0.4.0 - 2026-02-02
 
 ### Added
 - **Export Options**: PDF, HTML, and JSON export formats
@@ -277,7 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed memory leak during long sessions
 - Fixed clipboard copy on some macOS versions
 
-## [0.3.0] - 2026-01-15
+## 0.3.0 - 2026-01-15
 
 ### Added
 - **Real-time Transcription Preview**: See transcription as you speak
@@ -297,7 +301,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed window selector thumbnail generation
 - Fixed crash when OpenAI connection drops
 
-## [0.2.0] - 2026-01-01
+## 0.2.0 - 2026-01-01
 
 ### Added
 - **Window Selector**: Choose specific windows or screens to capture
@@ -313,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed hotkey conflicts with system shortcuts
 - Fixed screenshot resolution on Retina displays
 
-## [0.1.0] - 2025-12-15
+## 0.1.0 - 2025-12-15
 
 ### Added
 - Initial release
@@ -339,13 +343,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.3.0 | 2026-01-15 | Transcription preview, intelligent capture, settings |
 | 0.2.0 | 2026-01-01 | Window selector, manual screenshots |
 | 0.1.0 | 2025-12-15 | Initial scaffold |
-
-[2.3.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.2.0...v2.3.0
-[2.2.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.1.0...v2.2.0
-[2.1.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/eddiesanjuan/markuprx/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.4.0...v1.0.0
-[0.4.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/eddiesanjuan/markuprx/releases/tag/v0.1.0

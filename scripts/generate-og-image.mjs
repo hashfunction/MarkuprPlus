@@ -78,7 +78,7 @@ const svg = `
 
   <!-- GitHub icon hint -->
   <text x="200" y="${height - 34}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" fill="${textTertiary}">
-    github.com/eddiesanjuan/markuprx
+    markuprx.com
   </text>
 
   <!-- Version badge -->

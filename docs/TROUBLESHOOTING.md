@@ -390,7 +390,7 @@ open /Applications/markuprx.app
 
 ### Reporting Issues
 
-When reporting an issue on GitHub:
+When reporting an issue:
 
 1. Search existing issues first
 2. Include:
@@ -403,7 +403,7 @@ When reporting an issue on GitHub:
 
 ### Contact
 
-- **GitHub Issues**: [github.com/eddiesanjuan/markuprx/issues](https://github.com/eddiesanjuan/markuprx/issues)
+- **Project website**: [markuprx.com](https://markuprx.com)
 - **Documentation**: This documentation
 - **Release Notes**: Check for known issues in release notes
 

@@ -3,6 +3,13 @@ import { readFileSync } from 'node:fs';
 
 const previousMachineName = ['mark', 'upr'].join('');
 const previousBrand = new RegExp(`${previousMachineName}(?!x)`, 'i');
+const forbiddenRepositoryReferences = [
+  /(?:https?:\/\/)?github\.com\/eddiesanjuan\/markuprx(?:[/?#]|$)/i,
+  /api\.github\.com\/repos\/eddiesanjuan\/markuprx(?:[/?#]|$)/i,
+  /raw\.githubusercontent\.com\/eddiesanjuan\/markuprx(?:[/?#]|$)/i,
+  /\bio\.github\.eddiesanjuan\/markuprx\b/i,
+  /\beddiesanjuan\/markuprx(?!-action)\b/i,
+];
 const allowedLegacyFiles = new Set([
   'src/main/migration/LegacyBrandMigration.ts',
   'tests/unit/legacyBrandMigration.test.ts',
@@ -30,6 +37,13 @@ for (const file of repositoryFiles) {
   lines.forEach((line, index) => {
     previousBrand.lastIndex = 0;
     if (previousBrand.test(line)) violations.push(`${file}:${index + 1}`);
+    for (const forbiddenReference of forbiddenRepositoryReferences) {
+      forbiddenReference.lastIndex = 0;
+      if (forbiddenReference.test(line)) {
+        violations.push(`${file}:${index + 1}: nonexistent repository reference`);
+        break;
+      }
+    }
   });
 }
 
@@ -38,11 +52,19 @@ const expectedPackageFields = {
   name: 'markuprx',
   productName: 'MarkuprX',
   version: '3.0.0',
-  mcpName: 'io.github.eddiesanjuan/markuprx',
+  mcpName: 'com.markuprx/markuprx',
 };
 for (const [field, expected] of Object.entries(expectedPackageFields)) {
   if (packageJson[field] !== expected) {
     violations.push(`package.json: expected ${field}=${JSON.stringify(expected)}`);
+  }
+}
+if ('repository' in packageJson || 'bugs' in packageJson) {
+  violations.push('package.json: nonexistent repository metadata must not be published');
+}
+for (const [name, command] of Object.entries(packageJson.scripts || {})) {
+  if (typeof command === 'string' && /electron-builder\b.*--publish\b/.test(command)) {
+    violations.push(`package.json: script ${name} must not publish to an unconfigured update provider`);
   }
 }
 if (packageJson.bin?.markuprx !== './dist/cli/index.mjs'
@@ -60,7 +82,7 @@ for (const htmlPath of ['site/index.html', 'site/launch.html', 'site/whats-new-v
 }
 
 if (violations.length > 0) {
-  console.error('Previous-brand references remain outside the legacy migration allowlist:');
+  console.error('Brand or repository reference violations found:');
   violations.slice(0, 200).forEach((violation) => console.error(`- ${violation}`));
   if (violations.length > 200) console.error(`- ...and ${violations.length - 200} more`);
   process.exitCode = 1;

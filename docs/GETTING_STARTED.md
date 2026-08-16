@@ -35,7 +35,7 @@ This guide walks you through setting up MarkuprX for the first time.
 
 ### macOS
 
-1. Download the latest `.dmg` file from the [releases page](https://github.com/eddiesanjuan/markuprx/releases)
+1. Obtain the current `.dmg` using the distribution information at [markuprx.com](https://markuprx.com)
 2. Open the downloaded DMG file
 3. Drag the MarkuprX icon to your Applications folder
 4. Eject the DMG
@@ -45,7 +45,7 @@ This guide walks you through setting up MarkuprX for the first time.
 
 ### Windows
 
-1. Download the latest `.exe` installer from the [releases page](https://github.com/eddiesanjuan/markuprx/releases)
+1. Obtain the current `.exe` using the distribution information at [markuprx.com](https://markuprx.com)
 2. Run the installer
 3. Follow the installation wizard
 4. Launch MarkuprX from the Start menu or desktop shortcut
@@ -54,9 +54,6 @@ This guide walks you through setting up MarkuprX for the first time.
 
 **AppImage:**
 ```bash
-# Download the AppImage
-wget https://github.com/eddiesanjuan/markuprx/releases/latest/download/markuprx.AppImage
-
 # Make it executable
 chmod +x markuprx.AppImage
 
@@ -66,8 +63,7 @@ chmod +x markuprx.AppImage
 
 **Debian/Ubuntu:**
 ```bash
-# Download and install
-wget https://github.com/eddiesanjuan/markuprx/releases/latest/download/markuprx.deb
+# Install a previously obtained package
 sudo dpkg -i markuprx.deb
 sudo apt-get install -f  # Install dependencies if needed
 ```

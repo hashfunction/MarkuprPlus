@@ -44,10 +44,9 @@ Create `.vscode/extensions.json`:
 
 ## Development Setup
 
-### 1. Clone the Repository
+### 1. Open the Source Checkout
 
 ```bash
-git clone https://github.com/eddiesanjuan/markuprx.git
 cd markuprx
 ```
 

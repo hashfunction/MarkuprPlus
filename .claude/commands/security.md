@@ -130,7 +130,7 @@ markuprx spawns child processes. Check each for injection risks:
 **Auto-Updater**
 - Read `src/main/AutoUpdater.ts`: Is update verification enabled?
 - Does `electron-updater` verify code signatures on downloaded updates?
-- Is the update feed URL locked to `github.com/eddiesanjuan/markuprx`?
+- Is the updater disabled unless a trusted, signed feed is explicitly configured?
 
 ### 8. Data at Rest Security
 

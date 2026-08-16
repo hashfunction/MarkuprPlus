@@ -343,9 +343,7 @@ The MCP protocol uses stdout for JSON-RPC communication. If you see garbled outp
 To develop the MCP server locally:
 
 ```bash
-# Clone and install
-git clone https://github.com/eddiesanjuan/markuprx.git
-cd MarkuprX
+# From an existing MarkuprX source checkout
 npm install
 
 # Build the MCP server

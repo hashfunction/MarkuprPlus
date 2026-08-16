@@ -37,7 +37,7 @@ Everything needed to launch markuprx on Product Hunt. Copy-paste ready.
 
 **Website:** https://markuprx.com
 
-**GitHub:** https://github.com/eddiesanjuan/markuprx
+**Website:** https://markuprx.com
 
 ---
 
@@ -73,7 +73,7 @@ Everything needed to launch markuprx on Product Hunt. Copy-paste ready.
 >
 > I'd love your honest feedback. What would make this more useful in your workflow? What's missing? I'm shipping fast and building in public.
 >
-> Star the repo if you want to follow along: https://github.com/eddiesanjuan/markuprx
+> Follow the project at https://markuprx.com
 
 ---
 
@@ -193,7 +193,7 @@ Send this via DM, email, or group chat. Keep it personal -- never mass-blast.
 > Free, MIT licensed, no telemetry. Desktop app + CLI + MCP server + GitHub Action.
 >
 > Check it out: [PH link]
-> GitHub: https://github.com/eddiesanjuan/markuprx
+> Website: https://markuprx.com
 
 ### Anti-patterns to avoid:
 - Don't say "please upvote" -- say "check it out" or "would love your feedback"

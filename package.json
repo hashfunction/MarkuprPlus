@@ -17,14 +17,7 @@
   "author": "Eddie San Juan",
   "license": "MIT",
   "homepage": "https://markuprx.com",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eddiesanjuan/markuprx.git"
-  },
-  "bugs": {
-    "url": "https://github.com/eddiesanjuan/markuprx/issues"
-  },
-  "mcpName": "io.github.eddiesanjuan/markuprx",
+  "mcpName": "com.markuprx/markuprx",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -80,7 +73,6 @@
     "dist:win:portable": "electron-builder --win portable",
     "dist:win:nsis": "electron-builder --win nsis",
     "package:linux": "electron-builder --linux --config electron-builder.yml",
-    "release": "electron-builder --publish always --config electron-builder.yml",
     "test": "vitest",
     "test:unit": "vitest tests/unit",
     "test:integration": "vitest tests/integration",
