@@ -24,13 +24,14 @@ for arg in "$@"; do
 done
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js is required (>=18)."
+  echo "Node.js is required (>=20.9)."
   exit 1
 fi
 
 NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
-if [[ "$NODE_MAJOR" -lt 18 ]]; then
-  echo "Node.js 18+ is required. Detected: $(node -v)"
+NODE_MINOR="$(node -p "process.versions.node.split('.')[1]")"
+if [[ "$NODE_MAJOR" -lt 20 || ( "$NODE_MAJOR" -eq 20 && "$NODE_MINOR" -lt 9 ) ]]; then
+  echo "Node.js 20.9+ is required. Detected: $(node -v)"
   exit 1
 fi
 

@@ -10,7 +10,7 @@ The MarkuprX MCP server (run as `markuprx-mcp`) gives AI coding agents the abili
 
 Before installing, verify the following:
 
-1. **Node.js 18+** must be installed. Check with:
+1. **Node.js 20.9+** must be installed. Check with:
    ```bash
    node --version
    ```
@@ -156,7 +156,7 @@ After adding the MCP config and restarting your IDE:
 ## Troubleshooting
 
 **"Cannot find module" or "markuprx-mcp not found":**
-- Ensure Node.js 18+ is installed
+- Ensure Node.js 20.9+ is installed
 - Try running `npx --package markuprx markuprx-mcp` manually in a terminal to see the error output
 - The server outputs logs to stderr; stdout is reserved for MCP protocol communication
 

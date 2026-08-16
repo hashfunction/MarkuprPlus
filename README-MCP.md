@@ -8,7 +8,7 @@ Give your AI coding agent eyes and ears. The MarkuprX MCP server lets Claude Cod
 
 ## Prerequisites
 
-- **Node.js 18+**
+- **Node.js 20.9+**
 - **ffmpeg** -- required for screen recording and frame extraction
   ```bash
   brew install ffmpeg
@@ -327,7 +327,7 @@ If your IDE can't connect to the MCP server:
 
 1. **Verify the config** -- check that `"command": "npx"` and `"args": ["--yes", "--package", "markuprx", "markuprx-mcp"]` are correct
 2. **Test manually** -- run `npx --package markuprx markuprx-mcp` in a terminal. It should start silently (output goes to stderr)
-3. **Check Node.js version** -- `node --version` should be 18+
+3. **Check Node.js version** -- `node --version` should be 20.9+
 4. **Restart your IDE** after adding or changing MCP configuration
 
 ### stdout corruption

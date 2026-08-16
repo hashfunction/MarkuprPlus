@@ -13,7 +13,7 @@ npm run setup:markuprx
 ```
 
 This command:
-- validates Node.js version (18+)
+- validates Node.js version (20.9+)
 - installs dependencies if missing
 - runs `npm run typecheck`
 

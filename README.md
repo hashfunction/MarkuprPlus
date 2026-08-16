@@ -218,7 +218,7 @@ markuprx push linear ./report.md --team ENG
 
 ### Requirements
 
-- Node.js 18+
+- Node.js 20.9+
 - [ffmpeg](https://ffmpeg.org/) on your PATH (`brew install ffmpeg` / `apt install ffmpeg` / `choco install ffmpeg`)
 
 ## Integrations

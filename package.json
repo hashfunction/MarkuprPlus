@@ -58,7 +58,7 @@
     "github-action"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
@@ -139,7 +139,7 @@
     "keytar": "^7.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "whisper-node": "^1.1.1",
     "zod": "^4.3.6"
   },
