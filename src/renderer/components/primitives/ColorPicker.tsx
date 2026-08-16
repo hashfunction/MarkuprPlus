@@ -49,6 +49,7 @@ export const ColorPicker: React.FC<{
         <div style={styles.customColorContainer}>
           <input
             type="color"
+            aria-label="Choose a custom accent color"
             value={isPreset ? customColor : value}
             onChange={(e) => {
               setCustomColor(e.target.value);

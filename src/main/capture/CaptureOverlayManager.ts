@@ -34,6 +34,11 @@ import {
   MarkedIssueAccumulator,
   type MarkedIssueAccumulatorSnapshot,
 } from './MarkedIssueAccumulator';
+import {
+  createElectronTestCaptureFixtures,
+  electronTestInputMonitor,
+  isElectronTestHarnessAllowed,
+} from '../e2e/ElectronTestHarness';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -107,6 +112,18 @@ function toDataUrl(image: Electron.NativeImage | null): string | undefined {
 }
 
 async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
+  if (isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  })) {
+    const fixture = createElectronTestCaptureFixtures(screen.getPrimaryDisplay());
+    return {
+      displays: [fixture.display],
+      windows: [fixture.window],
+      windowSources: [fixture.windowSource],
+    };
+  }
+
   const rawSources = await desktopCapturer.getSources({
     types: ['screen', 'window'],
     thumbnailSize: { width: 320, height: 180 },
@@ -179,6 +196,13 @@ async function loadElectronOverlay(
 
 async function refreshElectronWindow(target: CaptureTarget): Promise<CapturableWindow | null> {
   if (target.kind !== 'window') return null;
+  if (isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  })) {
+    const fixture = createElectronTestCaptureFixtures(screen.getPrimaryDisplay());
+    return target.sourceId === fixture.window.sourceId ? fixture.window : null;
+  }
   const selection = await prepareSelectionFromElectron();
   return selection.windows.find((window) => window.sourceId === target.sourceId) || null;
 }
@@ -204,7 +228,12 @@ function defaultDependencies(): CaptureOverlayManagerDependencies {
         screen.removeListener('display-metrics-changed', callback);
       };
     },
-    inputMonitor: createGlobalAnnotationInputMonitor(),
+    inputMonitor: isElectronTestHarnessAllowed({
+      requested: process.env.MARKUPRX_E2E === '1',
+      isPackaged: app.isPackaged,
+    })
+      ? electronTestInputMonitor
+      : createGlobalAnnotationInputMonitor(),
     now: () => Date.now(),
     isAnnotationEnabled: () => true,
   };
@@ -319,6 +348,19 @@ export class CaptureOverlayManager {
 
   getOverlayState(senderId: number): CaptureOverlayState | null {
     return this.overlays.get(senderId)?.state || null;
+  }
+
+  getAnnotationDiagnostics(): {
+    active: boolean;
+    pendingMarkedIssue: boolean;
+    markedIssueCount: number;
+  } {
+    const accumulator = this.issueAccumulator?.snapshot();
+    return {
+      active: Boolean(this.annotation),
+      pendingMarkedIssue: Boolean(accumulator?.active),
+      markedIssueCount: accumulator?.issues.length ?? 0,
+    };
   }
 
   async confirmTarget(senderId: number, target: CaptureTarget): Promise<{ success: boolean; error?: string }> {

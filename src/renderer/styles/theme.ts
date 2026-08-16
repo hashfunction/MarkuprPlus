@@ -80,7 +80,7 @@ export const darkTheme: ThemeColors = {
   text: {
     primary: '#f9fafb',      // Almost white
     secondary: '#9ca3af',    // Cool gray
-    tertiary: '#6b7280',     // Muted
+    tertiary: '#9ca3af',     // Muted, while retaining WCAG AA contrast on dark surfaces
     inverse: '#0a0f1a',      // For accent buttons
     link: '#60a5fa',         // Soft blue
   },
@@ -128,7 +128,7 @@ export const lightTheme: ThemeColors = {
   text: {
     primary: '#111827',      // Near black
     secondary: '#4b5563',    // Gray
-    tertiary: '#9ca3af',     // Muted
+    tertiary: '#626b78',     // Muted, with WCAG AA contrast on light and tinted surfaces
     inverse: '#ffffff',
     link: '#2563eb',         // Blue
   },
@@ -139,9 +139,9 @@ export const lightTheme: ThemeColors = {
     focus: 'rgba(37, 99, 235, 0.4)',
   },
   status: {
-    success: '#059669',      // Darker emerald
+    success: '#047857',      // Accessible emerald on light and subtly tinted surfaces
     successSubtle: 'rgba(5, 150, 105, 0.1)',
-    warning: '#d97706',      // Darker amber
+    warning: '#92400e',      // Accessible amber-brown on light and subtly tinted surfaces
     warningSubtle: 'rgba(217, 119, 6, 0.1)',
     error: '#dc2626',        // Red
     errorSubtle: 'rgba(220, 38, 38, 0.1)',

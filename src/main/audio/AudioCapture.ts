@@ -21,6 +21,7 @@ import { app } from 'electron';
 import { errorHandler } from '../ErrorHandler';
 import { IPC_CHANNELS } from '../../shared/types';
 import { extensionFromMimeType, encodeFloat32Wav } from './audioUtils';
+import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 
 // ============================================================================
 // Types and Interfaces
@@ -174,6 +175,10 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Check if microphone permission is granted (macOS only)
    */
   async checkPermission(): Promise<boolean> {
+    if (isElectronTestHarnessAllowed({
+      requested: process.env.MARKUPRX_E2E === '1',
+      isPackaged: app.isPackaged,
+    })) return true;
     if (process.platform !== 'darwin') {
       // Non-macOS platforms don't have system-level permission checks
       return true;
@@ -198,6 +203,10 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Returns true if granted, false if denied
    */
   async requestPermission(): Promise<boolean> {
+    if (isElectronTestHarnessAllowed({
+      requested: process.env.MARKUPRX_E2E === '1',
+      isPackaged: app.isPackaged,
+    })) return true;
     if (process.platform !== 'darwin') {
       return true;
     }

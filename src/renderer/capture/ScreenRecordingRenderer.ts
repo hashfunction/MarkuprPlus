@@ -87,6 +87,7 @@ export class ScreenRecordingRenderer {
   private activeSourceName: string | null = null;
   private fatalErrorHandler: FatalErrorHandler | null = null;
   private fatalStopInProgress = false;
+  private electronTestAnimationFrame: number | null = null;
 
   constructor(createCompositor: RecordingCompositorFactory = () => new RecordingCompositor()) {
     this.createCompositor = createCompositor;
@@ -155,6 +156,54 @@ export class ScreenRecordingRenderer {
     sourceId: string,
     target: CaptureTarget,
   ): Promise<MediaStream> {
+    const testConfig = await window.markuprx.e2e?.getConfig().catch(() => null);
+    if (testConfig?.enabled) {
+      const canvas = document.createElement('canvas');
+      canvas.width = testConfig.video.width;
+      canvas.height = testConfig.video.height;
+      const context = canvas.getContext('2d', { alpha: false });
+      if (!context || typeof canvas.captureStream !== 'function') {
+        throw new Error('Deterministic Electron test video is unavailable.');
+      }
+      let frame = 0;
+      const render = () => {
+        frame += 1;
+        const progress = (frame % 240) / 240;
+        context.fillStyle = '#111827';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#f59e0b';
+        context.fillRect(0, 0, canvas.width, 14);
+        context.fillStyle = '#f8fafc';
+        context.font = '700 42px system-ui';
+        context.fillText('MarkuprX UI test source', 54, 90);
+        context.fillStyle = '#94a3b8';
+        context.font = '24px system-ui';
+        context.fillText('Deterministic motion and annotation evidence', 54, 132);
+        context.fillStyle = '#2563eb';
+        context.fillRect(54 + progress * (canvas.width - 220), 210, 150, 92);
+        context.fillStyle = '#e2e8f0';
+        context.fillRect(54, 350, canvas.width - 108, 100);
+        context.fillStyle = '#0f172a';
+        context.font = '26px system-ui';
+        context.fillText(`Frame ${frame}`, 82, 410);
+        this.electronTestAnimationFrame = window.requestAnimationFrame(render);
+      };
+      render();
+
+      const stream = canvas.captureStream(testConfig.video.frameRate);
+      this.mediaStream = stream;
+      const compositor = this.createCompositor();
+      this.compositor = compositor;
+      try {
+        const composedStream = await compositor.start(stream, target);
+        this.watchSelectedSource(stream);
+        return composedStream;
+      } catch (error) {
+        this.cleanupStream();
+        throw error;
+      }
+    }
+
     for (const highQuality of [true, false]) {
       let stream: MediaStream;
       try {
@@ -570,6 +619,10 @@ export class ScreenRecordingRenderer {
   }
 
   private cleanupStream(): void {
+    if (this.electronTestAnimationFrame !== null) {
+      window.cancelAnimationFrame(this.electronTestAnimationFrame);
+      this.electronTestAnimationFrame = null;
+    }
     if (this.selectedSourceTrack) {
       this.selectedSourceTrack.removeEventListener('ended', this.handleSelectedSourceEnded);
       this.selectedSourceTrack = null;

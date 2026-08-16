@@ -110,20 +110,23 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
 
-  const refreshAnalysisProviderStatus = useCallback(async () => {
+  const refreshAnalysisProviderStatus = useCallback(async (): Promise<AppSettings | null> => {
     if (!window.markuprx?.settings || !window.markuprx?.analysisProviders) {
       setAnalysisProviderStatuses([]);
-      return;
+      return null;
     }
     try {
       const [loadedSettings, statuses] = await Promise.all([
         window.markuprx.settings.getAll(),
         window.markuprx.analysisProviders.discover(false),
       ]);
-      setSettings({ ...DEFAULT_SETTINGS, ...loadedSettings });
+      const mergedSettings = { ...DEFAULT_SETTINGS, ...loadedSettings };
+      setSettings(mergedSettings);
       setAnalysisProviderStatuses(statuses);
+      return mergedSettings;
     } catch {
       setAnalysisProviderStatuses([]);
+      return null;
     }
   }, []);
 
@@ -131,7 +134,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     if (!window.markuprx?.settings) return;
     const loadInitialSettings = async () => {
       try {
-        await refreshAnalysisProviderStatus();
+        const loadedSettings = await refreshAnalysisProviderStatus();
+        if (loadedSettings && !loadedSettings.hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
       } catch {
         // Settings load failure is non-fatal
       }

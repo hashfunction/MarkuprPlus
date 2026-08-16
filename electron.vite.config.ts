@@ -8,12 +8,12 @@ export default defineConfig({
     build: {
       outDir: 'dist/main',
       lib: {
-        entry: resolve(__dirname, 'src/main/index.ts'),
+        entry: resolve(__dirname, 'src/main/bootstrap.ts'),
         formats: ['es']
       },
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/main/index.ts')
+          index: resolve(__dirname, 'src/main/bootstrap.ts')
         },
         output: {
           format: 'es',

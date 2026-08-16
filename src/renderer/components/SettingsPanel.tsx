@@ -87,6 +87,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       <div
         ref={s.panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="markuprx-settings-title"
         style={{
           ...styles.panel,
           opacity: s.isAnimating ? 0 : 1,
@@ -96,7 +99,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerTitleWrap}>
-            <h2 style={styles.headerTitle}>Settings</h2>
+            <h2 id="markuprx-settings-title" style={styles.headerTitle}>Settings</h2>
             {!s.analysisProviderViewState.ready && (
               <button
                 type="button"
@@ -117,10 +120,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
         {/* Content */}
         <div style={{ ...styles.content, flexDirection: s.isCompact ? 'column' : 'row' }}>
-          <nav style={{ ...styles.sidebar, ...(s.isCompact ? styles.sidebarCompact : {}) }}>
+          <nav
+            role="tablist"
+            aria-label="Settings sections"
+            style={{ ...styles.sidebar, ...(s.isCompact ? styles.sidebarCompact : {}) }}
+          >
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                id={`markuprx-settings-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-controls="markuprx-settings-panel"
                 style={{
                   ...styles.tabButton,
                   ...(s.isCompact ? styles.tabButtonCompact : {}),
@@ -137,7 +148,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             ))}
           </nav>
 
-          <div style={{ ...styles.tabPanel, ...(s.isCompact ? styles.tabPanelCompact : {}) }}>
+          <div
+            id="markuprx-settings-panel"
+            role="tabpanel"
+            aria-labelledby={`markuprx-settings-tab-${s.activeTab}`}
+            style={{ ...styles.tabPanel, ...(s.isCompact ? styles.tabPanelCompact : {}) }}
+          >
             {renderTabContent}
           </div>
         </div>

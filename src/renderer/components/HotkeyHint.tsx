@@ -156,6 +156,7 @@ export const HotkeyHint: React.FC<HotkeyHintProps> = ({
     gap: sizeStyles.gap,
     marginLeft: inline ? 4 : 8,
     opacity: inline ? 0.7 : 1,
+    color: inline ? 'inherit' : 'var(--text-primary)',
     ...style,
   };
 
@@ -166,7 +167,7 @@ export const HotkeyHint: React.FC<HotkeyHintProps> = ({
     minWidth: sizeStyles.keyMinWidth,
     height: sizeStyles.keyHeight,
     padding: sizeStyles.keyPadding,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: inline ? 'rgba(255, 255, 255, 0.08)' : 'var(--bg-tertiary)',
     borderRadius: sizeStyles.borderRadius,
     fontSize: sizeStyles.fontSize,
     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif',

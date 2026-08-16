@@ -787,6 +787,23 @@ export class SessionController {
     return cloneMarkedIssues(this.session?.metadata.markedIssues);
   }
 
+  /** Guarded Electron UI harness hook; callers must enforce the unpackaged-app gate. */
+  injectTranscriptForTesting(text: string, recordedAt = Date.now()): boolean {
+    if (this.state !== 'recording' || !this.session || !text.trim()
+      || !Number.isFinite(recordedAt) || recordedAt < 0) {
+      return false;
+    }
+    this.handleTranscriptResult({
+      text: text.trim(),
+      isFinal: true,
+      confidence: 0.99,
+      timestamp: recordedAt / 1000,
+      tier: 'timer-only',
+    });
+    this.persistSession();
+    return true;
+  }
+
   /**
    * Update metadata fields on the active session.
    */

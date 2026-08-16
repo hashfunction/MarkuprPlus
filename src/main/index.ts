@@ -23,6 +23,7 @@
 import {
   app,
   BrowserWindow,
+  ipcMain,
   shell,
   Notification,
 } from 'electron';
@@ -109,6 +110,11 @@ import {
 } from './output/MarkedIssueReportBuilder';
 import { migrateLegacyBrandData } from './migration/LegacyBrandMigration';
 import {
+  ELECTRON_TEST_CHANNELS,
+  electronTestInputMonitor,
+  isElectronTestHarnessAllowed,
+} from './e2e/ElectronTestHarness';
+import {
   attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
   nearestCaptureContext,
@@ -181,6 +187,13 @@ let windowsTaskbar: WindowsTaskbar | null = null;
 
 const DEV_RENDERER_URL = 'http://localhost:5173';
 const DEV_RENDERER_LOAD_RETRIES = 10;
+
+function electronTestHarnessAllowed(): boolean {
+  return isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  });
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1619,15 +1632,67 @@ function setupIPC(): void {
   );
 }
 
+function setupElectronTestHarnessIPC(): void {
+  if (!electronTestHarnessAllowed()) return;
+
+  ipcMain.handle(ELECTRON_TEST_CHANNELS.GET_CONFIG, () => ({
+    enabled: true,
+    outputRoot: process.env.MARKUPRX_E2E_OUTPUT_ROOT,
+    video: { width: 960, height: 540, frameRate: 24 },
+  }));
+  ipcMain.handle(ELECTRON_TEST_CHANNELS.INJECT_INPUT, (_event, sample: unknown) => {
+    return electronTestInputMonitor.inject(sample);
+  });
+  ipcMain.handle(
+    ELECTRON_TEST_CHANNELS.SET_INPUT_AVAILABLE,
+    (_event, available: unknown, error?: unknown) => {
+      if (typeof available !== 'boolean' || (error !== undefined && typeof error !== 'string')) {
+        throw new Error('Invalid test input health request.');
+      }
+      electronTestInputMonitor.setAvailable(available, error || 'Injected observer failure.');
+      return { success: true };
+    },
+  );
+  ipcMain.handle(
+    ELECTRON_TEST_CHANNELS.INJECT_TRANSCRIPT,
+    (_event, text: unknown, recordedAt?: unknown) => {
+      if (typeof text !== 'string' || !text.trim() || text.length > 5_000
+        || (recordedAt !== undefined && (!Number.isFinite(recordedAt) || Number(recordedAt) < 0))) {
+        return { success: false, error: 'Invalid test transcript event.' };
+      }
+      const success = sessionController.injectTranscriptForTesting(
+        text,
+        recordedAt === undefined ? Date.now() : Number(recordedAt),
+      );
+      return success
+        ? { success: true }
+        : { success: false, error: 'No recording session is active.' };
+    },
+  );
+  ipcMain.handle(ELECTRON_TEST_CHANNELS.GET_DIAGNOSTICS, () => {
+    const annotation = captureOverlayManager.getAnnotationDiagnostics();
+    const session = sessionController.getSession();
+    return {
+      state: sessionController.getState(),
+      sessionId: session?.id ?? null,
+      markedIssueCount: annotation.markedIssueCount,
+      pendingMarkedIssue: annotation.pendingMarkedIssue,
+      screenRecordingActive: getActiveScreenRecordings().size > 0,
+    };
+  });
+}
+
 // =============================================================================
 // Permission Helpers
 // =============================================================================
 
 async function checkPermission(type: PermissionType): Promise<boolean> {
+  if (electronTestHarnessAllowed()) return true;
   return permissionManager.isGranted(type);
 }
 
 async function requestPermission(type: PermissionType): Promise<boolean> {
+  if (electronTestHarnessAllowed()) return true;
   return permissionManager.requestPermission(type);
 }
 
@@ -1636,6 +1701,7 @@ async function requestPermission(type: PermissionType): Promise<boolean> {
  * This runs after the window is ready to ensure dialogs are properly parented
  */
 async function checkStartupPermissions(): Promise<void> {
+  if (electronTestHarnessAllowed()) return;
   if (process.platform !== 'darwin') {
     // Only macOS has these system-level permissions
     return;
@@ -1763,6 +1829,20 @@ app.whenReady().then(async () => {
 
   // 2. Initialize settings manager
   settingsManager = getSettingsManager();
+  if (electronTestHarnessAllowed()) {
+    const outputRoot = process.env.MARKUPRX_E2E_OUTPUT_ROOT;
+    if (!outputRoot) {
+      throw new Error('MARKUPRX_E2E_OUTPUT_ROOT is required for the Electron test harness.');
+    }
+    settingsManager.update({
+      outputDirectory: outputRoot,
+      analysisProvider: 'rules',
+      defaultCountdown: 0,
+      hasCompletedOnboarding: process.env.MARKUPRX_E2E_SKIP_ONBOARDING === '1',
+      checkForUpdates: false,
+    });
+    fileManager.setOutputDirectory(outputRoot);
+  }
   console.log('[Main] Settings loaded');
 
   teardownSettingsListeners.forEach((teardown) => teardown());
@@ -1782,7 +1862,11 @@ app.whenReady().then(async () => {
   ]);
   const hasLocalWhisperModel = modelDownloadManager.hasAnyModel();
   const hasTranscriptionPath = hasOpenAiKey || hasLocalWhisperModel;
-  hasCompletedOnboarding = settingsManager.get('hasCompletedOnboarding') || (hasAnthropicKey && hasTranscriptionPath);
+  const storedOnboardingCompletion = settingsManager.get('hasCompletedOnboarding');
+  hasCompletedOnboarding = storedOnboardingCompletion || (hasAnthropicKey && hasTranscriptionPath);
+  if (hasCompletedOnboarding && !storedOnboardingCompletion) {
+    settingsManager.set('hasCompletedOnboarding', true);
+  }
 
   // 5. Initialize session controller
   await sessionController.initialize();
@@ -1889,10 +1973,11 @@ app.whenReady().then(async () => {
   }
 
   // 9. Initialize hotkeys
-  initializeHotkeys();
+  if (!electronTestHarnessAllowed()) initializeHotkeys();
 
   // 10. Setup IPC handlers
   setupIPC();
+  setupElectronTestHarnessIPC();
 
   // 11. Configure session controller event callbacks
   sessionController.setEventCallbacks({

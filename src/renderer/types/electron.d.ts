@@ -42,6 +42,7 @@ import type {
   CaptureTarget,
   MarkedIssueCandidatePayload,
 } from '../../shared/types';
+import type { ElectronTestAPI } from '../../shared/electronTestHarness';
 
 type Unsubscribe = () => void;
 
@@ -426,6 +427,7 @@ export interface MarkuprXAPI {
   crashRecovery: CrashRecoveryAPI;
   updates: UpdatesAPI;
   whisper: WhisperAPI;
+  e2e?: ElectronTestAPI;
 
   // App version
   version: () => Promise<string>;

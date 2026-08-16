@@ -32,6 +32,7 @@ import {
   CURRENT_KEYTAR_SERVICE,
   LEGACY_KEYTAR_SERVICES,
 } from '../migration/LegacyBrandMigration';
+import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -75,6 +76,13 @@ const FALLBACK_SECRET_STORE_NAME = 'secure-keys';
 const LEGACY_INSECURE_SECRET_STORE_KEY = '__plaintext_fallback__';
 const INSECURE_SECRET_PREFIX = 'plaintext:';
 const SETTINGS_VERSION = 3;
+
+function electronTestHarnessAllowed(): boolean {
+  return isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  });
+}
 
 /**
  * Default hotkey configuration
@@ -466,6 +474,9 @@ export class SettingsManager implements ISettingsManager {
    * Get an API key from secure storage
    */
   async getApiKey(service: string): Promise<string | null> {
+    if (electronTestHarnessAllowed()) {
+      return this.getFallbackApiKey(service) || this.getInsecureApiKey(service);
+    }
     try {
       const key = await keytar.getPassword(KEYTAR_SERVICE, service);
       if (key) {
@@ -505,6 +516,15 @@ export class SettingsManager implements ISettingsManager {
    * Store an API key in secure storage
    */
   async setApiKey(service: string, key: string): Promise<void> {
+    if (electronTestHarnessAllowed()) {
+      if (this.canUseEncryptedFallback()) {
+        this.setFallbackApiKey(service, key);
+        this.clearInsecureApiKey(service);
+      } else {
+        this.setInsecureApiKey(service, key);
+      }
+      return;
+    }
     try {
       await keytar.setPassword(KEYTAR_SERVICE, service, key);
       this.clearFallbackApiKey(service);
@@ -543,6 +563,11 @@ export class SettingsManager implements ISettingsManager {
    * Delete an API key from secure storage
    */
   async deleteApiKey(service: string): Promise<void> {
+    if (electronTestHarnessAllowed()) {
+      this.clearFallbackApiKey(service);
+      this.clearInsecureApiKey(service);
+      return;
+    }
     let keytarError: unknown = null;
     for (const keytarService of [KEYTAR_SERVICE, ...LEGACY_KEYTAR_SERVICES]) {
       try {

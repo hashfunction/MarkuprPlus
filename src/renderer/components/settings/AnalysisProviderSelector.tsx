@@ -102,7 +102,7 @@ export const AnalysisProviderSelector: React.FC<{
                     {option.connectionBadge}
                   </span>
                   {option.recommended && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: colors.accent.default, textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: colors.text.link, textTransform: 'uppercase' }}>
                       Recommended
                     </span>
                   )}
@@ -123,7 +123,7 @@ export const AnalysisProviderSelector: React.FC<{
                   {describeStatus(option.id, status)}
                 </span>
               </span>
-              {selected && <span style={{ fontSize: 11, color: colors.accent.default, fontWeight: 600 }}>Selected</span>}
+              {selected && <span style={{ fontSize: 11, color: colors.text.link, fontWeight: 600 }}>Selected</span>}
             </button>
           );
         })}

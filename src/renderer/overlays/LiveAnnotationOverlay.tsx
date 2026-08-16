@@ -20,6 +20,7 @@ import {
   type AnnotationOverlayModel,
 } from './annotationOverlayModel';
 import { appendCoalescedAnnotationEvents } from './annotationEventQueue';
+import { getContrastColor } from '../hooks/useTheme';
 
 interface LiveAnnotationOverlayProps {
   overlayState: CaptureAnnotationOverlayState;
@@ -266,7 +267,7 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
                 borderRadius: 8,
                 border: model.tool === tool ? '1px solid #69b4ff' : '1px solid rgba(255,255,255,.14)',
                 background: model.tool === tool ? '#0a84ff' : 'rgba(255,255,255,.07)',
-                color: '#fff',
+                color: model.tool === tool ? getContrastColor('#0a84ff') : '#fff',
                 fontWeight: 650,
                 cursor: 'pointer',
               }}

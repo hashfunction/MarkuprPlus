@@ -50,6 +50,7 @@ import {
   type CaptureTarget,
   type MarkedIssueCandidatePayload,
 } from '../shared/types';
+import { ELECTRON_TEST_CHANNELS } from '../shared/electronTestHarness';
 
 // =============================================================================
 // Type Definitions for Event Handlers
@@ -73,7 +74,18 @@ function createEventSubscriber<T>(channel: string) {
 // MarkuprX API (exposed only on the MarkuprX namespace)
 // =============================================================================
 
+const electronTestApi = process.env.MARKUPRX_E2E === '1' ? {
+  getConfig: () => ipcRenderer.invoke(ELECTRON_TEST_CHANNELS.GET_CONFIG),
+  injectInput: (sample: unknown) => ipcRenderer.invoke(ELECTRON_TEST_CHANNELS.INJECT_INPUT, sample),
+  setInputAvailable: (available: boolean, error?: string) =>
+    ipcRenderer.invoke(ELECTRON_TEST_CHANNELS.SET_INPUT_AVAILABLE, available, error),
+  injectTranscript: (text: string, recordedAt?: number) =>
+    ipcRenderer.invoke(ELECTRON_TEST_CHANNELS.INJECT_TRANSCRIPT, text, recordedAt),
+  getDiagnostics: () => ipcRenderer.invoke(ELECTRON_TEST_CHANNELS.GET_DIAGNOSTICS),
+} : undefined;
+
 const markuprxApi = {
+  ...(electronTestApi ? { e2e: electronTestApi } : {}),
   // ===========================================================================
   // Session API
   // ===========================================================================

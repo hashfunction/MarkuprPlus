@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { styles } from '../settings/settingsStyles';
 
 export const SliderSetting: React.FC<{
@@ -13,17 +13,21 @@ export const SliderSetting: React.FC<{
   disabled?: boolean;
   formatValue?: (value: number) => string;
 }> = ({ label, description, value, min, max, step, unit = '', onChange, disabled, formatValue }) => {
+  const controlId = useId();
+  const descriptionId = useId();
   const displayValue = formatValue ? formatValue(value) : `${value}${unit}`;
 
   return (
     <div style={styles.settingRow}>
       <div style={styles.settingInfo}>
-        <span style={styles.settingLabel}>{label}</span>
-        {description && <span style={styles.settingDescription}>{description}</span>}
+        <label htmlFor={controlId} style={styles.settingLabel}>{label}</label>
+        {description && <span id={descriptionId} style={styles.settingDescription}>{description}</span>}
       </div>
       <div style={styles.sliderContainer}>
         <span style={styles.sliderValue}>{displayValue}</span>
         <input
+          id={controlId}
+          aria-describedby={description ? descriptionId : undefined}
           type="range"
           min={min}
           max={max}

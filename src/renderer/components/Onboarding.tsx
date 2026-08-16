@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import { getContrastColor, useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // Types
@@ -40,6 +40,14 @@ interface ApiKeyStatus {
 
 const API_TEST_TIMEOUT_MS = 15000;
 const API_SAVE_TIMEOUT_MS = 12000;
+
+function accessiblePrimaryButton(backgroundColor: string): React.CSSProperties {
+  return {
+    ...styles.primaryButton,
+    backgroundColor,
+    color: getContrastColor(backgroundColor),
+  };
+}
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -371,7 +379,7 @@ const WelcomeStep: React.FC<{ onNext: () => void; onSkip: () => void }> = ({
       </div>
 
       {/* Get Started Button */}
-      <button style={styles.primaryButton} onClick={onNext}>
+      <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
         Get Started
         <svg
           width="20"
@@ -508,8 +516,9 @@ const MicrophoneStep: React.FC<{
         <div style={styles.buttonGroup}>
           <button
             style={{
-              ...styles.primaryButton,
-              backgroundColor: status === 'denied' ? colors.status.error : colors.accent.default,
+              ...accessiblePrimaryButton(
+                status === 'denied' ? colors.status.error : colors.accent.default,
+              ),
             }}
             onClick={onRequestPermission}
             disabled={status === 'pending'}
@@ -551,7 +560,7 @@ const MicrophoneStep: React.FC<{
 
       {/* Continue Button */}
       {status === 'granted' && (
-        <button style={styles.primaryButton} onClick={onNext}>
+        <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
           Continue
           <svg
             width="20"
@@ -681,8 +690,9 @@ const ScreenRecordingStep: React.FC<{
         <div style={styles.buttonGroup}>
           <button
             style={{
-              ...styles.primaryButton,
-              backgroundColor: status === 'denied' ? colors.status.warning : colors.accent.default,
+              ...accessiblePrimaryButton(
+                status === 'denied' ? colors.status.warning : colors.accent.default,
+              ),
             }}
             onClick={onRequestPermission}
             disabled={status === 'pending'}
@@ -737,7 +747,7 @@ const ScreenRecordingStep: React.FC<{
 
       {/* Continue Button */}
       {status === 'granted' && (
-        <button style={styles.primaryButton} onClick={onNext}>
+        <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
           Continue
           <svg
             width="20"
@@ -868,6 +878,9 @@ const ApiKeyStep: React.FC<{
             style={{
               ...styles.testButton,
               backgroundColor: apiKey.testing ? colors.bg.tertiary : colors.accent.default,
+              color: getContrastColor(
+                apiKey.testing ? colors.bg.tertiary : colors.accent.default,
+              ),
             }}
             onClick={onTestApiKey}
             disabled={apiKey.value.length < 10}
@@ -916,7 +929,7 @@ const ApiKeyStep: React.FC<{
       {/* Continue Button */}
       <button
         style={{
-          ...styles.primaryButton,
+          ...accessiblePrimaryButton(colors.accent.default),
           opacity: apiKey.valid ? 1 : 0.5,
           cursor: apiKey.valid ? 'pointer' : 'not-allowed',
         }}
@@ -1066,8 +1079,7 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         {/* Start Button */}
         <button
           style={{
-            ...styles.primaryButton,
-            backgroundColor: colors.status.success,
+            ...accessiblePrimaryButton(colors.status.success),
           }}
           onClick={onComplete}
         >

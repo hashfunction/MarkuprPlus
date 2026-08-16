@@ -277,10 +277,19 @@ export function getContrastColor(backgroundColor: string): 'white' | 'black' {
   const rgb = hexToRgb(backgroundColor);
   if (!rgb) return 'white';
 
-  // Calculate relative luminance
-  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+  const linearize = (channel: number): number => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * linearize(rgb.r)
+    + 0.7152 * linearize(rgb.g)
+    + 0.0722 * linearize(rgb.b);
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const blackContrast = (luminance + 0.05) / 0.05;
 
-  return luminance > 0.5 ? 'black' : 'white';
+  return blackContrast >= whiteContrast ? 'black' : 'white';
 }
 
 /**

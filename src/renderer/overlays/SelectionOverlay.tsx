@@ -12,6 +12,7 @@ import {
   type SelectionMode,
   type SelectionState,
 } from './selectionModel';
+import { getContrastColor } from '../hooks/useTheme';
 
 interface SelectionOverlayProps {
   overlayState: CaptureSelectionOverlayState;
@@ -280,7 +281,7 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
                 borderRadius: 9,
                 border: selection.mode === mode ? '1px solid #69b4ff' : '1px solid rgba(255,255,255,.16)',
                 background: selection.mode === mode ? '#0a84ff' : 'rgba(255,255,255,.07)',
-                color: '#fff',
+                color: selection.mode === mode ? getContrastColor('#0a84ff') : '#fff',
                 fontWeight: 650,
                 cursor: 'pointer',
               }}

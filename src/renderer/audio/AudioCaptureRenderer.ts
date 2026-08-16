@@ -37,6 +37,8 @@ class AudioCaptureRenderer {
   private levelMonitorFrame: number | null = null;
   private latestRms = 0;
   private latestLevel = 0;
+  private electronTestAudioInterval: number | null = null;
+  private electronTestAudioPhase = 0;
   private config: CaptureConfig = {
     deviceId: null,
     sampleRate: 16000,
@@ -128,6 +130,36 @@ class AudioCaptureRenderer {
   async startCapture(): Promise<void> {
     if (this.capturing) {
       console.log('[AudioCaptureRenderer] Already capturing');
+      return;
+    }
+
+    const testConfig = await window.markuprx.e2e?.getConfig().catch(() => null);
+    if (testConfig?.enabled) {
+      this.capturing = true;
+      this.stopping = false;
+      this.electronTestAudioPhase = 0;
+      const emitSamples = () => {
+        if (!this.capturing) return;
+        const sampleCount = Math.round(
+          (this.config.sampleRate * this.config.chunkDurationMs) / 1000,
+        );
+        const samples = new Float32Array(sampleCount);
+        const amplitude = 0.08;
+        const radiansPerSample = (2 * Math.PI * 220) / this.config.sampleRate;
+        for (let index = 0; index < samples.length; index += 1) {
+          samples[index] = Math.sin(this.electronTestAudioPhase) * amplitude;
+          this.electronTestAudioPhase += radiansPerSample;
+        }
+        this.latestRms = amplitude / Math.sqrt(2);
+        this.latestLevel = 0.72;
+        this.sendPcmChunkToMain(samples, performance.now());
+      };
+      emitSamples();
+      this.electronTestAudioInterval = window.setInterval(
+        emitSamples,
+        this.config.chunkDurationMs,
+      );
+      console.log('[AudioCaptureRenderer] Deterministic Electron test audio started');
       return;
     }
 
@@ -467,6 +499,11 @@ class AudioCaptureRenderer {
 
     const wasCapturing = this.capturing;
     this.stopping = wasCapturing || this.stopping;
+
+    if (this.electronTestAudioInterval !== null) {
+      window.clearInterval(this.electronTestAudioInterval);
+      this.electronTestAudioInterval = null;
+    }
 
     if (this.mediaRecorder) {
       const recorder = this.mediaRecorder;
