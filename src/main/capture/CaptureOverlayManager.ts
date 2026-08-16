@@ -112,6 +112,7 @@ interface PendingSelection {
   refreshHandle: unknown | null;
   refreshInFlight: boolean;
   refreshCompletion: Promise<void> | null;
+  confirmationInFlight: boolean;
 }
 
 const SELECTION_REFRESH_INTERVAL_MS = 250;
@@ -415,6 +416,7 @@ export class CaptureOverlayManager {
       refreshHandle: null,
       refreshInFlight: false,
       refreshCompletion: null,
+      confirmationInFlight: false,
     };
     this.pendingSelection = request;
     this.selectionMode = 'window';
@@ -495,46 +497,54 @@ export class CaptureOverlayManager {
 
     let resolvedTarget = target;
     if (target.kind === 'window') {
-      await this.waitForSelectionRefresh(request);
-      if (this.pendingSelection !== request || this.overlays.get(senderId) !== overlay) {
-        return { success: false, error: 'Unknown capture overlay.' };
+      if (request.confirmationInFlight) {
+        return { success: false, error: 'A window selection is already being confirmed.' };
       }
-      const issued = overlay.state.windows.find((window) =>
-        window.sourceId === target.sourceId
-        && window.nativeWindowId === target.nativeWindowId
-        && sameBounds(window.bounds, target.bounds)
-      );
-      const issuedGallerySource = target.geometryAvailable === false
-        && sameBounds(target.bounds, overlay.state.display.bounds)
-        && overlay.state.windowSources.some((source) => {
-          const nativeId = /^window:([^:]+):[01]$/.exec(source.id)?.[1];
-          return source.id === target.sourceId
-            && source.name === target.sourceName
-            && nativeId === target.nativeWindowId;
-        });
-      if (!issued && !issuedGallerySource) {
-        return { success: false, error: 'The selected window is no longer available.' };
-      }
-      if (issued) {
-        const refreshed = await this.beginSelectionRefresh(
-          request,
-          () => this.dependencies.refreshWindow(target),
-        );
-        if (!refreshed
-          || refreshed.sourceId !== target.sourceId
-          || refreshed.nativeWindowId !== target.nativeWindowId) {
-          return { success: false, error: 'The selected window is no longer available.' };
-        }
+      request.confirmationInFlight = true;
+      try {
+        await this.waitForSelectionRefresh(request);
         if (this.pendingSelection !== request || this.overlays.get(senderId) !== overlay) {
           return { success: false, error: 'Unknown capture overlay.' };
         }
-        resolvedTarget = {
-          ...target,
-          sourceName: refreshed.sourceName,
-          appName: refreshed.appName,
-          bounds: refreshed.bounds,
-          geometryAvailable: true,
-        };
+        const issued = overlay.state.windows.find((window) =>
+          window.sourceId === target.sourceId
+          && window.nativeWindowId === target.nativeWindowId
+          && sameBounds(window.bounds, target.bounds)
+        );
+        const issuedGallerySource = target.geometryAvailable === false
+          && sameBounds(target.bounds, overlay.state.display.bounds)
+          && overlay.state.windowSources.some((source) => {
+            const nativeId = /^window:([^:]+):[01]$/.exec(source.id)?.[1];
+            return source.id === target.sourceId
+              && source.name === target.sourceName
+              && nativeId === target.nativeWindowId;
+          });
+        if (!issued && !issuedGallerySource) {
+          return { success: false, error: 'The selected window is no longer available.' };
+        }
+        if (issued) {
+          const refreshed = await this.beginSelectionRefresh(
+            request,
+            () => this.dependencies.refreshWindow(target),
+          );
+          if (!refreshed
+            || refreshed.sourceId !== target.sourceId
+            || refreshed.nativeWindowId !== target.nativeWindowId) {
+            return { success: false, error: 'The selected window is no longer available.' };
+          }
+          if (this.pendingSelection !== request || this.overlays.get(senderId) !== overlay) {
+            return { success: false, error: 'Unknown capture overlay.' };
+          }
+          resolvedTarget = {
+            ...target,
+            sourceName: refreshed.sourceName,
+            appName: refreshed.appName,
+            bounds: refreshed.bounds,
+            geometryAvailable: true,
+          };
+        }
+      } finally {
+        request.confirmationInFlight = false;
       }
     } else if (!validateCaptureTarget(target, overlay.state.displays)) {
       return { success: false, error: 'The selected capture area is invalid.' };

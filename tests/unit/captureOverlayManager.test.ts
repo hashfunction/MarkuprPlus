@@ -539,6 +539,29 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     await expect(selection).resolves.toEqual(windowTarget);
   });
 
+  it('rejects concurrent window confirmations without overlapping refreshes', async () => {
+    const { manager, windows, dependencies } = createHarness();
+    let resolveConfirmation!: (value: CapturableWindow) => void;
+    vi.mocked(dependencies.refreshWindow).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveConfirmation = resolve;
+    }));
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+
+    const firstConfirmation = manager.confirmTarget(windows[0].webContents.id, windowTarget);
+    const secondConfirmation = manager.confirmTarget(windows[0].webContents.id, windowTarget);
+
+    await expect(secondConfirmation).resolves.toEqual({
+      success: false,
+      error: 'A window selection is already being confirmed.',
+    });
+    expect(dependencies.refreshWindow).toHaveBeenCalledOnce();
+
+    resolveConfirmation(capturableWindow);
+    await expect(firstConfirmation).resolves.toEqual({ success: true });
+    await expect(selection).resolves.toEqual(windowTarget);
+  });
+
   it('keeps selection open when the exact window disappears during confirmation', async () => {
     const { manager, windows, dependencies } = createHarness();
     const selection = manager.selectTarget();
