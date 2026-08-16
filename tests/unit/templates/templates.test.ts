@@ -4,7 +4,7 @@
  * Tests the template registry, all built-in templates, and helpers.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   templateRegistry,
   TemplateRegistryImpl,
@@ -573,4 +573,51 @@ describe('All Templates — Shared Contract', () => {
       });
     });
   }
+});
+
+describe('Marked issue template preservation', () => {
+  const markedIssue = {
+    id: 'marked-issue-001',
+    ordinal: 1,
+    startedAt: 1_000,
+    markedAt: 1_100,
+    completedAt: 1_200,
+    strokeIds: ['stroke-1'],
+    tools: ['circle' as const],
+    colors: ['#ff3b30' as const],
+    screenshotPath: 'screenshots/marked-issue-001.png',
+    fallbackVideoTimestamp: 1.1,
+    comment: 'The save button overlaps the footer.',
+    transcriptionStatus: 'available' as const,
+    snapshotRevision: 1,
+    transcriptSegmentIds: ['transcript-segment-0001'],
+  };
+  const context = makeContext({
+    result: makeResult({
+      markedIssues: [markedIssue],
+      extractedFrames: [{
+        path: '/tmp/session/screenshots/marked-issue-001.png',
+        timestamp: 1.1,
+        reason: 'Marked issue MX-001',
+        markedIssueId: 'marked-issue-001',
+      }],
+    }),
+  });
+
+  it.each([
+    ['markdown', markdownTemplate],
+    ['github', githubIssueTemplate],
+    ['linear', linearTemplate],
+    ['jira', jiraTemplate],
+  ])('keeps the separate issue in %s output without a duplicate generic frame', (_name, template) => {
+    const content = template.render(context).content;
+    expect(content).toContain('MX-001');
+    expect(content).toContain('The save button overlaps the footer.');
+    expect(content.match(/marked-issue-001\.png/g)).toHaveLength(1);
+  });
+
+  it('keeps the complete finalized issue array in JSON output', () => {
+    const output = JSON.parse(jsonTemplate.render(context).content);
+    expect(output.markedIssues).toEqual([markedIssue]);
+  });
 });

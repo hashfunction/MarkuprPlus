@@ -14,6 +14,7 @@ import {
   computeRelativeFramePath,
   mapFramesToSegments,
 } from './helpers';
+import { renderMarkedIssuesMarkdown } from '../MarkedIssueReportBuilder';
 
 export const githubIssueTemplate: OutputTemplate = {
   name: 'github-issue',
@@ -22,13 +23,17 @@ export const githubIssueTemplate: OutputTemplate = {
 
   render(context: TemplateContext): TemplateOutput {
     const { result, sessionDir, timestamp } = context;
-    const { transcriptSegments, extractedFrames } = result;
+    const { transcriptSegments, extractedFrames, markedIssues = [] } = result;
+    const ordinaryFrames = extractedFrames.filter((frame) => !frame.markedIssueId);
     const sessionTimestamp = formatDate(new Date(timestamp ?? Date.now()));
     const duration = computeSessionDuration(transcriptSegments);
 
     let md = `## Feedback Report\n\n`;
     md += `> Captured by [markupR](https://markupr.com) on ${sessionTimestamp}\n`;
     md += `> ${transcriptSegments.length} segments | ${extractedFrames.length} frames | Duration: ${duration}\n\n`;
+    if (markedIssues.length > 0) {
+      md += renderMarkedIssuesMarkdown(markedIssues, './screenshots');
+    }
 
     if (transcriptSegments.length === 0) {
       md += `_No feedback was captured during this recording._\n`;
@@ -45,7 +50,7 @@ export const githubIssueTemplate: OutputTemplate = {
 
     // Details for each segment
     md += `### Details\n\n`;
-    const segmentFrameMap = mapFramesToSegments(transcriptSegments, extractedFrames);
+    const segmentFrameMap = mapFramesToSegments(transcriptSegments, ordinaryFrames);
 
     for (let i = 0; i < transcriptSegments.length; i++) {
       const segment = transcriptSegments[i];

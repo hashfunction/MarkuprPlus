@@ -15,7 +15,7 @@ import {
   type Session,
   type GenerateOptions,
 } from '../../src/main/output/MarkdownGenerator';
-import type { PostProcessResult, TranscriptSegment, ExtractedFrame } from '../../src/main/pipeline/PostProcessor';
+import type { PostProcessResult } from '../../src/main/pipeline/PostProcessor';
 
 // =============================================================================
 // Tests
@@ -371,6 +371,40 @@ describe('MarkdownGenerator (expanded)', () => {
 
       expect(result.content).toContain('_No feedback items were captured');
       expect(result.metadata.duration).toBe(0);
+    });
+
+    it('renders a marked-only session as separate evidence instead of an empty report', () => {
+      const session: Session = {
+        id: 'marked-only',
+        startTime: 0,
+        endTime: 2_000,
+        feedbackItems: [],
+        metadata: {
+          markedIssues: [{
+            id: 'marked-issue-001',
+            ordinal: 1,
+            startedAt: 1_000,
+            markedAt: 1_100,
+            completedAt: 1_200,
+            strokeIds: ['stroke-1'],
+            tools: ['circle'],
+            colors: ['#ff3b30'],
+            screenshotPath: 'screenshots/marked-issue-001.png',
+            fallbackVideoTimestamp: 1.1,
+            comment: 'The save button overlaps the footer.',
+            transcriptionStatus: 'available',
+            snapshotRevision: 1,
+            transcriptSegmentIds: ['transcript-segment-0001'],
+          }],
+        },
+      };
+
+      const result = generator.generateFullDocument(session, defaultOptions);
+
+      expect(result.content).toContain('## Marked Issues');
+      expect(result.content).toContain('### MX-001');
+      expect(result.content).not.toContain('_No feedback items were captured');
+      expect(result.metadata).toMatchObject({ itemCount: 1, screenshotCount: 1 });
     });
   });
 

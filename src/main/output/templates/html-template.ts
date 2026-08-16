@@ -69,11 +69,14 @@ function escapeHtml(text: string): string {
 }
 
 function countByCategory(session: Session): Record<string, number> {
-  return session.feedbackItems.reduce((acc, item) => {
+  const counts = session.feedbackItems.reduce((acc, item) => {
     const category = item.category || 'General';
     acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+  const markedIssueCount = session.metadata?.markedIssues?.length ?? 0;
+  if (markedIssueCount > 0) counts['Marked Issue'] = markedIssueCount;
+  return counts;
 }
 
 function getCategoryClass(category: FeedbackCategory): string {
@@ -467,11 +470,41 @@ function generateSummaryTableHtml(session: Session): string {
       <tfoot>
         <tr>
           <td>Total</td>
-          <td>${session.feedbackItems.length}</td>
+          <td>${session.feedbackItems.length + (session.metadata?.markedIssues?.length ?? 0)}</td>
         </tr>
       </tfoot>
     </table>
   `;
+}
+
+function generateMarkedIssuesHtml(session: Session, includeImages: boolean): string {
+  const issues = session.metadata?.markedIssues ?? [];
+  if (issues.length === 0) return '';
+  const cards = issues
+    .slice()
+    .sort((left, right) => left.ordinal - right.ordinal)
+    .map((issue) => {
+      const displayId = `MX-${String(issue.ordinal).padStart(3, '0')}`;
+      const comment = issue.comment
+        || issue.transcriptionWarning
+        || 'No narration was associated with this marked issue.';
+      const evidence = includeImages && issue.screenshotPath
+        ? `<div class="screenshots"><div class="screenshot"><img src="${escapeHtml(issue.screenshotPath)}" alt="Marked issue ${displayId}" loading="lazy" /></div></div>`
+        : `<p>${escapeHtml(issue.evidenceWarning || 'No marked screenshot could be recovered for this issue.')}</p>`;
+      return `
+        <article class="feedback-item marked-issue" data-marked-issue-id="${escapeHtml(issue.id)}">
+          <div class="feedback-header">
+            <h3 class="feedback-title">Marked issue ${displayId}</h3>
+            <span class="feedback-id">${displayId}</span>
+          </div>
+          <div class="tags"><span class="tag tag-ux">Marked Issue</span></div>
+          <blockquote>${escapeHtml(comment)}</blockquote>
+          ${evidence}
+        </article>
+      `;
+    })
+    .join('');
+  return `<section class="marked-issues"><h2>Marked Issues</h2><div class="feedback-list">${cards}</div></section>`;
 }
 
 // ============================================================================
@@ -493,7 +526,8 @@ export function generateHtmlDocument(session: Session, options: HtmlExportOption
   const screenshotCount = session.feedbackItems.reduce(
     (sum, item) => sum + item.screenshots.length,
     0
-  );
+  ) + (session.metadata?.markedIssues ?? []).filter((issue) => Boolean(issue.screenshotPath)).length;
+  const totalItemCount = session.feedbackItems.length + (session.metadata?.markedIssues?.length ?? 0);
 
   const feedbackItemsHtml = session.feedbackItems
     .map((item, index) => generateFeedbackItemHtml(item, index, includeImages))
@@ -537,7 +571,7 @@ export function generateHtmlDocument(session: Session, options: HtmlExportOption
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
           </svg>
-          ${session.feedbackItems.length} items
+          ${totalItemCount} items
         </span>
         <span class="meta-item">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -551,6 +585,7 @@ export function generateHtmlDocument(session: Session, options: HtmlExportOption
     </header>
 
     <main>
+      ${generateMarkedIssuesHtml(session, includeImages)}
       <div class="feedback-list">
         ${feedbackItemsHtml}
       </div>

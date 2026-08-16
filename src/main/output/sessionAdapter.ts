@@ -167,6 +167,7 @@ export function adaptSessionForMarkdown(session: ControllerSession): MarkdownSes
       sourceType: session.metadata?.sourceType
         || (session.sourceId.startsWith('screen') ? 'screen' : 'window'),
       captureContexts: session.metadata?.captureContexts,
+      markedIssues: structuredClone(session.metadata?.markedIssues ?? []),
     },
   };
 }

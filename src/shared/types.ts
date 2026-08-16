@@ -1067,6 +1067,7 @@ export interface MarkedIssuePayload {
   captureContext?: CaptureContextSnapshot;
   comment?: string;
   transcriptionStatus: 'pending' | 'available' | 'unavailable';
+  transcriptionWarning?: string;
   snapshotRevision: number;
   transcriptSegmentIds: string[];
   evidenceWarning?: string;

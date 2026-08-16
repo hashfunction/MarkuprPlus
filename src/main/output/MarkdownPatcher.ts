@@ -217,6 +217,7 @@ export async function appendExtractedFramesToReport(
     path: string;
     timestamp: number;
     reason: string;
+    markedIssueId?: string;
     captureContext?: CaptureContextSnapshot;
   }>
 ): Promise<void> {
@@ -228,9 +229,11 @@ export async function appendExtractedFramesToReport(
     path: string;
     timestamp: number;
     reason: string;
+    markedIssueId?: string;
     captureContext?: CaptureContextSnapshot;
   }> = [];
   for (const frame of extractedFrames) {
+    if (frame.markedIssueId) continue;
     try {
       await fs.access(frame.path);
       verifiedFrames.push(frame);

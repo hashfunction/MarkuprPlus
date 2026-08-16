@@ -169,6 +169,15 @@ export {
   generateClipboardSummary,
 } from './sessionAdapter';
 
+export {
+  assignMarkedIssueComments,
+  buildMarkedIssueFeedbackItems,
+  insertMarkedIssuesSection,
+  renderMarkedIssuesMarkdown,
+  renderMarkedIssuesJira,
+  type MarkedIssueCommentContext,
+} from './MarkedIssueReportBuilder';
+
 // Re-export export service for multi-format export
 export {
   exportService,

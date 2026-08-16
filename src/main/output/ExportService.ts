@@ -22,7 +22,7 @@ import type { Session, FeedbackItem, FeedbackCategory, FeedbackSeverity } from '
 import { markdownGenerator } from './MarkdownGenerator';
 import type { PostProcessResult } from '../pipeline/PostProcessor';
 import { generateHtmlDocument } from './templates/html-template';
-import type { CaptureContextSnapshot } from '../../shared/types';
+import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 
 /**
  * JSON export schema version. Bump when the schema changes:
@@ -98,6 +98,7 @@ export interface JsonExportSchema {
       os?: string;
       captureContexts?: CaptureContextSnapshot[];
     };
+    markedIssues: MarkedIssuePayload[];
     items: Array<{
       id: string;
       index: number;
@@ -393,7 +394,8 @@ class ExportServiceImpl {
     const screenshotCount = session.feedbackItems.reduce(
       (sum, item) => sum + item.screenshots.length,
       0
-    );
+    ) + (session.metadata?.markedIssues ?? []).filter((issue) => Boolean(issue.screenshotPath)).length;
+    const markedIssues = structuredClone(session.metadata?.markedIssues ?? []);
     const duration = session.endTime ? session.endTime - session.startTime : 0;
 
     return {
@@ -410,6 +412,7 @@ class ExportServiceImpl {
           os: session.metadata?.os,
           captureContexts: session.metadata?.captureContexts,
         },
+        markedIssues,
         items: session.feedbackItems.map((item, index) => ({
           id: item.id,
           index,
@@ -426,7 +429,7 @@ class ExportServiceImpl {
         })),
       },
       summary: {
-        itemCount: session.feedbackItems.length,
+        itemCount: session.feedbackItems.length + markedIssues.length,
         screenshotCount,
         duration,
         categories,

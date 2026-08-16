@@ -17,7 +17,7 @@ import { whisperService } from '../transcription/WhisperService';
 import { TranscriptAnalyzer, transcriptAnalyzer } from './TranscriptAnalyzer';
 import { FrameExtractor, frameExtractor } from './FrameExtractor';
 import type { KeyMoment } from './TranscriptAnalyzer';
-import type { CaptureContextSnapshot } from '../../shared/types';
+import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 
 // ============================================================================
 // Types
@@ -44,6 +44,7 @@ export interface PostProcessResult {
   extractedFrames: ExtractedFrame[];
   reportPath: string;
   captureContexts?: CaptureContextSnapshot[];
+  markedIssues?: MarkedIssuePayload[];
 }
 
 export interface PostProcessProgress {

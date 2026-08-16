@@ -15,6 +15,7 @@ import {
   computeRelativeFramePath,
   mapFramesToSegments,
 } from './helpers';
+import { renderMarkedIssuesMarkdown } from '../MarkedIssueReportBuilder';
 
 const REPORT_SUPPORT_LINE = '*If this report saved you time, support development: [Ko-fi](https://ko-fi.com/eddiesanjuan)*';
 
@@ -25,13 +26,17 @@ export const markdownTemplate: OutputTemplate = {
 
   render(context: TemplateContext): TemplateOutput {
     const { result, sessionDir, timestamp } = context;
-    const { transcriptSegments, extractedFrames } = result;
+    const { transcriptSegments, extractedFrames, markedIssues = [] } = result;
+    const ordinaryFrames = extractedFrames.filter((frame) => !frame.markedIssueId);
     const sessionTimestamp = formatDate(new Date(timestamp ?? Date.now()));
 
     const sessionDuration = computeSessionDuration(transcriptSegments);
 
     let md = `# markupR Session — ${sessionTimestamp}\n`;
     md += `> Segments: ${transcriptSegments.length} | Frames: ${extractedFrames.length} | Duration: ${sessionDuration}\n\n`;
+    if (markedIssues.length > 0) {
+      md += renderMarkedIssuesMarkdown(markedIssues, './screenshots');
+    }
 
     if (transcriptSegments.length === 0) {
       md += `_No speech was detected during this recording._\n`;
@@ -40,7 +45,7 @@ export const markdownTemplate: OutputTemplate = {
 
     md += `## Transcript\n\n`;
 
-    const segmentFrameMap = mapFramesToSegments(transcriptSegments, extractedFrames);
+    const segmentFrameMap = mapFramesToSegments(transcriptSegments, ordinaryFrames);
 
     for (let i = 0; i < transcriptSegments.length; i++) {
       const segment = transcriptSegments[i];

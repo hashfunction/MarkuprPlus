@@ -14,6 +14,7 @@ import {
   computeRelativeFramePath,
   mapFramesToSegments,
 } from './helpers';
+import { renderMarkedIssuesJira } from '../MarkedIssueReportBuilder';
 
 export const jiraTemplate: OutputTemplate = {
   name: 'jira',
@@ -22,7 +23,8 @@ export const jiraTemplate: OutputTemplate = {
 
   render(context: TemplateContext): TemplateOutput {
     const { result, sessionDir, timestamp } = context;
-    const { transcriptSegments, extractedFrames } = result;
+    const { transcriptSegments, extractedFrames, markedIssues = [] } = result;
+    const ordinaryFrames = extractedFrames.filter((frame) => !frame.markedIssueId);
     const sessionTimestamp = formatDate(new Date(timestamp ?? Date.now()));
     const duration = computeSessionDuration(transcriptSegments);
 
@@ -32,6 +34,9 @@ export const jiraTemplate: OutputTemplate = {
     content += `*Captured:* ${sessionTimestamp}\n`;
     content += `*Segments:* ${transcriptSegments.length} | *Frames:* ${extractedFrames.length} | *Duration:* ${duration}\n`;
     content += `{panel}\n\n`;
+    if (markedIssues.length > 0) {
+      content += renderMarkedIssuesJira(markedIssues);
+    }
 
     if (transcriptSegments.length === 0) {
       content += `_No feedback was captured during this recording._\n`;
@@ -51,7 +56,7 @@ export const jiraTemplate: OutputTemplate = {
 
     // Detail sections
     content += `h2. Details\n\n`;
-    const segmentFrameMap = mapFramesToSegments(transcriptSegments, extractedFrames);
+    const segmentFrameMap = mapFramesToSegments(transcriptSegments, ordinaryFrames);
 
     for (let i = 0; i < transcriptSegments.length; i++) {
       const segment = transcriptSegments[i];

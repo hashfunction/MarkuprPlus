@@ -62,4 +62,31 @@ describe('MarkdownPatcher annotation context', () => {
       screenshotCount: 1,
     });
   });
+
+  it('does not duplicate marked issue fallback frames in the generic screenshot section', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'markupr-marked-frame-filter-'));
+    const screenshots = join(directory, 'screenshots');
+    await mkdir(screenshots);
+    const report = join(directory, 'feedback-report.md');
+    const markedFrame = join(screenshots, 'marked-issue-001.png');
+    const ordinaryFrame = join(screenshots, 'frame-002.png');
+    await writeFile(report, '# Feedback report\n');
+    await writeFile(markedFrame, 'png');
+    await writeFile(ordinaryFrame, 'png');
+
+    await appendExtractedFramesToReport(report, [{
+      path: markedFrame,
+      timestamp: 1,
+      reason: 'Marked issue MX-001',
+      markedIssueId: 'marked-issue-001',
+    }, {
+      path: ordinaryFrame,
+      timestamp: 2,
+      reason: 'General observation',
+    }]);
+
+    const markdown = await readFile(report, 'utf8');
+    expect(markdown).not.toContain('marked-issue-001.png');
+    expect(markdown).toContain('frame-002.png');
+  });
 });

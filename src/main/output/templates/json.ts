@@ -28,6 +28,7 @@ export const jsonTemplate: OutputTemplate = {
         frames: extractedFrames.length,
         duration: computeSessionDuration(transcriptSegments),
       },
+      markedIssues: structuredClone(result.markedIssues ?? []),
       segments: transcriptSegments.map((segment, i) => {
         const frames = segmentFrameMap.get(i) || [];
         return {

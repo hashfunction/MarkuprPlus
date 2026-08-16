@@ -104,6 +104,10 @@ import {
 } from './output/MarkdownPatcher';
 import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
 import {
+  assignMarkedIssueComments,
+  insertMarkedIssuesSection,
+} from './output/MarkedIssueReportBuilder';
+import {
   attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
   nearestCaptureContext,
@@ -1228,6 +1232,7 @@ async function stopSession(): Promise<{
     emitProcessingProgress(64, 'saving');
 
     let finalizedMarkedIssues = structuredClone(session.metadata.markedIssues ?? []);
+    let finalizedScreenshotCount = 0;
     if (finalizedMarkedIssues.length > 0) {
       try {
         finalizedMarkedIssues = await getMarkedIssueArtifactStore().promoteIssues(
@@ -1346,8 +1351,6 @@ async function stopSession(): Promise<{
           `${postProcessResult?.extractedFrames.length ?? 0} frames extracted`
         );
 
-        // Notify renderer that post-processing is complete
-        safeSendToRenderer(IPC_CHANNELS.PROCESSING_COMPLETE, postProcessResult);
       } catch (postProcessError) {
         console.warn('[Main:stopSession] Step 5/6 FAILED: Post-processing pipeline error, continuing with basic output:', postProcessError);
         // Non-fatal: we still have the basic markdown report from the AI/rule-based pipeline
@@ -1358,22 +1361,46 @@ async function stopSession(): Promise<{
       console.log('[Main:stopSession] Step 5/6 skipped: no audio or recording artifacts available');
     }
 
+    const transcriptionFailure = resolveSavedTranscriptionFailure({
+      audioBytes: audioArtifact?.bytesWritten ?? 0,
+      transcriptTexts: session.transcriptBuffer.map((entry) => entry.text),
+      recoveryFailure: session.metadata.transcriptionFailure,
+    });
+
     if (finalizedMarkedIssues.length > 0) {
       finalizedMarkedIssues = attachFallbackFramesToMarkedIssues(
         finalizedMarkedIssues,
         postProcessResult?.extractedFrames ?? [],
       );
+      finalizedMarkedIssues = assignMarkedIssueComments(
+        finalizedMarkedIssues,
+        postProcessResult?.transcriptSegments ?? providedTranscriptSegments,
+        {
+          videoStartTime: session.metadata.videoStartTime
+            || recordingArtifact?.startTime
+            || session.startTime,
+          hasAudio: (audioArtifact?.bytesWritten ?? 0) > 0,
+          ...(transcriptionFailure ? { transcriptionFailure } : {}),
+        },
+      );
       session.metadata.markedIssues = structuredClone(finalizedMarkedIssues);
       sessionController.setMarkedIssues(finalizedMarkedIssues);
+      if (postProcessResult) {
+        postProcessResult.markedIssues = structuredClone(finalizedMarkedIssues);
+      }
       const ordinaryFrameCount = postProcessResult?.extractedFrames
         .filter((frame) => !frame.markedIssueId).length ?? 0;
       const markedEvidenceCount = finalizedMarkedIssues
         .filter((issue) => Boolean(issue.screenshotPath)).length;
+      finalizedScreenshotCount = ordinaryFrameCount + markedEvidenceCount;
       await syncMarkedIssueMetadata(
         saveResult.sessionDir,
         finalizedMarkedIssues,
-        ordinaryFrameCount + markedEvidenceCount,
+        finalizedScreenshotCount,
       );
+    }
+    if (postProcessResult) {
+      safeSendToRenderer(IPC_CHANNELS.PROCESSING_COMPLETE, postProcessResult);
     }
     emitProcessingProgress(93, 'generating-report');
 
@@ -1395,11 +1422,19 @@ async function stopSession(): Promise<{
       );
     }
 
-    const transcriptionFailure = resolveSavedTranscriptionFailure({
-      audioBytes: audioArtifact?.bytesWritten ?? 0,
-      transcriptTexts: session.transcriptBuffer.map((entry) => entry.text),
-      recoveryFailure: session.metadata.transcriptionFailure,
-    });
+    if (finalizedMarkedIssues.length > 0) {
+      await fs.readFile(saveResult.markdownPath, 'utf-8')
+        .then((markdown) => fs.writeFile(
+          saveResult.markdownPath,
+          insertMarkedIssuesSection(markdown, finalizedMarkedIssues, './screenshots'),
+          'utf-8',
+        ))
+        .catch((error) => {
+          console.warn('[Main] Failed to insert marked issues into report:', error);
+        });
+      await syncExtractedFrameSummary(saveResult.sessionDir, finalizedScreenshotCount);
+    }
+
     if (transcriptionFailure) {
       await appendTranscriptionFailureToReport(
         saveResult.markdownPath,
