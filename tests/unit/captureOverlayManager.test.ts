@@ -483,7 +483,7 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
   });
 
   it('lets an ordinary click anywhere commit one issue and clears without replaying input', async () => {
-    const { manager, windows, inputMonitor, committedIssues } = createHarness();
+    const { manager, windows, host, inputMonitor, committedIssues } = createHarness();
     await manager.beginAnnotation('session-1', windowTarget, 500);
     inputMonitor.emit(inputSample(1));
     inputMonitor.emit(inputSample(2, { modifierDown: true }));
@@ -499,6 +499,10 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
       type: 'stroke-end', sessionId: 'session-1', strokeId: 'stroke-1',
     });
     inputMonitor.emit(inputSample(3, { modifierDown: false }));
+    expect(host.webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ pendingMarkedIssue: true, markedIssueCount: 0 }),
+    );
     windows[0].webContents.send.mockClear();
 
     inputMonitor.emit(inputSample(4, {
@@ -520,6 +524,10 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     );
     expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
     expect(windows[0].focus).not.toHaveBeenCalled();
+    expect(host.webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ pendingMarkedIssue: false, markedIssueCount: 1 }),
+    );
   });
 
   it('keeps manual Draw as a non-focusing fallback when the monitor is unavailable', async () => {
@@ -538,6 +546,41 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     expect(manager.setAnnotationMode('draw')).toEqual({ success: true });
     expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
     expect(windows[0].focus).not.toHaveBeenCalled();
+  });
+
+  it('commits and clears one fallback issue when the user chooses Done', async () => {
+    const { manager, windows, inputMonitor, committedIssues } = createHarness();
+    inputMonitor.setHealth({
+      state: 'unsupported', platform: 'linux', restartCount: 0,
+      error: 'Global modifier observation is unavailable on this platform.',
+    });
+    await manager.beginAnnotation('session-1', windowTarget, 500);
+    expect(manager.setAnnotationMode('draw')).toEqual({ success: true });
+
+    const senderId = windows[0].webContents.id;
+    expect(manager.submitAnnotationEvent(senderId, {
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'fallback-stroke', tool: 'freehand', color: '#ff3b30', width: 0.008,
+        points: [{ x: 0.25, y: 0.4 }],
+      },
+    })).toEqual({ success: true });
+    expect(manager.submitAnnotationEvent(senderId, {
+      type: 'stroke-end', sessionId: 'session-1', strokeId: 'fallback-stroke',
+    })).toEqual({ success: true });
+
+    expect(manager.setAnnotationMode('interact')).toEqual({ success: true });
+
+    expect(committedIssues).toHaveLength(1);
+    expect(committedIssues[0]).toMatchObject({
+      id: 'marked-issue-001',
+      strokeIds: ['fallback-stroke'],
+      snapshotRevision: 1,
+    });
+    expect(windows[0].webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      { type: 'clear', sessionId: 'session-1' },
+    );
   });
 
   it('forces click-through when annotation becomes paused or the monitor fails', async () => {

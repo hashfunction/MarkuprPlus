@@ -82,7 +82,11 @@ interface CaptureAPI {
   getSources: () => Promise<CaptureSource[]>;
   selectTarget: () => Promise<CaptureTarget | null>;
   beginAnnotation: (sessionId: string, target: CaptureTarget) => Promise<{ success: boolean; error?: string }>;
-  endAnnotation: () => Promise<{ success: boolean }>;
+  endAnnotation: (finalizePendingIssue?: boolean) => Promise<{
+    success: boolean;
+    snapshotRevision?: number;
+    error?: string;
+  }>;
   setAnnotationMode: (mode: AnnotationMode) => Promise<{ success: boolean; error?: string }>;
   onAnnotationEvent: (callback: (event: AnnotationEvent) => void) => Unsubscribe;
   onAnnotationState: (callback: (state: AnnotationStatePayload) => void) => Unsubscribe;

@@ -193,6 +193,10 @@ const App: React.FC = () => {
             pauseShortcut={ui.settings?.hotkeys?.pauseResume}
             annotationActive={recording.annotationActive}
             annotationMode={recording.annotationMode}
+            annotationInputMode={recording.annotationInputMode}
+            annotationModifierKey={recording.annotationModifierKey}
+            pendingMarkedIssue={recording.pendingMarkedIssue}
+            markedIssueCount={recording.markedIssueCount}
             onToggleAnnotation={() => { void recording.toggleAnnotation(); }}
           />
         )}

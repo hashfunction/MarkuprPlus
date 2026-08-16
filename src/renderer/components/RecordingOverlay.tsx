@@ -28,6 +28,10 @@ interface RecordingOverlayProps {
   pauseShortcut?: string;
   annotationActive?: boolean;
   annotationMode?: 'interact' | 'draw';
+  annotationInputMode?: 'modifier' | 'fallback' | null;
+  annotationModifierKey?: 'Command' | 'Control' | null;
+  pendingMarkedIssue?: boolean;
+  markedIssueCount?: number;
   onToggleAnnotation?: () => void;
 }
 
@@ -77,6 +81,29 @@ function formatCompactShortcut(accelerator: string, isMac: boolean): string {
     .join('');
 }
 
+export interface AnnotationGuidanceState {
+  active: boolean;
+  inputMode: 'modifier' | 'fallback' | null;
+  modifierKey: 'Command' | 'Control' | null;
+  pendingMarkedIssue: boolean;
+  isPaused: boolean;
+}
+
+export function getAnnotationGuidance(state: AnnotationGuidanceState): string {
+  if (state.isPaused) {
+    return state.pendingMarkedIssue
+      ? 'Paused · your current marks are preserved'
+      : 'Paused · annotation resumes with recording';
+  }
+  if (!state.active) return 'Annotation is unavailable for this capture';
+  if (state.inputMode === 'fallback') {
+    return 'Choose Draw, mark the screen, then choose Done to save';
+  }
+  if (state.pendingMarkedIssue) return 'Marked area ready · click to save and continue';
+  const modifier = state.modifierKey === 'Control' ? 'Ctrl' : '⌘';
+  return `Hold ${modifier} and drag to mark · click to save and continue`;
+}
+
 export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   duration,
   screenshotCount,
@@ -90,6 +117,10 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   pauseShortcut = 'CommandOrControl+Shift+P',
   annotationActive = false,
   annotationMode = 'interact',
+  annotationInputMode = null,
+  annotationModifierKey = null,
+  pendingMarkedIssue = false,
+  markedIssueCount = 0,
   onToggleAnnotation,
 }) => {
   const [showBadge, setShowBadge] = useState(false);
@@ -140,6 +171,13 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const manualShortcutText = formatCompactShortcut(manualShortcut, isMac);
   const toggleShortcutText = formatCompactShortcut(toggleShortcut, isMac);
   const pauseShortcutText = formatCompactShortcut(pauseShortcut, isMac);
+  const annotationGuidance = getAnnotationGuidance({
+    active: annotationActive,
+    inputMode: annotationInputMode,
+    modifierKey: annotationModifierKey,
+    pendingMarkedIssue,
+    isPaused,
+  });
   const normalizedAudioLevel = Math.max(0, Math.min(1, audioLevel));
   const visualAudioLevel = isPaused
     ? 0
@@ -298,7 +336,7 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             </span>
           </div>
 
-          {/* Screenshot count */}
+          {/* Confirmed marked-issue count */}
           <span
             style={{
               marginLeft: 'auto',
@@ -308,32 +346,36 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               padding: '2px 5px',
               background: theme.hintBg,
             }}
-            title="Manual shot markers confirmed in this session"
+            title="Marked issues saved separately in this session"
           >
-            {screenshotCount} marked
+            {markedIssueCount} {markedIssueCount === 1 ? 'issue' : 'issues'}
           </span>
 
-          <button
-            type="button"
-            onClick={onToggleAnnotation}
-            disabled={!annotationActive || !onToggleAnnotation || isPaused}
-            aria-pressed={annotationMode === 'draw'}
-            title={annotationActive ? 'Draw directly over the recorded area' : 'Annotation overlay unavailable'}
-            style={{
-              padding: '3px 6px',
-              border: `1px solid ${annotationMode === 'draw' ? '#ff8178' : theme.border}`,
-              borderRadius: 9,
-              background: annotationMode === 'draw' ? 'rgba(255,59,48,.2)' : theme.hintBg,
-              color: theme.text,
-              fontSize: 8.5,
-              fontWeight: 700,
-              cursor: annotationActive && !isPaused ? 'pointer' : 'not-allowed',
-              opacity: annotationActive && !isPaused ? 1 : 0.45,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {annotationMode === 'draw' ? 'Done' : 'Draw'}
-          </button>
+          {annotationInputMode === 'fallback' && (
+            <button
+              type="button"
+              onClick={onToggleAnnotation}
+              disabled={!annotationActive || !onToggleAnnotation || isPaused}
+              aria-pressed={annotationMode === 'draw'}
+              title={annotationMode === 'draw'
+                ? 'Save this marked issue and return control to the screen'
+                : 'Draw directly over the recorded area'}
+              style={{
+                padding: '3px 6px',
+                border: `1px solid ${annotationMode === 'draw' ? '#ff8178' : theme.border}`,
+                borderRadius: 9,
+                background: annotationMode === 'draw' ? 'rgba(255,59,48,.2)' : theme.hintBg,
+                color: theme.text,
+                fontSize: 8.5,
+                fontWeight: 700,
+                cursor: annotationActive && !isPaused ? 'pointer' : 'not-allowed',
+                opacity: annotationActive && !isPaused ? 1 : 0.45,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {annotationMode === 'draw' ? 'Done' : 'Draw'}
+            </button>
+          )}
 
           {/* Stop button */}
           <button
@@ -370,6 +412,24 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           >
             Stop
           </button>
+        </div>
+
+        <div
+          aria-label="Annotation directions"
+          style={{
+            width: '100%',
+            padding: '2px 7px',
+            borderRadius: 999,
+            background: pendingMarkedIssue ? 'rgba(52, 199, 89, 0.16)' : theme.hintBg,
+            border: `1px solid ${pendingMarkedIssue ? 'rgba(52, 199, 89, 0.34)' : theme.border}`,
+            color: pendingMarkedIssue ? colors.status.success : theme.text,
+            fontSize: 8.5,
+            fontWeight: 650,
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          {annotationGuidance}
         </div>
 
         {/* Shortcut reminders */}

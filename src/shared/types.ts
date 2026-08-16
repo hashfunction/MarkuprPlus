@@ -1114,6 +1114,8 @@ export interface AnnotationStatePayload {
   mode: AnnotationMode;
   inputMode?: 'modifier' | 'fallback';
   modifierKey?: 'Command' | 'Control';
+  pendingMarkedIssue?: boolean;
+  markedIssueCount?: number;
   error?: string;
 }
 

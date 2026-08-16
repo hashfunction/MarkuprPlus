@@ -268,6 +268,28 @@ describe('ScreenRecordingRenderer', () => {
       expect(compositor.applyAnnotationEvent).not.toHaveBeenCalledWith(request);
     });
 
+    it('waits for a requested snapshot revision that arrives asynchronously', async () => {
+      let resolveStage!: (result: { success: boolean }) => void;
+      mockCaptureIPC.stageMarkedIssueCandidate.mockImplementationOnce(() => new Promise((resolve) => {
+        resolveStage = resolve;
+      }));
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+
+      let settled = false;
+      const waiting = renderer.waitForMarkedSnapshot(9, 500).then((result) => {
+        settled = true;
+        return result;
+      });
+      annotationListeners.forEach((listener) => listener({
+        type: 'snapshot-request', sessionId: 'sess-1', revision: 9, requestedAt: 2_000,
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(settled).toBe(false);
+
+      resolveStage({ success: true });
+      await expect(waiting).resolves.toBe(true);
+    });
+
     it('keeps recording when candidate capture or staging fails', async () => {
       const error = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       await renderer.start({ sessionId: 'sess-1', target: screenTarget });

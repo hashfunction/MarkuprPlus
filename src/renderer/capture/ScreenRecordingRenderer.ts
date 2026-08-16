@@ -78,6 +78,7 @@ export class ScreenRecordingRenderer {
   private activeSessionId: string | null = null;
   private inFlightWrites: Set<Promise<void>> = new Set();
   private snapshotWrites: Set<Promise<void>> = new Set();
+  private snapshotWritesByRevision = new Map<number, Promise<void>>();
   private snapshotRevisions = new Set<number>();
   private startPromise: Promise<void> | null = null;
   private stopping = false;
@@ -85,6 +86,7 @@ export class ScreenRecordingRenderer {
   private recordingStartTime: number | null = null;
   private activeSourceName: string | null = null;
   private fatalErrorHandler: FatalErrorHandler | null = null;
+  private fatalStopInProgress = false;
 
   constructor(createCompositor: RecordingCompositorFactory = () => new RecordingCompositor()) {
     this.createCompositor = createCompositor;
@@ -237,6 +239,20 @@ export class ScreenRecordingRenderer {
     return this.recordingStartTime;
   }
 
+  async waitForMarkedSnapshot(revision: number, timeoutMs = 2_500): Promise<boolean> {
+    if (!Number.isSafeInteger(revision) || revision <= 0) return false;
+    const deadline = Date.now() + Math.max(0, Math.min(timeoutMs, 5_000));
+    while (Date.now() <= deadline) {
+      const write = this.snapshotWritesByRevision.get(revision);
+      if (write) {
+        await write;
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+  }
+
   setFatalErrorHandler(handler: FatalErrorHandler | null): void {
     this.fatalErrorHandler = handler;
   }
@@ -320,6 +336,8 @@ export class ScreenRecordingRenderer {
       this.stopping = false;
       this.recordingStartTime = recordingStartTime;
       this.snapshotRevisions.clear();
+      this.snapshotWritesByRevision.clear();
+      this.fatalStopInProgress = false;
       this.annotationUnsubscribe = window.markupr.capture?.onAnnotationEvent?.((event) => {
         if (event.sessionId !== this.activeSessionId) return;
         if (event.type === 'snapshot-request') {
@@ -373,6 +391,7 @@ export class ScreenRecordingRenderer {
       this.activeSourceName = null;
       this.stopping = false;
       this.recordingStartTime = null;
+      this.snapshotWritesByRevision.clear();
       return { success: true };
     }
 
@@ -463,6 +482,7 @@ export class ScreenRecordingRenderer {
         this.stopping = false;
         this.recordingStartTime = null;
         this.snapshotRevisions.clear();
+        this.snapshotWritesByRevision.clear();
       }
 
       return result;
@@ -546,6 +566,7 @@ export class ScreenRecordingRenderer {
     this.activeSourceName = null;
     this.stopping = false;
     this.recordingStartTime = null;
+    this.snapshotWritesByRevision.clear();
   }
 
   private cleanupStream(): void {
@@ -587,6 +608,7 @@ export class ScreenRecordingRenderer {
         this.snapshotWrites.delete(snapshotWrite);
       });
     this.snapshotWrites.add(snapshotWrite);
+    this.snapshotWritesByRevision.set(event.revision, snapshotWrite);
   }
 
   private watchSelectedSource(stream: MediaStream): void {
@@ -604,19 +626,25 @@ export class ScreenRecordingRenderer {
   };
 
   private handleFatalCaptureEnd(reason: string): void {
-    if (!this.activeSessionId || this.stopping) return;
+    if (!this.activeSessionId || this.stopping || this.fatalStopInProgress) return;
+    this.fatalStopInProgress = true;
     const endedSessionId = this.activeSessionId;
     const sourceName = this.activeSourceName || 'selected source';
     const message = `Recording of “${sourceName}” ended: ${reason}`;
     console.error(`[ScreenRecordingRenderer] ${message} (${endedSessionId}).`);
     this.fatalErrorHandler?.(message);
-    void this.stop().finally(() => {
-      // End the owning desktop session as well. This preserves already-written
-      // chunks and never substitutes a broader capture source.
-      void window.markupr.capture?.endAnnotation?.().catch(() => undefined);
-      void window.markupr.session?.stop().catch((error) => {
+    void (async () => {
+      const finalization = await window.markupr.capture?.endAnnotation?.(true)
+        .catch(() => ({ success: false, snapshotRevision: undefined }));
+      if (finalization?.snapshotRevision) {
+        await this.waitForMarkedSnapshot(finalization.snapshotRevision).catch(() => false);
+      }
+      await this.stop();
+      await window.markupr.session?.stop().catch((error) => {
         console.error('[ScreenRecordingRenderer] Failed to stop session after capture failure:', error);
       });
+    })().finally(() => {
+      this.fatalStopInProgress = false;
     });
   }
 }

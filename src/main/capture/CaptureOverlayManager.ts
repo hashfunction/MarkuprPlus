@@ -479,6 +479,11 @@ export class CaptureOverlayManager {
         return { success: false, error: 'Drawing is unavailable while recording is paused.' };
       }
     } else {
+      if (this.inputMode === 'fallback') {
+        const finalized = this.finalizePendingIssue(this.now());
+        if (!finalized) this.applyAnnotationMode('interact');
+        return { success: true };
+      }
       const recordedAt = this.now();
       this.finishActiveStroke(null, recordedAt);
       this.applyAnnotationMode('interact');
@@ -604,12 +609,15 @@ export class CaptureOverlayManager {
   }
 
   private emitAnnotationState(error?: string): void {
+    const issueSnapshot = this.annotation ? this.issueAccumulator?.snapshot() : undefined;
     const payload: AnnotationStatePayload = {
       active: Boolean(this.annotation),
       mode: this.annotation ? this.annotationMode : 'interact',
       ...(this.annotation ? {
         inputMode: this.inputMode,
         modifierKey: this.modifierKey(),
+        pendingMarkedIssue: Boolean(issueSnapshot?.active),
+        markedIssueCount: issueSnapshot?.issues.length ?? 0,
       } : {}),
       ...(error ? { error } : {}),
     };
@@ -819,6 +827,7 @@ export class CaptureOverlayManager {
   private emitAccumulatorSnapshot(): void {
     if (!this.issueAccumulator) return;
     this.dependencies.onMarkedIssueAccumulatorChanged?.(this.issueAccumulator.snapshot());
+    this.emitAnnotationState();
   }
 }
 

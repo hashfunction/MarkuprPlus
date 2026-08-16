@@ -11,7 +11,10 @@ interface ExposedApi {
   capture: {
     selectTarget(): Promise<CaptureTarget | null>;
     beginAnnotation(sessionId: string, target: CaptureTarget): Promise<{ success: boolean }>;
-    endAnnotation(): Promise<{ success: boolean }>;
+    endAnnotation(finalizePendingIssue?: boolean): Promise<{
+      success: boolean;
+      snapshotRevision?: number;
+    }>;
     setAnnotationMode(mode: 'interact' | 'draw'): Promise<{ success: boolean }>;
     onAnnotationEvent(callback: (event: AnnotationEvent) => void): () => void;
     stageMarkedIssueCandidate(payload: MarkedIssueCandidatePayload): Promise<{ success: boolean }>;
@@ -57,12 +60,14 @@ describe('capture overlay preload bridge', () => {
     await api.capture.beginAnnotation('session-1', target);
     await api.capture.setAnnotationMode('draw');
     await api.capture.endAnnotation();
+    await api.capture.endAnnotation(true);
 
     expect(ipcRenderer.invoke.mock.calls).toEqual([
       ['markupr:capture:select-target'],
       ['markupr:capture:annotation-begin', 'session-1', target],
       ['markupr:capture:annotation-set-mode', 'draw'],
       ['markupr:capture:annotation-end'],
+      ['markupr:capture:annotation-end', true],
     ]);
   });
 

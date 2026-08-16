@@ -644,9 +644,9 @@ const ScreenRecordingStep: React.FC<{
 
       {/* Explanation */}
       <p style={styles.stepDescription}>
-        markupR captures screenshots when you pause while speaking, automatically
-        documenting what you&apos;re looking at. Grant screen recording permission to enable
-        this feature.
+        MarkuprX records the selected screen or window and saves each marked area with
+        the narration that explains it. Grant Screen Recording permission to enable video,
+        screenshots, and live markup.
       </p>
 
       {/* macOS System Preferences Instructions */}
@@ -957,6 +957,10 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { colors } = useTheme();
+  const isMac = typeof navigator !== 'undefined'
+    && navigator.platform.toUpperCase().includes('MAC');
+  const recordShortcut = isMac ? '⌘⇧F' : 'Ctrl+Shift+F';
+  const annotationModifier = isMac ? 'Command (⌘)' : 'Control (Ctrl)';
 
   useEffect(() => {
     // Trigger animations after mount
@@ -1014,10 +1018,11 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
         {/* Summary */}
         <p style={styles.stepDescription}>
-          markupR is ready to capture your feedback. Press{' '}
-          <kbd style={styles.kbd}>Cmd+Shift+F</kbd> to start recording, and speak
-          naturally as you walk through your feedback. Mark shots as needed, then stop
-          to let AI assemble transcript + frames into a clean report.
+          MarkuprX is ready. Press <kbd style={styles.kbd}>{recordShortcut}</kbd> to start,
+          then speak naturally. Hold <kbd style={styles.kbd}>{annotationModifier}</kbd> and
+          drag to mark the current screen. Release the key, then click normally to save and
+          clear that issue while the click still reaches the app underneath. Repeat for as
+          many separate issues as you need.
         </p>
 
         {/* Feature Summary */}
@@ -1042,7 +1047,7 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 strokeLinecap="round"
               />
             </svg>
-            <span>Manual shot markers confirmed instantly</span>
+            <span>Each marked screen is saved as a separate issue</span>
           </div>
           <div style={styles.featureItem}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -1053,7 +1058,7 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 strokeLinecap="round"
               />
             </svg>
-            <span>AI assembles transcript + frames after stop</span>
+            <span>Each issue keeps its matching narration and screenshot</span>
           </div>
         </div>
 

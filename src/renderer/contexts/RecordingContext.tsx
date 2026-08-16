@@ -17,6 +17,7 @@ import type {
 import { getScreenRecordingRenderer } from '../capture/ScreenRecordingRenderer';
 import { cleanupFailedRecordingStart } from '../capture/recordingFailureCleanup';
 import { disableAnnotationDrawing } from '../capture/annotationPauseSafety';
+import { stopRecordingWithMarkedIssue } from '../capture/recordingStopSequencing';
 import { useCrashRecovery } from '../components';
 import { getOutputReadyStatus } from './outputReadyState';
 
@@ -55,6 +56,10 @@ export interface RecordingContextValue {
   isMutating: boolean;
   annotationActive: boolean;
   annotationMode: AnnotationMode;
+  annotationInputMode: 'modifier' | 'fallback' | null;
+  annotationModifierKey: 'Command' | 'Control' | null;
+  pendingMarkedIssue: boolean;
+  markedIssueCount: number;
 
   // Audio
   audioLevel: number;
@@ -155,6 +160,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isMutating, setIsMutating] = useState(false);
   const [annotationActive, setAnnotationActive] = useState(false);
   const [annotationMode, setAnnotationMode] = useState<AnnotationMode>('interact');
+  const [annotationInputMode, setAnnotationInputMode] = useState<'modifier' | 'fallback' | null>(null);
+  const [annotationModifierKey, setAnnotationModifierKey] = useState<'Command' | 'Control' | null>(null);
+  const [pendingMarkedIssue, setPendingMarkedIssue] = useState(false);
+  const [markedIssueCount, setMarkedIssueCount] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [lastCapture, setLastCapture] = useState<LastCapture | null>(null);
@@ -254,25 +263,36 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const syncScreenRecording = useCallback(
     async (nextState: SessionState, session: SessionPayload | null, paused: boolean) => {
       const recorder = screenRecorderRef.current;
+      const stopRecorderForTransition = async (finalizePendingIssue: boolean) => {
+        await stopRecordingWithMarkedIssue({
+          annotationActive: Boolean(annotationSessionIdRef.current),
+          finalizePendingIssue,
+          endAnnotation: (shouldFinalize) =>
+            window.markupr.capture.endAnnotation(shouldFinalize),
+          waitForMarkedSnapshot: (revision) => recorder.waitForMarkedSnapshot(revision),
+          stopRecorder: async () => {
+            if (!recorder.isRecording() && !recorder.getSessionId()) return { success: true };
+            return recorder.stop();
+          },
+          releaseCaptureTracks: () => recorder.releaseCaptureTracks(),
+        });
+        annotationSessionIdRef.current = null;
+        recorder.forceReleaseOrphanedCapture();
+      };
 
       if (nextState === 'recording') {
         if (stopRequestedRef.current) {
-          recorder.releaseCaptureTracks();
-          if (recorder.isRecording() || recorder.getSessionId()) {
-            await recorder.stop().catch((error) => {
-              console.warn('[RecordingContext] Forced recorder stop during stop-request guard failed:', error);
-            });
-          }
+          await stopRecorderForTransition(true).catch((error) => {
+            console.warn('[RecordingContext] Forced recorder stop during stop-request guard failed:', error);
+          });
           return;
         }
 
         const latestStatus = await window.markupr.session.getStatus().catch(() => null);
         if (latestStatus && latestStatus.state !== 'recording') {
-          if (recorder.isRecording() || recorder.getSessionId()) {
-            await recorder.stop().catch((error) => {
-              console.warn('[RecordingContext] Forced recorder stop during stale recording status guard failed:', error);
-            });
-          }
+          await stopRecorderForTransition(true).catch((error) => {
+            console.warn('[RecordingContext] Forced recorder stop during stale recording status guard failed:', error);
+          });
           return;
         }
 
@@ -337,17 +357,9 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
 
-      if (annotationSessionIdRef.current) {
-        await window.markupr.capture.endAnnotation().catch(() => ({ success: false }));
-        annotationSessionIdRef.current = null;
-      }
-      recorder.releaseCaptureTracks();
-      if (recorder.isRecording() || recorder.getSessionId()) {
-        await recorder.stop().catch((error) => {
-          console.warn('[RecordingContext] Failed to stop continuous screen recording:', error);
-        });
-      }
-      recorder.forceReleaseOrphanedCapture();
+      await stopRecorderForTransition(stopRequestedRef.current).catch((error) => {
+        console.warn('[RecordingContext] Failed to stop continuous screen recording:', error);
+      });
     },
     []
   );
@@ -531,6 +543,16 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => window.markupr.capture.onAnnotationState((annotationState) => {
     setAnnotationActive(annotationState.active);
     setAnnotationMode(annotationState.mode);
+    if (annotationState.active) {
+      setAnnotationInputMode(annotationState.inputMode ?? null);
+      setAnnotationModifierKey(annotationState.modifierKey ?? null);
+      setPendingMarkedIssue(annotationState.pendingMarkedIssue ?? false);
+      setMarkedIssueCount(annotationState.markedIssueCount ?? 0);
+    } else {
+      setAnnotationInputMode(null);
+      setAnnotationModifierKey(null);
+      setPendingMarkedIssue(false);
+    }
     if (annotationState.error) setErrorMessage((previous) => previous || annotationState.error || null);
   }), []);
 
@@ -566,6 +588,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsMutating(true);
     try {
       setScreenshotCount(0);
+      setMarkedIssueCount(0);
+      setPendingMarkedIssue(false);
       setLastCapture(null);
       setRecordingPath(null);
       setAudioPath(null);
@@ -603,9 +627,6 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsMutating(true);
     try {
       stopRequestedRef.current = true;
-
-      const recorder = screenRecorderRef.current;
-      recorder.releaseCaptureTracks();
 
       try {
         await queueScreenRecordingSync('idle', null, false);
@@ -754,6 +775,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isMutating,
     annotationActive,
     annotationMode,
+    annotationInputMode,
+    annotationModifierKey,
+    pendingMarkedIssue,
+    markedIssueCount,
     audioLevel,
     isVoiceActive,
     lastCapture,
@@ -795,6 +820,10 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isMutating,
     annotationActive,
     annotationMode,
+    annotationInputMode,
+    annotationModifierKey,
+    pendingMarkedIssue,
+    markedIssueCount,
     audioLevel,
     isVoiceActive,
     lastCapture,

@@ -210,9 +210,18 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
     },
   );
 
-  ipcMain.handle(IPC_CHANNELS.CAPTURE_ANNOTATION_END, () => {
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_ANNOTATION_END, (_, finalizePendingIssue?: unknown) => {
+    if (finalizePendingIssue !== undefined && typeof finalizePendingIssue !== 'boolean') {
+      return { success: false, error: 'Invalid annotation finalization request.' };
+    }
+    const issue = finalizePendingIssue === true
+      ? captureOverlayManager.finalizePendingIssue()
+      : null;
     captureOverlayManager.endAnnotation();
-    return { success: true };
+    return {
+      success: true,
+      ...(issue ? { snapshotRevision: issue.snapshotRevision } : {}),
+    };
   });
 
   ipcMain.handle(IPC_CHANNELS.CAPTURE_ANNOTATION_SET_MODE, (_, mode: unknown) => {

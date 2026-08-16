@@ -195,8 +195,14 @@ const markuprApi = {
       return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_BEGIN, sessionId, target);
     },
 
-    endAnnotation: (): Promise<{ success: boolean }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_END);
+    endAnnotation: (finalizePendingIssue = false): Promise<{
+      success: boolean;
+      snapshotRevision?: number;
+      error?: string;
+    }> => {
+      return finalizePendingIssue
+        ? ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_END, true)
+        : ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ANNOTATION_END);
     },
 
     setAnnotationMode: (

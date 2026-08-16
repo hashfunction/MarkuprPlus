@@ -7,6 +7,7 @@ import {
   registerCaptureHandlers,
 } from '../../src/main/ipc/captureHandlers';
 import { sessionController } from '../../src/main/SessionController';
+import { captureOverlayManager } from '../../src/main/capture/CaptureOverlayManager';
 
 const SESSION_ID = '123e4567-e89b-42d3-a456-426614174000';
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
@@ -95,5 +96,31 @@ describe('marked issue capture IPC', () => {
       revision: 1,
       bytes: PNG,
     })).resolves.toEqual({ success: false, error: 'disk full' });
+  });
+
+  it('returns the final snapshot revision before ending the overlay on stop', () => {
+    const finalized = vi.spyOn(captureOverlayManager, 'finalizePendingIssue')
+      .mockReturnValue({
+        id: 'marked-issue-003',
+        ordinal: 3,
+        startedAt: 1_000,
+        markedAt: 1_100,
+        completedAt: 1_200,
+        strokeIds: ['stroke-3'],
+        tools: ['circle'],
+        colors: ['#ff3b30'],
+        fallbackVideoTimestamp: 1.1,
+        transcriptionStatus: 'pending',
+        snapshotRevision: 7,
+        transcriptSegmentIds: [],
+      });
+    const ended = vi.spyOn(captureOverlayManager, 'endAnnotation')
+      .mockImplementation(() => undefined);
+    const handler = registeredHandler(IPC_CHANNELS.CAPTURE_ANNOTATION_END);
+
+    expect(handler({}, true)).toEqual({ success: true, snapshotRevision: 7 });
+    expect(finalized).toHaveBeenCalledOnce();
+    expect(ended).toHaveBeenCalledOnce();
+    expect(finalized.mock.invocationCallOrder[0]).toBeLessThan(ended.mock.invocationCallOrder[0]);
   });
 });
