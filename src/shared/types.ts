@@ -320,7 +320,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // Appearance
   theme: 'system',
-  accentColor: '#3B82F6',
+  accentColor: '#3b82f6',
 
   // Audio
   audioDeviceId: null,

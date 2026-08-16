@@ -31,7 +31,21 @@ async function launchApplication(
     args: [applicationRoot, `--user-data-dir=${harness.userDataDir}`],
     env: harness.env,
   });
-  return { application, mainWindow: await application.firstWindow() };
+  const record = (source: string, value: unknown) => {
+    harness.logs.push(`[${source}] ${String(value).trimEnd()}`);
+    if (harness.logs.length > 1_000) harness.logs.shift();
+  };
+  const process = application.process();
+  process.stdout?.on('data', (chunk) => record('main:stdout', chunk));
+  process.stderr?.on('data', (chunk) => record('main:stderr', chunk));
+  const wireRendererLogs = (page: Page) => {
+    page.on('console', (message) => record(`renderer:${message.type()}`, message.text()));
+    page.on('pageerror', (error) => record('renderer:pageerror', error.stack || error.message));
+  };
+  application.on('window', wireRendererLogs);
+  const mainWindow = await application.firstWindow();
+  wireRendererLogs(mainWindow);
+  return { application, mainWindow };
 }
 
 async function selectDeterministicWindow(
@@ -47,7 +61,11 @@ async function selectDeterministicWindow(
     .toHaveAttribute('aria-pressed', 'true');
 
   const annotationPromise = application.waitForEvent('window');
-  await selector.mouse.click(120, 120);
+  await selector.mouse.click(120, 120).catch((error) => {
+    // A successful selection intentionally destroys this window. Depending on
+    // scheduling, Playwright can observe that before its synthetic mouseup.
+    if (!selector.isClosed()) throw error;
+  });
   const annotation = await annotationPromise;
   await expect(annotation.getByRole('main', { name: 'Live recording annotation layer' }))
     .toBeVisible();
@@ -212,6 +230,12 @@ test.describe('MarkuprX desktop application', () => {
 
   test.afterEach(async ({}, testInfo) => {
     if (testInfo.status !== testInfo.expectedStatus) {
+      if (harness.logs.length > 0) {
+        await testInfo.attach('electron.log', {
+          body: Buffer.from(`${harness.logs.join('\n')}\n`),
+          contentType: 'text/plain',
+        });
+      }
       const sessionEntries = await readdir(harness.outputRoot, { withFileTypes: true })
         .catch(() => []);
       const diagnosticFiles = [
@@ -309,6 +333,68 @@ test.describe('MarkuprX desktop application', () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true');
       expect(await seriousAccessibilityViolations(window)).toEqual([]);
     }
+  });
+
+  test('applies custom appearance settings immediately and restores them from app settings', async () => {
+    let launched = await launchApplication(harness);
+    application = launched.application;
+    let window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await window.getByLabel('Theme Mode').selectOption('dark');
+    await expect.poll(() => window.evaluate(() =>
+      document.documentElement.getAttribute('data-theme'))).toBe('dark');
+
+    const customAccent = '#123456';
+    await window.getByLabel('Choose a custom accent color').evaluate((element, value) => {
+      const input = element as HTMLInputElement;
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set;
+      nativeSetter?.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, customAccent);
+    await expect.poll(() => window.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--accent-default').trim(),
+    )).toBe(customAccent);
+    await expect.poll(() => window.evaluate(async () => ({
+      theme: await window.markuprx.settings.get('theme'),
+      accentColor: await window.markuprx.settings.get('accentColor'),
+    }))).toEqual({ theme: 'dark', accentColor: customAccent });
+
+    // Prove the canonical Electron settings store restores appearance instead of
+    // accidentally relying on ThemeProvider's localStorage cache.
+    await window.evaluate(() => localStorage.clear());
+    await application.close();
+    application = null;
+
+    launched = await launchApplication(harness);
+    application = launched.application;
+    window = launched.mainWindow;
+    await expect.poll(() => window.evaluate(() => ({
+      theme: document.documentElement.getAttribute('data-theme'),
+      accent: getComputedStyle(document.documentElement)
+        .getPropertyValue('--accent-default')
+        .trim(),
+    }))).toEqual({ theme: 'dark', accent: customAccent });
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await window.getByTitle('Reset section to defaults').click();
+    await expect.poll(() => window.evaluate(async () => ({
+      theme: await window.markuprx.settings.get('theme'),
+      accentColor: await window.markuprx.settings.get('accentColor'),
+      appliedAccent: getComputedStyle(document.documentElement)
+        .getPropertyValue('--accent-default')
+        .trim(),
+    }))).toEqual({
+      theme: 'system',
+      accentColor: '#3b82f6',
+      appliedAccent: '#3b82f6',
+    });
   });
 
   test('selects the deterministic window and enters the annotation-ready recording HUD', async () => {

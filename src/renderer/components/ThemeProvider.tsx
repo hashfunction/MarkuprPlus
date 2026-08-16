@@ -42,7 +42,7 @@ export interface ThemeProviderProps {
   /** Initial theme mode (default: 'dark') */
   defaultMode?: ThemeMode;
   /** Initial accent color (default: 'blue') */
-  defaultAccentColor?: AccentColorKey;
+  defaultAccentColor?: string;
   /** Custom storage key prefix */
   storageKeyPrefix?: string;
   /** Disable persistence to localStorage */
@@ -71,12 +71,12 @@ export function ThemeProvider({
     return (stored as ThemeMode) || defaultMode;
   });
 
-  const [accentColor, setAccentColorState] = useState<AccentColorKey>(() => {
+  const [accentColor, setAccentColorState] = useState<string>(() => {
     if (disablePersistence || typeof localStorage === 'undefined') {
       return defaultAccentColor;
     }
     const stored = localStorage.getItem(THEME_STORAGE_KEYS.accent);
-    return (stored as AccentColorKey) || defaultAccentColor;
+    return stored || defaultAccentColor;
   });
 
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
@@ -160,7 +160,7 @@ export function ThemeProvider({
   );
 
   const setAccentColor = useCallback(
-    (newColor: AccentColorKey) => {
+    (newColor: string) => {
       setAccentColorState(newColor);
       if (!disablePersistence && typeof localStorage !== 'undefined') {
         localStorage.setItem(THEME_STORAGE_KEYS.accent, newColor);
@@ -174,6 +174,39 @@ export function ThemeProvider({
       mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark';
     setMode(nextMode);
   }, [mode, setMode]);
+
+  // Electron settings are the canonical appearance store. localStorage remains
+  // a fast startup cache, while this sync covers app restarts, imports, and resets.
+  useEffect(() => {
+    let active = true;
+    const syncFromSettings = async () => {
+      try {
+        const settings = await window.markuprx?.settings?.getAll();
+        if (!active || !settings) return;
+        if (settings.theme === 'dark' || settings.theme === 'light' || settings.theme === 'system') {
+          setMode(settings.theme);
+        }
+        if (typeof settings.accentColor === 'string') {
+          setAccentColor(settings.accentColor);
+        }
+      } catch (error) {
+        console.warn('[ThemeProvider] Failed to load appearance settings:', error);
+      }
+    };
+    const handleSettingsUpdate = (event: Event) => {
+      const updateType = (event as CustomEvent<{ type?: string }>).detail?.type;
+      if (updateType === 'appearance' || updateType === 'import' || updateType === 'reset') {
+        void syncFromSettings();
+      }
+    };
+
+    void syncFromSettings();
+    window.addEventListener('markuprx:settings-updated', handleSettingsUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener('markuprx:settings-updated', handleSettingsUpdate);
+    };
+  }, [setMode, setAccentColor]);
 
   // ---------------------------------------------------------------------------
   // Utilities

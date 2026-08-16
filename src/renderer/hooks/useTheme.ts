@@ -9,7 +9,7 @@ import { useContext, createContext, useMemo } from 'react';
 import {
   ThemeColors,
   ThemeMode,
-  AccentColorKey,
+  AccentColor,
   accentColors,
   darkTheme,
   lightTheme,
@@ -29,13 +29,13 @@ import {
 export interface ThemeContextValue {
   // Current state
   mode: ThemeMode;
-  accentColor: AccentColorKey;
+  accentColor: string;
   isDark: boolean;
   colors: ThemeColors;
 
   // Setters
   setMode: (mode: ThemeMode) => void;
-  setAccentColor: (color: AccentColorKey) => void;
+  setAccentColor: (color: string) => void;
   toggleMode: () => void;
 
   // Design tokens (static)
@@ -104,8 +104,8 @@ export function useAccentColor() {
   const { accentColor } = useTheme();
   return useMemo(
     () => ({
-      key: accentColor,
-      ...accentColors[accentColor],
+      value: accentColor,
+      ...resolveAccentColor(accentColor),
     }),
     [accentColor]
   );
@@ -157,8 +157,31 @@ export function useThemeStyles<T extends Record<string, unknown>>(
 
 export interface ThemeBuilderOptions {
   mode: ThemeMode;
-  accentColor: AccentColorKey;
+  accentColor: string;
   systemPrefersDark: boolean;
+}
+
+/** Resolve a preset key, preset hex value, or arbitrary six-digit custom hex. */
+export function resolveAccentColor(value: string): AccentColor {
+  const candidate = value.trim();
+  if (candidate in accentColors) {
+    return accentColors[candidate as keyof typeof accentColors];
+  }
+
+  const matchingPreset = Object.values(accentColors).find(
+    (accent) => accent.default.toLowerCase() === candidate.toLowerCase(),
+  );
+  if (matchingPreset) return matchingPreset;
+
+  const custom = /^#[\da-f]{6}$/i.test(candidate)
+    ? candidate.toLowerCase()
+    : accentColors.blue.default;
+  return {
+    default: custom,
+    hover: adjustBrightness(custom, -12),
+    active: adjustBrightness(custom, -22),
+    name: custom === accentColors.blue.default ? accentColors.blue.name : 'Custom',
+  };
 }
 
 /**
@@ -175,7 +198,7 @@ export function buildTheme(options: ThemeBuilderOptions) {
   const baseColors = isDark ? darkTheme : lightTheme;
 
   // Get accent color values
-  const accent = accentColors[accentColor];
+  const accent = resolveAccentColor(accentColor);
 
   // Merge accent into theme colors
   const colors: ThemeColors = {

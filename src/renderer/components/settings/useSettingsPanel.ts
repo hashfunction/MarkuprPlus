@@ -162,6 +162,11 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setHasChanges(true);
       try {
         await window.markuprx.settings.set(key, value);
+        if (key === 'theme' || key === 'accentColor') {
+          window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+            detail: { type: 'appearance' },
+          }));
+        }
         if (key === 'analysisProvider' || key === 'analysisModelsByProvider') {
           await refreshAnalysisProviders(true);
           window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
@@ -386,6 +391,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     for (const [key, value] of Object.entries(defaults)) {
       await window.markuprx.settings.set(key as keyof AppSettings, value);
     }
+    window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+      detail: { type: 'appearance' },
+    }));
   }, []);
 
   const resetHotkeysSection = useCallback(async () => {
@@ -441,6 +449,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       const imported = await window.markuprx.settings.import();
       if (imported) {
         setSettings({ ...DEFAULT_SETTINGS, ...imported });
+        window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+          detail: { type: 'import' },
+        }));
       }
     } catch (error) {
       console.error('Failed to import settings:', error);

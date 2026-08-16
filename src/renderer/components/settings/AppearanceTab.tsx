@@ -1,8 +1,7 @@
 import React from 'react';
 import type { AppSettings } from '../../../shared/types';
-// useTheme available for future theme-aware styling
 import { darkTheme, lightTheme } from '../../styles/theme';
-import { getContrastColor } from '../../hooks/useTheme';
+import { getContrastColor, useTheme } from '../../hooks/useTheme';
 import { SettingsSection, DropdownSetting, ColorPicker } from '../primitives';
 import { styles } from './settingsStyles';
 
@@ -11,7 +10,10 @@ export const AppearanceTab: React.FC<{
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onResetSection: () => void;
 }> = ({ settings, onSettingChange, onResetSection }) => {
-  const previewColors = settings.theme === 'light' ? lightTheme : darkTheme;
+  const { isDark } = useTheme();
+  const previewColors = settings.theme === 'system'
+    ? (isDark ? darkTheme : lightTheme)
+    : settings.theme === 'light' ? lightTheme : darkTheme;
   return (
   <div style={styles.tabContent}>
     <SettingsSection

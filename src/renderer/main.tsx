@@ -50,7 +50,7 @@ root.render(
         <CaptureOverlayApp />
       </ErrorBoundary>
     ) : (
-      <ThemeProvider defaultMode="light" defaultAccentColor="blue">
+      <ThemeProvider defaultMode="system" defaultAccentColor="#3b82f6">
         <ErrorBoundary
           onError={(error, errorInfo) => {
             console.error('[App ErrorBoundary]', error, errorInfo);

@@ -24,7 +24,8 @@ export const ColorPicker: React.FC<{
   const [customColor, setCustomColor] = useState(value);
   const { colors } = useTheme();
 
-  const isPreset = ACCENT_COLORS.some((c) => c.value === value);
+  const normalizedValue = value.toLowerCase();
+  const isPreset = ACCENT_COLORS.some((c) => c.value.toLowerCase() === normalizedValue);
 
   return (
     <div style={styles.settingRowVertical}>
@@ -39,7 +40,7 @@ export const ColorPicker: React.FC<{
             style={{
               ...styles.colorSwatch,
               backgroundColor: color.value,
-              boxShadow: value === color.value ? `0 0 0 2px ${colors.bg.primary}, 0 0 0 4px ${color.value}` : 'none',
+              boxShadow: normalizedValue === color.value.toLowerCase() ? `0 0 0 2px ${colors.bg.primary}, 0 0 0 4px ${color.value}` : 'none',
             }}
             onClick={() => onChange(color.value)}
             title={color.name}

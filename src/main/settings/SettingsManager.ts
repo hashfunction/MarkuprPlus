@@ -124,7 +124,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
   // Appearance
   theme: 'system',
-  accentColor: '#3B82F6', // Blue-500
+  accentColor: '#3b82f6', // Blue-500
 
   // Audio
   audioDeviceId: null,
