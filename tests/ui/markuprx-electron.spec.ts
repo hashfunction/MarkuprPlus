@@ -531,6 +531,8 @@ test.describe('MarkuprX desktop application', () => {
     });
 
     await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 45_000 });
     await expect.poll(async () => {
       const entries = await readdir(harness.outputRoot, { withFileTypes: true });
       return entries.filter((entry) => entry.isDirectory()).length;
