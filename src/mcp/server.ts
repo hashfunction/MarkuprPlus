@@ -1,7 +1,7 @@
 /**
  * MCP Server Factory
  *
- * Creates and configures the markupR MCP server with all tool and resource
+ * Creates and configures the MarkuprX MCP server with all tool and resource
  * registrations wired in.
  */
 
@@ -22,13 +22,13 @@ import { register as registerDescribeScreen } from './tools/describeScreen.js';
 import { registerResources } from './resources/sessionResource.js';
 
 // Read version from package.json at build time (injected by esbuild)
-declare const __MARKUPR_VERSION__: string;
+declare const __MARKUPRX_VERSION__: string;
 const VERSION =
-  typeof __MARKUPR_VERSION__ !== 'undefined' ? __MARKUPR_VERSION__ : '0.0.0-dev';
+  typeof __MARKUPRX_VERSION__ !== 'undefined' ? __MARKUPRX_VERSION__ : '0.0.0-dev';
 
 export function createServer(): McpServer {
   const server = new McpServer({
-    name: 'markupR',
+    name: 'MarkuprX',
     version: VERSION,
   });
 

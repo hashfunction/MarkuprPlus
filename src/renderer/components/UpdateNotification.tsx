@@ -1,5 +1,5 @@
 /**
- * markupR - Update Notification Component
+ * MarkuprX - Update Notification Component
  *
  * Uses explicit inline styles so update UI remains readable even without utility CSS.
  * This prevents malformed giant-error layouts in packaged builds.
@@ -112,7 +112,7 @@ export function UpdateNotification(): React.ReactElement | null {
 
     const init = async (): Promise<void> => {
       try {
-        const checkForUpdates = await window.markupr.settings.get('checkForUpdates');
+        const checkForUpdates = await window.markuprx.settings.get('checkForUpdates');
         if (!checkForUpdates || !isMounted) {
           setIsDismissed(true);
           return;
@@ -122,7 +122,7 @@ export function UpdateNotification(): React.ReactElement | null {
       }
 
       try {
-        const current = await window.markupr.updates.getStatus();
+        const current = await window.markuprx.updates.getStatus();
         if (!isMounted) return;
 
         if (!current.updaterAvailable) {
@@ -140,7 +140,7 @@ export function UpdateNotification(): React.ReactElement | null {
         // Non-fatal: continue with live events only.
       }
 
-      unsubscribe = window.markupr.updates.onStatus((status: UpdateStatusPayload) => {
+      unsubscribe = window.markuprx.updates.onStatus((status: UpdateStatusPayload) => {
         if (status.status === 'error' && typeof status.message === 'string') {
           if (isLocalBuildMetadataError(status.message) || isTransientNetworkError(status.message)) {
             setUpdate({ status: 'not-available' });
@@ -173,11 +173,11 @@ export function UpdateNotification(): React.ReactElement | null {
   }, []);
 
   const handleDownload = useCallback(() => {
-    window.markupr.updates.download();
+    window.markuprx.updates.download();
   }, []);
 
   const handleInstall = useCallback(() => {
-    window.markupr.updates.install();
+    window.markuprx.updates.install();
   }, []);
 
   const handleDismiss = useCallback(() => {
@@ -316,7 +316,7 @@ export function UpdateNotification(): React.ReactElement | null {
             </div>
           </div>
           <p style={{ fontSize: 13, color: 'rgba(239, 244, 255, 0.92)', marginBottom: 12 }}>
-            Restart markupR to apply the update. Your work will be saved.
+            Restart MarkuprX to apply the update. Your work will be saved.
           </p>
           <button onClick={handleInstall} style={{ ...primaryButtonStyle, background: '#ffffff', color: '#047857' }}>
             Restart Now
@@ -338,7 +338,7 @@ export function UpdateNotification(): React.ReactElement | null {
             </div>
           </div>
           <div style={actionsRowStyle}>
-            <button onClick={() => void window.markupr.updates.check()} style={primaryButtonStyle}>
+            <button onClick={() => void window.markuprx.updates.check()} style={primaryButtonStyle}>
               Try Again
             </button>
             <button onClick={handleDismiss} style={secondaryButtonStyle}>

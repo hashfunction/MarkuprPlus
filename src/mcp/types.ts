@@ -1,5 +1,5 @@
 /**
- * MCP-specific types for the markupR MCP server.
+ * MCP-specific types for the MarkuprX MCP server.
  */
 
 /** Represents a single MCP recording/capture session. */

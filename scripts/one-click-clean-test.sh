@@ -23,10 +23,10 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> Stopping old markupr processes"
+echo "==> Stopping old markuprx processes"
 PATTERNS=(
-  "markupr.app/Contents/MacOS/markupr"
-  "markupr.app/Contents/MacOS/FeedbackFlow"
+  "markuprx.app/Contents/MacOS/markuprx"
+  "markuprx.app/Contents/MacOS/FeedbackFlow"
   "FeedbackFlow.app/Contents/MacOS/FeedbackFlow"
   "electron-vite dev"
   "dist/main/index.mjs"
@@ -49,28 +49,28 @@ sleep 1
 
 echo "==> Removing previous installed artifacts"
 TARGETS=(
-  "/Applications/markupr.app"
+  "/Applications/markuprx.app"
   "/Applications/FeedbackFlow.app"
-  "$HOME/Applications/markupr.app"
+  "$HOME/Applications/markuprx.app"
   "$HOME/Applications/FeedbackFlow.app"
-  "$HOME/Library/Preferences/com.eddiesanjuan.markupr.plist"
-  "$HOME/Library/Preferences/com.markupr.app.plist"
+  "$HOME/Library/Preferences/com.eddiesanjuan.markuprx.plist"
+  "$HOME/Library/Preferences/com.markuprx.app.plist"
   "$HOME/Library/Preferences/com.eddiesanjuan.feedbackflow.plist"
   "$HOME/Library/Preferences/com.feedbackflow.app.plist"
-  "$HOME/Library/Caches/com.eddiesanjuan.markupr"
-  "$HOME/Library/Caches/com.markupr.app"
+  "$HOME/Library/Caches/com.eddiesanjuan.markuprx"
+  "$HOME/Library/Caches/com.markuprx.app"
   "$HOME/Library/Caches/com.eddiesanjuan.feedbackflow"
   "$HOME/Library/Caches/com.feedbackflow.app"
-  "$HOME/Library/Saved Application State/com.eddiesanjuan.markupr.savedState"
+  "$HOME/Library/Saved Application State/com.eddiesanjuan.markuprx.savedState"
   "$HOME/Library/Saved Application State/com.eddiesanjuan.feedbackflow.savedState"
 )
 
 if [[ "$FULL_WIPE" -eq 1 ]]; then
   TARGETS+=(
     "$HOME/Library/Application Support/feedbackflow"
-    "$HOME/Library/Application Support/markupr"
+    "$HOME/Library/Application Support/markuprx"
     "$HOME/Library/Logs/feedbackflow"
-    "$HOME/Library/Logs/markupr"
+    "$HOME/Library/Logs/markuprx"
   )
 fi
 
@@ -90,14 +90,14 @@ fi
 
 if [[ "$DEV_MODE" -eq 1 ]]; then
   if [[ "$RUN_MODE" == "foreground" ]]; then
-    echo "==> Launching markupr (dev) in foreground"
+    echo "==> Launching markuprx (dev) in foreground"
     npm run dev
     exit 0
   fi
 
-  echo "==> Launching markupr (dev) in detached mode"
-  mkdir -p "$HOME/Library/Logs/markupr"
-  LOG_FILE="$HOME/Library/Logs/markupr/dev-run.log"
+  echo "==> Launching markuprx (dev) in detached mode"
+  mkdir -p "$HOME/Library/Logs/markuprx"
+  LOG_FILE="$HOME/Library/Logs/markuprx/dev-run.log"
   : > "$LOG_FILE"
 
   nohup npm run dev >"$LOG_FILE" 2>&1 &
@@ -120,8 +120,8 @@ npm run build
 npx electron-builder --mac --arm64 --dir --config electron-builder.yml
 
 APP_SRC=""
-if [[ -d "$ROOT_DIR/release/mac-arm64/markupr.app" ]]; then
-  APP_SRC="$ROOT_DIR/release/mac-arm64/markupr.app"
+if [[ -d "$ROOT_DIR/release/mac-arm64/markuprx.app" ]]; then
+  APP_SRC="$ROOT_DIR/release/mac-arm64/markuprx.app"
 elif [[ -d "$ROOT_DIR/release/mac-arm64" ]]; then
   APP_SRC="$(find "$ROOT_DIR/release/mac-arm64" -maxdepth 1 -type d -name '*.app' | head -n 1)"
 fi
@@ -135,7 +135,7 @@ if [[ -z "$APP_SRC" ]]; then
   exit 1
 fi
 
-APP_DEST="/Applications/markupr.app"
+APP_DEST="/Applications/markuprx.app"
 echo "==> Installing fresh app bundle"
 rm -rf "$APP_DEST"
 cp -R "$APP_SRC" "$APP_DEST"

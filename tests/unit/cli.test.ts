@@ -391,7 +391,7 @@ describe('CLIPipeline', () => {
       const pipeline = new CLIPipeline(makeOptions({ skipFrames: true }), noopLog);
       await pipeline.run();
 
-      expect(mockUnlink).toHaveBeenCalledWith('/tmp/markupr-cli-audio-test-uuid-1234.wav');
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/markuprx-cli-audio-test-uuid-1234.wav');
     });
 
     it('cleans up temp files even when pipeline fails', async () => {
@@ -420,7 +420,7 @@ describe('CLIPipeline', () => {
       const pipeline = new CLIPipeline(makeOptions({ skipFrames: true }), noopLog);
       await expect(pipeline.run()).rejects.toThrow();
 
-      expect(mockUnlink).toHaveBeenCalledWith('/tmp/markupr-cli-audio-test-uuid-1234.wav');
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/markuprx-cli-audio-test-uuid-1234.wav');
     });
 
     it('cleanup ignores errors from unlink', async () => {

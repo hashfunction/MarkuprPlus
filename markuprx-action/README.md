@@ -1,13 +1,13 @@
-# markupr GitHub Action
+# markuprx GitHub Action
 
-[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-markupr--action-orange?style=flat-square&logo=github)](https://github.com/marketplace/actions/markupr-analyze)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-markuprx--action-orange?style=flat-square&logo=github)](https://github.com/marketplace/actions/markuprx-analyze)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](../LICENSE)
 
 Analyze screen recordings in CI/CD and post structured visual feedback reports directly on pull requests.
 
 ## What it does
 
-1. Runs `markupr analyze` on your video recording(s)
+1. Runs `markuprx analyze` on your video recording(s)
 2. Posts the structured feedback report as a PR comment
 3. Optionally creates GitHub Issues for each feedback item
 4. Uploads the full report as a GitHub Actions artifact
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: eddiesanjuan/markupr-action@v1
+      - uses: eddiesanjuan/markuprx-action@v1
         with:
           video-path: ./recordings/session.mp4
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -38,7 +38,7 @@ jobs:
 ### Process a directory of recordings
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -47,7 +47,7 @@ jobs:
 ### Create GitHub Issues from feedback
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/session.mp4
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -57,7 +57,7 @@ jobs:
 ### Use a different output template
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/session.mp4
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -67,7 +67,7 @@ jobs:
 ### Skip PR comment, just upload artifact
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/session.mp4
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -77,7 +77,7 @@ jobs:
 ### Create issues in a different repo
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/session.mp4
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -88,14 +88,14 @@ jobs:
 ### Use the report path in subsequent steps
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
-  id: markupr
+- uses: eddiesanjuan/markuprx-action@v1
+  id: markuprx
   with:
     video-path: ./recordings/session.mp4
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
 - name: Do something with the report
-  run: cat "${{ steps.markupr.outputs.report-path }}"
+  run: cat "${{ steps.markuprx.outputs.report-path }}"
 ```
 
 ## Inputs
@@ -127,7 +127,7 @@ jobs:
 Video recording(s)
        |
        v
-  markupr analyze
+  markuprx analyze
   (transcribe → detect key moments → extract frames → generate report)
        |
        v
@@ -144,9 +144,9 @@ Video recording(s)
 
 ## Tips
 
-- **Recording in CI**: Use tools like `xvfb` + `ffmpeg` to record E2E test runs, then pipe them through markupr
+- **Recording in CI**: Use tools like `xvfb` + `ffmpeg` to record E2E test runs, then pipe them through markuprx
 - **Manual recordings**: Drop screen recordings into a `recordings/` directory and commit them (or use Git LFS)
-- **PR updates**: The action updates an existing markupr comment instead of creating duplicates on re-runs
+- **PR updates**: The action updates an existing markuprx comment instead of creating duplicates on re-runs
 
 ## Example Workflows
 

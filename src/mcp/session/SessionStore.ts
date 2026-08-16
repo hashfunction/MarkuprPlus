@@ -2,7 +2,7 @@
  * Session Store — Disk-persisted session lifecycle management.
  *
  * Storage layout:
- *   ~/Documents/markupr/mcp/
+ *   ~/Documents/markuprx/mcp/
  *     mcp-YYYYMMDD-HHMMSS/
  *       metadata.json   — McpSessionMetadata
  *       screenshots/     — captured frames
@@ -18,7 +18,7 @@ import * as os from 'os';
 import { log } from '../utils/Logger.js';
 import type { McpSession, McpSessionMetadata } from '../types.js';
 
-const BASE_DIR = path.join(os.homedir(), 'Documents', 'markupr', 'mcp');
+const BASE_DIR = path.join(os.homedir(), 'Documents', 'markuprx', 'mcp');
 
 export class SessionStore {
   private baseDir: string;

@@ -1,5 +1,5 @@
 /**
- * markupR - Preload Script
+ * MarkuprX - Preload Script
  *
  * Exposes a safe API to the renderer process via contextBridge.
  * This is the ONLY way the renderer can communicate with the main process.
@@ -70,10 +70,10 @@ function createEventSubscriber<T>(channel: string) {
 }
 
 // =============================================================================
-// markupR API (exposed on window.markupr for backward compatibility)
+// MarkuprX API (exposed only on the MarkuprX namespace)
 // =============================================================================
 
-const markuprApi = {
+const markuprxApi = {
   // ===========================================================================
   // Session API
   // ===========================================================================
@@ -1156,16 +1156,16 @@ const markuprApi = {
 // Expose API to Renderer
 // =============================================================================
 
-contextBridge.exposeInMainWorld('markupr', markuprApi);
+contextBridge.exposeInMainWorld('markuprx', markuprxApi);
 
 // =============================================================================
 // Type Exports
 // =============================================================================
 
-export type MarkuprAPI = typeof markuprApi;
+export type MarkuprXAPI = typeof markuprxApi;
 
 declare global {
   interface Window {
-    markupr: MarkuprAPI;
+    markuprx: MarkuprXAPI;
   }
 }

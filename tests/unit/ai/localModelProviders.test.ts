@@ -216,7 +216,7 @@ describe('LmStudioProvider', () => {
     expect(body.response_format).toEqual({
       type: 'json_schema',
       json_schema: {
-        name: 'markupr_analysis',
+        name: 'markuprx_analysis',
         strict: true,
         schema: ANALYSIS_JSON_SCHEMA,
       },

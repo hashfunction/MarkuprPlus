@@ -1,5 +1,5 @@
 /**
- * markupR Donate Button Messages
+ * MarkuprX Donate Button Messages
  *
  * Rotating messages for the donate/support button.
  * Messages rotate on each app launch, not during a session.
@@ -10,8 +10,8 @@
  */
 export const DONATE_MESSAGES = [
   'Buy Eddie a Coffee',
-  'Support markupR',
-  'Keep markupR Evolving',
+  'Support MarkuprX',
+  'Keep MarkuprX Evolving',
   'Help Fund New Features',
   'Sponsor Ongoing Development',
 ] as const;
@@ -26,7 +26,7 @@ export const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
 /**
  * Storage key for persisting the message index
  */
-export const DONATE_MESSAGE_INDEX_KEY = 'markupr:donate-message-index';
+export const DONATE_MESSAGE_INDEX_KEY = 'markuprx:donate-message-index';
 
 /**
  * Get the current donate message index from localStorage

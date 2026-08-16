@@ -1,6 +1,6 @@
-# Contributing to markupR
+# Contributing to MarkuprX
 
-Thank you for your interest in contributing to markupR! This document covers everything you need to get started.
+Thank you for your interest in contributing to MarkuprX! This document covers everything you need to get started.
 
 ## Table of Contents
 
@@ -45,13 +45,13 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/markupr.git
-   cd markupr
+   git clone https://github.com/YOUR_USERNAME/markuprx.git
+   cd markuprx
    ```
 
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/eddiesanjuan/markupr.git
+   git remote add upstream https://github.com/eddiesanjuan/markuprx.git
    ```
 
 4. **Install dependencies**:
@@ -277,11 +277,11 @@ export function SessionStatus({ state }: SessionStatusProps) {
 
 1. **Search existing issues** for duplicates
 2. **Try the latest version** -- the issue may already be fixed
-3. **Collect information**: OS, markupR version (visible in Settings footer), steps to reproduce, error messages or logs
+3. **Collect information**: OS, MarkuprX version (visible in Settings footer), steps to reproduce, error messages or logs
 
 ### Filing a Bug
 
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening a new issue. Include your OS, markupR version, and steps to reproduce.
+Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening a new issue. Include your OS, MarkuprX version, and steps to reproduce.
 
 ### Requesting a Feature
 
@@ -289,14 +289,14 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). D
 
 ## Finding Issues to Work On
 
-- Check [issues labeled "good first issue"](https://github.com/eddiesanjuan/markupr/labels/good%20first%20issue) for beginner-friendly tasks
-- Check [issues labeled "help wanted"](https://github.com/eddiesanjuan/markupr/labels/help%20wanted) for tasks where we need help
+- Check [issues labeled "good first issue"](https://github.com/eddiesanjuan/markuprx/labels/good%20first%20issue) for beginner-friendly tasks
+- Check [issues labeled "help wanted"](https://github.com/eddiesanjuan/markuprx/labels/help%20wanted) for tasks where we need help
 - For significant changes, open an issue first to discuss the approach
 
 ## Questions?
 
-- Open a [discussion](https://github.com/eddiesanjuan/markupr/discussions)
+- Open a [discussion](https://github.com/eddiesanjuan/markuprx/discussions)
 - Check the [documentation](docs/)
-- Review existing [issues](https://github.com/eddiesanjuan/markupr/issues)
+- Review existing [issues](https://github.com/eddiesanjuan/markuprx/issues)
 
-Thank you for contributing to markupR!
+Thank you for contributing to MarkuprX!

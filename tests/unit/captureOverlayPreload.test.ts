@@ -42,8 +42,8 @@ describe('capture overlay preload bridge', () => {
   beforeAll(async () => {
     vi.resetModules();
     await import('../../src/preload/index');
-    const exposure = vi.mocked(contextBridge.exposeInMainWorld).mock.calls.find(([name]) => name === 'markupr');
-    if (!exposure) throw new Error('markupr preload API was not exposed');
+    const exposure = vi.mocked(contextBridge.exposeInMainWorld).mock.calls.find(([name]) => name === 'markuprx');
+    if (!exposure) throw new Error('markuprx preload API was not exposed');
     api = exposure[1] as ExposedApi;
   });
 
@@ -63,11 +63,11 @@ describe('capture overlay preload bridge', () => {
     await api.capture.endAnnotation(true);
 
     expect(ipcRenderer.invoke.mock.calls).toEqual([
-      ['markupr:capture:select-target'],
-      ['markupr:capture:annotation-begin', 'session-1', target],
-      ['markupr:capture:annotation-set-mode', 'draw'],
-      ['markupr:capture:annotation-end'],
-      ['markupr:capture:annotation-end', true],
+      ['markuprx:capture:select-target'],
+      ['markuprx:capture:annotation-begin', 'session-1', target],
+      ['markuprx:capture:annotation-set-mode', 'draw'],
+      ['markuprx:capture:annotation-end'],
+      ['markuprx:capture:annotation-end', true],
     ]);
   });
 
@@ -81,10 +81,10 @@ describe('capture overlay preload bridge', () => {
     await api.captureOverlay.cancel();
 
     expect(ipcRenderer.invoke.mock.calls).toEqual([
-      ['markupr:capture-overlay:get-state'],
-      ['markupr:capture-overlay:confirm', target],
-      ['markupr:capture-overlay:annotation-event', event],
-      ['markupr:capture-overlay:cancel'],
+      ['markuprx:capture-overlay:get-state'],
+      ['markuprx:capture-overlay:confirm', target],
+      ['markuprx:capture-overlay:annotation-event', event],
+      ['markuprx:capture-overlay:cancel'],
     ]);
   });
 
@@ -92,7 +92,7 @@ describe('capture overlay preload bridge', () => {
     const callback = vi.fn();
     const unsubscribe = api.capture.onAnnotationEvent(callback);
     const registration = vi.mocked(ipcRenderer.on).mock.calls[0];
-    expect(registration[0]).toBe('markupr:capture:annotation-event');
+    expect(registration[0]).toBe('markuprx:capture:annotation-event');
 
     const payload: AnnotationEvent = { type: 'undo', sessionId: 'session-1' };
     (registration[1] as Function)({}, payload);
@@ -113,7 +113,7 @@ describe('capture overlay preload bridge', () => {
     await api.capture.stageMarkedIssueCandidate(payload);
 
     expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-      'markupr:capture:stage-marked-issue-candidate',
+      'markuprx:capture:stage-marked-issue-candidate',
       payload,
     );
   });

@@ -7,11 +7,11 @@ COMMAND="${1:-}"
 shift || true
 
 case "$COMMAND" in
-  markupr)
-    exec "$ROOT_DIR/scripts/setup-markupr.sh" "$@"
+  markuprx)
+    exec "$ROOT_DIR/scripts/setup-markuprx.sh" "$@"
     ;;
   *)
-    echo "Usage: ./setup markupr [--skip-install] [--skip-checks]"
+    echo "Usage: ./setup markuprx [--skip-install] [--skip-checks]"
     exit 1
     ;;
 esac

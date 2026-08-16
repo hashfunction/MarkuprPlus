@@ -32,7 +32,7 @@ export const HotkeysTab: React.FC<{
     <div style={styles.tabContent}>
       <SettingsSection
         title="Keyboard Shortcuts"
-        description="Customize global hotkeys for markupR"
+        description="Customize global hotkeys for MarkuprX"
         onReset={onResetSection}
       >
         <KeyRecorder

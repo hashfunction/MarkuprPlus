@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * build-mcp.mjs - Build the markupr MCP server bundle
+ * build-mcp.mjs - Build the markuprx MCP server bundle
  *
  * Uses esbuild to bundle src/mcp/index.ts into a single ESM file at
  * dist/mcp/index.mjs. Node built-ins and select npm packages are kept
@@ -19,7 +19,7 @@ const repoRoot = join(__dirname, '..');
 // Read version from package.json
 const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf-8'));
 
-console.log(`[build-mcp] Building markupr MCP server v${pkg.version}...`);
+console.log(`[build-mcp] Building markuprx MCP server v${pkg.version}...`);
 
 try {
   await build({
@@ -34,7 +34,7 @@ try {
 
     // Inject version at build time
     define: {
-      '__MARKUPR_VERSION__': JSON.stringify(pkg.version),
+      '__MARKUPRX_VERSION__': JSON.stringify(pkg.version),
     },
 
     // Keep all node_modules external. The MCP server relies on npm-installed

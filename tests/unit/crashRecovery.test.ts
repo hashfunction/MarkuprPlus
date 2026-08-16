@@ -480,8 +480,8 @@ describe('CrashRecovery', () => {
     it('should sanitize stack traces by removing file paths', () => {
       const stack = [
         'Error: Something broke',
-        '    at Function.run (/Users/eddie/Projects/markupr/src/main.ts:42)',
-        '    at Object.<anonymous> (/Users/eddie/Projects/markupr/test.ts:10)',
+        '    at Function.run (/Users/eddie/Projects/markuprx/src/main.ts:42)',
+        '    at Object.<anonymous> (/Users/eddie/Projects/markuprx/test.ts:10)',
       ].join('\n');
 
       const sanitized = manager.sanitizeStackTrace(stack);

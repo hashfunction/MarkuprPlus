@@ -34,7 +34,7 @@ export interface PermissionStatus {
  * non-empty PNG. An empty or missing file indicates permission is denied.
  */
 export async function checkScreenRecording(): Promise<PermissionStatus> {
-  const testPath = join(tmpdir(), `markupr-perm-test-${randomUUID()}.png`);
+  const testPath = join(tmpdir(), `markuprx-perm-test-${randomUUID()}.png`);
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -83,7 +83,7 @@ export async function checkScreenRecording(): Promise<PermissionStatus> {
  * Attempts a 0.1s audio recording with ffmpeg and checks for a valid output.
  */
 export async function checkMicrophone(): Promise<PermissionStatus> {
-  const testPath = join(tmpdir(), `markupr-mic-test-${randomUUID()}.wav`);
+  const testPath = join(tmpdir(), `markuprx-mic-test-${randomUUID()}.wav`);
 
   try {
     await new Promise<void>((resolve, reject) => {

@@ -13,11 +13,11 @@
 - This release implements Codex CLI only; no Claude Code, Gemini CLI, OpenCode, or Aider adapter.
 - Provider IDs are exactly `rules`, `anthropic`, and `codex`.
 - Existing users default to `anthropic`; Codex is opt-in.
-- Codex uses the user's existing authentication and markupR never reads or stores Codex tokens.
+- Codex uses the user's existing authentication and MarkuprX never reads or stores Codex tokens.
 - Codex execution is ephemeral, read-only, ignores user configuration and rules, and has a three-minute timeout.
 - Codex failure always preserves the rule-based report and never silently invokes Anthropic.
 - No transcription provider behavior changes.
-- The deployed artifact is an unsigned Apple Silicon app installed at `/Applications/markupR.app`.
+- The deployed artifact is an unsigned Apple Silicon app installed at `/Applications/MarkuprX.app`.
 
 ---
 
@@ -89,8 +89,8 @@ describe('analysis provider settings', () => {
   });
 
   it('defines narrow provider IPC channels', () => {
-    expect(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER).toBe('markupr:analysis-providers:discover');
-    expect(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST).toBe('markupr:analysis-provider:test');
+    expect(IPC_CHANNELS.ANALYSIS_PROVIDERS_DISCOVER).toBe('markuprx:analysis-providers:discover');
+    expect(IPC_CHANNELS.ANALYSIS_PROVIDER_TEST).toBe('markuprx:analysis-provider:test');
   });
 });
 ```
@@ -381,7 +381,7 @@ Update `ClaudeAnalyzer` to import the extracted functions without changing its b
 
 - [ ] **Step 4: Implement the minimal Codex adapter**
 
-Create a unique `mkdtemp(join(tmpdir(), 'markupr-codex-'))`, write `analysis-schema.json`, write each screenshot buffer to an indexed PNG, build the exact safe argument array, and pass the full prompt on stdin. Limit captured output to 1 MiB and timeout after `180_000` ms. Read a maximum 1 MiB final-message file, parse it with `parseAnalysisResult`, and always `rm(tempDir, { recursive: true, force: true })` in `finally`.
+Create a unique `mkdtemp(join(tmpdir(), 'markuprx-codex-'))`, write `analysis-schema.json`, write each screenshot buffer to an indexed PNG, build the exact safe argument array, and pass the full prompt on stdin. Limit captured output to 1 MiB and timeout after `180_000` ms. Read a maximum 1 MiB final-message file, parse it with `parseAnalysisResult`, and always `rm(tempDir, { recursive: true, force: true })` in `finally`.
 
 - [ ] **Step 5: Verify adapter GREEN and Claude regression**
 
@@ -478,15 +478,15 @@ git commit -m "feat: route analysis through selected provider"
 
 **Interfaces:**
 - Consumes: `CodexCliDiscovery.discover()` and the Task 1 IPC channels.
-- Produces: `window.markupr.analysisProviders.discover(forceRefresh?)` and `.test('codex')`.
+- Produces: `window.markuprx.analysisProviders.discover(forceRefresh?)` and `.test('codex')`.
 
 - [ ] **Step 1: Write failing IPC/preload tests**
 
 Assert that registration installs both handlers, rejects provider IDs other than `codex`, and that the preload source invokes only the fixed channels:
 
 ```ts
-expect(window.markupr.analysisProviders.discover(true)).resolves.toEqual([codexStatus]);
-expect(window.markupr.analysisProviders.test('codex')).resolves.toEqual(codexStatus);
+expect(window.markuprx.analysisProviders.discover(true)).resolves.toEqual([codexStatus]);
+expect(window.markuprx.analysisProviders.test('codex')).resolves.toEqual(codexStatus);
 ```
 
 - [ ] **Step 2: Confirm IPC RED**
@@ -527,7 +527,7 @@ git commit -m "feat: expose analysis provider discovery"
 - Modify: `tests/unit/appViewState.test.ts`
 
 **Interfaces:**
-- Consumes: `AnalysisProviderStatus`, `AppSettings.analysisProvider`, and `window.markupr.analysisProviders`.
+- Consumes: `AnalysisProviderStatus`, `AppSettings.analysisProvider`, and `window.markuprx.analysisProviders`.
 - Produces: `getAnalysisProviderViewState(provider, statuses)`, provider selector UI, provider-aware Settings badge, and main-window readiness copy.
 
 - [ ] **Step 1: Write failing view-state tests**
@@ -563,7 +563,7 @@ Render three radio-style provider cards. The Codex card shows status dot, versio
 
 - [ ] **Step 4: Wire Settings state**
 
-On Settings open, load settings and discover providers. Selecting a card calls `settings.set('analysisProvider', id)`, updates local state, and dispatches `markupr:settings-updated`. Scan again calls `analysisProviders.discover(true)`. Show Anthropic key controls only for `analysisProvider === 'anthropic'`; keep the OpenAI transcription-key controls unchanged.
+On Settings open, load settings and discover providers. Selecting a card calls `settings.set('analysisProvider', id)`, updates local state, and dispatches `markuprx:settings-updated`. Scan again calls `analysisProviders.discover(true)`. Show Anthropic key controls only for `analysisProvider === 'anthropic'`; keep the OpenAI transcription-key controls unchanged.
 
 - [ ] **Step 5: Replace hard-coded BYOK readiness**
 
@@ -588,8 +588,8 @@ git commit -m "feat: add Codex analysis provider picker"
 
 **Files:**
 - Modify only files required by failures proven in this task.
-- Build artifact: `release/mac-arm64/markupR.app`
-- Install target: `/Applications/markupR.app`
+- Build artifact: `release/mac-arm64/MarkuprX.app`
+- Install target: `/Applications/MarkuprX.app`
 
 **Interfaces:**
 - Consumes: all preceding tasks.
@@ -650,21 +650,21 @@ From the primary checkout, verify `git status --short` is empty, merge the featu
 
 Run from main: `npm run package:mac:unsigned -- --arm64 --publish never`
 
-Expected: `release/mac-arm64/markupR.app/Contents/MacOS/markupR` is a Mach-O arm64 executable.
+Expected: `release/mac-arm64/MarkuprX.app/Contents/MacOS/MarkuprX` is a Mach-O arm64 executable.
 
 - [ ] **Step 8: Replace and relaunch the installed app**
 
-Quit `com.eddiesanjuan.markupr` via AppleScript, wait for the old PID to exit, copy `release/mac-arm64/markupR.app` to `/Applications/markupR.app` with `ditto`, and launch it with `open -n /Applications/markupR.app`.
+Quit `com.eddiesanjuan.markuprx` via AppleScript, wait for the old PID to exit, copy `release/mac-arm64/MarkuprX.app` to `/Applications/MarkuprX.app` with `ditto`, and launch it with `open -n /Applications/MarkuprX.app`.
 
 - [ ] **Step 9: Verify the installed application**
 
 Confirm:
 
 ```bash
-test -d /Applications/markupR.app
-file /Applications/markupR.app/Contents/MacOS/markupR
-/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' /Applications/markupR.app/Contents/Info.plist
-pgrep -fl '^/Applications/markupR\.app/Contents/MacOS/markupR$'
+test -d /Applications/MarkuprX.app
+file /Applications/MarkuprX.app/Contents/MacOS/MarkuprX
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' /Applications/MarkuprX.app/Contents/Info.plist
+pgrep -fl '^/Applications/MarkuprX\.app/Contents/MacOS/MarkuprX$'
 ```
 
-Expected: arm64 executable, bundle ID `com.eddiesanjuan.markupr`, and a live process whose executable is the installed app.
+Expected: arm64 executable, bundle ID `com.eddiesanjuan.markuprx`, and a live process whose executable is the installed app.

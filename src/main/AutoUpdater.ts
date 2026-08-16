@@ -1,5 +1,5 @@
 /**
- * markupR - Auto Updater Manager
+ * MarkuprX - Auto Updater Manager
  *
  * Handles automatic updates using electron-updater with GitHub Releases.
  *

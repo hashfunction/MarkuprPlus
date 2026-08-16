@@ -1,5 +1,5 @@
 /**
- * AudioCapture.ts - Production Audio Capture Service for markupr
+ * AudioCapture.ts - Production Audio Capture Service for markuprx
  *
  * Architecture:
  * - Renderer process captures audio via getUserMedia (browser API)
@@ -155,7 +155,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   constructor(config: Partial<AudioCaptureConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.recoveryBufferPath = join(app.getPath('temp'), 'markupr-audio');
+    this.recoveryBufferPath = join(app.getPath('temp'), 'markuprx-audio');
     this.setupIPCHandlers();
   }
 

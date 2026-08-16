@@ -40,7 +40,7 @@ function run(command, args) {
   }
 }
 
-if (process.env.MARKUPR_SKIP_ELECTRON_POSTINSTALL === '1' || isRailwayEnvironment() || isInstalledAsDependency()) {
+if (process.env.MARKUPRX_SKIP_ELECTRON_POSTINSTALL === '1' || isRailwayEnvironment() || isInstalledAsDependency()) {
   // Skip Electron native rebuild when: env var is set, Railway environment,
   // or installed as an npm dependency (CLI/MCP usage -- no Electron needed).
   process.exit(0);

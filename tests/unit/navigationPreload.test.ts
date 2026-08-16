@@ -17,12 +17,12 @@ describe('Navigation Preload Bridge', () => {
   });
 
   const navigationEvents = [
-    { channel: 'markupr:show-settings', name: 'onShowSettings' },
-    { channel: 'markupr:show-history', name: 'onShowHistory' },
-    { channel: 'markupr:show-shortcuts', name: 'onShowShortcuts' },
-    { channel: 'markupr:show-onboarding', name: 'onShowOnboarding' },
-    { channel: 'markupr:show-export', name: 'onShowExport' },
-    { channel: 'markupr:show-window-selector', name: 'onShowWindowSelector' },
+    { channel: 'markuprx:show-settings', name: 'onShowSettings' },
+    { channel: 'markuprx:show-history', name: 'onShowHistory' },
+    { channel: 'markuprx:show-shortcuts', name: 'onShowShortcuts' },
+    { channel: 'markuprx:show-onboarding', name: 'onShowOnboarding' },
+    { channel: 'markuprx:show-export', name: 'onShowExport' },
+    { channel: 'markuprx:show-window-selector', name: 'onShowWindowSelector' },
   ];
 
   it('should register listeners for all navigation channels via ipcRenderer.on', () => {
@@ -37,7 +37,7 @@ describe('Navigation Preload Bridge', () => {
   });
 
   it('should return an unsubscribe function that calls removeListener', () => {
-    const channel = 'markupr:show-settings';
+    const channel = 'markuprx:show-settings';
     const callback = vi.fn();
     const handler = () => callback();
 
@@ -52,19 +52,19 @@ describe('Navigation Preload Bridge', () => {
 
     // Verify all expected channels are covered
     const channels = navigationEvents.map((e) => e.channel);
-    expect(channels).toContain('markupr:show-settings');
-    expect(channels).toContain('markupr:show-history');
-    expect(channels).toContain('markupr:show-shortcuts');
-    expect(channels).toContain('markupr:show-onboarding');
-    expect(channels).toContain('markupr:show-export');
-    expect(channels).toContain('markupr:show-window-selector');
+    expect(channels).toContain('markuprx:show-settings');
+    expect(channels).toContain('markuprx:show-history');
+    expect(channels).toContain('markuprx:show-shortcuts');
+    expect(channels).toContain('markuprx:show-onboarding');
+    expect(channels).toContain('markuprx:show-export');
+    expect(channels).toContain('markuprx:show-window-selector');
   });
 });
 
 describe('createEventSubscriber pattern', () => {
   it('should follow the subscriber pattern: register, invoke, cleanup', () => {
     // Simulate the createEventSubscriber pattern from preload
-    const channel = 'markupr:test-channel';
+    const channel = 'markuprx:test-channel';
     const callbacks: Array<(...args: unknown[]) => void> = [];
 
     // Mock ipcRenderer.on to capture the handler

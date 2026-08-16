@@ -42,15 +42,15 @@ vi.mock('electron-updater', () => ({
 
 describe('AutoUpdater IPC Channels', () => {
   it('defines UPDATE_GET_STATUS channel', () => {
-    expect(IPC_CHANNELS.UPDATE_GET_STATUS).toBe('markupr:update:get-status');
+    expect(IPC_CHANNELS.UPDATE_GET_STATUS).toBe('markuprx:update:get-status');
   });
 
   it('defines all required update channels', () => {
-    expect(IPC_CHANNELS.UPDATE_CHECK).toBe('markupr:update:check');
-    expect(IPC_CHANNELS.UPDATE_DOWNLOAD).toBe('markupr:update:download');
-    expect(IPC_CHANNELS.UPDATE_INSTALL).toBe('markupr:update:install');
-    expect(IPC_CHANNELS.UPDATE_STATUS).toBe('markupr:update:status');
-    expect(IPC_CHANNELS.UPDATE_GET_STATUS).toBe('markupr:update:get-status');
+    expect(IPC_CHANNELS.UPDATE_CHECK).toBe('markuprx:update:check');
+    expect(IPC_CHANNELS.UPDATE_DOWNLOAD).toBe('markuprx:update:download');
+    expect(IPC_CHANNELS.UPDATE_INSTALL).toBe('markuprx:update:install');
+    expect(IPC_CHANNELS.UPDATE_STATUS).toBe('markuprx:update:status');
+    expect(IPC_CHANNELS.UPDATE_GET_STATUS).toBe('markuprx:update:get-status');
   });
 });
 

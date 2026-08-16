@@ -1,7 +1,7 @@
 /**
- * init.ts - Project initialization for markupr CLI
+ * init.ts - Project initialization for markuprx CLI
  *
- * Creates a `.markupr.json` config file in the current project directory
+ * Creates a `.markuprx.json` config file in the current project directory
  * with sensible defaults. Also adds output directory to .gitignore.
  */
 
@@ -13,8 +13,8 @@ import { join, resolve } from 'path';
 // Types
 // ============================================================================
 
-export interface MarkuprConfig {
-  /** Directory where markupr writes feedback session output */
+export interface MarkuprXConfig {
+  /** Directory where markuprx writes feedback session output */
   outputDir: string;
   /** Default recording settings */
   recording: {
@@ -35,7 +35,7 @@ export interface MarkuprConfig {
 export interface InitOptions {
   /** Working directory to create config in (default: cwd) */
   directory: string;
-  /** Output directory for sessions (default: ./markupr-output) */
+  /** Output directory for sessions (default: ./markuprx-output) */
   outputDir: string;
   /** Whether to skip the .gitignore update */
   skipGitignore: boolean;
@@ -54,13 +54,13 @@ export interface InitResult {
 // Constants
 // ============================================================================
 
-export const CONFIG_FILENAME = '.markupr.json';
+export const CONFIG_FILENAME = '.markuprx.json';
 
 // ============================================================================
 // Default config
 // ============================================================================
 
-export function createDefaultConfig(outputDir: string): MarkuprConfig {
+export function createDefaultConfig(outputDir: string): MarkuprXConfig {
   return {
     outputDir,
     recording: {
@@ -79,7 +79,7 @@ export function createDefaultConfig(outputDir: string): MarkuprConfig {
 // ============================================================================
 
 /**
- * Add the output directory and markupr temp files to .gitignore.
+ * Add the output directory and markuprx temp files to .gitignore.
  * Returns true if the file was updated, false if entries already existed.
  */
 export async function updateGitignore(
@@ -87,7 +87,7 @@ export async function updateGitignore(
   outputDir: string,
 ): Promise<boolean> {
   const gitignorePath = join(projectDir, '.gitignore');
-  const entriesToAdd = [outputDir, '.markupr-watch.log'];
+  const entriesToAdd = [outputDir, '.markuprx-watch.log'];
 
   let existingContent = '';
   if (existsSync(gitignorePath)) {
@@ -106,7 +106,7 @@ export async function updateGitignore(
   // Build the block to append
   const block = [
     '',
-    '# markupr output',
+    '# markuprx output',
     ...missingEntries,
     '',
   ].join('\n');
@@ -120,7 +120,7 @@ export async function updateGitignore(
 // ============================================================================
 
 /**
- * Initialize a markupr project configuration.
+ * Initialize a markuprx project configuration.
  */
 export async function runInit(options: InitOptions): Promise<InitResult> {
   const projectDir = resolve(options.directory);

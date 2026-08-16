@@ -1,5 +1,5 @@
 /**
- * markupR Hooks
+ * MarkuprX Hooks
  *
  * Re-exports all hooks for clean imports:
  * import { useStaggeredAnimation, useAnimationState, usePulse, useTheme } from './hooks';

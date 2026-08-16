@@ -50,7 +50,7 @@ jobs:
 
       - name: Analyze recordings and create issues
         if: steps.extract.outputs.found == 'true'
-        uses: eddiesanjuan/markupr-action@v1
+        uses: eddiesanjuan/markuprx-action@v1
         with:
           video-path: ./qa-recordings/
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -63,7 +63,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue comment ${{ github.event.issue.number }} \
-            --body "markupr QA analysis complete. Sub-issues have been created for each feedback item found in the attached recordings."
+            --body "markuprx QA analysis complete. Sub-issues have been created for each feedback item found in the attached recordings."
 
       - name: No recordings found
         if: steps.extract.outputs.found != 'true'

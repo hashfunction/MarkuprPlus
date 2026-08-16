@@ -15,7 +15,7 @@ export const AppearanceTab: React.FC<{
   <div style={styles.tabContent}>
     <SettingsSection
       title="Theme"
-      description="Choose how markupR looks"
+      description="Choose how MarkuprX looks"
       onReset={onResetSection}
     >
       <DropdownSetting

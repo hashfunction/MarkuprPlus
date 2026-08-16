@@ -1,7 +1,7 @@
 /**
- * markupR - Main Process Entry Point
+ * MarkuprX - Main Process Entry Point
  *
- * This is the orchestration heart of markupR. It:
+ * This is the orchestration heart of MarkuprX. It:
  * - Initializes all services in the correct order
  * - Wires up the complete session lifecycle
  * - Manages IPC communication with renderer
@@ -37,7 +37,7 @@ if (process.platform === 'darwin') {
 }
 
 // Ensure runtime app identity uses the shipped product name.
-app.setName('markupR');
+app.setName('MarkuprX');
 
 // ESM compatibility - __dirname doesn't exist in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -60,7 +60,7 @@ import { formatHotkeyForDisplay } from '../shared/hotkeys';
 import { sessionController, type Session } from './SessionController';
 import { trayManager } from './TrayManager';
 import { audioCapture } from './audio/AudioCapture';
-import { SettingsManager } from './settings';
+import { getSettingsManager, type SettingsManager } from './settings';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForMarkdown } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
@@ -107,6 +107,7 @@ import {
   assignMarkedIssueComments,
   insertMarkedIssuesSection,
 } from './output/MarkedIssueReportBuilder';
+import { migrateLegacyBrandData } from './migration/LegacyBrandMigration';
 import {
   attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
@@ -292,7 +293,7 @@ async function loadRendererIntoWindow(window: BrowserWindow, label: string): Pro
     `data:text/html;charset=utf-8,${encodeURIComponent(`
       <html>
         <body style="margin:0;padding:20px;background:#121212;color:#f5f5f5;font-family:-apple-system,system-ui,sans-serif;">
-          <h2 style="margin:0 0 12px 0;">markupR failed to load</h2>
+          <h2 style="margin:0 0 12px 0;">MarkuprX failed to load</h2>
           <p style="margin:0 0 8px 0;">Dev renderer did not become reachable at ${DEV_RENDERER_URL}.</p>
           <p style="margin:0;color:#b3b3b3;">${finalMessage}</p>
         </body>
@@ -445,7 +446,7 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
   if (state === 'recording' && sessionController.isSessionPaused()) {
-    trayManager.setTooltip(`markupR - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+    trayManager.setTooltip(`MarkuprX - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   }
 
   const keepVisibleOnBlur =
@@ -553,7 +554,7 @@ function handleSessionError(error: Error): void {
 
   // Update tray to error state
   trayManager.setState('error');
-  trayManager.setTooltip(`markupR - Error: ${error.message}`);
+  trayManager.setTooltip(`MarkuprX - Error: ${error.message}`);
 
   // Notify renderer
   safeSendToRenderer(IPC_CHANNELS.SESSION_ERROR, {
@@ -774,7 +775,7 @@ function pauseSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is already paused.' };
   }
 
-  trayManager.setTooltip(`markupR - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+  trayManager.setTooltip(`MarkuprX - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   return { success: true };
 }
 
@@ -788,7 +789,7 @@ function resumeSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is not paused.' };
   }
 
-  trayManager.setTooltip(`markupR - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
+  trayManager.setTooltip(`MarkuprX - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
   return { success: true };
 }
 
@@ -1717,6 +1718,22 @@ if (!gotTheLock) {
 app.whenReady().then(async () => {
   console.log('[Main] App ready, starting initialization...');
 
+  const brandMigration = await migrateLegacyBrandData({
+    currentUserDataDir: app.getPath('userData'),
+    documentsDir: app.getPath('documents'),
+  }).catch((error) => ({
+    migrated: false,
+    alreadyCompleted: false,
+    copiedFiles: 0,
+    warnings: [error instanceof Error ? error.message : String(error)],
+  }));
+  if (brandMigration.migrated) {
+    console.log(`[Main] Migrated ${brandMigration.copiedFiles} local data files into MarkuprX storage.`);
+  }
+  brandMigration.warnings.forEach((warning) => {
+    console.warn('[Main] Local data migration warning:', warning);
+  });
+
   // 1. Initialize error handler first (for crash recovery)
   await errorHandler.initialize();
 
@@ -1745,7 +1762,7 @@ app.whenReady().then(async () => {
   }
 
   // 2. Initialize settings manager
-  settingsManager = new SettingsManager();
+  settingsManager = getSettingsManager();
   console.log('[Main] Settings loaded');
 
   teardownSettingsListeners.forEach((teardown) => teardown());
@@ -1914,7 +1931,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  console.log('[Main] markupR initialization complete');
+  console.log('[Main] MarkuprX initialization complete');
 });
 
 // Handle all windows closed
@@ -1987,7 +2004,7 @@ process.on('uncaughtException', (error) => {
 
   console.error('[Main] Uncaught exception:', error);
   try {
-    showErrorNotification('markupR Error', error.message);
+    showErrorNotification('MarkuprX Error', error.message);
   } catch {
     // Ignore notification errors
   }

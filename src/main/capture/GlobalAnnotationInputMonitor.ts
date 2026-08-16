@@ -94,7 +94,7 @@ const WINDOWS_INPUT_OBSERVER_POWERSHELL = String.raw`
 $signature = @'
 using System;
 using System.Runtime.InteropServices;
-public static class MarkuprAnnotationInputProbe {
+public static class MarkuprXAnnotationInputProbe {
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
   [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
   [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
@@ -105,11 +105,11 @@ $sequence = 0
 $previousModifier = $null
 $previousPrimary = $null
 while ($true) {
-  $modifierDown = (([MarkuprAnnotationInputProbe]::GetAsyncKeyState(0x11) -band 0x8000) -ne 0)
-  $primaryDown = (([MarkuprAnnotationInputProbe]::GetAsyncKeyState(0x01) -band 0x8000) -ne 0)
+  $modifierDown = (([MarkuprXAnnotationInputProbe]::GetAsyncKeyState(0x11) -band 0x8000) -ne 0)
+  $primaryDown = (([MarkuprXAnnotationInputProbe]::GetAsyncKeyState(0x01) -band 0x8000) -ne 0)
   if ($null -eq $previousModifier -or $modifierDown -ne $previousModifier -or $primaryDown -ne $previousPrimary) {
-    $point = New-Object MarkuprAnnotationInputProbe+POINT
-    [void][MarkuprAnnotationInputProbe]::GetCursorPos([ref]$point)
+    $point = New-Object MarkuprXAnnotationInputProbe+POINT
+    [void][MarkuprXAnnotationInputProbe]::GetCursorPos([ref]$point)
     $sequence += 1
     $payload = [ordered]@{
       sequence = $sequence

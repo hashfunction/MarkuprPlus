@@ -1,8 +1,8 @@
-# markupr Launch Content
+# markuprx Launch Content
 
 **Prepared:** 2026-02-15
 **Version:** 2.5.0
-**Repo:** https://github.com/eddiesanjuan/markupr
+**Repo:** https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -10,29 +10,29 @@
 
 ### Title Options
 
-1. `Show HN: markupr -- MCP server that lets AI coding agents see your screen`
-2. `Show HN: markupr -- Record your screen, narrate bugs, get structured Markdown for AI agents`
-3. `Show HN: markupr -- Open-source tool that turns screen recordings into AI-consumable Markdown`
+1. `Show HN: markuprx -- MCP server that lets AI coding agents see your screen`
+2. `Show HN: markuprx -- Record your screen, narrate bugs, get structured Markdown for AI agents`
+3. `Show HN: markuprx -- Open-source tool that turns screen recordings into AI-consumable Markdown`
 
 ### Body Text (link post to GitHub repo)
 
-Post the GitHub repo link: https://github.com/eddiesanjuan/markupr
+Post the GitHub repo link: https://github.com/eddiesanjuan/markuprx
 
 ### Maker's First Comment
 
-Hey HN -- I built markupr because I kept losing context when reporting bugs to AI coding agents.
+Hey HN -- I built markuprx because I kept losing context when reporting bugs to AI coding agents.
 
 The core problem: I find a UI bug, switch to my editor, try to describe what I see in text, manually screenshot, crop, paste, and hope the agent understands the layout. I speak at 150 wpm but type at 60. By the time I've written the bug report, I've lost half the details.
 
-markupr records your screen while you narrate what's wrong. When you stop, it runs a pipeline that correlates your transcript timestamps with the video to extract the right frames at the right moments. The output is structured Markdown with screenshots placed exactly where you were describing them.
+markuprx records your screen while you narrate what's wrong. When you stop, it runs a pipeline that correlates your transcript timestamps with the video to extract the right frames at the right moments. The output is structured Markdown with screenshots placed exactly where you were describing them.
 
 The pipeline: local Whisper transcribes the audio, a heuristic analyzer identifies key moments from the transcript (topic shifts, issue descriptions, pauses), ffmpeg extracts the video frames at those exact timestamps, and a generator stitches it all into categorized Markdown with severity levels.
 
 It ships four ways:
 
 - Desktop app (Electron, macOS/Windows) -- press a hotkey, talk, press again, paste the file path into your agent
-- CLI -- `npx markupr analyze ./recording.mov` for headless processing
-- MCP server -- `npx markupr-mcp` gives Claude Code, Cursor, or Windsurf the ability to capture your screen mid-conversation
+- CLI -- `npx markuprx analyze ./recording.mov` for headless processing
+- MCP server -- `npx markuprx-mcp` gives Claude Code, Cursor, or Windsurf the ability to capture your screen mid-conversation
 - GitHub Action -- visual feedback on PRs in CI/CD
 
 The MCP server is the part I'm most interested in feedback on. You add 3 lines to your Claude Code config, and the agent can call `capture_screenshot` to see what you see. No copy-pasting. The agent looks at your screen and acts.
@@ -43,7 +43,7 @@ Technical details: Electron + React + TypeScript for the desktop app. The CLI an
 
 Would love feedback on the timestamp correlation approach -- the heuristic key-moment detection is the piece I've iterated on the most. Source is at src/main/pipeline/TranscriptAnalyzer.ts if anyone wants to dig in.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -55,23 +55,23 @@ https://github.com/eddiesanjuan/markupr
 
 ### Description
 
-AI coding agents are blind. When you find a bug, you context-switch into writing mode -- describing the layout, manually screenshotting, hoping the agent understands. markupr records your screen while you narrate what's wrong, then runs an intelligent pipeline that correlates your voice with the video to produce structured Markdown with screenshots placed exactly where they belong. Ships as a desktop app, CLI, MCP server for Claude Code/Cursor/Windsurf, and a GitHub Action. Everything runs locally, no account required, MIT licensed.
+AI coding agents are blind. When you find a bug, you context-switch into writing mode -- describing the layout, manually screenshotting, hoping the agent understands. markuprx records your screen while you narrate what's wrong, then runs an intelligent pipeline that correlates your voice with the video to produce structured Markdown with screenshots placed exactly where they belong. Ships as a desktop app, CLI, MCP server for Claude Code/Cursor/Windsurf, and a GitHub Action. Everything runs locally, no account required, MIT licensed.
 
 ### 5 Key Features
 
 1. **One-hotkey capture** -- Press Cmd+Shift+F, talk through what you see, press again. Structured Markdown with screenshots appears automatically.
 2. **MCP server for AI agents** -- Add 3 lines to your Claude Code config. Your agent can now capture your screen mid-conversation and fix bugs it can see.
 3. **Intelligent frame extraction** -- Whisper transcribes your voice, the pipeline identifies key moments, ffmpeg extracts frames at the exact timestamps you described issues. No random timer screenshots.
-4. **Four interfaces, one pipeline** -- Desktop app for daily use. CLI (`npx markupr analyze`) for scripts. MCP server for agent integration. GitHub Action for PR feedback.
+4. **Four interfaces, one pipeline** -- Desktop app for daily use. CLI (`npx markuprx analyze`) for scripts. MCP server for agent integration. GitHub Action for PR feedback.
 5. **Local-first, zero config** -- Whisper runs on your device. No API keys, no accounts, no cloud dependency. Your recordings never leave your machine.
 
 ### Maker's Comment
 
-Hey Product Hunt -- I'm Eddie, and I built markupr because the feedback loop between developers and AI coding agents is broken.
+Hey Product Hunt -- I'm Eddie, and I built markuprx because the feedback loop between developers and AI coding agents is broken.
 
 I was using Claude Code daily and kept running into the same friction: I'd find a visual bug, then spend 2-3 minutes writing a text description, screenshotting, cropping, and dragging images into the right order. I realized I could just talk through what I see in 30 seconds and have a tool do the rest.
 
-The breakthrough was timestamp correlation. Instead of capturing screenshots on a timer (like every screen recorder does), markupr uses Whisper to transcribe your voice, analyzes the transcript for key moments, then extracts video frames at those exact timestamps. Every screenshot in the output shows what you were looking at when you described the issue.
+The breakthrough was timestamp correlation. Instead of capturing screenshots on a timer (like every screen recorder does), markuprx uses Whisper to transcribe your voice, analyzes the transcript for key moments, then extracts video frames at those exact timestamps. Every screenshot in the output shows what you were looking at when you described the issue.
 
 Then I built the MCP server and everything changed. Instead of me capturing and pasting, my AI agent captures screenshots itself, mid-conversation. "Can you see the sidebar overlapping the content?" It calls capture_screenshot, sees the bug, and fixes it. Zero copy-paste.
 
@@ -95,7 +95,7 @@ It's fully open source (MIT), runs locally by default, and I'd love your feedbac
 
 **Body:**
 
-I've been working on markupr, an open-source tool (MIT) that solves a specific problem: getting visual context from your screen into a format that AI coding agents can actually act on.
+I've been working on markuprx, an open-source tool (MIT) that solves a specific problem: getting visual context from your screen into a format that AI coding agents can actually act on.
 
 The core technical challenge was timestamp correlation. When you narrate a bug while recording your screen, the interesting frames aren't evenly distributed -- they cluster around the moments you're describing something specific. Random timer-based screenshots miss the point entirely.
 
@@ -111,13 +111,13 @@ The result is a document where every screenshot shows exactly what you were look
 
 The pipeline degrades gracefully. No ffmpeg? Transcript-only output. No Whisper model? Timer-based fallback. No API keys? Everything runs locally.
 
-It ships as four interfaces on the same pipeline: an Electron desktop app (macOS/Windows), a CLI tool (`npx markupr analyze ./recording.mov`), an MCP server that lets AI agents like Claude Code capture your screen mid-conversation, and a GitHub Action for visual PR feedback.
+It ships as four interfaces on the same pipeline: an Electron desktop app (macOS/Windows), a CLI tool (`npx markuprx analyze ./recording.mov`), an MCP server that lets AI agents like Claude Code capture your screen mid-conversation, and a GitHub Action for visual PR feedback.
 
 The timestamp correlation logic is the part I've iterated on the most -- the heuristic key-moment detector is at `src/main/pipeline/TranscriptAnalyzer.ts` if anyone wants to look at the approach. I'd welcome feedback on the algorithm.
 
 Stack: Electron + React + TypeScript (desktop), esbuild (CLI/MCP), Whisper (transcription), ffmpeg (frame extraction).
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -129,7 +129,7 @@ https://github.com/eddiesanjuan/markupr
 
 If you use AI coding agents (Claude Code, Cursor, Windsurf, etc.) for frontend work, you've probably hit this wall: you find a CSS bug, and then you spend more time describing it in text than it would take to just fix it yourself.
 
-I built markupr to shortcut that entirely. Press a hotkey, talk through what you see ("the submit button is way too small on mobile, I keep hitting the cancel link underneath"), press the hotkey again. markupr produces structured Markdown with screenshots extracted from the exact moments you were describing each issue.
+I built markuprx to shortcut that entirely. Press a hotkey, talk through what you see ("the submit button is way too small on mobile, I keep hitting the cancel link underneath"), press the hotkey again. markuprx produces structured Markdown with screenshots extracted from the exact moments you were describing each issue.
 
 The output looks like this:
 
@@ -145,13 +145,13 @@ Each screenshot is the actual video frame from the moment you were talking about
 
 For web dev specifically, this is useful for: responsive layout bugs (you can narrate while resizing), animation/transition issues (the exact frame of the jank gets captured), and any visual problem that's easier to show than describe.
 
-It works as a desktop app (macOS/Windows), a CLI tool (`npx markupr analyze ./recording.mov` if you already have recordings), and an MCP server that lets your AI agent capture screenshots of your screen during a conversation.
+It works as a desktop app (macOS/Windows), a CLI tool (`npx markuprx analyze ./recording.mov` if you already have recordings), and an MCP server that lets your AI agent capture screenshots of your screen during a conversation.
 
 The MCP server angle changed my workflow the most. I added 3 lines to my Claude Code config, and now when I say "the sidebar is overlapping on mobile, can you see it?" the agent calls capture_screenshot, sees the actual layout, and fixes the CSS. No screenshotting, no cropping, no pasting.
 
 Open source, MIT licensed, no accounts or API keys required.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -163,14 +163,14 @@ https://github.com/eddiesanjuan/markupr
 
 I've been using Claude Code heavily and the one thing that kept slowing me down was visual context. I'd find a UI bug, then spend time screenshotting, cropping, and pasting into the conversation. It felt wrong -- the agent should be able to just look at my screen.
 
-So I built markupr-mcp, an MCP server that does exactly that. Setup is 3 lines in your Claude Code config:
+So I built markuprx-mcp, an MCP server that does exactly that. Setup is 3 lines in your Claude Code config:
 
 ```json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["-y", "markupr-mcp"]
+      "args": ["-y", "markuprx-mcp"]
     }
   }
 }
@@ -192,7 +192,7 @@ Everything runs locally. Whisper transcription is on-device. No cloud processing
 
 Also works with Cursor and Windsurf -- same MCP config format.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -202,7 +202,7 @@ https://github.com/eddiesanjuan/markupr
 
 **Body:**
 
-I want to share what I've been building for the past 6 months: markupr, an open-source tool that records your screen while you narrate bugs, then produces structured Markdown with screenshots that AI coding agents can act on.
+I want to share what I've been building for the past 6 months: markuprx, an open-source tool that records your screen while you narrate bugs, then produces structured Markdown with screenshots that AI coding agents can act on.
 
 The origin story: I was using Claude Code for a client project and found myself spending 3-4 minutes per bug just getting visual context into the conversation. Screenshot, crop, paste, describe. Repeat. One day I timed it and realized I was spending more time describing bugs than the AI spent fixing them. That felt backwards.
 
@@ -210,21 +210,21 @@ The core insight was that when you talk through a visual problem, the important 
 
 That became the technical challenge: Whisper for transcription, heuristic analysis for key-moment detection, ffmpeg for frame extraction, all stitched into one pipeline.
 
-v2.5.0 shipped with four interfaces: desktop app (Electron), CLI (`npx markupr analyze`), MCP server for AI agents (`npx markupr-mcp`), and a GitHub Action. MIT licensed.
+v2.5.0 shipped with four interfaces: desktop app (Electron), CLI (`npx markuprx analyze`), MCP server for AI agents (`npx markuprx-mcp`), and a GitHub Action. MIT licensed.
 
 Some numbers from the build:
 
 - ~15,000 lines of TypeScript
 - 644 tests across 39 test files
 - Ships on macOS and Windows
-- Published to npm as two packages (markupr and markupr-mcp)
+- Published to npm as two packages (markuprx and markuprx-mcp)
 - Zero revenue, fully open source
 
 The MCP server is the piece I'm most excited about. Instead of me capturing context for my AI agent, the agent captures it itself. "Can you see this bug?" becomes a real question with a real answer.
 
 Would love to hear what other side project builders think. What would you add?
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -240,7 +240,7 @@ There's a better way.
 
 ### Tweet 2 (The solution)
 
-markupr records your screen while you narrate what's wrong.
+markuprx records your screen while you narrate what's wrong.
 
 When you stop, it correlates your transcript timestamps with the video, extracts frames at the exact moments you described issues, and produces structured Markdown with screenshots placed where they belong.
 
@@ -248,7 +248,7 @@ When you stop, it correlates your transcript timestamps with the video, extracts
 
 The CLI works on any recording you already have:
 
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 
 No install. One command. Whisper transcription + intelligent frame extraction + structured Markdown output.
 
@@ -278,7 +278,7 @@ Fully open source. MIT licensed.
 It also ships as a GitHub Action for visual feedback on PRs:
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -291,13 +291,13 @@ Visual bug reports in your CI/CD pipeline.
 Four interfaces, one pipeline:
 
 - Desktop app (macOS/Windows)
-- CLI: npx markupr analyze
-- MCP server: npx markupr-mcp
+- CLI: npx markuprx analyze
+- MCP server: npx markuprx-mcp
 - GitHub Action
 
 Try it. Break it. Tell me what to build next.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 
@@ -307,15 +307,15 @@ AI coding agents are powerful, but they have a blind spot: they can't see your s
 
 When a developer finds a visual bug -- a layout shift, a responsive breakpoint issue, a component rendering incorrectly -- the workflow breaks down. They switch from building to describing. Screenshots get manually captured, cropped, and pasted. Context gets lost in translation. The feedback loop that should take 30 seconds takes 3-4 minutes.
 
-I built markupr to fix this. It records your screen while you narrate what you see, then runs a pipeline that correlates your speech timestamps with the video to extract the right frames at the right moments. The output is structured Markdown with screenshots placed exactly where they belong -- ready for AI agents to consume and act on immediately.
+I built markuprx to fix this. It records your screen while you narrate what you see, then runs a pipeline that correlates your speech timestamps with the video to extract the right frames at the right moments. The output is structured Markdown with screenshots placed exactly where they belong -- ready for AI agents to consume and act on immediately.
 
-With v2.5.0, it ships as a desktop app, a CLI tool (npx markupr analyze), an MCP server that gives AI agents like Claude Code the ability to capture your screen mid-conversation, and a GitHub Action for visual feedback on pull requests.
+With v2.5.0, it ships as a desktop app, a CLI tool (npx markuprx analyze), an MCP server that gives AI agents like Claude Code the ability to capture your screen mid-conversation, and a GitHub Action for visual feedback on pull requests.
 
 The MCP server has changed how I work with AI coding assistants. Instead of describing what I see, I ask the agent to look. It captures a screenshot, identifies the issue, and fixes the code. Zero manual context transfer.
 
 Open source, MIT licensed, no accounts required. Everything runs locally.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 
 ---
 

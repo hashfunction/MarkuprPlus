@@ -1,5 +1,5 @@
 /**
- * CrashRecovery - Session Recovery and Error Reporting for markupr
+ * CrashRecovery - Session Recovery and Error Reporting for markuprx
  *
  * Provides:
  * - Auto-save session state every 5 seconds during recording (max 5s data loss)
@@ -96,17 +96,24 @@ const DEFAULT_SETTINGS: CrashRecoverySettings = {
   maxCrashLogs: 50,
 };
 
-const store = new Store<CrashRecoveryStoreSchema>({
-  name: 'markupr-crash-recovery',
-  defaults: {
-    activeSession: null,
-    crashLogs: [],
-    settings: DEFAULT_SETTINGS,
-    lastCleanExit: true,
-    lastExitTimestamp: 0,
-  },
-  clearInvalidConfig: true,
-});
+let crashRecoveryStore: Store<CrashRecoveryStoreSchema> | null = null;
+
+function getCrashRecoveryStore(): Store<CrashRecoveryStoreSchema> {
+  if (!crashRecoveryStore) {
+    crashRecoveryStore = new Store<CrashRecoveryStoreSchema>({
+      name: 'markuprx-crash-recovery',
+      defaults: {
+        activeSession: null,
+        crashLogs: [],
+        settings: DEFAULT_SETTINGS,
+        lastCleanExit: true,
+        lastExitTimestamp: 0,
+      },
+      clearInvalidConfig: true,
+    });
+  }
+  return crashRecoveryStore;
+}
 
 // ============================================================================
 // CrashRecoveryManager Class
@@ -140,8 +147,8 @@ export class CrashRecoveryManager {
     });
 
     // Check if last exit was clean
-    const lastCleanExit = store.get('lastCleanExit');
-    const lastExitTimestamp = store.get('lastExitTimestamp');
+    const lastCleanExit = getCrashRecoveryStore().get('lastCleanExit');
+    const lastExitTimestamp = getCrashRecoveryStore().get('lastExitTimestamp');
 
     if (!lastCleanExit && lastExitTimestamp > 0) {
       errorHandler.log('warn', 'Previous session did not exit cleanly', {
@@ -152,10 +159,10 @@ export class CrashRecoveryManager {
     }
 
     // Mark as not clean until we properly exit
-    store.set('lastCleanExit', false);
+    getCrashRecoveryStore().set('lastCleanExit', false);
 
     // Check for incomplete session
-    const incomplete = store.get('activeSession');
+    const incomplete = getCrashRecoveryStore().get('activeSession');
     if (incomplete) {
       errorHandler.log('info', 'Found incomplete session from previous run', {
         component: 'CrashRecovery',
@@ -222,12 +229,12 @@ export class CrashRecoveryManager {
 
     // Clear active session if no current recording
     if (!this.currentSession) {
-      store.delete('activeSession');
+      getCrashRecoveryStore().delete('activeSession');
     }
 
     // Mark clean exit
-    store.set('lastCleanExit', true);
-    store.set('lastExitTimestamp', Date.now());
+    getCrashRecoveryStore().set('lastCleanExit', true);
+    getCrashRecoveryStore().set('lastExitTimestamp', Date.now());
   }
 
   /**
@@ -250,7 +257,7 @@ export class CrashRecoveryManager {
     // Force save current session state
     if (this.currentSession) {
       this.currentSession.lastSaveTime = Date.now();
-      store.set('activeSession', this.currentSession);
+      getCrashRecoveryStore().set('activeSession', this.currentSession);
       errorHandler.log('info', 'Session state saved before crash', {
         component: 'CrashRecovery',
         operation: 'handleUncaughtException',
@@ -288,7 +295,7 @@ export class CrashRecoveryManager {
     };
 
     // Save immediately
-    store.set('activeSession', this.currentSession);
+    getCrashRecoveryStore().set('activeSession', this.currentSession);
 
     // Start auto-save interval
     const settings = this.getSettings();
@@ -338,7 +345,7 @@ export class CrashRecoveryManager {
 
     this.stopAutoSave();
     this.currentSession = null;
-    store.delete('activeSession');
+    getCrashRecoveryStore().delete('activeSession');
   }
 
   // ==========================================================================
@@ -357,7 +364,7 @@ export class CrashRecoveryManager {
           this.currentSession.lastSaveTime = Date.now();
           this.currentSession.metadata.sessionDurationMs =
             Date.now() - this.currentSession.startTime;
-          store.set('activeSession', this.currentSession);
+          getCrashRecoveryStore().set('activeSession', this.currentSession);
 
           errorHandler.log('debug', 'Auto-saved session state', {
             component: 'CrashRecovery',
@@ -392,7 +399,7 @@ export class CrashRecoveryManager {
    * Check if there's an incomplete session to recover
    */
   getIncompleteSession(): RecoverableSession | null {
-    const session = store.get('activeSession');
+    const session = getCrashRecoveryStore().get('activeSession');
     return session ? structuredClone(session) : null;
   }
 
@@ -400,7 +407,7 @@ export class CrashRecoveryManager {
    * Discard an incomplete session
    */
   discardIncompleteSession(): void {
-    const session = store.get('activeSession');
+    const session = getCrashRecoveryStore().get('activeSession');
     if (session) {
       errorHandler.log('info', 'Discarding incomplete session', {
         component: 'CrashRecovery',
@@ -411,7 +418,7 @@ export class CrashRecoveryManager {
         },
       });
     }
-    store.delete('activeSession');
+    getCrashRecoveryStore().delete('activeSession');
   }
 
   /**
@@ -457,7 +464,7 @@ export class CrashRecoveryManager {
 
     // Store in electron-store
     const settings = this.getSettings();
-    const logs = store.get('crashLogs') || [];
+    const logs = getCrashRecoveryStore().get('crashLogs') || [];
     logs.push(crashLog);
 
     // Keep only the most recent logs
@@ -465,7 +472,7 @@ export class CrashRecoveryManager {
       logs.shift();
     }
 
-    store.set('crashLogs', logs);
+    getCrashRecoveryStore().set('crashLogs', logs);
 
     // Also write to file for external access
     await this.writeCrashLogToFile(crashLog);
@@ -496,12 +503,12 @@ export class CrashRecoveryManager {
     // Store in electron-store (already synchronous)
     try {
       const settings = this.getSettings();
-      const logs = store.get('crashLogs') || [];
+      const logs = getCrashRecoveryStore().get('crashLogs') || [];
       logs.push(crashLog);
       while (logs.length > settings.maxCrashLogs) {
         logs.shift();
       }
-      store.set('crashLogs', logs);
+      getCrashRecoveryStore().set('crashLogs', logs);
     } catch {
       // Ignore store errors in crash handler
     }
@@ -565,7 +572,7 @@ export class CrashRecoveryManager {
     try {
       const content = await fs.readFile(this.crashLogPath, 'utf-8');
       const fileLogs: CrashLog[] = JSON.parse(content);
-      const storeLogs = store.get('crashLogs') || [];
+      const storeLogs = getCrashRecoveryStore().get('crashLogs') || [];
 
       // Merge logs, avoiding duplicates by timestamp
       const existingTimestamps = new Set(storeLogs.map((l) => l.timestamp));
@@ -585,7 +592,7 @@ export class CrashRecoveryManager {
           merged.shift();
         }
 
-        store.set('crashLogs', merged);
+        getCrashRecoveryStore().set('crashLogs', merged);
       }
     } catch {
       // File doesn't exist or is invalid - that's fine
@@ -596,7 +603,7 @@ export class CrashRecoveryManager {
    * Get recent crash logs
    */
   getCrashLogs(limit: number = 10): CrashLog[] {
-    const logs = store.get('crashLogs') || [];
+    const logs = getCrashRecoveryStore().get('crashLogs') || [];
     return logs.slice(-limit);
   }
 
@@ -604,7 +611,7 @@ export class CrashRecoveryManager {
    * Clear crash logs
    */
   clearCrashLogs(): void {
-    store.set('crashLogs', []);
+    getCrashRecoveryStore().set('crashLogs', []);
     fs.unlink(this.crashLogPath).catch(() => {
       // Ignore if file doesn't exist
     });
@@ -678,7 +685,7 @@ export class CrashRecoveryManager {
    * Get crash recovery settings
    */
   getSettings(): CrashRecoverySettings {
-    return store.get('settings') || DEFAULT_SETTINGS;
+    return getCrashRecoveryStore().get('settings') || DEFAULT_SETTINGS;
   }
 
   /**
@@ -687,7 +694,7 @@ export class CrashRecoveryManager {
   updateSettings(updates: Partial<CrashRecoverySettings>): void {
     const current = this.getSettings();
     const newSettings = { ...current, ...updates };
-    store.set('settings', newSettings);
+    getCrashRecoveryStore().set('settings', newSettings);
 
     // Apply changes to active session if needed
     if (

@@ -77,8 +77,8 @@ describe('analyzeScreenshot tool', () => {
       }),
     };
 
-    mockCapture.mockResolvedValue('/tmp/markupr-mcp-screenshot-test-uuid-1234.png');
-    mockOptimize.mockResolvedValue('/tmp/markupr-mcp-screenshot-test-uuid-1234.png');
+    mockCapture.mockResolvedValue('/tmp/markuprx-mcp-screenshot-test-uuid-1234.png');
+    mockOptimize.mockResolvedValue('/tmp/markuprx-mcp-screenshot-test-uuid-1234.png');
     mockReadFile.mockResolvedValue(Buffer.from('fake-image-data'));
     mockUnlink.mockResolvedValue(undefined);
 
@@ -106,7 +106,7 @@ describe('analyzeScreenshot tool', () => {
     await toolHandler({ display: 1, question: undefined });
 
     expect(mockOptimize).toHaveBeenCalledWith(
-      expect.stringContaining('markupr-mcp-screenshot'),
+      expect.stringContaining('markuprx-mcp-screenshot'),
     );
   });
 
@@ -143,7 +143,7 @@ describe('analyzeScreenshot tool', () => {
     await toolHandler({ display: 1, question: undefined });
 
     expect(mockUnlink).toHaveBeenCalledWith(
-      expect.stringContaining('markupr-mcp-screenshot'),
+      expect.stringContaining('markuprx-mcp-screenshot'),
     );
   });
 

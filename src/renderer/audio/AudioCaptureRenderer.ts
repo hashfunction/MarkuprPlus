@@ -1,5 +1,5 @@
 /**
- * AudioCaptureRenderer.ts - Browser-side Audio Capture for markupR
+ * AudioCaptureRenderer.ts - Browser-side Audio Capture for MarkuprX
  *
  * Uses getUserMedia + MediaRecorder to avoid fragile WebAudio graphs in
  * packaged macOS builds. Chunks are streamed to main process for persistence
@@ -50,9 +50,9 @@ class AudioCaptureRenderer {
   }
 
   private setupIPCListeners(): void {
-    const api = window.markupr;
+    const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] markupR audio API not available');
+      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
       return;
     }
 
@@ -181,7 +181,7 @@ class AudioCaptureRenderer {
           this.sendEncodedChunkToMain(new Uint8Array(buffer), timestamp, duration, mimeType);
         })
         .catch((error) => {
-          const api = window.markupr;
+          const api = window.markuprx;
           api?.audio?.sendCaptureError(`Failed to process audio chunk: ${(error as Error).message}`);
         })
         .finally(() => {
@@ -193,7 +193,7 @@ class AudioCaptureRenderer {
     this.mediaRecorder.onerror = (event: Event) => {
       const recorderError = (event as ErrorEvent).error;
       const message = recorderError instanceof Error ? recorderError.message : 'Unknown recorder error';
-      const api = window.markupr;
+      const api = window.markuprx;
       api?.audio?.sendCaptureError(`Audio recorder error: ${message}`);
     };
 
@@ -241,9 +241,9 @@ class AudioCaptureRenderer {
       return;
     }
 
-    const api = window.markupr;
+    const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] markupR audio API not available');
+      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
       return;
     }
 
@@ -262,9 +262,9 @@ class AudioCaptureRenderer {
       return;
     }
 
-    const api = window.markupr;
+    const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] markupR audio API not available');
+      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
       return;
     }
 
@@ -341,7 +341,7 @@ class AudioCaptureRenderer {
 
     try {
       await context.audioWorklet.addModule(pcmCaptureProcessorUrl);
-      const pcmProcessor = new AudioWorkletNode(context, 'markupr-pcm-capture', {
+      const pcmProcessor = new AudioWorkletNode(context, 'markuprx-pcm-capture', {
         processorOptions: { chunkSamples },
       });
       const silentGain = context.createGain();

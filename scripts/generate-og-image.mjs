@@ -46,9 +46,9 @@ const svg = `
   <!-- Bottom accent line -->
   <rect x="0" y="${height - 4}" width="${width}" height="4" fill="${accent}"/>
 
-  <!-- Wordmark: "markup" in white + "R" in amber -->
+  <!-- MarkuprX wordmark -->
   <text x="600" y="240" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="96" font-weight="900" letter-spacing="-4">
-    <tspan fill="${textPrimary}">markup</tspan><tspan fill="${accent}">R</tspan>
+    <tspan fill="${textPrimary}">Markup</tspan><tspan fill="${accent}">rX</tspan>
   </text>
 
   <!-- Tagline -->
@@ -78,7 +78,7 @@ const svg = `
 
   <!-- GitHub icon hint -->
   <text x="200" y="${height - 34}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" fill="${textTertiary}">
-    github.com/eddiesanjuan/markupr
+    github.com/eddiesanjuan/markuprx
   </text>
 
   <!-- Version badge -->

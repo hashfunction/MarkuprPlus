@@ -88,7 +88,7 @@ export class ClaudeCliAnalyzer {
       throw new ClaudeCliError('The session has no transcript to analyze.', 'EMPTY_INPUT');
     }
 
-    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'markupr-claude-'));
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'markuprx-claude-'));
     try {
       const args = [
         '--print',

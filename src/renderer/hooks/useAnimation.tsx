@@ -1,5 +1,5 @@
 /**
- * markupR - Animation Hooks
+ * MarkuprX - Animation Hooks
  *
  * Programmatic animation utilities for React components.
  * Provides hooks for staggered animations, spring physics,

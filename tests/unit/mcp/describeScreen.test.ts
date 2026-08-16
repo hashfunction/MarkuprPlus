@@ -119,10 +119,10 @@ describe('describeScreen tool', () => {
 
     // Default mock implementations
     mockCapture.mockResolvedValue(
-      '/tmp/markupr-mcp-describe-test-uuid-1234.png',
+      '/tmp/markuprx-mcp-describe-test-uuid-1234.png',
     );
     mockOptimize.mockResolvedValue(
-      '/tmp/markupr-mcp-describe-test-uuid-1234.png',
+      '/tmp/markuprx-mcp-describe-test-uuid-1234.png',
     );
     mockReadFile.mockResolvedValue(Buffer.from('fake-image-data'));
     mockUnlink.mockResolvedValue(undefined);
@@ -219,7 +219,7 @@ describe('describeScreen tool', () => {
     });
 
     expect(mockOptimize).toHaveBeenCalledWith(
-      expect.stringContaining('markupr-mcp-describe'),
+      expect.stringContaining('markuprx-mcp-describe'),
     );
   });
 
@@ -503,7 +503,7 @@ describe('describeScreen tool', () => {
     });
 
     expect(mockUnlink).toHaveBeenCalledWith(
-      expect.stringContaining('markupr-mcp-describe'),
+      expect.stringContaining('markuprx-mcp-describe'),
     );
   });
 
@@ -518,7 +518,7 @@ describe('describeScreen tool', () => {
     });
 
     expect(mockUnlink).toHaveBeenCalledWith(
-      expect.stringContaining('markupr-mcp-describe'),
+      expect.stringContaining('markuprx-mcp-describe'),
     );
   });
 

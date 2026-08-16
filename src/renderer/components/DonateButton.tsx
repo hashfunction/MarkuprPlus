@@ -1,5 +1,5 @@
 /**
- * markupr Donate Button
+ * markuprx Donate Button
  *
  * A clean, minimal donate link with subtle native macOS styling.
  * Coffee icon + rotating messages with restrained emphasis.

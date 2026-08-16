@@ -1,12 +1,13 @@
 {
-  "name": "markupr",
-  "version": "2.6.8",
+  "name": "markuprx",
+  "productName": "MarkuprX",
+  "version": "3.0.0",
   "description": "Record your screen, narrate feedback, get structured Markdown with screenshots. Desktop app, CLI, and MCP server for AI coding agents like Claude Code, Cursor, and Windsurf.",
   "type": "module",
   "main": "dist/main/index.mjs",
   "bin": {
-    "markupr": "./dist/cli/index.mjs",
-    "markupr-mcp": "./dist/mcp/index.mjs"
+    "markuprx": "./dist/cli/index.mjs",
+    "markuprx-mcp": "./dist/mcp/index.mjs"
   },
   "files": [
     "dist/cli",
@@ -15,15 +16,15 @@
   ],
   "author": "Eddie San Juan",
   "license": "MIT",
-  "homepage": "https://markupr.com",
+  "homepage": "https://markuprx.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eddiesanjuan/markupr.git"
+    "url": "git+https://github.com/eddiesanjuan/markuprx.git"
   },
   "bugs": {
-    "url": "https://github.com/eddiesanjuan/markupr/issues"
+    "url": "https://github.com/eddiesanjuan/markuprx/issues"
   },
-  "mcpName": "io.github.eddiesanjuan/markupr",
+  "mcpName": "io.github.eddiesanjuan/markuprx",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -53,7 +54,7 @@
     "menu-bar",
     "macos",
     "windows",
-    "markupr",
+    "markuprx",
     "github-action"
   ],
   "engines": {
@@ -90,8 +91,9 @@
     "test:ui": "vitest --ui",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "verify:brand": "node scripts/verify-brand.mjs",
     "audit": "npm audit --omit=dev --audit-level=high",
-    "setup:markupr": "bash ./scripts/setup-markupr.sh",
+    "setup:markuprx": "bash ./scripts/setup-markuprx.sh",
     "typecheck": "tsc --noEmit",
     "generate:icons": "node scripts/generate-icons.mjs",
     "generate:tray-icons": "node scripts/generate-tray-icons.mjs",

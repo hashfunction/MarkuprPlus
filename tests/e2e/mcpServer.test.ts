@@ -35,7 +35,7 @@ import type { McpSession } from '../../src/mcp/types';
 // =============================================================================
 
 function createTempDir(): string {
-  return path.join(os.tmpdir(), `markupr-test-${randomUUID()}`);
+  return path.join(os.tmpdir(), `markuprx-test-${randomUUID()}`);
 }
 
 // =============================================================================

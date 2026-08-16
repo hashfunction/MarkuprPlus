@@ -1,4 +1,4 @@
-# markupr Demo Video Script
+# markuprx Demo Video Script
 
 **Duration:** 75 seconds (target)
 **Resolution:** 2560x1440 (record at retina, export at 1080p)
@@ -13,7 +13,7 @@
 - [ ] Disable notifications (Focus mode on macOS)
 - [ ] Close Slack, Messages, Mail -- anything that might pop up
 - [ ] Open a realistic web app with a pre-staged UI bug (layout issue, overlapping elements, broken mobile view)
-- [ ] Have markupr installed and running in the menu bar
+- [ ] Have markuprx installed and running in the menu bar
 - [ ] Open a terminal with Claude Code ready (for Scene 6)
 - [ ] Use a good mic (AirPods Pro or external) -- test levels first
 - [ ] Natural afternoon light, no harsh overhead
@@ -40,10 +40,10 @@
 
 ### Scene 2: Start Recording (0:12 - 0:22)
 
-**Show:** Mouse moves to the menu bar, clicks the markupr icon. Then press Cmd+Shift+F.
+**Show:** Mouse moves to the menu bar, clicks the markuprx icon. Then press Cmd+Shift+F.
 
 **Narration:**
-> "With markupr, I just hit Cmd+Shift+F and start talking."
+> "With markuprx, I just hit Cmd+Shift+F and start talking."
 
 **Camera/screen notes:**
 - Show the menu bar icon clearly
@@ -55,25 +55,25 @@
 
 ### Scene 3: Narrate the Bug (0:22 - 0:42)
 
-**Show:** The buggy web app is visible. Eddie talks naturally while navigating the UI. markupr's audio waveform pulses in the menu bar.
+**Show:** The buggy web app is visible. Eddie talks naturally while navigating the UI. markuprx's audio waveform pulses in the menu bar.
 
 **Narration (natural developer-speak, not rehearsed):**
 > "Okay so this sidebar -- it's supposed to collapse on mobile but it's sitting on top of the main content. And down here, the submit button is completely hidden. You can't even click it. Also the spacing between these cards is way off -- it's like 40px on the left and nothing on the right."
 
 **Camera/screen notes:**
 - Move the mouse to each problem area as you describe it
-- Pause briefly between issues (this is when markupr captures screenshots)
-- Don't rush -- the pauses are the point. markupr uses them to trigger captures.
+- Pause briefly between issues (this is when markuprx captures screenshots)
+- Don't rush -- the pauses are the point. markuprx uses them to trigger captures.
 - The waveform in the menu bar shows audio activity in real time
 
 ---
 
 ### Scene 4: Stop + Pipeline (0:42 - 0:52)
 
-**Show:** Press Cmd+Shift+F to stop. The markupr processing animation appears.
+**Show:** Press Cmd+Shift+F to stop. The markuprx processing animation appears.
 
 **Narration:**
-> "I stop recording, and markupr runs the pipeline -- transcribes the audio, finds the key moments, pulls the exact frames from the video, and builds a Markdown document."
+> "I stop recording, and markuprx runs the pipeline -- transcribes the audio, finds the key moments, pulls the exact frames from the video, and builds a Markdown document."
 
 **Camera/screen notes:**
 - Show the processing state briefly (the pipeline animation)
@@ -102,16 +102,16 @@
 **Show:** A terminal or Claude Code session. Show the MCP config JSON, then a quick tool call.
 
 **Narration:**
-> "Or skip the app entirely. Add markupr as an MCP server -- three lines of config -- and your agent can capture your screen mid-conversation."
+> "Or skip the app entirely. Add markuprx as an MCP server -- three lines of config -- and your agent can capture your screen mid-conversation."
 
 **Camera/screen notes:**
 - Flash the JSON config (keep it on screen for ~3 seconds):
   ```json
   {
     "mcpServers": {
-      "markupr": {
+      "markuprx": {
         "command": "npx",
-        "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+        "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
       }
     }
   }
@@ -123,14 +123,14 @@
 
 ### Scene 7: CTA (1:15 - 1:20)
 
-**Show:** markupr.com landing page, then the GitHub repo.
+**Show:** markuprx.com landing page, then the GitHub repo.
 
 **Narration:**
-> "Open source. No telemetry. Your data stays on your machine. markupr.com."
+> "Open source. No telemetry. Your data stays on your machine. markuprx.com."
 
 **Camera/screen notes:**
 - Hold on the landing page hero for 2 seconds
-- End on a clean frame showing the URL: markupr.com
+- End on a clean frame showing the URL: markuprx.com
 - Fade to black or cut to logo
 
 ---
@@ -175,7 +175,7 @@ Don't use a toy app. It should look like a real project someone is working on.
 ### Desktop Prep
 - Hide the Dock (System Settings > Desktop & Dock > Automatically hide)
 - Set desktop wallpaper to solid dark gray or black
-- Close all apps except: the demo web app, markupr, and your code editor
+- Close all apps except: the demo web app, markuprx, and your code editor
 - Resize the browser to ~1280x800 so the content is readable at 1080p
 
 ---
@@ -204,10 +204,10 @@ Capture 5 key frames from the video for the Product Hunt gallery (1270x760px eac
 | # | Frame | Timestamp | What it shows |
 |---|-------|-----------|---------------|
 | 1 | The problem | ~0:05 | The UI bug, zoomed in |
-| 2 | Recording active | ~0:25 | markupr capturing, waveform visible |
+| 2 | Recording active | ~0:25 | markuprx capturing, waveform visible |
 | 3 | The output | ~0:58 | Markdown document with inline screenshots |
 | 4 | MCP config | ~1:08 | The 3-line JSON config |
-| 5 | Landing page | ~1:17 | markupr.com hero section |
+| 5 | Landing page | ~1:17 | markuprx.com hero section |
 
 Extract stills with ffmpeg:
 ```bash
@@ -224,13 +224,13 @@ ffmpeg -i demo.mp4 -ss 77 -vframes 1 -vf "scale=1270:760:force_original_aspect_r
 ## Platform-Specific Edits
 
 ### Twitter (30-60s max for engagement)
-Cut Scenes 1-5 only. Drop the MCP scene. End with the markdown output and a text overlay: "markupr.com -- open source".
+Cut Scenes 1-5 only. Drop the MCP scene. End with the markdown output and a text overlay: "markuprx.com -- open source".
 
 ### GitHub README (GIF)
 Scenes 2-4 only (hotkey, narrate, output). 15-20 seconds. No audio needed -- the GIF speaks for itself.
 
 ### Product Hunt (full video)
-Use the complete 80-second cut. Add a 2-second title card at the start: "markupr -- you see it, you say it, your AI fixes it."
+Use the complete 80-second cut. Add a 2-second title card at the start: "markuprx -- you see it, you say it, your AI fixes it."
 
 ### Landing Page
 Full video or Scenes 1-5 (skip MCP for non-technical visitors). Consider autoplay muted with a play button overlay.

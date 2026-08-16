@@ -201,11 +201,11 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // ---------------------------------------------------------------------------
   const loadRecentSessions = useCallback(async () => {
     try {
-      if (!window.markupr?.output?.listSessions) {
+      if (!window.markuprx?.output?.listSessions) {
         setRecentSessions([]);
         return;
       }
-      const sessions = await window.markupr.output.listSessions();
+      const sessions = await window.markuprx.output.listSessions();
       setRecentSessions(sessions.slice(0, 5));
     } catch (error) {
       console.error('[RecordingContext] Failed to load recent sessions:', error);
@@ -221,8 +221,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Transcription capability check
   // ---------------------------------------------------------------------------
   const refreshTranscriptionCapability = useCallback(() => {
-    const whisperApi = window.markupr?.whisper;
-    const settingsApi = window.markupr?.settings;
+    const whisperApi = window.markuprx?.whisper;
+    const settingsApi = window.markuprx?.settings;
 
     if (!whisperApi && !settingsApi) {
       setHasTranscriptionCapability(false);
@@ -251,9 +251,9 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const handleSettingsUpdated = () => {
       refreshTranscriptionCapability();
     };
-    window.addEventListener('markupr:settings-updated', handleSettingsUpdated);
+    window.addEventListener('markuprx:settings-updated', handleSettingsUpdated);
     return () => {
-      window.removeEventListener('markupr:settings-updated', handleSettingsUpdated);
+      window.removeEventListener('markuprx:settings-updated', handleSettingsUpdated);
     };
   }, [refreshTranscriptionCapability]);
 
@@ -268,7 +268,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           annotationActive: Boolean(annotationSessionIdRef.current),
           finalizePendingIssue,
           endAnnotation: (shouldFinalize) =>
-            window.markupr.capture.endAnnotation(shouldFinalize),
+            window.markuprx.capture.endAnnotation(shouldFinalize),
           waitForMarkedSnapshot: (revision) => recorder.waitForMarkedSnapshot(revision),
           stopRecorder: async () => {
             if (!recorder.isRecording() && !recorder.getSessionId()) return { success: true };
@@ -288,7 +288,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return;
         }
 
-        const latestStatus = await window.markupr.session.getStatus().catch(() => null);
+        const latestStatus = await window.markuprx.session.getStatus().catch(() => null);
         if (latestStatus && latestStatus.state !== 'recording') {
           await stopRecorderForTransition(true).catch((error) => {
             console.warn('[RecordingContext] Forced recorder stop during stale recording status guard failed:', error);
@@ -299,7 +299,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         let activeSession = session;
         if (!activeSession) {
           for (let attempt = 0; attempt < 4; attempt += 1) {
-            activeSession = await window.markupr.session.getCurrent();
+            activeSession = await window.markuprx.session.getCurrent();
             if (activeSession) break;
             if (attempt < 3) {
               await new Promise((resolve) => setTimeout(resolve, 180));
@@ -323,8 +323,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             console.warn('[RecordingContext] Continuous screen recording failed for selected source:', message);
             await cleanupFailedRecordingStart({
               releaseCaptureTracks: () => recorder.releaseCaptureTracks(),
-              endAnnotation: () => window.markupr.capture.endAnnotation(),
-              cancelSession: () => window.markupr.session.cancel(),
+              endAnnotation: () => window.markuprx.capture.endAnnotation(),
+              cancelSession: () => window.markuprx.session.cancel(),
             });
             annotationSessionIdRef.current = null;
             setState('error');
@@ -335,7 +335,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const captureTarget = activeSession?.metadata.captureTarget;
         if (activeSession && captureTarget && annotationSessionIdRef.current !== activeSession.id) {
-          const result = await window.markupr.capture.beginAnnotation(activeSession.id, captureTarget);
+          const result = await window.markuprx.capture.beginAnnotation(activeSession.id, captureTarget);
           if (result.success) {
             annotationSessionIdRef.current = activeSession.id;
           } else {
@@ -346,8 +346,8 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (paused) {
           const annotationEnded = await disableAnnotationDrawing({
             annotationActive: Boolean(annotationSessionIdRef.current),
-            setAnnotationMode: (mode) => window.markupr.capture.setAnnotationMode(mode),
-            endAnnotation: () => window.markupr.capture.endAnnotation(),
+            setAnnotationMode: (mode) => window.markuprx.capture.setAnnotationMode(mode),
+            endAnnotation: () => window.markuprx.capture.endAnnotation(),
           });
           if (annotationEnded) annotationSessionIdRef.current = null;
           await recorder.pause();
@@ -378,11 +378,11 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Session IPC listeners
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!window.markupr?.session) return;
+    if (!window.markuprx?.session) return;
     let mounted = true;
     const recorder = screenRecorderRef.current;
 
-    window.markupr.session
+    window.markuprx.session
       .getStatus()
       .then((status) => {
         if (!mounted) return;
@@ -399,7 +399,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const toUiState = (nextState: SessionState): SessionState =>
       nextState === 'complete' && !outputReadyRef.current ? 'processing' : nextState;
 
-    const unsubState = window.markupr.session.onStateChange(({ state: nextState, session }) => {
+    const unsubState = window.markuprx.session.onStateChange(({ state: nextState, session }) => {
       const effectiveState =
         stopRequestedRef.current && nextState === 'recording' ? 'stopping' : nextState;
       setState(toUiState(effectiveState));
@@ -435,7 +435,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    const unsubStatus = window.markupr.session.onStatusUpdate((status) => {
+    const unsubStatus = window.markuprx.session.onStatusUpdate((status) => {
       if (status.state === 'stopping' || status.state === 'processing') {
         stopRequestedRef.current = true;
       }
@@ -448,7 +448,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       void queueScreenRecordingSync(effectiveState, null, status.isPaused);
     });
 
-    const unsubScreenshot = window.markupr.capture.onScreenshot((payload) => {
+    const unsubScreenshot = window.markuprx.capture.onScreenshot((payload) => {
       setScreenshotCount(payload.count);
       setLastCapture({
         trigger: payload.trigger,
@@ -456,7 +456,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
     });
 
-    const unsubReady = window.markupr.output.onReady((payload) => {
+    const unsubReady = window.markuprx.output.onReady((payload) => {
       recorder.releaseCaptureTracks();
       recorder.forceReleaseOrphanedCapture();
       void queueScreenRecordingSync('idle', null, false).catch((error) => {
@@ -483,14 +483,14 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       processingStartedAtRef.current = null;
     });
 
-    const unsubSessionError = window.markupr.session.onError((payload) => {
+    const unsubSessionError = window.markuprx.session.onError((payload) => {
       stopRequestedRef.current = false;
       outputReadyRef.current = false;
       setState('error');
       setErrorMessage(payload.message);
     });
 
-    const unsubOutputError = window.markupr.output.onError((payload) => {
+    const unsubOutputError = window.markuprx.output.onError((payload) => {
       stopRequestedRef.current = false;
       outputReadyRef.current = false;
       setState('error');
@@ -522,14 +522,14 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Audio level + voice activity listeners
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!window.markupr?.audio) return;
-    const unsubLevel = window.markupr.audio.onLevel((level) => {
+    if (!window.markuprx?.audio) return;
+    const unsubLevel = window.markuprx.audio.onLevel((level) => {
       setAudioLevel(level);
     });
-    const unsubVoice = window.markupr.audio.onVoiceActivity((active) => {
+    const unsubVoice = window.markuprx.audio.onVoiceActivity((active) => {
       setIsVoiceActive(active);
     });
-    const unsubSessionVoice = window.markupr.session.onVoiceActivity(({ active }) => {
+    const unsubSessionVoice = window.markuprx.session.onVoiceActivity(({ active }) => {
       setIsVoiceActive(active);
     });
 
@@ -540,7 +540,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
-  useEffect(() => window.markupr.capture.onAnnotationState((annotationState) => {
+  useEffect(() => window.markuprx.capture.onAnnotationState((annotationState) => {
     setAnnotationActive(annotationState.active);
     setAnnotationMode(annotationState.mode);
     if (annotationState.active) {
@@ -560,7 +560,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Post-processing progress listeners
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const processingApi = window.markupr?.processing;
+    const processingApi = window.markuprx?.processing;
     if (!processingApi || typeof processingApi.onProgress !== 'function' || typeof processingApi.onComplete !== 'function') {
       return;
     }
@@ -597,7 +597,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       stopRequestedRef.current = false;
       outputReadyRef.current = false;
 
-      const result = await window.markupr.session.start();
+      const result = await window.markuprx.session.start();
       if (!result.success) {
         if (result.cancelled) {
           setState('idle');
@@ -605,12 +605,12 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         setState('error');
         setErrorMessage(result.error || 'Unable to start session.');
-        window.markupr?.whisper
+        window.markuprx?.whisper
           ?.hasTranscriptionCapability()
           .then((ready) => setHasTranscriptionCapability(ready))
           .catch(() => {});
       } else {
-        const activeSession = await window.markupr.session.getCurrent();
+        const activeSession = await window.markuprx.session.getCurrent();
         if (activeSession) {
           await queueScreenRecordingSync('recording', activeSession, false);
         }
@@ -634,7 +634,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.warn('[RecordingContext] Failed to flush screen recording before stop:', error);
       }
 
-      const result = await window.markupr.session.stop();
+      const result = await window.markuprx.session.stop();
       if (!result.success) {
         setReportPath(result.reportPath || null);
         setSessionDir(result.sessionDir || null);
@@ -657,7 +657,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsMutating(true);
     try {
       if (isPaused) {
-        const result = await window.markupr.session.resume();
+        const result = await window.markuprx.session.resume();
         if (!result.success) {
           setErrorMessage(result.error || 'Unable to resume session.');
           return;
@@ -669,12 +669,12 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const annotationEnded = await disableAnnotationDrawing({
         annotationActive: Boolean(annotationSessionIdRef.current),
-        setAnnotationMode: (mode) => window.markupr.capture.setAnnotationMode(mode),
-        endAnnotation: () => window.markupr.capture.endAnnotation(),
+        setAnnotationMode: (mode) => window.markuprx.capture.setAnnotationMode(mode),
+        endAnnotation: () => window.markuprx.capture.endAnnotation(),
       });
       if (annotationEnded) annotationSessionIdRef.current = null;
 
-      const result = await window.markupr.session.pause();
+      const result = await window.markuprx.session.pause();
       if (!result.success) {
         setErrorMessage(result.error || 'Unable to pause session.');
         return;
@@ -691,7 +691,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const manualCapture = useCallback(async () => {
     if (state !== 'recording' || isPaused || isMutating) return;
-    const result = await window.markupr.capture.manualScreenshot({
+    const result = await window.markuprx.capture.manualScreenshot({
       focusedElementHint: collectFocusedElementHintFromDom(),
     });
     if (!result.success) {
@@ -702,7 +702,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const toggleAnnotation = useCallback(async () => {
     if (state !== 'recording' || !annotationActive || isPaused || isMutating) return;
     const nextMode: AnnotationMode = annotationMode === 'draw' ? 'interact' : 'draw';
-    const result = await window.markupr.capture.setAnnotationMode(nextMode);
+    const result = await window.markuprx.capture.setAnnotationMode(nextMode);
     if (!result.success) {
       setErrorMessage(result.error || 'Unable to change annotation mode.');
     }
@@ -710,35 +710,35 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const copyReportPath = useCallback(async () => {
     if (!reportPath) return;
-    await window.markupr.copyToClipboard(reportPath);
+    await window.markuprx.copyToClipboard(reportPath);
   }, [reportPath]);
 
   const openReportFolder = useCallback(async () => {
     if (sessionDir) {
-      await window.markupr.output.openFolder(sessionDir);
+      await window.markuprx.output.openFolder(sessionDir);
       return;
     }
     if (reportPath) {
-      await window.markupr.output.openFolder(reportPath);
+      await window.markuprx.output.openFolder(reportPath);
     }
   }, [sessionDir, reportPath]);
 
   const copyRecordingPath = useCallback(async () => {
     if (!recordingPath) return;
-    await window.markupr.copyToClipboard(recordingPath);
+    await window.markuprx.copyToClipboard(recordingPath);
   }, [recordingPath]);
 
   const copyAudioPath = useCallback(async () => {
     if (!audioPath) return;
-    await window.markupr.copyToClipboard(audioPath);
+    await window.markuprx.copyToClipboard(audioPath);
   }, [audioPath]);
 
   const openRecent = useCallback(async (session: { folder: string }) => {
-    await window.markupr.output.openFolder(session.folder);
+    await window.markuprx.output.openFolder(session.folder);
   }, []);
 
   const copyRecentPath = useCallback(async (session: { folder: string }) => {
-    await window.markupr.copyToClipboard(`${session.folder}/feedback-report.md`);
+    await window.markuprx.copyToClipboard(`${session.folder}/feedback-report.md`);
   }, []);
 
   const recoverSession = useCallback(() => {
@@ -754,7 +754,7 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const reviewSave = useCallback(async (_session: ReviewSession) => {
     try {
-      await window.markupr.output.save();
+      await window.markuprx.output.save();
     } catch {
       // Save failure is non-fatal in review mode
     }

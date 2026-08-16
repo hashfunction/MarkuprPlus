@@ -1,6 +1,6 @@
 # Run Tests and Report Results
 
-Run the markupr test suite and report results with actionable analysis.
+Run the markuprx test suite and report results with actionable analysis.
 
 ## Instructions
 

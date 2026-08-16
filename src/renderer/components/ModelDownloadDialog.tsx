@@ -78,18 +78,18 @@ function useModelDownload(): UseModelDownloadResult {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!window.markupr?.whisper) return;
+    if (!window.markuprx?.whisper) return;
     // Subscribe to download events
-    const unsubProgress = window.markupr.whisper.onDownloadProgress((p) => {
+    const unsubProgress = window.markuprx.whisper.onDownloadProgress((p) => {
       setProgress(p);
     });
 
-    const unsubComplete = window.markupr.whisper.onDownloadComplete(() => {
+    const unsubComplete = window.markuprx.whisper.onDownloadComplete(() => {
       setIsDownloading(false);
       setProgress(null);
     });
 
-    const unsubError = window.markupr.whisper.onDownloadError(({ error: err }) => {
+    const unsubError = window.markuprx.whisper.onDownloadError(({ error: err }) => {
       setIsDownloading(false);
       setError(err);
     });
@@ -106,7 +106,7 @@ function useModelDownload(): UseModelDownloadResult {
     setError(null);
     setProgress(null);
 
-    const result = await window.markupr?.whisper?.downloadModel(model);
+    const result = await window.markuprx?.whisper?.downloadModel(model);
     if (!result?.success && result?.error) {
       setError(result.error);
       setIsDownloading(false);
@@ -114,7 +114,7 @@ function useModelDownload(): UseModelDownloadResult {
   }, []);
 
   const cancelDownload = useCallback((model: string) => {
-    window.markupr?.whisper?.cancelDownload(model);
+    window.markuprx?.whisper?.cancelDownload(model);
     setIsDownloading(false);
     setProgress(null);
   }, []);
@@ -146,9 +146,9 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
 
   // Load available models on mount
   useEffect(() => {
-    if (!window.markupr?.whisper) return;
+    if (!window.markuprx?.whisper) return;
     const loadModels = async () => {
-      const availableModels = await window.markupr.whisper.getAvailableModels();
+      const availableModels = await window.markuprx.whisper.getAvailableModels();
       setModels(availableModels);
     };
     loadModels();
@@ -165,8 +165,8 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
 
   // Listen for download complete to transition state
   useEffect(() => {
-    if (!window.markupr?.whisper) return;
-    const unsubComplete = window.markupr.whisper.onDownloadComplete(() => {
+    if (!window.markuprx?.whisper) return;
+    const unsubComplete = window.markuprx.whisper.onDownloadComplete(() => {
       setState('complete');
     });
     return unsubComplete;
@@ -228,7 +228,7 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
 
             {/* Description */}
             <p style={styles.description}>
-              markupR needs to download a speech recognition model ({selectedModelInfo?.sizeMB || 75}MB)
+              MarkuprX needs to download a speech recognition model ({selectedModelInfo?.sizeMB || 75}MB)
               to transcribe your voice offline. This is a one-time download.
             </p>
 
@@ -381,12 +381,12 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
             {/* Description */}
             <p style={styles.description}>
               The speech recognition model has been downloaded successfully.
-              markupR can now transcribe your voice offline.
+              MarkuprX can now transcribe your voice offline.
             </p>
 
             {/* Continue Button */}
             <button style={styles.successButton} onClick={onComplete}>
-              Start Using markupR
+              Start Using MarkuprX
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ marginLeft: 8 }}>
                 <path
                   d="M7.5 15l5-5-5-5"
@@ -497,13 +497,13 @@ export function useModelCheck(): ModelCheckResult {
 
     const checkModel = async () => {
       try {
-        if (!window.markupr?.whisper) {
+        if (!window.markuprx?.whisper) {
           setNeedsDownload(true);
           return;
         }
         // Check if we have any transcription capability (OpenAI or Whisper)
         const hasCapability = await withTimeout(
-          window.markupr.whisper.hasTranscriptionCapability(),
+          window.markuprx.whisper.hasTranscriptionCapability(),
           4000,
           false
         );
@@ -513,7 +513,7 @@ export function useModelCheck(): ModelCheckResult {
         if (!hasCapability) {
           // Check specifically if we have a Whisper model
           const modelCheck = await withTimeout(
-            window.markupr.whisper.checkModel(),
+            window.markuprx.whisper.checkModel(),
             4000,
             {
               hasAnyModel: false,

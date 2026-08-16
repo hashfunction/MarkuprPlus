@@ -1,5 +1,5 @@
 /**
- * ClaudeAnalyzer - Core AI analysis engine for markupR
+ * ClaudeAnalyzer - Core AI analysis engine for MarkuprX
  *
  * Takes a session's transcript + screenshots, sends to Claude Sonnet 4.5 with vision,
  * and returns structured feedback analysis as AIAnalysisResult.

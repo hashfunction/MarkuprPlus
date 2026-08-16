@@ -1,5 +1,5 @@
 # =============================================================================
-# markupr Release Pipeline
+# markuprx Release Pipeline
 # =============================================================================
 # Triggered on version tags (v*)
 # Builds signed installers for macOS and Windows
@@ -271,9 +271,9 @@ jobs:
           echo "" >> CHANGELOG.md
           echo "| Platform | Download |" >> CHANGELOG.md
           echo "|----------|----------|" >> CHANGELOG.md
-          echo "| macOS (Apple Silicon) | \`markupr-${{ needs.validate-tag.outputs.version }}-arm64.dmg\` |" >> CHANGELOG.md
-          echo "| macOS (Intel) | \`markupr-${{ needs.validate-tag.outputs.version }}-x64.dmg\` |" >> CHANGELOG.md
-          echo "| Windows | \`markupr-Setup-${{ needs.validate-tag.outputs.version }}.exe\` |" >> CHANGELOG.md
+          echo "| macOS (Apple Silicon) | \`markuprx-${{ needs.validate-tag.outputs.version }}-arm64.dmg\` |" >> CHANGELOG.md
+          echo "| macOS (Intel) | \`markuprx-${{ needs.validate-tag.outputs.version }}-x64.dmg\` |" >> CHANGELOG.md
+          echo "| Windows | \`markuprx-Setup-${{ needs.validate-tag.outputs.version }}.exe\` |" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           echo "## Checksums" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
@@ -287,7 +287,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: markupr v${{ needs.validate-tag.outputs.version }}
+          name: markuprx v${{ needs.validate-tag.outputs.version }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: ${{ needs.validate-tag.outputs.is-prerelease == 'true' }}

@@ -1,7 +1,7 @@
 /**
  * Tool: analyze_video
  *
- * Process an existing video file through the markupR pipeline.
+ * Process an existing video file through the MarkuprX pipeline.
  * Generates a structured markdown report with transcript, key moments,
  * and extracted frames.
  */
@@ -17,7 +17,7 @@ import { templateRegistry } from '../../main/output/templates/index.js';
 export function register(server: McpServer): void {
   server.tool(
     'analyze_video',
-    'Process an existing video file through the markupR pipeline. Generates a structured markdown report with transcript, key moments, and extracted frames.',
+    'Process an existing video file through the MarkuprX pipeline. Generates a structured markdown report with transcript, key moments, and extracted frames.',
     {
       videoPath: z.string().describe('Absolute path to the video file'),
       audioPath: z.string().optional().describe('Separate audio file path (if not embedded)'),

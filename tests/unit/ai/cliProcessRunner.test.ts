@@ -49,7 +49,7 @@ describe('runCliProcess', () => {
 
   it('returns spawn errors as diagnostics instead of hanging', async () => {
     const result = await runCliProcess({
-      executable: '/definitely/missing/markupr-command',
+      executable: '/definitely/missing/markuprx-command',
       args: [],
       timeoutMs: 500,
       maxOutputBytes: 1_024,

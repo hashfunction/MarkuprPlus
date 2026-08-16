@@ -1,4 +1,4 @@
-# markupr 3-Week Distribution Plan
+# markuprx 3-Week Distribution Plan
 
 **Author:** Eddie San Juan | **Date:** 2026-02-14
 **Goal:** Maximum developer reach in 21 days on a $0 budget
@@ -10,9 +10,9 @@
 
 Every channel below should hammer the same message:
 
-> **"Your AI coding agent can't see your screen. markupr fixes that."**
+> **"Your AI coding agent can't see your screen. markuprx fixes that."**
 
-The MCP angle is the unique differentiator. Every other screen recorder produces video files. markupr produces structured Markdown that Claude Code, Cursor, and Windsurf can consume directly -- and the MCP server lets agents capture screenshots and recordings mid-conversation. No other tool does this. Lead with the MCP story everywhere.
+The MCP angle is the unique differentiator. Every other screen recorder produces video files. markuprx produces structured Markdown that Claude Code, Cursor, and Windsurf can consume directly -- and the MCP server lets agents capture screenshots and recordings mid-conversation. No other tool does this. Lead with the MCP story everywhere.
 
 Secondary hook for non-MCP channels:
 
@@ -37,7 +37,7 @@ These are zero-effort prerequisites. Do them all in one sitting (2-3 hours).
 - **Who:** Eddie, 20 minutes.
 
 ### 3. Create a `llms-install.md` for the MCP Server
-- **What:** A file in the repo root that guides AI agents through markupr-mcp installation. Required for the Cline MCP Marketplace submission.
+- **What:** A file in the repo root that guides AI agents through markuprx-mcp installation. Required for the Cline MCP Marketplace submission.
 - **Why:** Cline's marketplace uses this file when installing MCP servers. Without it, installation may fail and your submission will be deprioritized.
 - **Who:** Eddie, 15 minutes.
 
@@ -71,7 +71,7 @@ These are zero-effort prerequisites. Do them all in one sitting (2-3 hours).
 - **Action:**
   - Add repository topics on GitHub: `mcp`, `mcp-server`, `model-context-protocol`, `screen-recording`, `developer-tools`, `ai-agents`, `claude-code`, `cursor`, `electron`, `typescript`, `whisper`, `markdown`, `cli`, `npx`, `feedback`, `bug-reporting`
   - Add the demo GIF to the top of the README (replace the "Demo video coming soon" placeholder at line 83)
-  - Ensure the "About" section on GitHub has the website URL (markupr.com), topics, and a concise description
+  - Ensure the "About" section on GitHub has the website URL (markuprx.com), topics, and a concise description
   - Add `good first issue` and `help wanted` labels to 3-5 existing issues (or create them)
 - **Why:** GitHub topics drive discoverability in GitHub search and "Explore" recommendations. The demo GIF is the single most important README element -- it shows the product working in 5 seconds without reading a word.
 - **Who:** Eddie, 30 minutes.
@@ -112,7 +112,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** `llms-install.md` and logo from pre-launch.
 
 #### 2f. cursor.directory
-- **Action:** Submit markupr-mcp to https://cursor.directory/mcp. 250,000+ monthly active developers browse this.
+- **Action:** Submit markuprx-mcp to https://cursor.directory/mcp. 250,000+ monthly active developers browse this.
 - **Expected impact:** HIGH. Cursor is the most popular AI IDE.
 - **Dependencies:** None.
 
@@ -122,7 +122,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** None.
 
 #### 2h. punkpeye/awesome-mcp-servers (GitHub)
-- **Action:** Open a PR adding markupr-mcp to the appropriate category.
+- **Action:** Open a PR adding markuprx-mcp to the appropriate category.
 - **Expected impact:** Popular GitHub awesome list. PR itself gets visibility.
 - **Dependencies:** None.
 
@@ -147,13 +147,13 @@ Submit to every MCP directory in a single session. These are the primary discove
 ### Day 3 (Wednesday): Write the Launch Blog Post
 
 #### 3a. Write the Canonical Blog Post on Hashnode
-- **Action:** Write "I built an MCP server that lets Claude Code see your screen" on Hashnode (custom domain if possible, otherwise markupr.hashnode.dev).
+- **Action:** Write "I built an MCP server that lets Claude Code see your screen" on Hashnode (custom domain if possible, otherwise markuprx.hashnode.dev).
 - **Structure:**
   1. **The problem** (2 paragraphs): AI coding agents are blind. You describe bugs in text, they hallucinate the UI. The feedback loop is broken.
   2. **The solution** (show the demo GIF): One hotkey, structured Markdown, AI reads it directly.
   3. **The MCP server** (show the MCP demo GIF): Your agent can now capture your screen mid-conversation. Show the actual Claude Code conversation.
   4. **How it works** (technical): Pipeline architecture -- Whisper transcription, timestamp correlation, ffmpeg frame extraction, Markdown generation. Developers respect technical depth.
-  5. **Try it now** (3 commands): `npx markupr analyze ./recording.mov`, MCP config JSON for Claude Code, desktop app download link.
+  5. **Try it now** (3 commands): `npx markuprx analyze ./recording.mov`, MCP config JSON for Claude Code, desktop app download link.
   6. **Open source** (MIT): Link to GitHub, mention contributions welcome.
 - **Tags:** `mcp`, `ai`, `developer-tools`, `open-source`, `claude`, `typescript`
 - **Why Hashnode first:** You own the content, it has good SEO, and you can crosspost to Dev.to later without duplicate content penalties.
@@ -172,9 +172,9 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Action:** Post a thread (not a single tweet):
   1. "I built a tool that lets Claude Code see your screen. [MCP demo GIF]"
   2. "The problem: AI coding agents are blind. You describe a bug in 50 words. The agent hallucinates the layout."
-  3. "The fix: markupr records your screen while you narrate. When you stop, it produces structured Markdown with screenshots placed at the exact moments you were talking about them."
+  3. "The fix: markuprx records your screen while you narrate. When you stop, it produces structured Markdown with screenshots placed at the exact moments you were talking about them."
   4. "But the real unlock is the MCP server. Add 3 lines to your Claude Code config, and your agent can capture screenshots mid-conversation. [MCP config JSON screenshot]"
-  5. "Try it: `npx markupr analyze ./recording.mov` -- open source, MIT license. [GitHub link]"
+  5. "Try it: `npx markuprx analyze ./recording.mov` -- open source, MIT license. [GitHub link]"
 - **Timing:** Post between 9-11am PST (peak developer Twitter activity).
 - **Who:** Eddie, 30 minutes.
 - **Expected impact:** 5,000-20,000 impressions if the GIF lands. Twitter threads with visual demos perform 3-5x better than text-only.
@@ -187,13 +187,13 @@ Submit to every MCP directory in a single session. These are the primary discove
 
 #### 4d. LinkedIn Post
 - **Action:** Write a professional-toned post about the MCP server angle. LinkedIn is where engineering managers and DevRel people hang out. Frame it as "the developer feedback loop is broken, here's how AI agents fix it."
-- **Expected impact:** Different audience -- more managers and team leads who might adopt markupr for their team.
+- **Expected impact:** Different audience -- more managers and team leads who might adopt markuprx for their team.
 - **Dependencies:** Blog post link.
 
 ### Day 5 (Friday): GitHub Awesome Lists + Additional Directories
 
 #### 5a. awesome-electron
-- **Action:** Open a PR to https://github.com/sindresorhus/awesome-electron adding markupr under "Tools" or "Productivity".
+- **Action:** Open a PR to https://github.com/sindresorhus/awesome-electron adding markuprx under "Tools" or "Productivity".
 - **Expected impact:** sindresorhus awesome lists have massive reach. Even if the PR takes weeks to merge, people browsing open PRs will see it.
 - **Dependencies:** None.
 
@@ -208,7 +208,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** None.
 
 #### 5d. GitHub Marketplace (Action)
-- **Action:** If not already listed, ensure `eddiesanjuan/markupr-action@v1` appears in the GitHub Actions Marketplace with proper branding, description, and examples.
+- **Action:** If not already listed, ensure `eddiesanjuan/markuprx-action@v1` appears in the GitHub Actions Marketplace with proper branding, description, and examples.
 - **Expected impact:** GitHub Marketplace is how teams discover Actions. Organic discovery for CI/CD use case.
 - **Dependencies:** None.
 
@@ -232,19 +232,19 @@ Submit to every MCP directory in a single session. These are the primary discove
 #### 8a. Post Show HN
 - **Action:** Post to Hacker News with title format:
   ```
-  Show HN: markupr -- MCP server that lets AI coding agents see your screen
+  Show HN: markuprx -- MCP server that lets AI coding agents see your screen
   ```
   Link to the GitHub repo (not the website -- HN developers prefer repos). Write a top-level comment explaining:
   - What it does (2 sentences)
   - Why you built it (the feedback loop problem)
   - Technical architecture (Whisper + ffmpeg + timestamp correlation)
   - What makes it different from Loom/screenshots (structured Markdown output + MCP server)
-  - How to try it (`npx markupr analyze ./recording.mov`)
+  - How to try it (`npx markuprx analyze ./recording.mov`)
 - **Timing:** Tuesday-Thursday, 8-10am PST. Monday is acceptable but Tuesday/Wednesday historically perform better. Post at exactly 8:00am PST.
 - **Early engagement:** You need 8-10 genuine upvotes and 2-3 comments in the first 30 minutes to reach page 1. Before posting, alert:
   - Anyone you know who has an HN account older than 1 year
   - Any dev communities (Discord, Slack) where members naturally browse HN
-  - Do NOT share the direct HN link asking for upvotes (HN's ring detection will kill the post). Instead say "I just posted markupr on HN, check out the Show section."
+  - Do NOT share the direct HN link asking for upvotes (HN's ring detection will kill the post). Instead say "I just posted markuprx on HN, check out the Show section."
 - **Comment engagement:** Stay online for 3-4 hours after posting. Answer every question with technical depth. HN rewards genuine engagement. Be transparent about limitations.
 - **Who:** Eddie, 3-4 hours of active engagement.
 - **Expected impact:** 50-200 upvotes if it hits page 1. 500-2,000 GitHub visitors in 24 hours. 100-500 stars if the post resonates. HN is the single highest-impact launch channel for developer tools.
@@ -274,20 +274,20 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** None.
 
 #### 9d. r/SideProject
-- **Action:** Post the building story -- why you built markupr, the technical decisions, the open source journey.
+- **Action:** Post the building story -- why you built markuprx, the technical decisions, the open source journey.
 - **Angle:** Indie developer building in public. r/SideProject loves personal narratives.
 - **Expected impact:** Supportive community, moderate traffic but high conversion to stars.
 - **Dependencies:** None.
 
 #### 9e. r/commandline
-- **Action:** Focus on the CLI tool: `npx markupr analyze ./recording.mov`. Show the terminal output.
+- **Action:** Focus on the CLI tool: `npx markuprx analyze ./recording.mov`. Show the terminal output.
 - **Expected impact:** CLI power users who share tools they like.
 - **Dependencies:** None.
 
 #### 9f. r/ClaudeAI and r/cursor
 - **Action:** Post the MCP setup guide as a helpful tutorial, not a product announcement. "How to give Claude Code the ability to see your screen using MCP" with step-by-step config.
-- **Angle:** Genuinely helpful content that happens to feature markupr.
-- **Expected impact:** Highly targeted audience already using the tools markupr integrates with.
+- **Angle:** Genuinely helpful content that happens to feature markuprx.
+- **Expected impact:** Highly targeted audience already using the tools markuprx integrates with.
 - **Dependencies:** None.
 
 **Reddit posting rules:**
@@ -310,7 +310,7 @@ Submit to every MCP directory in a single session. These are the primary discove
     1. Hero: The demo GIF showing full workflow
     2. MCP server in action with Claude Code
     3. CLI output showing structured Markdown
-    4. The landing page (markupr.com) screenshot
+    4. The landing page (markuprx.com) screenshot
     5. The annotated Markdown output with screenshots
   - First comment: Write a maker's comment explaining why you built this and asking for feedback
   - Topics: Developer Tools, Artificial Intelligence, Open Source, Productivity
@@ -335,8 +335,8 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** Traction from HN/PH to reference.
 
 #### 11b. JavaScript Weekly (Cooperpress)
-- **Action:** Submit via the contact form on https://javascriptweekly.com/ or email the editor directly. markupr is a TypeScript/Node.js tool with Electron -- it fits squarely in JS Weekly's editorial focus.
-- **Pitch angle:** "New open-source CLI tool: npx markupr analyze ./recording.mov -- turns screen recordings into Markdown with Whisper transcription. Ships as npm package with MCP server."
+- **Action:** Submit via the contact form on https://javascriptweekly.com/ or email the editor directly. markuprx is a TypeScript/Node.js tool with Electron -- it fits squarely in JS Weekly's editorial focus.
+- **Pitch angle:** "New open-source CLI tool: npx markuprx analyze ./recording.mov -- turns screen recordings into Markdown with Whisper transcription. Ships as npm package with MCP server."
 - **Expected impact:** JS Weekly reaches 200,000+ developers. A feature is worth 500-2,000 GitHub visitors.
 - **Dependencies:** Published npm package + blog post.
 
@@ -348,7 +348,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 
 #### 11d. Console.dev
 - **Action:** Submit to https://console.dev/. Console reviews open source dev tools weekly. They do deep-dive reviews.
-- **Pitch angle:** markupr as a novel open source tool in the MCP ecosystem.
+- **Pitch angle:** markuprx as a novel open source tool in the MCP ecosystem.
 - **Expected impact:** Smaller but highly engaged audience. A Console.dev review is a quality signal.
 - **Dependencies:** None.
 
@@ -365,7 +365,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 
 ### Day 12 (Friday): Twitter Thread + Recap
 
-#### 12a. "How I launched markupr" Thread
+#### 12a. "How I launched markuprx" Thread
 - **Action:** Post a thread documenting the launch week:
   - Day 1: HN stats (upvotes, comments, traffic)
   - Day 2: Reddit reception
@@ -399,15 +399,15 @@ Submit to every MCP directory in a single session. These are the primary discove
 ### Day 15 (Monday): Integration Tutorials
 
 #### 15a. "How to Give Claude Code Eyes" Tutorial
-- **Action:** Write a focused tutorial on Hashnode: "How to Set Up markupr MCP Server with Claude Code in 2 Minutes." Step-by-step with screenshots of `~/.claude/settings.json`, the MCP server output, and a real bug-fix conversation.
+- **Action:** Write a focused tutorial on Hashnode: "How to Set Up markuprx MCP Server with Claude Code in 2 Minutes." Step-by-step with screenshots of `~/.claude/settings.json`, the MCP server output, and a real bug-fix conversation.
 - **Why:** Search-optimized content. Developers search "Claude Code MCP setup" and find this. Evergreen traffic.
 - **Expected impact:** Long-tail SEO. 100-500 monthly views ongoing.
 - **Dependencies:** None.
 
 #### 15b. "How to Add Visual Feedback to Your PR Pipeline" Tutorial
-- **Action:** Write a tutorial on using `eddiesanjuan/markupr-action@v1` in GitHub Actions. Show real PR with visual feedback comments.
+- **Action:** Write a tutorial on using `eddiesanjuan/markuprx-action@v1` in GitHub Actions. Show real PR with visual feedback comments.
 - **Why:** GitHub Actions usage drives recurring impressions.
-- **Expected impact:** CI/CD audience is a distinct segment. Every team that adopts the Action becomes a distribution channel (their PRs show markupr output).
+- **Expected impact:** CI/CD audience is a distinct segment. Every team that adopts the Action becomes a distribution channel (their PRs show markuprx output).
 - **Dependencies:** None.
 
 #### 15c. Cross-post Both to Dev.to
@@ -418,13 +418,13 @@ Submit to every MCP directory in a single session. These are the primary discove
 ### Day 16 (Tuesday): YouTube Demo Video
 
 #### 16a. Full Demo Video (3-5 minutes)
-- **Action:** Record and upload a YouTube video titled "markupr: Give Your AI Coding Agent the Ability to See Your Screen"
+- **Action:** Record and upload a YouTube video titled "markuprx: Give Your AI Coding Agent the Ability to See Your Screen"
 - **Structure:**
   1. 0:00-0:15 -- Hook: "What if Claude Code could see your screen?"
   2. 0:15-1:00 -- The problem (show the painful workflow of describing a bug in text)
   3. 1:00-2:30 -- The desktop app demo (full loop: hotkey -> narrate -> markdown)
   4. 2:30-3:30 -- The MCP server demo (Claude Code captures screenshot -> fixes bug)
-  5. 3:30-4:00 -- The CLI demo (`npx markupr analyze`)
+  5. 3:30-4:00 -- The CLI demo (`npx markuprx analyze`)
   6. 4:00-4:30 -- How to install (3 methods) + GitHub link
 - **Optimization:** Title, description, and tags optimized for "MCP server", "Claude Code", "AI coding agent", "developer tools", "screen recording developer"
 - **Thumbnail:** Split screen -- left side is a bug on screen, right side is structured Markdown with screenshots
@@ -436,7 +436,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Action:** Cut the full demo into 30-60 second Shorts:
   1. "Claude Code can see your screen now" (MCP demo)
   2. "One hotkey to structured Markdown" (desktop app demo)
-  3. "npx markupr analyze in 30 seconds" (CLI demo)
+  3. "npx markuprx analyze in 30 seconds" (CLI demo)
 - **Why:** YouTube Shorts hit 90 billion daily views. Shorts -> discovery -> long-form video -> GitHub.
 - **Expected impact:** Shorts are unpredictable but have massive upside. One viral Short = 10,000+ views.
 - **Dependencies:** Full demo video.
@@ -452,7 +452,7 @@ Submit to every MCP directory in a single session. These are the primary discove
 - **Dependencies:** None.
 
 #### 17b. Create a "Welcome" Discussion Post
-- **Action:** Pin a discussion: "Welcome to markupr! What are you building with it?" Ask people to share their use cases, what IDE they use markupr with, and what features they want.
+- **Action:** Pin a discussion: "Welcome to markuprx! What are you building with it?" Ask people to share their use cases, what IDE they use markuprx with, and what features they want.
 - **Why:** Seeding initial engagement. Gives social proof to future visitors.
 - **Who:** Eddie, 15 minutes.
 - **Dependencies:** Discussions enabled.
@@ -488,9 +488,9 @@ Submit to every MCP directory in a single session. These are the primary discove
 #### 19a. Collect and Analyze Metrics
 - **Action:** Document all metrics in a spreadsheet:
   - GitHub stars (total + per day)
-  - npm downloads (total + per day, broken down by markupr and markupr-mcp)
+  - npm downloads (total + per day, broken down by markuprx and markuprx-mcp)
   - GitHub traffic (visitors, clones, referring sites)
-  - Landing page traffic (markupr.com analytics)
+  - Landing page traffic (markuprx.com analytics)
   - Newsletter feature confirmations
   - Social media impressions + engagement
   - MCP directory listing status (approved/pending)
@@ -586,8 +586,8 @@ llms-install.md (pre-launch)
 | Metric | Conservative | Target | Stretch |
 |--------|-------------|--------|---------|
 | GitHub stars | 200 | 500 | 1,500 |
-| npm installs (markupr) | 300 | 1,000 | 3,000 |
-| npm installs (markupr-mcp) | 200 | 750 | 2,000 |
+| npm installs (markuprx) | 300 | 1,000 | 3,000 |
+| npm installs (markuprx-mcp) | 200 | 750 | 2,000 |
 | MCP directory listings confirmed | 5 | 8 | 12 |
 | HN upvotes | 30 | 100 | 300 |
 | Product Hunt upvotes | 50 | 200 | 500 |
@@ -615,11 +615,11 @@ llms-install.md (pre-launch)
 The 3-week blitz creates initial momentum. To sustain it:
 
 1. **Weekly Twitter/Bluesky post** showing a new feature, fix, or user story (30 min/week)
-2. **Monthly blog post** on a technical topic related to markupr (3 hours/month)
+2. **Monthly blog post** on a technical topic related to markuprx (3 hours/month)
 3. **Respond to every GitHub issue within 24 hours** (15 min/day)
 4. **Track which MCP directories drive the most traffic** and optimize those listings
-5. **When a newsletter features markupr, thank them publicly** (builds relationship for future features)
-6. **Ship markupr Pro** (from the Product Roadmap) -- paid users become the most vocal evangelists because they have skin in the game
+5. **When a newsletter features markuprx, thank them publicly** (builds relationship for future features)
+6. **Ship markuprx Pro** (from the Product Roadmap) -- paid users become the most vocal evangelists because they have skin in the game
 7. **Re-launch on Product Hunt** when v3.0 ships (6-month minimum gap between PH launches)
 
 The first 3 weeks build the foundation. The next 3 months compound it.

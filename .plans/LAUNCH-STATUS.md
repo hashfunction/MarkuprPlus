@@ -1,4 +1,4 @@
-# markupr Launch Status
+# markuprx Launch Status
 
 **Date:** 2026-02-15
 **Version:** 2.6.1 (npm) / 2.6.0 (desktop release)
@@ -12,17 +12,17 @@
 - All 1,175 tests passing across 59 test files
 - TypeScript compiles cleanly (zero errors)
 - Desktop app built and released for macOS (arm64 + x64 DMG) and Windows (EXE)
-- CLI published to npm as `markupr@2.6.1`
-- MCP server ships as part of `markupr` npm package (run via `npx markupr-mcp`)
-- `markupr-mcp` is NOT published as a separate npm package (MCP is accessed via `npx markupr-mcp` from the main package)
+- CLI published to npm as `markuprx@2.6.1`
+- MCP server ships as part of `markuprx` npm package (run via `npx markuprx-mcp`)
+- `markuprx-mcp` is NOT published as a separate npm package (MCP is accessed via `npx markuprx-mcp` from the main package)
 
 ### GitHub Release (v2.6.0)
 - Release workflow completed successfully
 - All desktop artifacts uploaded:
-  - `markupr-2.6.0-arm64.dmg` (macOS Apple Silicon)
-  - `markupr-2.6.0-x64.dmg` (macOS Intel)
-  - `markupr-Setup-2.6.0.exe` (Windows)
-  - `markupr-2.6.0-arm64-mac.zip`, `markupr-2.6.0-mac.zip` (auto-updater zips)
+  - `markuprx-2.6.0-arm64.dmg` (macOS Apple Silicon)
+  - `markuprx-2.6.0-x64.dmg` (macOS Intel)
+  - `markuprx-Setup-2.6.0.exe` (Windows)
+  - `markuprx-2.6.0-arm64-mac.zip`, `markuprx-2.6.0-mac.zip` (auto-updater zips)
   - `latest-mac.yml`, `latest.yml` (auto-updater manifests)
   - SHA256 checksums included in release notes
 
@@ -40,9 +40,9 @@
 - All workflows healthy: CI, Release, Deploy Landing Page, Nightly, Test Action
 
 ### npm
-- `markupr@2.6.1` published and live on npm registry
-- `markupr-mcp` is NOT a separate package (confirmed: returns 404 on npm)
-- Package includes CLI (`npx markupr analyze`) and MCP server (`npx markupr-mcp`)
+- `markuprx@2.6.1` published and live on npm registry
+- `markuprx-mcp` is NOT a separate package (confirmed: returns 404 on npm)
+- Package includes CLI (`npx markuprx analyze`) and MCP server (`npx markuprx-mcp`)
 
 ### Launch Content Prepared
 - All 7 content files committed to `.plans/` directory
@@ -97,8 +97,8 @@
 |-------|--------|
 | Tests | 1,175 passing (59 files) |
 | TypeScript | Clean (zero errors) |
-| npm `markupr` | 2.6.1 published |
-| npm `markupr-mcp` | Not a separate package (ships with `markupr`) |
+| npm `markuprx` | 2.6.1 published |
+| npm `markuprx-mcp` | Not a separate package (ships with `markuprx`) |
 | GitHub Release v2.6.0 | Published with all artifacts (DMG x2, EXE, ZIPs, auto-updater manifests) |
 | CI workflow | Passing |
 | Release workflow | Completed successfully |
@@ -140,4 +140,4 @@ Refer to `.plans/LAUNCH-CHECKLIST.md` for the full ordered checklist. Summary:
 - Blog post frontmatter is included -- just paste the whole file into Hashnode/Dev.to editor.
 - MCP submissions each have their own section (a through k) with pre-written descriptions tailored to each directory's format.
 - The launch-content.md file is organized by platform with section numbers (1=HN, 2=PH, 3=Reddit, 4=Twitter, 5=LinkedIn).
-- `markupr-mcp` does NOT exist as a separate npm package. The MCP server is accessed via `npx markupr-mcp` which is a bin entry in the main `markupr` package.
+- `markuprx-mcp` does NOT exist as a separate npm package. The MCP server is accessed via `npx markuprx-mcp` which is a bin entry in the main `markuprx` package.

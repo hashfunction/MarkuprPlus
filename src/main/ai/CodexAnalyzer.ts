@@ -95,7 +95,7 @@ export class CodexAnalyzer {
       throw new CodexCliError('The session has no transcript or screenshots to analyze.', 'EMPTY_INPUT');
     }
 
-    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'markupr-codex-'));
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'markuprx-codex-'));
     try {
       const schemaPath = join(temporaryDirectory, 'analysis-schema.json');
       const resultPath = join(temporaryDirectory, 'analysis-result.json');

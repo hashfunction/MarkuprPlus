@@ -1,13 +1,13 @@
-# CLAUDE.md - markupR
+# CLAUDE.md - MarkuprX
 
 ## Project Overview
 
-markupR is a macOS/Windows menu bar app and CLI/MCP tool that intelligently captures developer feedback. It records your screen and voice simultaneously, then uses an intelligent post-processing pipeline to correlate transcript timestamps with the screen recording -- extracting the right frames at the right moments and stitching everything into a structured, AI-ready Markdown document. The output is purpose-built for AI coding agents: every screenshot placed exactly where it belongs, every issue clearly documented.
+MarkuprX is a macOS/Windows menu bar app and CLI/MCP tool that intelligently captures developer feedback. It records your screen and voice simultaneously, then uses an intelligent post-processing pipeline to correlate transcript timestamps with the screen recording -- extracting the right frames at the right moments and stitching everything into a structured, AI-ready Markdown document. The output is purpose-built for AI coding agents: every screenshot placed exactly where it belongs, every issue clearly documented.
 
-As of v2.5.0, markupR also ships as:
-- **CLI tool** (`npx markupr analyze ./recording.mov`) -- headless video analysis pipeline
-- **MCP server** (`npx --package markupr markupr-mcp`) -- Model Context Protocol server for AI coding agents (capture screenshots, analyze video, start/stop recordings)
-- **GitHub Action** (`eddiesanjuan/markupr-action@v1`) -- CI/CD visual feedback on PRs
+As of v2.5.0, MarkuprX also ships as:
+- **CLI tool** (`npx markuprx analyze ./recording.mov`) -- headless video analysis pipeline
+- **MCP server** (`npx --package markuprx markuprx-mcp`) -- Model Context Protocol server for AI coding agents (capture screenshots, analyze video, start/stop recordings)
+- **GitHub Action** (`eddiesanjuan/markuprx-action@v1`) -- CI/CD visual feedback on PRs
 
 **Version:** 2.6.0
 **License:** MIT (Open Source)
@@ -70,7 +70,7 @@ src/
 │   ├── CLIPipeline.ts      # Video analysis pipeline (ffmpeg + Whisper + markdown)
 │   ├── WatchMode.ts        # Watch directory for new recordings
 │   ├── doctor.ts           # System dependency checker (ffmpeg, Whisper, etc.)
-│   └── init.ts             # Project config scaffolding (.markupr.json)
+│   └── init.ts             # Project config scaffolding (.markuprx.json)
 ├── mcp/                    # MCP server for AI coding agents
 │   ├── index.ts            # MCP entry point
 │   ├── server.ts           # MCP server setup
@@ -195,7 +195,7 @@ Session state auto-saves to disk every 5 seconds. On restart after a crash, the 
 When a session completes, the **file path** to the markdown document is copied to clipboard -- not the content. This is deliberate: the file persists on disk, and AI tools can read the full document including screenshots.
 
 ### MCP Server
-The MCP server (`src/mcp/`) exposes markupR capabilities as tools for AI coding agents. Tools include screenshot capture, video analysis, and recording session control. Built on `@modelcontextprotocol/sdk`.
+The MCP server (`src/mcp/`) exposes MarkuprX capabilities as tools for AI coding agents. Tools include screenshot capture, video analysis, and recording session control. Built on `@modelcontextprotocol/sdk`.
 
 ## IPC Communication
 
@@ -206,7 +206,7 @@ All main/renderer communication goes through the preload script. See `src/shared
 GitHub Actions workflows in `.github/workflows/`:
 - **ci.yml** -- Runs on every push/PR: lint, typecheck, tests
 - **release.yml** -- Triggered on version tags: builds and publishes desktop app to GitHub Releases
-- **deploy-landing.yml** -- Deploys the landing page (markupr.com)
+- **deploy-landing.yml** -- Deploys the landing page (markuprx.com)
 - **nightly.yml** -- Nightly builds for testing
 
 Releases are published to GitHub Releases via electron-builder. The app is code-signed and notarized for macOS (see `scripts/notarize.cjs`).
@@ -228,4 +228,4 @@ Optional API keys (stored securely in OS keychain):
 - Secure API key storage via keytar (macOS Keychain, Windows Credential Manager) with encrypted fallback
 - Native module rebuilds handled by `electron-rebuild` (keytar, sharp)
 - CLI and MCP builds use esbuild (see `scripts/build-cli.mjs` and `scripts/build-mcp.mjs`)
-- Published to npm as `markupr` (includes both `markupR` CLI and `markupr-mcp` binary)
+- Published to npm as `markuprx` (includes both `MarkuprX` CLI and `markuprx-mcp` binary)

@@ -10,7 +10,7 @@ import type { MarkedIssuePayload } from '../../src/shared/types';
 
 describe('MarkdownPatcher annotation context', () => {
   it('describes the burned-in annotation beside its extracted report frame', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markupr-annotation-report-'));
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-annotation-report-'));
     const screenshots = join(directory, 'screenshots');
     await mkdir(screenshots);
     const report = join(directory, 'feedback-report.md');
@@ -36,7 +36,7 @@ describe('MarkdownPatcher annotation context', () => {
   });
 
   it('persists finalized marked issue evidence in session metadata', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markupr-marked-metadata-'));
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-marked-metadata-'));
     const metadataPath = join(directory, 'metadata.json');
     const issue: MarkedIssuePayload = {
       id: 'marked-issue-001',
@@ -64,7 +64,7 @@ describe('MarkdownPatcher annotation context', () => {
   });
 
   it('does not duplicate marked issue fallback frames in the generic screenshot section', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markupr-marked-frame-filter-'));
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-marked-frame-filter-'));
     const screenshots = join(directory, 'screenshots');
     await mkdir(screenshots);
     const report = join(directory, 'feedback-report.md');

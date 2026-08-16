@@ -85,8 +85,8 @@ const App: React.FC = () => {
   // HUD mode body class
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const bodyClass = 'markupr-hud-mode';
-    const htmlClass = 'markupr-hud-mode';
+    const bodyClass = 'markuprx-hud-mode';
+    const htmlClass = 'markuprx-hud-mode';
     document.documentElement.classList.toggle(htmlClass, ui.isHudMode);
     document.body.classList.toggle(bodyClass, ui.isHudMode);
     return () => {
@@ -205,7 +205,7 @@ const App: React.FC = () => {
           <ProcessingOverlay
             percent={processing.processingProgress?.percent ?? PROCESSING_BASELINE_PERCENT}
             step={processing.processingProgress?.step || formatProcessingStep('preparing')}
-            onHide={() => { void window.markupr.window.hide(); }}
+            onHide={() => { void window.markuprx.window.hide(); }}
           />
         )}
 
@@ -218,7 +218,7 @@ const App: React.FC = () => {
               error={recording.errorMessage}
             />
             <div>
-              <p className="ff-shell__eyebrow">markupR</p>
+              <p className="ff-shell__eyebrow">MarkuprX</p>
               <h1 className="ff-shell__title">{ui.statusCopy.title}</h1>
             </div>
           </div>
@@ -251,7 +251,7 @@ const App: React.FC = () => {
             </button>
             <button
               className="ff-shell__quiet-btn"
-              onClick={() => window.markupr.window.hide()}
+              onClick={() => window.markuprx.window.hide()}
               type="button"
             >
               Hide

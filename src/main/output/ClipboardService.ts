@@ -74,13 +74,13 @@ class ClipboardServiceImpl implements ClipboardService {
 
     if (success) {
       this.showNotification(
-        title || 'markupR',
+        title || 'MarkuprX',
         'Summary copied to clipboard!',
         'Paste into your AI coding assistant.'
       );
     } else {
       this.showNotification(
-        'markupR',
+        'MarkuprX',
         'Failed to copy',
         'Please try again or copy manually.'
       );

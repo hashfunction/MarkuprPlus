@@ -77,11 +77,11 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
     if (!effect || busy) return;
     if (effect.type === 'cancel') {
       setBusy(true);
-      await window.markupr.captureOverlay.cancel();
+      await window.markuprx.captureOverlay.cancel();
       return;
     }
     setBusy(true);
-    const result = await window.markupr.captureOverlay.confirmTarget(effect.target);
+    const result = await window.markuprx.captureOverlay.confirmTarget(effect.target);
     if (!result.success) {
       const next = { ...selectionRef.current, error: result.error || 'That source is no longer available.' };
       selectionRef.current = next;
@@ -114,7 +114,7 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
 
   const setMode = useCallback(async (mode: SelectionMode) => {
     if (busy) return;
-    const result = await window.markupr.captureOverlay.setSelectionMode(mode);
+    const result = await window.markuprx.captureOverlay.setSelectionMode(mode);
     if (!result.success) {
       const next = { ...selectionRef.current, error: result.error || 'Unable to change capture mode.' };
       selectionRef.current = next;
@@ -140,7 +140,7 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
 
   return (
     <main
-      aria-label="Choose what markupR should record"
+      aria-label="Choose what MarkuprX should record"
       onPointerMove={(event) => act({ type: 'pointer-move', point: toGlobalPoint(event, overlayState) })}
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest('[data-selector-control]')) return;

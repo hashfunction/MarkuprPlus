@@ -1,7 +1,7 @@
 /**
  * Tool: stop_recording
  *
- * Stop an active recording and run the full markupR pipeline on the
+ * Stop an active recording and run the full MarkuprX pipeline on the
  * captured video. Returns the report path and summary stats.
  */
 
@@ -48,7 +48,7 @@ function toSharedCaptureContext(
 export function register(server: McpServer): void {
   server.tool(
     'stop_recording',
-    'Stop an active recording and run the full markupR pipeline on the captured video.',
+    'Stop an active recording and run the full MarkuprX pipeline on the captured video.',
     {
       sessionId: z.string().optional().describe('Session ID (default: current active recording)'),
       skipFrames: z.boolean().optional().default(false).describe('Skip frame extraction'),

@@ -1,10 +1,10 @@
 # electron-builder.yml
-# macOS Distribution Configuration for markupR
+# macOS Distribution Configuration for MarkuprX
 # Version: 0.4.0
 
-appId: com.eddiesanjuan.markupr
-productName: markupR
-executableName: markupR
+appId: com.eddiesanjuan.markuprx
+productName: MarkuprX
+executableName: MarkuprX
 copyright: Copyright 2026 Eddie San Juan
 
 directories:
@@ -79,8 +79,8 @@ dmg:
       y: 170
       type: link
       path: /Applications
-  title: "Install markupR ${arch}"
-  artifactName: "markupr-${version}-${arch}.dmg"
+  title: "Install MarkuprX ${arch}"
+  artifactName: "markuprx-${version}-${arch}.dmg"
 
 # =============================================================================
 # Windows Configuration
@@ -92,13 +92,13 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
-  publisherName: "markupR"
+  publisherName: "MarkuprX"
   verifyUpdateCodeSignature: false
   # File associations
   fileAssociations:
-    - ext: markupr
-      name: markupR Session
-      description: markupR feedback session file
+    - ext: markuprx
+      name: MarkuprX Session
+      description: MarkuprX feedback session file
       icon: build/icon.ico
       role: Editor
 
@@ -114,8 +114,8 @@ nsis:
   license: LICENSE
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: "markupR"
-  artifactName: "markupr-Setup-${version}.exe"
+  shortcutName: "MarkuprX"
+  artifactName: "markuprx-Setup-${version}.exe"
   include: build/installer.nsh
   deleteAppDataOnUninstall: false
 
@@ -144,5 +144,5 @@ afterSign: scripts/notarize.cjs
 publish:
   provider: github
   owner: eddiesanjuan
-  repo: markupr
+  repo: markuprx
   releaseType: release

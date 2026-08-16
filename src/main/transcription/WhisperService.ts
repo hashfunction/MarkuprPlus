@@ -152,7 +152,7 @@ export class WhisperService extends EventEmitter {
       return join(app.getPath('userData'), 'whisper-models');
     } catch {
       const homeDir = process.env.HOME || process.env.USERPROFILE || os.homedir();
-      return join(homeDir, '.markupr', 'whisper-models');
+      return join(homeDir, '.markuprx', 'whisper-models');
     }
   }
 
@@ -626,7 +626,7 @@ export class WhisperService extends EventEmitter {
       );
     }
 
-    const tempFileName = `markupr-transcode-${randomUUID()}.wav`;
+    const tempFileName = `markuprx-transcode-${randomUUID()}.wav`;
     const tempPath = join(tmpdir(), tempFileName);
 
     try {

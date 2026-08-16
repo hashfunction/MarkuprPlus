@@ -676,9 +676,9 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
       setIsLoading(true);
       try {
         // Call the IPC API to list sessions
-        // The API is typed in electron.d.ts as window.markupr.output.listSessions()
-        if (window.markupr?.output?.listSessions) {
-          const list = await window.markupr.output.listSessions();
+        // The API is typed in electron.d.ts as window.markuprx.output.listSessions()
+        if (window.markuprx?.output?.listSessions) {
+          const list = await window.markuprx.output.listSessions();
           setSessions(list);
         } else {
           // Fallback for development/testing without full IPC wiring
@@ -794,8 +794,8 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
 
     try {
       // Call the IPC API to delete sessions
-      if (window.markupr?.output?.deleteSessions) {
-        const result = await window.markupr.output.deleteSessions(sessionIds);
+      if (window.markuprx?.output?.deleteSessions) {
+        const result = await window.markuprx.output.deleteSessions(sessionIds);
         if (result.success) {
           // Remove successfully deleted sessions from state
           setSessions((prev) => prev.filter((s) => !result.deleted.includes(s.id)));
@@ -827,12 +827,12 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   const handleExportSessions = useCallback(async (sessionIds: string[]) => {
     try {
       // Call the IPC API to export sessions
-      if (window.markupr?.output?.exportSessions) {
-        const result = await window.markupr.output.exportSessions(sessionIds);
+      if (window.markuprx?.output?.exportSessions) {
+        const result = await window.markuprx.output.exportSessions(sessionIds);
         if (result.success && result.path) {
           console.log('Sessions exported to:', result.path);
           // Optionally open the folder containing the export
-          await window.markupr.output.openFolder(result.path);
+          await window.markuprx.output.openFolder(result.path);
         } else if (result.error) {
           console.error('Export failed:', result.error);
         }
@@ -846,7 +846,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
 
   const handleOpenFolder = useCallback(async (session: SessionMetadata) => {
     try {
-      await window.markupr.output.openFolder(session.folder);
+      await window.markuprx.output.openFolder(session.folder);
     } catch (error) {
       console.error('Failed to open folder:', error);
     }
@@ -946,21 +946,21 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
       {/* dialogEnter keyframe provided by animations.css; scrollbar styles below */}
       <style>
         {`
-          .markupr-history-scrollbar::-webkit-scrollbar {
+          .markuprx-history-scrollbar::-webkit-scrollbar {
             width: 8px;
           }
 
-          .markupr-history-scrollbar::-webkit-scrollbar-track {
+          .markuprx-history-scrollbar::-webkit-scrollbar-track {
             background: var(--surface-inset);
             border-radius: 4px;
           }
 
-          .markupr-history-scrollbar::-webkit-scrollbar-thumb {
+          .markuprx-history-scrollbar::-webkit-scrollbar-thumb {
             background: var(--border-strong);
             border-radius: 4px;
           }
 
-          .markupr-history-scrollbar::-webkit-scrollbar-thumb:hover {
+          .markuprx-history-scrollbar::-webkit-scrollbar-thumb:hover {
             background: var(--text-tertiary);
           }
         `}
@@ -1036,7 +1036,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         </div>
 
         {/* Content */}
-        <div ref={listRef} style={styles.content} className="markupr-history-scrollbar" role="grid">
+        <div ref={listRef} style={styles.content} className="markuprx-history-scrollbar" role="grid">
           {isLoading ? (
             <LoadingState />
           ) : filteredSessions.length === 0 ? (

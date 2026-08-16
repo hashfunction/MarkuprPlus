@@ -15,8 +15,8 @@
 
 | # | Directory | Status | URL | What to Do |
 |---|-----------|--------|-----|------------|
-| 5 | **Smithery.ai** | `manual required` | https://smithery.ai | Run: `npx @smithery/cli auth login` then `npx @smithery/cli mcp publish --name @eddiesanjuan/markupr` from project root. Or use web UI at https://smithery.ai/new |
-| 6 | **mcpservers.org** | `manual required` | https://mcpservers.org/submit | Web form. Fields: Name=markupr, Description="Screen capture and voice recording MCP server for AI coding agents", Link=https://github.com/eddiesanjuan/markupr, Category=development |
+| 5 | **Smithery.ai** | `manual required` | https://smithery.ai | Run: `npx @smithery/cli auth login` then `npx @smithery/cli mcp publish --name @eddiesanjuan/markuprx` from project root. Or use web UI at https://smithery.ai/new |
+| 6 | **mcpservers.org** | `manual required` | https://mcpservers.org/submit | Web form. Fields: Name=markuprx, Description="Screen capture and voice recording MCP server for AI coding agents", Link=https://github.com/eddiesanjuan/markuprx, Category=development |
 | 7 | **PulseMCP** | `auto-ingest pending` | https://www.pulsemcp.com/submit | Will auto-ingest from official registry once published. If not listed after 1 week, submit URL at https://www.pulsemcp.com/submit |
 
 ## Auto-Ingest (No Action Needed)
@@ -37,7 +37,7 @@
 
 ### Official MCP Registry (highest priority)
 ```bash
-cd ~/Projects/markupr
+cd ~/Projects/markuprx
 mcp-publisher login github
 mcp-publisher publish
 ```
@@ -45,5 +45,5 @@ mcp-publisher publish
 ### Smithery.ai
 ```bash
 npx @smithery/cli auth login
-npx @smithery/cli mcp publish --name @eddiesanjuan/markupr
+npx @smithery/cli mcp publish --name @eddiesanjuan/markuprx
 ```

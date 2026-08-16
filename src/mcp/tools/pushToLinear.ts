@@ -1,7 +1,7 @@
 /**
  * Tool: push_to_linear
  *
- * Push a markupR feedback report to Linear as structured issues.
+ * Push a MarkuprX feedback report to Linear as structured issues.
  * Each feedback item becomes a Linear issue with priority, labels,
  * and full context from the original session.
  */
@@ -15,11 +15,11 @@ import { log } from '../utils/Logger.js';
 export function register(server: McpServer): void {
   server.tool(
     'push_to_linear',
-    'Push a markupR feedback report to Linear. Creates one issue per feedback item with priority mapping, labels, and full context.',
+    'Push a MarkuprX feedback report to Linear. Creates one issue per feedback item with priority mapping, labels, and full context.',
     {
       reportPath: z
         .string()
-        .describe('Absolute path to the markupR markdown report'),
+        .describe('Absolute path to the MarkuprX markdown report'),
       teamKey: z
         .string()
         .describe('Linear team key (e.g., "ENG", "DES")'),

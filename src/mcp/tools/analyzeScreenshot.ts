@@ -25,7 +25,7 @@ export function register(server: McpServer): void {
       question: z.string().optional().describe('What to look for in the screenshot'),
     },
     async ({ display, question }) => {
-      const tempPath = join(tmpdir(), `markupr-mcp-screenshot-${randomUUID()}.png`);
+      const tempPath = join(tmpdir(), `markuprx-mcp-screenshot-${randomUUID()}.png`);
 
       try {
         log(`Capturing screenshot for analysis: display=${display}`);

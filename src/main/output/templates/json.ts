@@ -21,7 +21,7 @@ export const jsonTemplate: OutputTemplate = {
 
     const output = {
       version: '1.0',
-      generator: 'markupR',
+      generator: 'MarkuprX',
       timestamp: new Date(timestamp ?? Date.now()).toISOString(),
       summary: {
         segments: transcriptSegments.length,

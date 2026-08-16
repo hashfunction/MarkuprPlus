@@ -1,7 +1,7 @@
 /**
  * Tool: push_to_github
  *
- * Creates GitHub issues from a markupR feedback report.
+ * Creates GitHub issues from a MarkuprX feedback report.
  * Each feedback item (FB-001, FB-002, etc.) becomes a separate issue
  * with labels, severity, and structured markdown body.
  */
@@ -19,9 +19,9 @@ import {
 export function register(server: McpServer): void {
   server.tool(
     'push_to_github',
-    'Create GitHub issues from a markupR feedback report. Each feedback item becomes a separate issue with labels and structured markdown.',
+    'Create GitHub issues from a MarkuprX feedback report. Each feedback item becomes a separate issue with labels and structured markdown.',
     {
-      reportPath: z.string().describe('Absolute path to the markupR markdown report'),
+      reportPath: z.string().describe('Absolute path to the MarkuprX markdown report'),
       repo: z.string().describe('Target GitHub repository in "owner/repo" format'),
       token: z.string().optional().describe('GitHub token (falls back to GITHUB_TOKEN env or gh CLI)'),
       items: z.array(z.string()).optional().describe('Specific FB-XXX item IDs to push (default: all)'),

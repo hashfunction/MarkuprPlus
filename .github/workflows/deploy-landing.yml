@@ -1,4 +1,4 @@
-# GitHub Pages deployment workflow for markupr landing page
+# GitHub Pages deployment workflow for markuprx landing page
 # Automatically deploys site/ to GitHub Pages on push to main
 
 name: Deploy Landing Page
@@ -45,7 +45,7 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
             <url>
-              <loc>https://markupr.com/</loc>
+              <loc>https://markuprx.com/</loc>
               <lastmod>$(date +%Y-%m-%d)</lastmod>
               <changefreq>weekly</changefreq>
               <priority>1.0</priority>
@@ -57,7 +57,7 @@ jobs:
           cat > _site/robots.txt << 'EOF'
           User-agent: *
           Allow: /
-          Sitemap: https://markupr.com/sitemap.xml
+          Sitemap: https://markuprx.com/sitemap.xml
           EOF
 
           # Generate 404 page
@@ -67,7 +67,7 @@ jobs:
           <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>404 - Page Not Found | markupr</title>
+              <title>404 - Page Not Found | markuprx</title>
               <style>
                   * { margin: 0; padding: 0; box-sizing: border-box; }
                   body {

@@ -109,7 +109,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
   const loadTierStatuses = useCallback(async () => {
     setLoading(true);
     try {
-      const statuses = await window.markupr.transcription.getTierStatuses();
+      const statuses = await window.markuprx.transcription.getTierStatuses();
       setTierStatuses(statuses);
     } catch (error) {
       console.error('Failed to load tier statuses:', error);
@@ -125,7 +125,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
   const handleDownloadModel = useCallback(async () => {
     setIsDownloading(true);
     try {
-      const result = await window.markupr.transcription.downloadModel('tiny');
+      const result = await window.markuprx.transcription.downloadModel('tiny');
       if (!result.success) {
         throw new Error(result.error || 'Failed to start model download.');
       }
@@ -137,7 +137,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
 
   const handleCancelDownload = useCallback(async () => {
     try {
-      await window.markupr.transcription.cancelDownload('tiny');
+      await window.markuprx.transcription.cancelDownload('tiny');
     } catch (error) {
       console.error('Cancel failed:', error);
     }
@@ -150,7 +150,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
     loadTierStatuses();
 
     // Subscribe to model download progress
-    const unsubscribe = window.markupr.transcription.onModelProgress((progress: DownloadProgress) => {
+    const unsubscribe = window.markuprx.transcription.onModelProgress((progress: DownloadProgress) => {
       setDownloadProgress(progress);
       if (progress.percent >= 100) {
         setIsDownloading(false);
@@ -205,7 +205,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
       <div style={styles.header}>
         <h3 style={styles.title}>Transcription Service</h3>
         <p style={styles.subtitle}>
-          Choose how markupR transcribes your voice. Local options work without an internet connection.
+          Choose how MarkuprX transcribes your voice. Local options work without an internet connection.
         </p>
       </div>
 

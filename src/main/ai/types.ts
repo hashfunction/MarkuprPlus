@@ -16,7 +16,7 @@ import type { AnalysisConnection, AnalysisProvider } from '../../shared/types';
  * AI analysis tier determining which pipeline is used.
  * - 'free': Rule-based analysis (existing pipeline, no API call)
  * - 'byok': User's own Anthropic API key stored in OS keychain
- * - 'premium': Proxied through markupR's Cloudflare Worker
+ * - 'premium': Proxied through MarkuprX's Cloudflare Worker
  */
 export type AITier = 'free' | 'byok' | 'premium';
 

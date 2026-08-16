@@ -20,7 +20,7 @@
 - CLI invocations use absolute executables, argument arrays, timeouts, bounded output, and isolated temporary directories.
 - Claude Code CLI uses safe mode, an empty tool set, no session persistence, and transcript-only input in v1.
 - Tests use fakes/mocks and do not consume provider quota or require Ollama/LM Studio models.
-- The final verified arm64 bundle replaces `/Applications/markupR.app` after making a timestamped backup.
+- The final verified arm64 bundle replaces `/Applications/MarkuprX.app` after making a timestamped backup.
 
 ---
 
@@ -415,7 +415,7 @@ Discover from `/v1/models`. Require a selected model. POST `/v1/chat/completions
 ```ts
 response_format: {
   type: 'json_schema',
-  json_schema: { name: 'markupr_analysis', strict: true, schema: ANALYSIS_JSON_SCHEMA },
+  json_schema: { name: 'markuprx_analysis', strict: true, schema: ANALYSIS_JSON_SCHEMA },
 }
 ```
 
@@ -547,7 +547,7 @@ await expect(modelsHandler({}, 'ollama', true)).resolves.toEqual(ollamaModels);
 ```ts
 await analysisProviders.models('ollama', true);
 expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-  'markupr:analysis-provider:models', 'ollama', true,
+  'markuprx:analysis-provider:models', 'ollama', true,
 );
 ```
 
@@ -673,7 +673,7 @@ git commit -m "feat: add report provider and model settings"
 
 **Files:**
 - Modify only files required by failures found during verification.
-- Verify: `/Applications/markupR.app`
+- Verify: `/Applications/MarkuprX.app`
 
 **Interfaces:**
 - Consumes: all earlier tasks.
@@ -722,15 +722,15 @@ Run the packaged main-process discovery path or equivalent focused executable pr
 
 Run: `CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --arm64 --config electron-builder.yml`
 
-Expected: a valid arm64 `markupR.app` under the configured release directory.
+Expected: a valid arm64 `MarkuprX.app` under the configured release directory.
 
 - [ ] **Step 5: Back up and install safely**
 
-Resolve the produced bundle path and verify both source and target are concrete `.app` paths. Quit the running markupR process, move `/Applications/markupR.app` to `/Applications/markupR.app.backup-YYYYMMDD-HHMMSS`, copy the new bundle to `/Applications/markupR.app`, and launch it with `open -a /Applications/markupR.app`.
+Resolve the produced bundle path and verify both source and target are concrete `.app` paths. Quit the running MarkuprX process, move `/Applications/MarkuprX.app` to `/Applications/MarkuprX.app.backup-YYYYMMDD-HHMMSS`, copy the new bundle to `/Applications/MarkuprX.app`, and launch it with `open -a /Applications/MarkuprX.app`.
 
 - [ ] **Step 6: Verify the installed process and UI assets**
 
-Confirm the running executable path is inside `/Applications/markupR.app`, the bundle is arm64, provider/model strings exist in the packaged renderer, the Whisper model still exists in Application Support, and Settings opens without renderer errors.
+Confirm the running executable path is inside `/Applications/MarkuprX.app`, the bundle is arm64, provider/model strings exist in the packaged renderer, the Whisper model still exists in Application Support, and Settings opens without renderer errors.
 
 - [ ] **Step 7: Commit verification fixes and report exact evidence**
 

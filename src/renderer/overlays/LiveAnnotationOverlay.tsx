@@ -89,7 +89,7 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
     setModel(result.model);
   }, [overlayState.mode]);
 
-  useEffect(() => window.markupr.capture.onAnnotationEvent((event: AnnotationEvent) => {
+  useEffect(() => window.markuprx.capture.onAnnotationEvent((event: AnnotationEvent) => {
     if (event.sessionId !== overlayState.sessionId) return;
     sceneRef.current = reduceAnnotationEvent(sceneRef.current, event);
     if (event.type === 'mode') {
@@ -109,7 +109,7 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
       .catch(() => {})
       .then(async () => {
         for (const event of events) {
-          const response = await window.markupr.captureOverlay.sendAnnotation(event);
+          const response = await window.markuprx.captureOverlay.sendAnnotation(event);
           if (!response.success) throw new Error(response.error || 'Annotation event was rejected.');
         }
       })
@@ -153,7 +153,7 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
   );
 
   const leaveDrawMode = useCallback(() => {
-    void window.markupr.capture.setAnnotationMode('interact');
+    void window.markuprx.capture.setAnnotationMode('interact');
   }, []);
 
   useEffect(() => {

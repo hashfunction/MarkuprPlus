@@ -1,5 +1,5 @@
 /**
- * markupr Context Providers
+ * markuprx Context Providers
  *
  * Re-exports all context providers and hooks for clean imports:
  * import { useRecording, useProcessing, useUI } from './contexts';

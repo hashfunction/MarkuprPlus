@@ -18,7 +18,7 @@ import { CLIPipeline, type CLIPipelineOptions } from './CLIPipeline';
 export interface WatchModeOptions {
   /** Directory to watch for new recordings */
   watchDir: string;
-  /** Output directory for processed files (default: <watchDir>/markupr-output) */
+  /** Output directory for processed files (default: <watchDir>/markuprx-output) */
   outputDir?: string;
   /** Whisper model path override */
   whisperModelPath?: string;
@@ -46,7 +46,7 @@ export interface WatchModeCallbacks {
 export const VIDEO_EXTENSIONS = new Set(['.mov', '.mp4', '.webm']);
 
 /** Name of the watch log file */
-export const WATCH_LOG_FILENAME = '.markupr-watch.log';
+export const WATCH_LOG_FILENAME = '.markuprx-watch.log';
 
 // ============================================================================
 // WatchMode Class
@@ -68,7 +68,7 @@ export class WatchMode {
     this.callbacks = callbacks;
     this.resolvedOutputDir = options.outputDir
       ? resolve(options.outputDir)
-      : join(resolve(options.watchDir), 'markupr-output');
+      : join(resolve(options.watchDir), 'markuprx-output');
   }
 
   /**

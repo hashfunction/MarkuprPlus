@@ -2,7 +2,7 @@
 
 ## Summary
 
-Replace markupR's user-facing Whisper model selection with report-provider and report-model selection. Whisper remains the automatic local speech-to-text engine; it is no longer presented as the model that generates feedback. Users choose how the final report is analyzed through Codex CLI, Claude Code CLI, Ollama, LM Studio, Anthropic API, or deterministic local rules.
+Replace MarkuprX's user-facing Whisper model selection with report-provider and report-model selection. Whisper remains the automatic local speech-to-text engine; it is no longer presented as the model that generates feedback. Users choose how the final report is analyzed through Codex CLI, Claude Code CLI, Ollama, LM Studio, Anthropic API, or deterministic local rules.
 
 This design supersedes the provider and model-selection portions of `2026-08-13-codex-cli-analysis-provider-design.md`. It preserves the existing Codex adapter's safety properties and the repaired PCM-to-Whisper transcription path.
 
@@ -26,7 +26,7 @@ This design supersedes the provider and model-selection portions of `2026-08-13-
 - Removing Whisper from the transcription pipeline.
 - Letting a report model consume raw audio directly.
 - Supporting Gemini CLI, OpenCode, Aider, or arbitrary command templates in this release.
-- Downloading or managing full Ollama or LM Studio language models from markupR.
+- Downloading or managing full Ollama or LM Studio language models from MarkuprX.
 - Allowing remote or user-supplied Ollama or LM Studio endpoints in this release.
 - Adding a persistent Codex, Claude, Ollama, or LM Studio background process.
 - Silently retrying through a different paid or cloud provider.
@@ -77,7 +77,7 @@ analysisProvider: AnalysisProvider;
 analysisModelsByProvider: Partial<Record<Exclude<AnalysisProvider, 'rules'>, string>>;
 ```
 
-An absent or blank entry means **Provider default**. Local providers require an explicit discovered model before they are ready because neither Ollama nor LM Studio has a reliable markupR-wide default. Switching providers preserves the previous selection for every provider.
+An absent or blank entry means **Provider default**. Local providers require an explicit discovered model before they are ready because neither Ollama nor LM Studio has a reliable MarkuprX-wide default. Switching providers preserves the previous selection for every provider.
 
 The settings loader normalizes current values before schema validation:
 
@@ -264,13 +264,13 @@ Tests use fake executables and mocked loopback HTTP servers; they must not requi
 
 ## Deployment
 
-Package the verified unsigned arm64 macOS application. Quit the installed markupR process cleanly, create a timestamped backup of the current `/Applications/markupR.app`, replace it with the new bundle, launch it, and verify that the running process originates from `/Applications/markupR.app`.
+Package the verified unsigned arm64 macOS application. Quit the installed MarkuprX process cleanly, create a timestamped backup of the current `/Applications/MarkuprX.app`, replace it with the new bundle, launch it, and verify that the running process originates from `/Applications/MarkuprX.app`.
 
 The installed app must show the new provider/model controls and preserve the managed Whisper model at its existing Application Support path. The bundle remains unsigned and unnotarized, so macOS may request screen-recording or microphone permissions according to its local identity rules.
 
 ## Future Extensions
 
-Gemini CLI, OpenCode, Aider, and other providers can be added as explicit adapters implementing the same discovery, model, analysis, and status contracts. Arbitrary command templates remain out of scope until markupR has a separate security design for executable trust, argument templating, output contracts, and secret handling.
+Gemini CLI, OpenCode, Aider, and other providers can be added as explicit adapters implementing the same discovery, model, analysis, and status contracts. Arbitrary command templates remain out of scope until MarkuprX has a separate security design for executable trust, argument templating, output contracts, and secret handling.
 
 ## Reference Interfaces
 

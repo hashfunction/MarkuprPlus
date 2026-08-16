@@ -1,5 +1,5 @@
 /**
- * markupr Global Styles
+ * markuprx Global Styles
  *
  * Premium, Apple/Linear quality design system.
  * Uses CSS custom properties for runtime theme switching.
@@ -44,13 +44,13 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body.markupr-hud-mode {
+body.markuprx-hud-mode {
   background-color: transparent !important;
 }
 
-html.markupr-hud-mode,
-html.markupr-hud-mode body,
-html.markupr-hud-mode #root {
+html.markuprx-hud-mode,
+html.markuprx-hud-mode body,
+html.markuprx-hud-mode #root {
   background: transparent !important;
 }
 

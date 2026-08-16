@@ -10,7 +10,7 @@ const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4]);
 const temporaryRoots: string[] = [];
 
 async function temporaryRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'markupr-marked-artifacts-'));
+  const root = await mkdtemp(join(tmpdir(), 'markuprx-marked-artifacts-'));
   temporaryRoots.push(root);
   return root;
 }

@@ -1,5 +1,5 @@
 # =============================================================================
-# markupr Nightly Builds
+# markuprx Nightly Builds
 # =============================================================================
 # Runs every day at 2am UTC
 # Builds beta versions for testing
@@ -246,7 +246,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly
-          name: markupr Nightly (${{ needs.check-changes.outputs.nightly-version }})
+          name: markuprx Nightly (${{ needs.check-changes.outputs.nightly-version }})
           body_path: NIGHTLY_NOTES.md
           draft: false
           prerelease: true

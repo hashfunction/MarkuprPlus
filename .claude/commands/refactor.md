@@ -1,6 +1,6 @@
 # Refactor -- Safe Refactoring with Test Guard Rails
 
-Perform incremental, test-guarded refactoring of a specified area of the markupr codebase. Every change is validated by re-running the test suite to ensure nothing breaks.
+Perform incremental, test-guarded refactoring of a specified area of the markuprx codebase. Every change is validated by re-running the test suite to ensure nothing breaks.
 
 **Target area:** $ARGUMENTS
 
@@ -14,14 +14,14 @@ If no argument is provided, ask the user what area to refactor. Examples:
 ### 1. Establish Baseline -- Run Tests First
 
 ```bash
-cd ~/Projects/markupr && npm test -- --run 2>&1
+cd ~/Projects/markuprx && npm test -- --run 2>&1
 ```
 
 Record the baseline: total tests, passed, failed. If any tests are ALREADY failing, report them and ask the user whether to proceed (refactoring on a red test suite is risky).
 
 ### 2. Read and Analyze the Target Code
 
-Read the target file(s) thoroughly. Identify refactoring opportunities specific to markupr's Electron + React + TypeScript stack:
+Read the target file(s) thoroughly. Identify refactoring opportunities specific to markuprx's Electron + React + TypeScript stack:
 
 **Electron Main Process (`src/main/`)**
 - SessionController FSM: overly complex state transitions, duplicated guard clauses
@@ -33,7 +33,7 @@ Read the target file(s) thoroughly. Identify refactoring opportunities specific 
 **React Renderer (`src/renderer/`)**
 - Components over 200 lines that should be split (especially `App.tsx`, `SettingsPanel.tsx`, `SessionReview.tsx`)
 - Props drilling that should use React context or composition
-- `useEffect` cleanup functions missing for event subscriptions via `window.markupr.*`
+- `useEffect` cleanup functions missing for event subscriptions via `window.markuprx.*`
 - Inline styles or magic numbers that should be Tailwind utilities or constants
 - State that lives in components but should be lifted or extracted to hooks
 
@@ -62,7 +62,7 @@ Present the plan and wait for confirmation before proceeding, unless the user sa
 Apply ONE refactoring at a time, then immediately verify:
 
 ```bash
-cd ~/Projects/markupr && npm test -- --run 2>&1
+cd ~/Projects/markuprx && npm test -- --run 2>&1
 ```
 
 If tests fail after a change:
@@ -75,7 +75,7 @@ Do NOT batch multiple refactoring changes before running tests.
 ### 5. Type Check After Each Change
 
 ```bash
-cd ~/Projects/markupr && npm run typecheck 2>&1
+cd ~/Projects/markuprx && npm run typecheck 2>&1
 ```
 
 TypeScript errors are blockers. Fix them before proceeding to the next refactoring step. This is especially important for:
@@ -86,7 +86,7 @@ TypeScript errors are blockers. Fix them before proceeding to the next refactori
 ### 6. Lint After Each Change
 
 ```bash
-cd ~/Projects/markupr && npm run lint 2>&1
+cd ~/Projects/markuprx && npm run lint 2>&1
 ```
 
 Fix any new lint errors introduced by the refactoring. Use `npm run lint:fix` for auto-fixable issues.
@@ -96,10 +96,10 @@ Fix any new lint errors introduced by the refactoring. Use `npm run lint:fix` fo
 After all refactoring steps are complete, run the full validation:
 
 ```bash
-cd ~/Projects/markupr && npm test -- --run 2>&1
-cd ~/Projects/markupr && npm run typecheck 2>&1
-cd ~/Projects/markupr && npm run lint 2>&1
-cd ~/Projects/markupr && npm run build 2>&1
+cd ~/Projects/markuprx && npm test -- --run 2>&1
+cd ~/Projects/markuprx && npm run typecheck 2>&1
+cd ~/Projects/markuprx && npm run lint 2>&1
+cd ~/Projects/markuprx && npm run build 2>&1
 ```
 
 All four must pass.

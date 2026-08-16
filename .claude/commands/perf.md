@@ -1,6 +1,6 @@
 # Perf -- Performance Optimization Audit
 
-Analyze markupr's performance characteristics across its three runtimes: Electron desktop app, CLI tool, and MCP server. Identify bottlenecks, heavy dependencies, and anti-patterns with prioritized recommendations.
+Analyze markuprx's performance characteristics across its three runtimes: Electron desktop app, CLI tool, and MCP server. Identify bottlenecks, heavy dependencies, and anti-patterns with prioritized recommendations.
 
 ## Instructions
 
@@ -9,7 +9,7 @@ Analyze markupr's performance characteristics across its three runtimes: Electro
 Build all targets and measure output sizes:
 
 ```bash
-cd ~/Projects/markupr && npm run build 2>&1
+cd ~/Projects/markuprx && npm run build 2>&1
 
 # Measure each build output
 du -sh dist/main/
@@ -31,7 +31,7 @@ Assess the heaviest dependencies and whether lighter alternatives exist:
 | Dependency | Purpose | Risk Area |
 |---|---|---|
 | `sharp` | Image optimization for AI pipeline (`src/main/ai/ImageOptimizer.ts`) | Native module, large binary (~30MB). Check if it's tree-shaken or fully bundled. For CLI/MCP, could canvas or jimp be lighter? |
-| `@anthropic-ai/sdk` | Claude API calls (`src/main/ai/ClaudeAnalyzer.ts`) | Large SDK. Check if markupr uses enough of it to justify full import vs. raw fetch |
+| `@anthropic-ai/sdk` | Claude API calls (`src/main/ai/ClaudeAnalyzer.ts`) | Large SDK. Check if markuprx uses enough of it to justify full import vs. raw fetch |
 | `electron-store` | Settings persistence (`src/main/settings/`) | Pulls in conf, atomically, etc. Check if electron's built-in safeStorage + JSON would suffice |
 | `whisper-node` | Local transcription (`src/main/transcription/WhisperService.ts`) | Native module with binary download. Check startup impact |
 | `keytar` | Secure API key storage (`src/main/settings/`) | Native module. Check if Electron safeStorage could replace it |
@@ -94,10 +94,10 @@ The pipeline (`src/main/pipeline/`) is the most compute-intensive path. Analyze:
 
 ```bash
 # Measure CLI cold start time
-cd ~/Projects/markupr && time node dist/cli/index.mjs --help 2>&1
+cd ~/Projects/markuprx && time node dist/cli/index.mjs --help 2>&1
 
 # Measure MCP cold start overhead (if possible)
-cd ~/Projects/markupr && time node -e "require('./dist/mcp/index.mjs')" 2>&1
+cd ~/Projects/markuprx && time node -e "require('./dist/mcp/index.mjs')" 2>&1
 ```
 
 For CLI, check:
@@ -114,7 +114,7 @@ For MCP, check:
 Produce a ranked list:
 
 ```
-=== PERFORMANCE AUDIT: markupr ===
+=== PERFORMANCE AUDIT: markuprx ===
 
 CRITICAL (user-visible latency or resource waste):
 1. [issue] -- [location] -- [estimated impact] -- [fix]

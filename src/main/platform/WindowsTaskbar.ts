@@ -1,5 +1,5 @@
 /**
- * WindowsTaskbar - Windows-specific taskbar integration for markupR
+ * WindowsTaskbar - Windows-specific taskbar integration for MarkuprX
  *
  * Provides native Windows taskbar features:
  * - Jump lists with recent sessions and quick actions
@@ -131,7 +131,7 @@ export class WindowsTaskbar {
         {
           type: 'task',
           title: 'Open Settings',
-          description: 'Configure markupR settings',
+          description: 'Configure MarkuprX settings',
           program: process.execPath,
           args: '--settings',
           iconPath: process.execPath,

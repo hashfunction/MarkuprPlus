@@ -15,7 +15,7 @@ const fs = require('fs');
 
 const BUILD_DIR = path.join(__dirname, '../build');
 
-// markupr brand colors
+// MarkuprX brand colors
 const COLORS = {
   primary: '#6366f1',      // Indigo
   secondary: '#8b5cf6',    // Purple
@@ -32,7 +32,7 @@ async function createInstallerHeader() {
   const width = 150;
   const height = 57;
 
-  // Create a gradient header with markupr branding
+  // Create a gradient header with MarkuprX branding
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -43,7 +43,7 @@ async function createInstallerHeader() {
       </defs>
       <rect width="${width}" height="${height}" fill="url(#headerGrad)"/>
       <text x="10" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600" fill="${COLORS.text}">
-        markupr
+        MarkuprX
       </text>
     </svg>
   `;
@@ -86,14 +86,14 @@ async function createInstallerSidebar() {
       <circle cx="82" cy="80" r="40" fill="${COLORS.text}" fill-opacity="0.15"/>
       <circle cx="82" cy="80" r="35" fill="${COLORS.text}" fill-opacity="0.1"/>
 
-      <!-- F letter for markupr -->
+      <!-- M monogram for MarkuprX -->
       <text x="82" y="95" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="${COLORS.text}" text-anchor="middle">
-        F
+        M
       </text>
 
       <!-- App name -->
       <text x="82" y="150" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="${COLORS.text}" text-anchor="middle">
-        markupr
+        MarkuprX
       </text>
 
       <!-- Tagline -->

@@ -2,7 +2,7 @@ import type { Session } from '../SessionController';
 import type { AIAnalysisResult } from './types';
 import { AIPipelineError } from './types';
 
-export const ANALYSIS_SYSTEM_PROMPT = `You are markupR's AI analysis engine. You receive a developer's voice-narrated feedback session: a transcript of everything they said while reviewing software, paired with screenshots captured at natural pause points.
+export const ANALYSIS_SYSTEM_PROMPT = `You are MarkuprX's AI analysis engine. You receive a developer's voice-narrated feedback session: a transcript of everything they said while reviewing software, paired with screenshots captured at natural pause points.
 
 Your job is to transform this raw narration into a structured, actionable feedback document.
 

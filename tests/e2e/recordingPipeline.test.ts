@@ -71,7 +71,7 @@ vi.mock('../../src/main/ErrorHandler', () => ({
 vi.mock('electron', () => ({
   app: {
     getPath: vi.fn(() => '/tmp'),
-    getName: vi.fn(() => 'markupr'),
+    getName: vi.fn(() => 'markuprx'),
     getVersion: vi.fn(() => '2.4.0'),
   },
   BrowserWindow: vi.fn().mockImplementation(() => ({

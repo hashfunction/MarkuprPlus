@@ -63,7 +63,7 @@ describe('getAnalysisProviderViewState', () => {
     expect(getAnalysisProviderViewState('rules', [], {})).toEqual({
       ready: true,
       title: 'Local Rules ready',
-      detail: "Reports will use markupR's built-in local rules.",
+      detail: "Reports will use MarkuprX's built-in local rules.",
     });
   });
 

@@ -1,4 +1,4 @@
-# markupr Launch Checklist
+# markuprx Launch Checklist
 
 **Date:** 2026-02-15 | **Version:** 2.5.0
 
@@ -47,7 +47,7 @@ All submission copy is in `.plans/mcp-submissions.md`. Each directory has its ow
 - [ ] Publish blog post on Hashnode -- copy from `.plans/launch-blog-post-hashnode.md`
   - Set `saveAsDraft: false` when ready to publish
   - Replace `cover` URL with actual cover image if different
-  - Replace `markupr.hashnode.dev` with custom domain if available
+  - Replace `markuprx.hashnode.dev` with custom domain if available
 
 ### Day 4 -- Cross-Post + Social
 
@@ -66,7 +66,7 @@ All submission copy is in `.plans/mcp-submissions.md`. Each directory has its ow
 - [ ] PR to sindresorhus/awesome-electron
 - [ ] PR to agarrharr/awesome-cli-apps
 - [ ] PR to other relevant awesome-developer-tools lists
-- [ ] Verify markupr-action appears in GitHub Actions Marketplace with proper branding
+- [ ] Verify markuprx-action appears in GitHub Actions Marketplace with proper branding
 
 ---
 
@@ -75,7 +75,7 @@ All submission copy is in `.plans/mcp-submissions.md`. Each directory has its ow
 ### Day 8 (Monday) -- Hacker News
 
 - [ ] Post Show HN -- link to GitHub repo, use title option 1 from `.plans/launch-content.md` section 1
-  - Title: `Show HN: markupr -- MCP server that lets AI coding agents see your screen`
+  - Title: `Show HN: markuprx -- MCP server that lets AI coding agents see your screen`
   - Post at 8:00am PST (Tue-Thu is better, Mon acceptable)
 - [ ] Post maker's first comment -- copy from `.plans/launch-content.md` section 1 "Maker's First Comment"
 - [ ] Stay online 3-4 hours responding to every comment with technical depth
@@ -115,7 +115,7 @@ Space posts 2-3 hours apart. All copy is in `.plans/launch-content.md` section 3
 
 ### Day 12 (Friday) -- Launch Recap Social
 
-- [ ] Twitter/X "How I launched markupr" thread with real numbers (HN upvotes, PH rank, GitHub stars, npm downloads)
+- [ ] Twitter/X "How I launched markuprx" thread with real numbers (HN upvotes, PH rank, GitHub stars, npm downloads)
 - [ ] Bluesky recap cross-post
 - [ ] LinkedIn recap cross-post
 
@@ -176,8 +176,8 @@ Space posts 2-3 hours apart. All copy is in `.plans/launch-content.md` section 3
 | Metric | Conservative | Target | Stretch |
 |--------|-------------|--------|---------|
 | GitHub stars | 200 | 500 | 1,500 |
-| npm installs (markupr) | 300 | 1,000 | 3,000 |
-| npm installs (markupr-mcp) | 200 | 750 | 2,000 |
+| npm installs (markuprx) | 300 | 1,000 | 3,000 |
+| npm installs (markuprx-mcp) | 200 | 750 | 2,000 |
 | MCP directory listings confirmed | 5 | 8 | 12 |
 | HN upvotes | 30 | 100 | 300 |
 | Product Hunt upvotes | 50 | 200 | 500 |

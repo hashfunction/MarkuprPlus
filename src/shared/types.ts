@@ -1,5 +1,5 @@
 /**
- * Shared types for markupR
+ * Shared types for MarkuprX
  */
 
 /**
@@ -341,266 +341,266 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 /**
  * IPC channel names for main/renderer communication
- * Namespaced with 'markupr:' prefix for compatibility and clarity
+ * Namespaced with the canonical 'markuprx:' machine identifier
  */
 export const IPC_CHANNELS = {
   // ---------------------------------------------------------------------------
   // Session Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  SESSION_START: 'markupr:session:start',
-  SESSION_STOP: 'markupr:session:stop',
-  SESSION_PAUSE: 'markupr:session:pause',
-  SESSION_RESUME: 'markupr:session:resume',
-  SESSION_CANCEL: 'markupr:session:cancel',
-  SESSION_GET_STATUS: 'markupr:session:get-status',
-  SESSION_GET_CURRENT: 'markupr:session:get-current',
+  SESSION_START: 'markuprx:session:start',
+  SESSION_STOP: 'markuprx:session:stop',
+  SESSION_PAUSE: 'markuprx:session:pause',
+  SESSION_RESUME: 'markuprx:session:resume',
+  SESSION_CANCEL: 'markuprx:session:cancel',
+  SESSION_GET_STATUS: 'markuprx:session:get-status',
+  SESSION_GET_CURRENT: 'markuprx:session:get-current',
 
   // ---------------------------------------------------------------------------
   // Session Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  SESSION_STATE_CHANGED: 'markupr:session:state-changed',
-  SESSION_STATUS: 'markupr:session:status-update',
-  SESSION_COMPLETE: 'markupr:session:complete',
-  SESSION_FEEDBACK_ITEM: 'markupr:session:feedback-item',
-  SESSION_VOICE_ACTIVITY: 'markupr:session:voice-activity',
-  SESSION_ERROR: 'markupr:session:error',
+  SESSION_STATE_CHANGED: 'markuprx:session:state-changed',
+  SESSION_STATUS: 'markuprx:session:status-update',
+  SESSION_COMPLETE: 'markuprx:session:complete',
+  SESSION_FEEDBACK_ITEM: 'markuprx:session:feedback-item',
+  SESSION_VOICE_ACTIVITY: 'markuprx:session:voice-activity',
+  SESSION_ERROR: 'markuprx:session:error',
 
   // ---------------------------------------------------------------------------
   // Capture Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  CAPTURE_GET_SOURCES: 'markupr:capture:get-sources',
-  CAPTURE_MANUAL_SCREENSHOT: 'markupr:capture:manual-screenshot',
-  CAPTURE_SELECT_TARGET: 'markupr:capture:select-target',
-  CAPTURE_ANNOTATION_BEGIN: 'markupr:capture:annotation-begin',
-  CAPTURE_ANNOTATION_END: 'markupr:capture:annotation-end',
-  CAPTURE_ANNOTATION_SET_MODE: 'markupr:capture:annotation-set-mode',
-  CAPTURE_STAGE_MARKED_ISSUE_CANDIDATE: 'markupr:capture:stage-marked-issue-candidate',
-  CAPTURE_OVERLAY_GET_STATE: 'markupr:capture-overlay:get-state',
-  CAPTURE_OVERLAY_CONFIRM: 'markupr:capture-overlay:confirm',
-  CAPTURE_OVERLAY_CANCEL: 'markupr:capture-overlay:cancel',
-  CAPTURE_OVERLAY_SET_SELECTION_MODE: 'markupr:capture-overlay:set-selection-mode',
-  CAPTURE_OVERLAY_ANNOTATION_EVENT: 'markupr:capture-overlay:annotation-event',
-  SCREEN_RECORDING_START: 'markupr:screen-recording:start',
-  SCREEN_RECORDING_CHUNK: 'markupr:screen-recording:chunk',
-  SCREEN_RECORDING_STOP: 'markupr:screen-recording:stop',
+  CAPTURE_GET_SOURCES: 'markuprx:capture:get-sources',
+  CAPTURE_MANUAL_SCREENSHOT: 'markuprx:capture:manual-screenshot',
+  CAPTURE_SELECT_TARGET: 'markuprx:capture:select-target',
+  CAPTURE_ANNOTATION_BEGIN: 'markuprx:capture:annotation-begin',
+  CAPTURE_ANNOTATION_END: 'markuprx:capture:annotation-end',
+  CAPTURE_ANNOTATION_SET_MODE: 'markuprx:capture:annotation-set-mode',
+  CAPTURE_STAGE_MARKED_ISSUE_CANDIDATE: 'markuprx:capture:stage-marked-issue-candidate',
+  CAPTURE_OVERLAY_GET_STATE: 'markuprx:capture-overlay:get-state',
+  CAPTURE_OVERLAY_CONFIRM: 'markuprx:capture-overlay:confirm',
+  CAPTURE_OVERLAY_CANCEL: 'markuprx:capture-overlay:cancel',
+  CAPTURE_OVERLAY_SET_SELECTION_MODE: 'markuprx:capture-overlay:set-selection-mode',
+  CAPTURE_OVERLAY_ANNOTATION_EVENT: 'markuprx:capture-overlay:annotation-event',
+  SCREEN_RECORDING_START: 'markuprx:screen-recording:start',
+  SCREEN_RECORDING_CHUNK: 'markuprx:screen-recording:chunk',
+  SCREEN_RECORDING_STOP: 'markuprx:screen-recording:stop',
 
   // ---------------------------------------------------------------------------
   // Capture Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  SCREENSHOT_CAPTURED: 'markupr:capture:screenshot-taken',
-  MANUAL_SCREENSHOT: 'markupr:capture:manual-triggered',
-  CAPTURE_ANNOTATION_EVENT: 'markupr:capture:annotation-event',
-  CAPTURE_ANNOTATION_STATE: 'markupr:capture:annotation-state',
-  CAPTURE_OVERLAY_STATE_CHANGED: 'markupr:capture-overlay:state-changed',
+  SCREENSHOT_CAPTURED: 'markuprx:capture:screenshot-taken',
+  MANUAL_SCREENSHOT: 'markuprx:capture:manual-triggered',
+  CAPTURE_ANNOTATION_EVENT: 'markuprx:capture:annotation-event',
+  CAPTURE_ANNOTATION_STATE: 'markuprx:capture:annotation-state',
+  CAPTURE_OVERLAY_STATE_CHANGED: 'markuprx:capture-overlay:state-changed',
 
   // ---------------------------------------------------------------------------
   // Display Channels (Main -> Renderer) - Multi-monitor support
   // ---------------------------------------------------------------------------
-  DISPLAYS_CHANGED: 'markupr:displays:changed',
-  DISPLAY_DISCONNECTED: 'markupr:display:disconnected',
+  DISPLAYS_CHANGED: 'markuprx:displays:changed',
+  DISPLAY_DISCONNECTED: 'markuprx:display:disconnected',
 
   // ---------------------------------------------------------------------------
   // Audio Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  AUDIO_GET_DEVICES: 'markupr:audio:get-devices',
-  AUDIO_SET_DEVICE: 'markupr:audio:set-device',
+  AUDIO_GET_DEVICES: 'markuprx:audio:get-devices',
+  AUDIO_SET_DEVICE: 'markuprx:audio:set-device',
 
   // ---------------------------------------------------------------------------
   // Audio Channels (Main -> Renderer) - Communication with audio capture
   // ---------------------------------------------------------------------------
-  AUDIO_REQUEST_DEVICES: 'markupr:audio:request-devices',
-  AUDIO_START_CAPTURE: 'markupr:audio:start-capture',
-  AUDIO_STOP_CAPTURE: 'markupr:audio:stop-capture',
-  AUDIO_CHUNK: 'markupr:audio:chunk',
-  AUDIO_DEVICES_RESPONSE: 'markupr:audio:devices-response',
-  AUDIO_CAPTURE_ERROR: 'markupr:audio:capture-error',
-  AUDIO_CAPTURE_STARTED: 'markupr:audio:capture-started',
-  AUDIO_CAPTURE_STOPPED: 'markupr:audio:capture-stopped',
-  AUDIO_LEVEL: 'markupr:audio:level',
-  AUDIO_VOICE_ACTIVITY: 'markupr:audio:voice-activity',
+  AUDIO_REQUEST_DEVICES: 'markuprx:audio:request-devices',
+  AUDIO_START_CAPTURE: 'markuprx:audio:start-capture',
+  AUDIO_STOP_CAPTURE: 'markuprx:audio:stop-capture',
+  AUDIO_CHUNK: 'markuprx:audio:chunk',
+  AUDIO_DEVICES_RESPONSE: 'markuprx:audio:devices-response',
+  AUDIO_CAPTURE_ERROR: 'markuprx:audio:capture-error',
+  AUDIO_CAPTURE_STARTED: 'markuprx:audio:capture-started',
+  AUDIO_CAPTURE_STOPPED: 'markuprx:audio:capture-stopped',
+  AUDIO_LEVEL: 'markuprx:audio:level',
+  AUDIO_VOICE_ACTIVITY: 'markuprx:audio:voice-activity',
 
   // ---------------------------------------------------------------------------
   // Transcription Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  TRANSCRIPTION_UPDATE: 'markupr:transcript:chunk',
-  TRANSCRIPTION_FINAL: 'markupr:transcript:final',
+  TRANSCRIPTION_UPDATE: 'markuprx:transcript:chunk',
+  TRANSCRIPTION_FINAL: 'markuprx:transcript:final',
 
   // ---------------------------------------------------------------------------
   // Transcription Control Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  TRANSCRIPTION_GET_TIER_STATUSES: 'markupr:transcription:get-tier-statuses',
-  TRANSCRIPTION_GET_CURRENT_TIER: 'markupr:transcription:get-current-tier',
-  TRANSCRIPTION_SET_TIER: 'markupr:transcription:set-tier',
+  TRANSCRIPTION_GET_TIER_STATUSES: 'markuprx:transcription:get-tier-statuses',
+  TRANSCRIPTION_GET_CURRENT_TIER: 'markuprx:transcription:get-current-tier',
+  TRANSCRIPTION_SET_TIER: 'markuprx:transcription:set-tier',
 
   // ---------------------------------------------------------------------------
   // Settings Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  SETTINGS_GET: 'markupr:settings:get',
-  SETTINGS_GET_ALL: 'markupr:settings:get-all',
-  SETTINGS_SET: 'markupr:settings:set',
-  SETTINGS_GET_API_KEY: 'markupr:settings:get-api-key',
-  SETTINGS_SET_API_KEY: 'markupr:settings:set-api-key',
-  SETTINGS_DELETE_API_KEY: 'markupr:settings:delete-api-key',
-  SETTINGS_HAS_API_KEY: 'markupr:settings:has-api-key',
-  SETTINGS_TEST_API_KEY: 'markupr:settings:test-api-key',
-  SETTINGS_SELECT_DIRECTORY: 'markupr:settings:select-directory',
-  SETTINGS_CLEAR_ALL_DATA: 'markupr:settings:clear-all-data',
-  SETTINGS_EXPORT: 'markupr:settings:export',
-  SETTINGS_IMPORT: 'markupr:settings:import',
+  SETTINGS_GET: 'markuprx:settings:get',
+  SETTINGS_GET_ALL: 'markuprx:settings:get-all',
+  SETTINGS_SET: 'markuprx:settings:set',
+  SETTINGS_GET_API_KEY: 'markuprx:settings:get-api-key',
+  SETTINGS_SET_API_KEY: 'markuprx:settings:set-api-key',
+  SETTINGS_DELETE_API_KEY: 'markuprx:settings:delete-api-key',
+  SETTINGS_HAS_API_KEY: 'markuprx:settings:has-api-key',
+  SETTINGS_TEST_API_KEY: 'markuprx:settings:test-api-key',
+  SETTINGS_SELECT_DIRECTORY: 'markuprx:settings:select-directory',
+  SETTINGS_CLEAR_ALL_DATA: 'markuprx:settings:clear-all-data',
+  SETTINGS_EXPORT: 'markuprx:settings:export',
+  SETTINGS_IMPORT: 'markuprx:settings:import',
 
   // ---------------------------------------------------------------------------
   // Analysis Provider Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  ANALYSIS_PROVIDERS_DISCOVER: 'markupr:analysis-providers:discover',
-  ANALYSIS_PROVIDER_TEST: 'markupr:analysis-provider:test',
-  ANALYSIS_PROVIDER_MODELS: 'markupr:analysis-provider:models',
+  ANALYSIS_PROVIDERS_DISCOVER: 'markuprx:analysis-providers:discover',
+  ANALYSIS_PROVIDER_TEST: 'markuprx:analysis-provider:test',
+  ANALYSIS_PROVIDER_MODELS: 'markuprx:analysis-provider:models',
 
   // ---------------------------------------------------------------------------
   // Permissions Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  PERMISSIONS_CHECK: 'markupr:permissions:check',
-  PERMISSIONS_REQUEST: 'markupr:permissions:request',
-  PERMISSIONS_GET_ALL: 'markupr:permissions:get-all',
+  PERMISSIONS_CHECK: 'markuprx:permissions:check',
+  PERMISSIONS_REQUEST: 'markuprx:permissions:request',
+  PERMISSIONS_GET_ALL: 'markuprx:permissions:get-all',
 
   // ---------------------------------------------------------------------------
   // Output Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  OUTPUT_SAVE: 'markupr:output:save',
-  OUTPUT_COPY_CLIPBOARD: 'markupr:output:copy-clipboard',
-  OUTPUT_OPEN_FOLDER: 'markupr:output:open-folder',
-  OUTPUT_EXPORT: 'markupr:output:export',
+  OUTPUT_SAVE: 'markuprx:output:save',
+  OUTPUT_COPY_CLIPBOARD: 'markuprx:output:copy-clipboard',
+  OUTPUT_OPEN_FOLDER: 'markuprx:output:open-folder',
+  OUTPUT_EXPORT: 'markuprx:output:export',
 
   // Session History Browser
-  OUTPUT_LIST_SESSIONS: 'markupr:output:list-sessions',
-  OUTPUT_GET_SESSION_METADATA: 'markupr:output:get-session-metadata',
-  OUTPUT_DELETE_SESSION: 'markupr:output:delete-session',
-  OUTPUT_DELETE_SESSIONS: 'markupr:output:delete-sessions',
-  OUTPUT_EXPORT_SESSION: 'markupr:output:export-session',
-  OUTPUT_EXPORT_SESSIONS: 'markupr:output:export-sessions',
+  OUTPUT_LIST_SESSIONS: 'markuprx:output:list-sessions',
+  OUTPUT_GET_SESSION_METADATA: 'markuprx:output:get-session-metadata',
+  OUTPUT_DELETE_SESSION: 'markuprx:output:delete-session',
+  OUTPUT_DELETE_SESSIONS: 'markuprx:output:delete-sessions',
+  OUTPUT_EXPORT_SESSION: 'markuprx:output:export-session',
+  OUTPUT_EXPORT_SESSIONS: 'markuprx:output:export-sessions',
 
   // ---------------------------------------------------------------------------
   // Output Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  OUTPUT_READY: 'markupr:output:ready',
-  OUTPUT_ERROR: 'markupr:output:error',
+  OUTPUT_READY: 'markuprx:output:ready',
+  OUTPUT_ERROR: 'markuprx:output:error',
 
   // ---------------------------------------------------------------------------
   // Hotkey Channels
   // ---------------------------------------------------------------------------
-  HOTKEY_TRIGGERED: 'markupr:hotkey:triggered',
-  HOTKEY_CONFIG: 'markupr:hotkey:config',
-  HOTKEY_UPDATE: 'markupr:hotkey:update',
+  HOTKEY_TRIGGERED: 'markuprx:hotkey:triggered',
+  HOTKEY_CONFIG: 'markuprx:hotkey:config',
+  HOTKEY_UPDATE: 'markuprx:hotkey:update',
 
   // ---------------------------------------------------------------------------
   // Clipboard (Legacy - kept for compatibility)
   // ---------------------------------------------------------------------------
-  COPY_TO_CLIPBOARD: 'markupr:clipboard:copy',
+  COPY_TO_CLIPBOARD: 'markuprx:clipboard:copy',
 
   // ---------------------------------------------------------------------------
   // Window Control Channels
   // ---------------------------------------------------------------------------
-  WINDOW_MINIMIZE: 'markupr:window:minimize',
-  WINDOW_CLOSE: 'markupr:window:close',
-  WINDOW_HIDE: 'markupr:window:hide',
+  WINDOW_MINIMIZE: 'markuprx:window:minimize',
+  WINDOW_CLOSE: 'markuprx:window:close',
+  WINDOW_HIDE: 'markuprx:window:hide',
 
   // ---------------------------------------------------------------------------
   // Update Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  UPDATE_CHECK: 'markupr:update:check',
-  UPDATE_DOWNLOAD: 'markupr:update:download',
-  UPDATE_INSTALL: 'markupr:update:install',
-  UPDATE_GET_STATUS: 'markupr:update:get-status',
+  UPDATE_CHECK: 'markuprx:update:check',
+  UPDATE_DOWNLOAD: 'markuprx:update:download',
+  UPDATE_INSTALL: 'markuprx:update:install',
+  UPDATE_GET_STATUS: 'markuprx:update:get-status',
 
   // ---------------------------------------------------------------------------
   // Update Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  UPDATE_STATUS: 'markupr:update:status',
+  UPDATE_STATUS: 'markuprx:update:status',
 
   // ---------------------------------------------------------------------------
   // Crash Recovery Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  CRASH_RECOVERY_CHECK: 'markupr:crash-recovery:check',
-  CRASH_RECOVERY_RECOVER: 'markupr:crash-recovery:recover',
-  CRASH_RECOVERY_DISCARD: 'markupr:crash-recovery:discard',
-  CRASH_RECOVERY_GET_LOGS: 'markupr:crash-recovery:get-logs',
-  CRASH_RECOVERY_CLEAR_LOGS: 'markupr:crash-recovery:clear-logs',
-  CRASH_RECOVERY_UPDATE_SETTINGS: 'markupr:crash-recovery:update-settings',
+  CRASH_RECOVERY_CHECK: 'markuprx:crash-recovery:check',
+  CRASH_RECOVERY_RECOVER: 'markuprx:crash-recovery:recover',
+  CRASH_RECOVERY_DISCARD: 'markuprx:crash-recovery:discard',
+  CRASH_RECOVERY_GET_LOGS: 'markuprx:crash-recovery:get-logs',
+  CRASH_RECOVERY_CLEAR_LOGS: 'markuprx:crash-recovery:clear-logs',
+  CRASH_RECOVERY_UPDATE_SETTINGS: 'markuprx:crash-recovery:update-settings',
 
   // ---------------------------------------------------------------------------
   // Crash Recovery Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  CRASH_RECOVERY_FOUND: 'markupr:crash-recovery:found',
+  CRASH_RECOVERY_FOUND: 'markuprx:crash-recovery:found',
 
   // ---------------------------------------------------------------------------
   // Taskbar Channels (Renderer -> Main) - Windows-specific
   // ---------------------------------------------------------------------------
-  TASKBAR_SET_PROGRESS: 'markupr:taskbar:setProgress',
-  TASKBAR_FLASH_FRAME: 'markupr:taskbar:flashFrame',
-  TASKBAR_SET_OVERLAY: 'markupr:taskbar:setOverlay',
+  TASKBAR_SET_PROGRESS: 'markuprx:taskbar:setProgress',
+  TASKBAR_FLASH_FRAME: 'markuprx:taskbar:flashFrame',
+  TASKBAR_SET_OVERLAY: 'markuprx:taskbar:setOverlay',
 
   // ---------------------------------------------------------------------------
   // Whisper Model Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  WHISPER_CHECK_MODEL: 'markupr:whisper:check-model',
-  WHISPER_DOWNLOAD_MODEL: 'markupr:whisper:download-model',
-  WHISPER_CANCEL_DOWNLOAD: 'markupr:whisper:cancel-download',
-  WHISPER_GET_AVAILABLE_MODELS: 'markupr:whisper:get-available-models',
-  WHISPER_HAS_TRANSCRIPTION_CAPABILITY: 'markupr:whisper:has-transcription-capability',
+  WHISPER_CHECK_MODEL: 'markuprx:whisper:check-model',
+  WHISPER_DOWNLOAD_MODEL: 'markuprx:whisper:download-model',
+  WHISPER_CANCEL_DOWNLOAD: 'markuprx:whisper:cancel-download',
+  WHISPER_GET_AVAILABLE_MODELS: 'markuprx:whisper:get-available-models',
+  WHISPER_HAS_TRANSCRIPTION_CAPABILITY: 'markuprx:whisper:has-transcription-capability',
 
   // ---------------------------------------------------------------------------
   // Whisper Model Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  WHISPER_DOWNLOAD_PROGRESS: 'markupr:whisper:download-progress',
-  WHISPER_DOWNLOAD_COMPLETE: 'markupr:whisper:download-complete',
-  WHISPER_DOWNLOAD_ERROR: 'markupr:whisper:download-error',
+  WHISPER_DOWNLOAD_PROGRESS: 'markuprx:whisper:download-progress',
+  WHISPER_DOWNLOAD_COMPLETE: 'markuprx:whisper:download-complete',
+  WHISPER_DOWNLOAD_ERROR: 'markuprx:whisper:download-error',
 
   // ---------------------------------------------------------------------------
   // Processing Pipeline Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  PROCESSING_PROGRESS: 'markupr:processing:progress',
-  PROCESSING_COMPLETE: 'markupr:processing:complete',
+  PROCESSING_PROGRESS: 'markuprx:processing:progress',
+  PROCESSING_COMPLETE: 'markuprx:processing:complete',
 
   // ---------------------------------------------------------------------------
   // Session Events (Main -> Renderer, non-standard)
   // ---------------------------------------------------------------------------
-  SESSION_RECOVERED: 'markupr:session:recovered',
-  SESSION_WARNING: 'markupr:session:warning',
+  SESSION_RECOVERED: 'markuprx:session:recovered',
+  SESSION_WARNING: 'markuprx:session:warning',
 
   // ---------------------------------------------------------------------------
   // Navigation Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  SHOW_ONBOARDING: 'markupr:show-onboarding',
-  SHOW_SETTINGS: 'markupr:show-settings',
-  SHOW_HISTORY: 'markupr:show-history',
-  SHOW_EXPORT: 'markupr:show-export',
-  SHOW_SHORTCUTS: 'markupr:show-shortcuts',
-  SHOW_WINDOW_SELECTOR: 'markupr:show-window-selector',
-  OPEN_SESSION_DIALOG: 'markupr:open-session-dialog',
-  OPEN_SESSION: 'markupr:open-session',
+  SHOW_ONBOARDING: 'markuprx:show-onboarding',
+  SHOW_SETTINGS: 'markuprx:show-settings',
+  SHOW_HISTORY: 'markuprx:show-history',
+  SHOW_EXPORT: 'markuprx:show-export',
+  SHOW_SHORTCUTS: 'markuprx:show-shortcuts',
+  SHOW_WINDOW_SELECTOR: 'markuprx:show-window-selector',
+  OPEN_SESSION_DIALOG: 'markuprx:open-session-dialog',
+  OPEN_SESSION: 'markuprx:open-session',
 
   // ---------------------------------------------------------------------------
   // App Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  APP_VERSION: 'markupr:app:version',
+  APP_VERSION: 'markuprx:app:version',
 
   // ---------------------------------------------------------------------------
   // Popover Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
-  POPOVER_RESIZE: 'markupr:popover:resize',
-  POPOVER_RESIZE_TO_STATE: 'markupr:popover:resize-to-state',
-  POPOVER_SHOW: 'markupr:popover:show',
-  POPOVER_HIDE: 'markupr:popover:hide',
-  POPOVER_TOGGLE: 'markupr:popover:toggle',
+  POPOVER_RESIZE: 'markuprx:popover:resize',
+  POPOVER_RESIZE_TO_STATE: 'markuprx:popover:resize-to-state',
+  POPOVER_SHOW: 'markuprx:popover:show',
+  POPOVER_HIDE: 'markuprx:popover:hide',
+  POPOVER_TOGGLE: 'markuprx:popover:toggle',
 
   // ---------------------------------------------------------------------------
   // Error Channels (Main -> Renderer)
   // ---------------------------------------------------------------------------
-  NETWORK_ERROR: 'markupr:network-error',
-  NETWORK_RESTORED: 'markupr:network-restored',
-  CAPTURE_WARNING: 'markupr:capture-warning',
-  AUDIO_ERROR: 'markupr:audio-error',
-  TRANSCRIPTION_ERROR: 'markupr:transcription-error',
-  NOTIFICATION: 'markupr:notification',
+  NETWORK_ERROR: 'markuprx:network-error',
+  NETWORK_RESTORED: 'markuprx:network-restored',
+  CAPTURE_WARNING: 'markuprx:capture-warning',
+  AUDIO_ERROR: 'markuprx:audio-error',
+  TRANSCRIPTION_ERROR: 'markuprx:transcription-error',
+  NOTIFICATION: 'markuprx:notification',
 
   // ---------------------------------------------------------------------------
   // Legacy channels (backwards compatibility)

@@ -2,7 +2,7 @@
 
 ## Problem
 
-markupR can save valid screen and audio recordings while producing a zero-item feedback report. The observed session captured 426,748 bytes of audio and 7,270,938 bytes of video, but it had no transcript events. No OpenAI transcription key or local Whisper model was available, so Codex received neither a transcript nor screenshots and correctly declined analysis. markupR then presented the rule-based empty document as a successful capture.
+MarkuprX can save valid screen and audio recordings while producing a zero-item feedback report. The observed session captured 426,748 bytes of audio and 7,270,938 bytes of video, but it had no transcript events. No OpenAI transcription key or local Whisper model was available, so Codex received neither a transcript nor screenshots and correctly declined analysis. MarkuprX then presented the rule-based empty document as a successful capture.
 
 There is a second defect in the local fallback: the model UI recommends and downloads `ggml-tiny.bin`, while `WhisperService` defaults to `ggml-medium.bin`. A downloaded Tiny model is reported as a transcription capability but is not selected by the transcription service.
 
@@ -41,7 +41,7 @@ This creates an unexpected network transfer and delays capture. It also does not
 
 `WhisperService` will resolve its model path from the models directory using the same preference order as `ModelDownloadManager`: Medium, Small, Base, then Tiny, with Large used when it is the only valid model. A caller-supplied model path remains authoritative.
 
-Discovery will run before availability checks and initialization, not only in the constructor. This makes a newly downloaded model available to the existing singleton without restarting markupR. A candidate counts as available only when it exists as a regular file and has a plausible nonzero size; `ModelDownloadManager` remains responsible for its stricter download-size validation.
+Discovery will run before availability checks and initialization, not only in the constructor. This makes a newly downloaded model available to the existing singleton without restarting MarkuprX. A candidate counts as available only when it exists as a regular file and has a plausible nonzero size; `ModelDownloadManager` remains responsible for its stricter download-size validation.
 
 The model download completion handler will also point the singleton at the completed model path. This gives immediate, deterministic selection of the model the user just downloaded.
 
@@ -60,7 +60,7 @@ The outcome will not contain API keys, provider response bodies, or other secret
 
 When nonempty recorded audio produces no transcript:
 
-1. markupR will still save `feedback-report.md`, `session-audio.*`, `session-recording.*`, metadata, and the processing trace.
+1. MarkuprX will still save `feedback-report.md`, `session-audio.*`, `session-recording.*`, metadata, and the processing trace.
 2. The generated report will state that narration was recorded but could not be transcribed. It will include the actionable recovery reason and links to the preserved artifacts.
 3. The main process will send output paths to the renderer, then finish the stop request with a failure result that includes the report path.
 4. The renderer will enter its error state while retaining the report, audio, recording, and session-directory paths so the user can open or copy them.
@@ -76,7 +76,7 @@ If OpenAI or local Whisper produces at least one transcript event, the current A
 
 The default configuration error is:
 
-> Narration was recorded, but markupR could not transcribe it. Your recording and audio were saved. Add an OpenAI transcription key or download a local Whisper model, then record again.
+> Narration was recorded, but MarkuprX could not transcribe it. Your recording and audio were saved. Add an OpenAI transcription key or download a local Whisper model, then record again.
 
 Runtime-specific details may replace the final sentence, but every message must state that artifacts were saved and must avoid implying that Codex performs transcription.
 
@@ -92,6 +92,6 @@ Runtime-specific details may replace the final sentence, but every message must 
 
 The Tiny model has been downloaded to:
 
-`~/Library/Application Support/markupr/whisper-models/ggml-tiny.bin`
+`~/Library/Application Support/markuprx/whisper-models/ggml-tiny.bin`
 
 The existing example session remains untouched. Historical reprocessing is outside this change, so its audio can be retained for a later reprocessing command or manually analyzed after transcription support is available.

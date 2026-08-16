@@ -1,7 +1,7 @@
 /**
- * GitHubIssueCreator - Creates GitHub issues from markupR feedback reports
+ * GitHubIssueCreator - Creates GitHub issues from MarkuprX feedback reports
  *
- * Parses a markupR markdown report, extracts feedback items, and creates
+ * Parses a MarkuprX markdown report, extracts feedback items, and creates
  * individual GitHub issues with appropriate labels and formatting.
  *
  * Uses native fetch (Node 18+) — no external dependencies.
@@ -21,7 +21,7 @@ import type {
 import {
   CATEGORY_LABELS,
   SEVERITY_LABELS,
-  MARKUPR_LABEL,
+  MARKUPRX_LABEL,
 } from './types';
 import type { FeedbackCategory, FeedbackSeverity } from '../../main/output/MarkdownGenerator';
 
@@ -71,10 +71,10 @@ export async function resolveAuth(explicitToken?: string): Promise<GitHubAuth> {
 // ============================================================================
 
 /**
- * Parse a markupR markdown report into structured feedback items.
+ * Parse a MarkuprX markdown report into structured feedback items.
  * Extracts FB-XXX items with their metadata from the standard report format.
  */
-export function parseMarkuprReport(markdown: string): ParsedFeedbackItem[] {
+export function parseMarkuprXReport(markdown: string): ParsedFeedbackItem[] {
   const items: ParsedFeedbackItem[] = [];
 
   // Match each feedback item section: ### FB-XXX: Title
@@ -201,7 +201,7 @@ export function formatIssueBody(item: ParsedFeedbackItem, reportPath?: string): 
 
   if (item.screenshotPaths.length > 0) {
     body += `### Screenshots\n\n`;
-    body += `_${item.screenshotPaths.length} screenshot(s) captured — see the markupR report for images._\n\n`;
+    body += `_${item.screenshotPaths.length} screenshot(s) captured — see the MarkuprX report for images._\n\n`;
   }
 
   if (item.suggestedAction) {
@@ -213,7 +213,7 @@ export function formatIssueBody(item: ParsedFeedbackItem, reportPath?: string): 
   if (reportPath) {
     body += `_Source: \`${reportPath}\`_\n`;
   }
-  body += `_Created by [markupR](https://markupr.com)_\n`;
+  body += `_Created by [MarkuprX](https://markuprx.com)_\n`;
 
   return body;
 }
@@ -222,7 +222,7 @@ export function formatIssueBody(item: ParsedFeedbackItem, reportPath?: string): 
  * Build the labels array for a feedback item.
  */
 export function getLabelsForItem(item: ParsedFeedbackItem): string[] {
-  const labels: string[] = [MARKUPR_LABEL.name];
+  const labels: string[] = [MARKUPRX_LABEL.name];
 
   const categoryLabel = CATEGORY_LABELS[item.category];
   if (categoryLabel) {
@@ -244,9 +244,9 @@ export function collectRequiredLabels(items: ParsedFeedbackItem[]): GitHubLabelI
   const seen = new Set<string>();
   const labels: GitHubLabelInput[] = [];
 
-  // Always include markupR label
-  seen.add(MARKUPR_LABEL.name);
-  labels.push(MARKUPR_LABEL);
+  // Always include MarkuprX label
+  seen.add(MARKUPRX_LABEL.name);
+  labels.push(MARKUPRX_LABEL);
 
   for (const item of items) {
     const catLabel = CATEGORY_LABELS[item.category];
@@ -280,7 +280,7 @@ export class GitHubAPIClient {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json',
-      'User-Agent': 'markupr-github-integration',
+      'User-Agent': 'markuprx-github-integration',
     };
   }
 
@@ -370,17 +370,17 @@ export class GitHubAPIClient {
 // ============================================================================
 
 /**
- * Parse a markupR report and create GitHub issues for each feedback item.
+ * Parse a MarkuprX report and create GitHub issues for each feedback item.
  */
 export async function pushToGitHub(options: PushToGitHubOptions): Promise<PushToGitHubResult> {
   const { repo, auth, reportPath, dryRun = false, items: filterIds } = options;
 
   // Read and parse the report
   const markdown = await readFile(reportPath, 'utf-8');
-  let items = parseMarkuprReport(markdown);
+  let items = parseMarkuprXReport(markdown);
 
   if (items.length === 0) {
-    throw new Error('No feedback items found in the report. Is this a valid markupR report?');
+    throw new Error('No feedback items found in the report. Is this a valid MarkuprX report?');
   }
 
   // Filter to specific items if requested

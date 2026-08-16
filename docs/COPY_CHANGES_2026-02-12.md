@@ -1,4 +1,4 @@
-# markupr Landing Page Copy Changes
+# markuprx Landing Page Copy Changes
 
 **Date:** 2026-02-12
 **File:** `site/index.html`
@@ -8,14 +8,14 @@
 
 ## Summary
 
-These changes reposition markupr from a screen-recording documentation tool to a feedback-loop closer for AI coding agents. The old copy emphasized "writing things up" and "generating reports." The new copy frames markupr as the bridge between what a developer sees on screen and what their AI agent needs to fix it. The word "report" is replaced by "structured context" throughout. Every call to action now points toward a concrete outcome: the AI fixes the bug.
+These changes reposition markuprx from a screen-recording documentation tool to a feedback-loop closer for AI coding agents. The old copy emphasized "writing things up" and "generating reports." The new copy frames markuprx as the bridge between what a developer sees on screen and what their AI agent needs to fix it. The word "report" is replaced by "structured context" throughout. Every call to action now points toward a concrete outcome: the AI fixes the bug.
 
 ## Changes (15 total)
 
 ### 1. Page Title
 
-**Before:** `markupR -- App feedback, made effortless`
-**After:** `markupR -- You see it. You say it. Your AI fixes it.`
+**Before:** `MarkuprX -- App feedback, made effortless`
+**After:** `MarkuprX -- You see it. You say it. Your AI fixes it.`
 
 *Rationale: Old title was generic SaaS. New title is the campaign tagline -- specific, memorable, and describes the full loop in one sentence.*
 
@@ -23,8 +23,8 @@ These changes reposition markupr from a screen-recording documentation tool to a
 
 ### 2. Meta Description
 
-**Before:** `markupR records your screen while you talk, then assembles structured Markdown with the right screenshots at the right moments. Launch includes both BYOK open source mode and touchless premium mode with hosted keys.`
-**After:** `markupR closes the feedback loop between what you see on screen and what your AI coding agent fixes. Record your screen, say what's wrong, and get structured Markdown your agent can act on immediately.`
+**Before:** `MarkuprX records your screen while you talk, then assembles structured Markdown with the right screenshots at the right moments. Launch includes both BYOK open source mode and touchless premium mode with hosted keys.`
+**After:** `MarkuprX closes the feedback loop between what you see on screen and what your AI coding agent fixes. Record your screen, say what's wrong, and get structured Markdown your agent can act on immediately.`
 
 *Rationale: Old description led with mechanics. New description leads with the value proposition and outcome. Also removes launch-specific language ("Launch includes") that will age poorly.*
 
@@ -32,26 +32,26 @@ These changes reposition markupr from a screen-recording documentation tool to a
 
 ### 3. Hero Headline (H1)
 
-**Before:** `You found the bug. markupR writes it up.`
+**Before:** `You found the bug. MarkuprX writes it up.`
 **After:** `You see it. You say it. Your AI fixes it.`
 
-*Rationale: Old headline positioned markupr as a writing tool. New headline positions it as a feedback loop that ends with a fix. Three short declarative sentences with parallel structure.*
+*Rationale: Old headline positioned markuprx as a writing tool. New headline positions it as a feedback loop that ends with a fix. Three short declarative sentences with parallel structure.*
 
 ---
 
 ### 4. Hero Subtext
 
-**Before:** `AI writes your code. You still have to review it. markupR records your screen while you talk through what you see, then assembles a structured Markdown document your AI agent can act on immediately.`
-**After:** `You know exactly what's wrong. You just can't describe it precisely enough for the AI to fix it. markupR records your screen while you talk, then gives your coding agent the structured context it needs to act.`
+**Before:** `AI writes your code. You still have to review it. MarkuprX records your screen while you talk through what you see, then assembles a structured Markdown document your AI agent can act on immediately.`
+**After:** `You know exactly what's wrong. You just can't describe it precisely enough for the AI to fix it. MarkuprX records your screen while you talk, then gives your coding agent the structured context it needs to act.`
 
-*Rationale: Old subtext started with a statement about AI writing code (not about markupr). New subtext names the specific pain point -- the articulation gap -- and positions markupr as the solution.*
+*Rationale: Old subtext started with a statement about AI writing code (not about markuprx). New subtext names the specific pain point -- the articulation gap -- and positions markuprx as the solution.*
 
 ---
 
 ### 5. Quick Walkthrough Description
 
-**Before:** `You record and mark shots. After you stop, markupR runs AI alignment on narration + frames and generates a clean report your agent can use.`
-**After:** `You record and mark shots. After you stop, markupR aligns narration with frames and closes the loop -- your agent gets structured context to start fixing.`
+**Before:** `You record and mark shots. After you stop, MarkuprX runs AI alignment on narration + frames and generates a clean report your agent can use.`
+**After:** `You record and mark shots. After you stop, MarkuprX aligns narration with frames and closes the loop -- your agent gets structured context to start fixing.`
 
 *Rationale: Replaced "generates a clean report" with "closes the loop." Replaced jargon ("AI alignment on narration + frames") with plain language. Ends with action ("start fixing") not possession ("can use").*
 
@@ -95,8 +95,8 @@ These changes reposition markupr from a screen-recording documentation tool to a
 
 ### 10. "Stop retyping" Card -- Final Sentence
 
-**Before:** `markupR lets you just say it. The documentation happens behind you.`
-**After:** `markupR lets you just say it. Your agent gets what it needs to fix it.`
+**Before:** `MarkuprX lets you just say it. The documentation happens behind you.`
+**After:** `MarkuprX lets you just say it. Your agent gets what it needs to fix it.`
 
 *Rationale: "The documentation happens behind you" sounds like the goal is documentation. New copy redirects the outcome to the agent getting what it needs for a fix.*
 
@@ -104,8 +104,8 @@ These changes reposition markupr from a screen-recording documentation tool to a
 
 ### 11. "150 wpm" Card -- Body Text
 
-**Before:** `A five-minute narration produces more structured output than twenty minutes of writing. And the result is better -- markupR places screenshots at the exact moments you were describing something, not wherever you remembered to paste them.`
-**After:** `A five-minute narration gives your AI agent more precise context than twenty minutes of writing. markupR places screenshots at the exact moments you were describing something -- so the agent sees what you saw, when you saw it.`
+**Before:** `A five-minute narration produces more structured output than twenty minutes of writing. And the result is better -- MarkuprX places screenshots at the exact moments you were describing something, not wherever you remembered to paste them.`
+**After:** `A five-minute narration gives your AI agent more precise context than twenty minutes of writing. MarkuprX places screenshots at the exact moments you were describing something -- so the agent sees what you saw, when you saw it.`
 
 *Rationale: Old copy compared output quantity. New copy frames the comparison around agent context quality. Final clause ("the agent sees what you saw") reinforces the feedback-loop metaphor.*
 
@@ -131,8 +131,8 @@ These changes reposition markupr from a screen-recording documentation tool to a
 
 ### 14. CLI Section -- Second Paragraph
 
-**Before:** `The CLI runs the full markupr post-processing pipeline: transcription, frame extraction, and markdown generation. Point it at a video file and get the same AI-ready output.`
-**After:** `The CLI runs the full markupr pipeline: transcription, frame extraction, and markdown generation. Point it at a video file and get structured context your agent can act on.`
+**Before:** `The CLI runs the full markuprx post-processing pipeline: transcription, frame extraction, and markdown generation. Point it at a video file and get the same AI-ready output.`
+**After:** `The CLI runs the full markuprx pipeline: transcription, frame extraction, and markdown generation. Point it at a video file and get structured context your agent can act on.`
 
 *Rationale: Dropped "post-processing" (unnecessary jargon). Replaced "AI-ready output" with "structured context your agent can act on" (consistent language with rest of page).*
 
@@ -141,8 +141,8 @@ These changes reposition markupr from a screen-recording documentation tool to a
 ### 15. Pricing Section -- Heading and Description
 
 **Before:**
-- Heading: `Same markupr output. Two ways to run it.`
-- Body: `markupr open source and markupr premium run the same core pipeline: record screen + narration, transcribe, extract the right frames, and generate agent-ready markdown. Premium is the touchless path with hosted keys preconfigured. BYOK stays fully supported.`
+- Heading: `Same markuprx output. Two ways to run it.`
+- Body: `markuprx open source and markuprx premium run the same core pipeline: record screen + narration, transcribe, extract the right frames, and generate agent-ready markdown. Premium is the touchless path with hosted keys preconfigured. BYOK stays fully supported.`
 
 **After:**
 - Heading: `Same feedback loop. Two ways to run it.`

@@ -1,5 +1,5 @@
 /**
- * markupR Onboarding Wizard
+ * MarkuprX Onboarding Wizard
  *
  * The first impression that makes users say "wow".
  *
@@ -346,7 +346,7 @@ const WelcomeStep: React.FC<{ onNext: () => void; onSkip: () => void }> = ({
       </div>
 
       {/* Title */}
-      <h1 style={styles.title}>Welcome to markupR</h1>
+      <h1 style={styles.title}>Welcome to MarkuprX</h1>
 
       {/* Tagline */}
       <p style={styles.tagline}>
@@ -468,7 +468,7 @@ const MicrophoneStep: React.FC<{
 
       {/* Explanation */}
       <p style={styles.stepDescription}>
-        markupR needs microphone access to transcribe your voice narration as you
+        MarkuprX needs microphone access to transcribe your voice narration as you
         walk through your feedback. Your audio is processed locally and securely.
       </p>
 
@@ -496,7 +496,7 @@ const MicrophoneStep: React.FC<{
           </div>
           <ol style={styles.instructionList}>
             <li>Click &quot;Open System Settings&quot; below</li>
-            <li>Find &quot;markupR&quot; in the list</li>
+            <li>Find &quot;MarkuprX&quot; in the list</li>
             <li>Toggle the switch ON</li>
             <li>Click &quot;Check Again&quot; to verify</li>
           </ol>
@@ -646,7 +646,8 @@ const ScreenRecordingStep: React.FC<{
       <p style={styles.stepDescription}>
         MarkuprX records the selected screen or window and saves each marked area with
         the narration that explains it. Grant Screen Recording permission to enable video,
-        screenshots, and live markup.
+        screenshots, and live markup. Because MarkuprX uses a new app identity, an upgrade
+        may ask you to grant Screen Recording, Microphone, and Accessibility permissions again.
       </p>
 
       {/* macOS System Preferences Instructions */}
@@ -665,12 +666,12 @@ const ScreenRecordingStep: React.FC<{
           </div>
           <ol style={styles.instructionList}>
             <li>Click &quot;Open System Settings&quot; below</li>
-            <li>Find &quot;markupR&quot; in the list</li>
+            <li>Find &quot;MarkuprX&quot; in the list</li>
             <li>Toggle the switch ON</li>
             <li>Click &quot;Check Again&quot; to verify</li>
           </ol>
           <p style={styles.instructionNote}>
-            Note: You may need to restart markupR after enabling.
+            Note: You may need to restart MarkuprX after enabling.
           </p>
         </div>
       )}
@@ -730,7 +731,7 @@ const ScreenRecordingStep: React.FC<{
               strokeLinecap="round"
             />
           </svg>
-          <span>Screen recording enabled! markupR can now capture screenshots.</span>
+          <span>Screen recording enabled! MarkuprX can now capture screenshots.</span>
         </div>
       )}
 
@@ -1195,7 +1196,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
   useEffect(() => {
     const checkInitialPermissions = async () => {
       try {
-        const permissionStatus = await window.markupr.permissions.getAll();
+        const permissionStatus = await window.markuprx.permissions.getAll();
         setPermissions({
           microphone: permissionStatus.microphone ? 'granted' : 'unknown',
           screen: permissionStatus.screen ? 'granted' : 'unknown',
@@ -1214,14 +1215,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
     try {
       // First check via main process (macOS system permissions)
-      const isGranted = await window.markupr.permissions.check('microphone');
+      const isGranted = await window.markuprx.permissions.check('microphone');
       if (isGranted) {
         setPermissions((prev) => ({ ...prev, microphone: 'granted' }));
         return;
       }
 
       // Request via main process first (triggers macOS prompt)
-      const mainGranted = await window.markupr.permissions.request('microphone');
+      const mainGranted = await window.markuprx.permissions.request('microphone');
 
       if (mainGranted) {
         // Verify with browser API as well
@@ -1242,14 +1243,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
     try {
       // First check if already granted
-      const isGranted = await window.markupr.permissions.check('screen');
+      const isGranted = await window.markuprx.permissions.check('screen');
       if (isGranted) {
         setPermissions((prev) => ({ ...prev, screen: 'granted' }));
         return;
       }
 
       // Request permission - this will open System Preferences on macOS
-      const granted = await window.markupr.permissions.request('screen');
+      const granted = await window.markuprx.permissions.request('screen');
 
       if (granted) {
         setPermissions((prev) => ({ ...prev, screen: 'granted' }));
@@ -1269,14 +1270,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
     try {
       const candidateKey = openAiApiKey.value.trim();
       const validation = await withTimeout(
-        window.markupr.settings.testApiKey('openai', candidateKey),
+        window.markuprx.settings.testApiKey('openai', candidateKey),
         API_TEST_TIMEOUT_MS,
         'OpenAI API test timed out. Please try again.'
       );
 
       if (validation.valid) {
         const saved = await withTimeout(
-          window.markupr.settings.setApiKey('openai', candidateKey),
+          window.markuprx.settings.setApiKey('openai', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving OpenAI key timed out. Please try again.'
         );
@@ -1291,7 +1292,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
         setOpenAiApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(
-          new CustomEvent('markupr:settings-updated', {
+          new CustomEvent('markuprx:settings-updated', {
             detail: { type: 'api-key', provider: 'openai', source: 'onboarding' },
           }),
         );
@@ -1321,14 +1322,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
     try {
       const candidateKey = anthropicApiKey.value.trim();
       const validation = await withTimeout(
-        window.markupr.settings.testApiKey('anthropic', candidateKey),
+        window.markuprx.settings.testApiKey('anthropic', candidateKey),
         API_TEST_TIMEOUT_MS,
         'Anthropic API test timed out. Please try again.'
       );
 
       if (validation.valid) {
         const saved = await withTimeout(
-          window.markupr.settings.setApiKey('anthropic', candidateKey),
+          window.markuprx.settings.setApiKey('anthropic', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving Anthropic key timed out. Please try again.'
         );
@@ -1343,7 +1344,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
         setAnthropicApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(
-          new CustomEvent('markupr:settings-updated', {
+          new CustomEvent('markuprx:settings-updated', {
             detail: { type: 'api-key', provider: 'anthropic', source: 'onboarding' },
           }),
         );
@@ -1398,7 +1399,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             title="OpenAI API Key"
             helpText={
               <>
-                markupR uses OpenAI for post-session narration transcription. Create an API key at{' '}
+                MarkuprX uses OpenAI for post-session narration transcription. Create an API key at{' '}
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
@@ -1474,7 +1475,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
         {/* ARIA live region for step announcements */}
         <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
-          {currentStep === 'welcome' && 'Welcome to markupR setup'}
+          {currentStep === 'welcome' && 'Welcome to MarkuprX setup'}
           {currentStep === 'microphone' && 'Step 1 of 4: Microphone access'}
           {currentStep === 'screen' && 'Step 2 of 4: Screen recording'}
           {currentStep === 'openai' && 'Step 3 of 4: OpenAI API key'}

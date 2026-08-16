@@ -2,9 +2,9 @@
 
 ## Summary
 
-markupR will replace its implicit primary-display recording start with a direct desktop selector. Starting a session opens a QuickTime-style overlay across the user's displays. Window mode is the default: moving the pointer over an eligible application window highlights its real desktop bounds, and clicking it records that window source only. Region mode lets the user drag an arbitrary rectangle on one display. Full Screen mode remains available for explicit whole-display capture.
+MarkuprX will replace its implicit primary-display recording start with a direct desktop selector. Starting a session opens a QuickTime-style overlay across the user's displays. Window mode is the default: moving the pointer over an eligible application window highlights its real desktop bounds, and clicking it records that window source only. Region mode lets the user drag an arbitrary rectangle on one display. Full Screen mode remains available for explicit whole-display capture.
 
-During recording, markupR will render a marker halo around the pointer and provide a drawing mode for freehand, circle, and translucent highlight annotations. The selected video source and annotations are composited into a single canvas-backed media stream before MediaRecorder encodes it. Consequently, the saved video and every frame extracted from it contain the annotations. Completing an annotation also creates a capture cue so report generation preferentially extracts an annotated frame.
+During recording, MarkuprX will render a marker halo around the pointer and provide a drawing mode for freehand, circle, and translucent highlight annotations. The selected video source and annotations are composited into a single canvas-backed media stream before MediaRecorder encodes it. Consequently, the saved video and every frame extracted from it contain the annotations. Completing an annotation also creates a capture cue so report generation preferentially extracts an annotated frame.
 
 ## Goals
 
@@ -49,7 +49,7 @@ Replace Chromium desktop capture with ScreenCaptureKit on macOS and Windows Grap
 ### Starting a session
 
 1. The user clicks Start Session or invokes the recording hotkey.
-2. markupR verifies screen and microphone permissions before displaying selectable content.
+2. MarkuprX verifies screen and microphone permissions before displaying selectable content.
 3. The popover hides and a dim transparent selector covers every connected display.
 4. Window mode is selected by default. The topmost eligible application window under the pointer receives a high-contrast outline and a label containing the application and window title.
 5. A compact palette offers Window, Region, and Full Screen modes, plus Cancel. Escape always cancels.
@@ -82,7 +82,7 @@ Escape also exits drawing mode. Annotations remain visible and burned into subse
 
 The native geometry adapter refreshes the selected window bounds during recording and moves the protected annotation surface with it. Annotation coordinates are normalized to the current selected bounds before being sent to the compositor. The recorded video canvas keeps a stable output size; if the captured source aspect ratio changes, it is contained without cropping and unused pixels are letterboxed.
 
-If the selected capture track ends because the window closes or the operating system revokes access, markupR exits drawing mode, stops the recording path safely, preserves already-written chunks, and shows an actionable error. It does not substitute a screen source.
+If the selected capture track ends because the window closes or the operating system revokes access, MarkuprX exits drawing mode, stops the recording path safely, preserves already-written chunks, and shows an actionable error. It does not substitute a screen source.
 
 ## Architecture
 
@@ -106,7 +106,7 @@ All coordinates crossing IPC are finite, integer device-independent pixels. Regi
 - Windows uses a bounded PowerShell process with User32 `EnumWindows`, `GetWindowRect`, visibility checks, cloaking checks, and owner PID lookup. The HWND is matched to Electron's window source ID.
 - X11 uses available EWMH tooling when present. Wayland and environments without a geometry source report that direct geometry is unavailable and use the existing source gallery for windows.
 
-The provider excludes markupR's own process, system surfaces, zero-area windows, transparent/invisible layers, and sources Electron did not expose. Native command output is capped, parsed defensively, and subject to a short timeout.
+The provider excludes MarkuprX's own process, system surfaces, zero-area windows, transparent/invisible layers, and sources Electron did not expose. Native command output is capped, parsed defensively, and subject to a short timeout.
 
 ### Capture overlay manager
 
@@ -141,7 +141,7 @@ When a stroke ends, the main process registers an annotation capture cue contain
 ## Privacy and Security
 
 - A window target is always captured through its window source ID.
-- Failure to capture that ID is fatal to the recording start; markupR never widens to a display capture.
+- Failure to capture that ID is fatal to the recording start; MarkuprX never widens to a display capture.
 - Region coordinates are clamped and validated in the main process.
 - Overlay IPC validates event shape, point count, numeric bounds, stroke width, color allowlist, and active session ownership.
 - Native geometry commands receive no user-controlled shell string. They use `execFile` argument arrays, bounded output, a minimal environment, and timeouts.
@@ -187,7 +187,7 @@ When a stroke ends, the main process registers an annotation capture cue contain
 ### End-to-end and manual verification
 
 - Build and run the Electron app on macOS with two ordinary application windows.
-- Verify hover follows front-to-back z-order, excludes markupR, cancels with Escape, and records the clicked app without surrounding desktop pixels.
+- Verify hover follows front-to-back z-order, excludes MarkuprX, cancels with Escape, and records the clicked app without surrounding desktop pixels.
 - Verify region selection on primary and negative-origin secondary displays and compare the output dimensions/content with the chosen rectangle.
 - Interact with the recorded app in interaction mode, enter drawing mode from the HUD, draw each tool/color, undo, clear, and exit with Escape.
 - Move and resize a selected window during recording and verify overlay alignment and uncropped contained video.

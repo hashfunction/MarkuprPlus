@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature or improvement for markupr
+about: Suggest a new feature or improvement for markuprx
 title: '[Feature] '
 labels: enhancement
 assignees: ''
@@ -45,7 +45,7 @@ How important is this feature to you?
 
 - [ ] Nice to have - Would improve my workflow
 - [ ] Important - Significantly impacts my productivity
-- [ ] Critical - Can't use markupr effectively without it
+- [ ] Critical - Can't use markuprx effectively without it
 
 ## Checklist
 

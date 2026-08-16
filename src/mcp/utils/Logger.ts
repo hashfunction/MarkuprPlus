@@ -6,5 +6,5 @@
  */
 
 export function log(message: string): void {
-  process.stderr.write(`[markupR-mcp] ${message}\n`);
+  process.stderr.write(`[MarkuprX-mcp] ${message}\n`);
 }

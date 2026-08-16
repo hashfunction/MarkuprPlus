@@ -2,7 +2,7 @@
 
 ## Summary
 
-markupR currently enhances reports only when an Anthropic API key is available. Add a selectable Codex CLI analysis provider so a user who already has Codex installed and authenticated can use that existing login instead of supplying an Anthropic key.
+MarkuprX currently enhances reports only when an Anthropic API key is available. Add a selectable Codex CLI analysis provider so a user who already has Codex installed and authenticated can use that existing login instead of supplying an Anthropic key.
 
 This release implements Codex only. The provider boundary and discovery result types will allow additional local CLI adapters later without changing the analysis pipeline or settings UI.
 
@@ -21,7 +21,7 @@ This release implements Codex only. The provider boundary and discovery result t
 - Supporting Claude Code, Gemini CLI, OpenCode, Aider, or other CLI providers in this release.
 - Managing Codex installation, login, account selection, model selection, or subscription state.
 - Keeping a persistent Codex App Server process.
-- Reordering markupR's post-processing pipeline or changing frame extraction behavior.
+- Reordering MarkuprX's post-processing pipeline or changing frame extraction behavior.
 - Replacing OpenAI or local Whisper transcription settings.
 
 ## Provider Architecture
@@ -72,12 +72,12 @@ The adapter uses the stable non-interactive `codex exec` command documented in t
 - `--ignore-user-config` to exclude user MCP servers and custom runtime configuration while retaining Codex authentication;
 - `--ignore-rules` to exclude project and user instruction files;
 - `--skip-git-repo-check` because analysis runs in an isolated temporary directory;
-- `--output-schema <path>` to constrain the final response to markupR's analysis schema;
+- `--output-schema <path>` to constrain the final response to MarkuprX's analysis schema;
 - `--output-last-message <path>` to capture only the final structured response;
 - `--image <path>` for each screenshot available to the existing analysis stage;
 - `-` so the complete prompt is supplied on standard input.
 
-The prompt combines markupR's existing analysis instructions with the session transcript, source name, screenshot timestamps, and screenshot index mapping. The adapter parses the final message with the same validation and coercion rules used for Anthropic results.
+The prompt combines MarkuprX's existing analysis instructions with the session transcript, source name, screenshot timestamps, and screenshot index mapping. The adapter parses the final message with the same validation and coercion rules used for Anthropic results.
 
 The command runs with a three-minute timeout. Standard output and error capture are bounded. On timeout, the complete child process is terminated. Prompt, schema, copied image, and result files live in a uniquely created OS temporary directory and are removed in a `finally` block.
 
@@ -142,10 +142,10 @@ Add automated coverage for:
 - Advanced Settings selection and readiness display logic;
 - main-window readiness copy.
 
-Tests use fake executables and mocked process launching so the automated suite does not consume a user's quota. Final local verification performs one minimal real invocation through the installed authenticated Codex CLI, then runs type checking, relevant tests, the full build, unsigned arm64 packaging, installation to `/Applications/markupR.app`, restart, and process verification.
+Tests use fake executables and mocked process launching so the automated suite does not consume a user's quota. Final local verification performs one minimal real invocation through the installed authenticated Codex CLI, then runs type checking, relevant tests, the full build, unsigned arm64 packaging, installation to `/Applications/MarkuprX.app`, restart, and process verification.
 
 ## Deployment
 
-Build the Electron desktop bundles, package an unsigned arm64 macOS application, quit the existing installed process cleanly, replace `/Applications/markupR.app` with the newly packaged bundle, launch it, and confirm the installed version and process path.
+Build the Electron desktop bundles, package an unsigned arm64 macOS application, quit the existing installed process cleanly, replace `/Applications/MarkuprX.app` with the newly packaged bundle, launch it, and confirm the installed version and process path.
 
 The resulting local app remains unsigned and unnotarized. macOS may preserve or request screen-recording and microphone permissions according to its code-signing identity rules.

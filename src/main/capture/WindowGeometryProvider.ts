@@ -62,7 +62,7 @@ $signature = @'
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public static class MarkuprWindowProbe {
+public static class MarkuprXWindowProbe {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
   [DllImport("user32.dll")] public static extern IntPtr GetTopWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
@@ -75,18 +75,18 @@ public static class MarkuprWindowProbe {
 }
 '@
 Add-Type -TypeDefinition $signature
-$previousDpiContext = [MarkuprWindowProbe]::SetThreadDpiAwarenessContext([IntPtr](-1))
+$previousDpiContext = [MarkuprXWindowProbe]::SetThreadDpiAwarenessContext([IntPtr](-1))
 $result = @()
-$handle = [MarkuprWindowProbe]::GetTopWindow([IntPtr]::Zero)
+$handle = [MarkuprXWindowProbe]::GetTopWindow([IntPtr]::Zero)
 while ($handle -ne [IntPtr]::Zero) {
-  $rect = New-Object MarkuprWindowProbe+RECT
+  $rect = New-Object MarkuprXWindowProbe+RECT
   $pidValue = [uint32]0
   $titleBuffer = New-Object System.Text.StringBuilder 1024
   $cloaked = 0
-  [void][MarkuprWindowProbe]::GetWindowThreadProcessId($handle, [ref]$pidValue)
-  [void][MarkuprWindowProbe]::GetWindowText($handle, $titleBuffer, $titleBuffer.Capacity)
-  [void][MarkuprWindowProbe]::DwmGetWindowAttribute($handle, 14, [ref]$cloaked, 4)
-  if ([MarkuprWindowProbe]::GetWindowRect($handle, [ref]$rect)) {
+  [void][MarkuprXWindowProbe]::GetWindowThreadProcessId($handle, [ref]$pidValue)
+  [void][MarkuprXWindowProbe]::GetWindowText($handle, $titleBuffer, $titleBuffer.Capacity)
+  [void][MarkuprXWindowProbe]::DwmGetWindowAttribute($handle, 14, [ref]$cloaked, 4)
+  if ([MarkuprXWindowProbe]::GetWindowRect($handle, [ref]$rect)) {
     $processName = ''
     try { $processName = (Get-Process -Id $pidValue -ErrorAction Stop).ProcessName } catch {}
     $result += [PSCustomObject]@{
@@ -98,14 +98,14 @@ while ($handle -ne [IntPtr]::Zero) {
       y = $rect.Top
       width = $rect.Right - $rect.Left
       height = $rect.Bottom - $rect.Top
-      visible = [MarkuprWindowProbe]::IsWindowVisible($handle)
+      visible = [MarkuprXWindowProbe]::IsWindowVisible($handle)
       cloaked = ($cloaked -ne 0)
     }
   }
-  $handle = [MarkuprWindowProbe]::GetWindow($handle, 2)
+  $handle = [MarkuprXWindowProbe]::GetWindow($handle, 2)
 }
 $result | ConvertTo-Json -Compress
-[void][MarkuprWindowProbe]::SetThreadDpiAwarenessContext($previousDpiContext)
+[void][MarkuprXWindowProbe]::SetThreadDpiAwarenessContext($previousDpiContext)
 `;
 
 function safeJsonArray(stdout: string): unknown[] {

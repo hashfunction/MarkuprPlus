@@ -10,7 +10,7 @@ import {
 const sources: CaptureSource[] = [
   { id: 'window:220:0', name: 'Documentation', type: 'window', thumbnail: 'data:image/png;base64,doc' },
   { id: 'window:330:0', name: 'Terminal', type: 'window', thumbnail: 'data:image/png;base64,term' },
-  { id: 'window:440:1', name: 'markupR', type: 'window' },
+  { id: 'window:440:1', name: 'MarkuprX', type: 'window' },
   { id: 'screen:0:0', name: 'Entire Screen', type: 'screen' },
 ];
 

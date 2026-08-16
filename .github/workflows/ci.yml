@@ -1,5 +1,5 @@
 # =============================================================================
-# markupr CI Pipeline
+# markuprx CI Pipeline
 # =============================================================================
 # Runs on every push to main and pull request
 # Matrix build for macOS and Windows with comprehensive validation
@@ -94,10 +94,10 @@ jobs:
         os: [macos-latest, windows-latest]
         include:
           - os: macos-latest
-            artifact-name: markupr-macos
+            artifact-name: markuprx-macos
             build-path: release/*.dmg
           - os: windows-latest
-            artifact-name: markupr-windows
+            artifact-name: markuprx-windows
             build-path: release/*.exe
 
     steps:

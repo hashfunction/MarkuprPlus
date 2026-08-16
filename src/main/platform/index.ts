@@ -1,5 +1,5 @@
 /**
- * Platform-specific integrations for markupr
+ * Platform-specific integrations for markuprx
  *
  * Provides native OS features:
  * - Windows: Taskbar integration (jump lists, progress, overlay icons, thumbnail toolbar)

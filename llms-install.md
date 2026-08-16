@@ -1,10 +1,10 @@
-# markupR MCP Installation Guide
+# MarkuprX MCP Installation Guide
 
-This file provides step-by-step instructions for AI agents (like Cline) to install and configure the markupR MCP server.
+This file provides step-by-step instructions for AI agents (like Cline) to install and configure the MarkuprX MCP server.
 
-## What is markupR MCP?
+## What is MarkuprX MCP?
 
-The markupR MCP server (run as `markupr-mcp`) gives AI coding agents the ability to see the user's screen. It provides 9 tools: screenshot capture, screen description via Claude vision, screen+voice recording with Whisper transcription, video analysis, and direct issue creation in GitHub and Linear.
+The MarkuprX MCP server (run as `markuprx-mcp`) gives AI coding agents the ability to see the user's screen. It provides 9 tools: screenshot capture, screen description via Claude vision, screen+voice recording with Whisper transcription, video analysis, and direct issue creation in GitHub and Linear.
 
 ## Prerequisites
 
@@ -31,10 +31,10 @@ Before installing, verify the following:
 
 ## Installation
 
-The markupR MCP server requires zero global installation. It runs via `npx`:
+The MarkuprX MCP server requires zero global installation. It runs via `npx`:
 
 ```bash
-npx --package markupr markupr-mcp
+npx --package markuprx markuprx-mcp
 ```
 
 No additional setup, build steps, or configuration files are needed beyond the MCP server config shown below.
@@ -50,9 +50,9 @@ File: `~/.claude/settings.json`
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -65,9 +65,9 @@ Add to your Cline MCP settings (Settings > Cline > MCP Servers, or in `cline_mcp
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -80,9 +80,9 @@ File: `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global)
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -95,9 +95,9 @@ File: `~/.codeium/windsurf/mcp_config.json`
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -118,9 +118,9 @@ To set environment variables in the MCP config, add an `env` field:
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"],
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"],
       "env": {
         "ANTHROPIC_API_KEY": "sk-ant-..."
       }
@@ -149,15 +149,15 @@ After installation, the following 9 tools are available:
 
 After adding the MCP config and restarting your IDE:
 
-1. The markupR MCP server should appear in your IDE's MCP server list
+1. The MarkuprX MCP server should appear in your IDE's MCP server list
 2. Test by asking your AI agent to run `capture_screenshot` -- it should take a screenshot and return a file path
 3. If you see permission errors on macOS, grant Screen Recording permission to your terminal/IDE app and restart
 
 ## Troubleshooting
 
-**"Cannot find module" or "markupr-mcp not found":**
+**"Cannot find module" or "markuprx-mcp not found":**
 - Ensure Node.js 18+ is installed
-- Try running `npx --package markupr markupr-mcp` manually in a terminal to see the error output
+- Try running `npx --package markuprx markuprx-mcp` manually in a terminal to see the error output
 - The server outputs logs to stderr; stdout is reserved for MCP protocol communication
 
 **"Screen Recording permission not granted":**
@@ -170,5 +170,5 @@ After adding the MCP config and restarting your IDE:
 
 **Server appears but tools are not listed:**
 - Restart your IDE
-- Check that `npx --package markupr markupr-mcp` runs without errors in a terminal
+- Check that `npx --package markuprx markuprx-mcp` runs without errors in a terminal
 - Ensure you're using the `-y` flag in the args to auto-confirm npx installation

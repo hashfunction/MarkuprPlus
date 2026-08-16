@@ -43,7 +43,7 @@ export const PROVIDER_OPTIONS: AnalysisProviderOption[] = [
   {
     id: 'anthropic-api',
     title: 'Anthropic API',
-    description: 'Use an Anthropic API key stored securely by markupR.',
+    description: 'Use an Anthropic API key stored securely by MarkuprX.',
     connectionBadge: 'Cloud',
   },
   {

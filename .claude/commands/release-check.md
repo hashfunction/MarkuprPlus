@@ -1,6 +1,6 @@
 # Pre-Release Checklist
 
-Validate that markupr is ready for a new release. Run this before bumping the version.
+Validate that markuprx is ready for a new release. Run this before bumping the version.
 
 ## Instructions
 

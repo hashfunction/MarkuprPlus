@@ -124,7 +124,7 @@ export class LmStudioProvider implements AnalysisProviderAdapter {
       response_format: {
         type: 'json_schema',
         json_schema: {
-          name: 'markupr_analysis',
+          name: 'markuprx_analysis',
           strict: true,
           schema: ANALYSIS_JSON_SCHEMA,
         },

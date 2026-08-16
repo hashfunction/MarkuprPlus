@@ -1,21 +1,27 @@
 # Changelog
 
-All notable changes to markupR will be documented in this file.
+All notable changes to MarkuprX will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-08-15
+
 ### Added
 
 - Added a protected QuickTime-style capture selector with exact Window capture by default, arbitrary Region capture, and explicit Full Screen capture across multiple displays.
-- Added a live pointer marker plus pen, circle, and highlighter annotations that are composited into the saved video and prioritized as frames in the final report.
+- Added Command-drag on macOS and Control-drag on Windows for temporary live markup without blocking normal mouse use.
+- Added separately captured marked issues, each with its own annotated PNG, timestamp, tools, colors, and matching transcript comment across Markdown, HTML, JSON, GitHub, Linear, and Jira output.
+- Added one-way migration for existing local settings, recovery state, models, keychain credentials, and saved sessions.
+- Added repository-wide brand enforcement and multi-issue integration coverage.
 
 ### Changed
 
 - Capture selection now fails closed when monitor/source identity or native window geometry is ambiguous instead of widening to another screen.
 - Recording startup, pause, source-close, encoder-error, overlay-crash, and rapid teardown paths now release capture, audio, annotation, and persistence state together.
+- Rebranded the desktop app, CLI, MCP server, packages, IPC namespace, context bridge, installers, action, site, documentation, and storage defaults to MarkuprX / `markuprx`.
 
 ## [2.6.8] - 2026-02-17
 
@@ -60,13 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Added Anthropic API key setup directly into onboarding (OpenAI step followed by Anthropic step).
-- Fixed stale BYOK/transcription readiness state after saving keys by broadcasting and listening for `markupr:settings-updated` events.
-- Fixed renderer crash risk when `window.markupr.processing` is unavailable by guarding progress subscriptions.
+- Fixed stale BYOK/transcription readiness state after saving keys by broadcasting and listening for `markuprx:settings-updated` events.
+- Fixed renderer crash risk when `window.markuprx.processing` is unavailable by guarding progress subscriptions.
 - Improved Settings panel contrast in dark mode by replacing hardcoded dark colors with theme tokens.
 - Cleaned landing page premium section copy to remove internal launch-plan phrasing.
 
 ### Changed
-- Standardized user-facing branding text to `markupR` across updated onboarding/settings/landing surfaces.
+- Standardized user-facing branding text to `MarkuprX` across updated onboarding/settings/landing surfaces.
 
 ## [2.3.0] - 2026-02-14
 
@@ -139,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - Rewrote CONTRIBUTING.md with pipeline explanation, architecture reference, testing guide
-- Added "Why markupR?" positioning section to README
+- Added "Why MarkuprX?" positioning section to README
 - Fixed AI_AGENT_QUICKSTART.md critical broken commands
 - Fixed stale version references across docs and templates
 - Removed documented-but-unimplemented --openai-key flag from README
@@ -155,10 +161,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.2.0] - 2026-02-13
 
 ### Highlights
-**Standalone CLI mode and npm distribution.** markupR can now be installed via `npm install -g markupr` or run with `npx markupr analyze` -- no Electron or desktop app required.
+**Standalone CLI mode and npm distribution.** MarkuprX can now be installed via `npm install -g markuprx` or run with `npx markuprx analyze` -- no Electron or desktop app required.
 
 ### Added
-- **Standalone CLI mode** (`markupR analyze <video>`) for npm/bun install -- no Electron required (#21)
+- **Standalone CLI mode** (`MarkuprX analyze <video>`) for npm/bun install -- no Electron required (#21)
 - **Platform-aware download buttons** on website for Mac ARM, Mac Intel, and Windows
 - **Visual walkthrough animation** on homepage
 
@@ -198,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2026-02-05
 
 ### Highlights
-**Public launch release.** markupR goes open source under MIT license.
+**Public launch release.** MarkuprX goes open source under MIT license.
 
 ### Added
 - **Post-processing pipeline**: transcribe -> analyze -> extract frames -> generate structured Markdown
@@ -209,7 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Clipboard bridge** copies file path (not content) to clipboard after session
 
 ### Changed
-- Complete rebrand from FeedbackFlow to markupR
+- Complete rebrand from FeedbackFlow to MarkuprX
 - Replaced real-time capture with post-processing pipeline architecture
 - Removed Deepgram tier; transcription is now OpenAI API or local Whisper
 - Mic capture replaced with MediaRecorder pipeline
@@ -221,7 +227,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-02-04
 
 ### Highlights
-**markupR Initial Public Release** - Voice-to-AI feedback for developers. Free and open source.
+**MarkuprX Initial Public Release** - Voice-to-AI feedback for developers. Free and open source.
 
 ### Added
 - **Bulletproof State Machine**: 7-state finite state machine with watchdog timer - can never get stuck
@@ -327,19 +333,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 2.3.0 | 2026-02-14 | **Hardening** - security, robustness, a11y, 126 new tests |
 | 2.2.0 | 2026-02-13 | **CLI mode**, npm distribution, package size reduction |
 | 2.1.0 | 2026-02-08 | Architecture refactor, theme system, a11y |
-| 2.0.0 | 2026-02-05 | **Public launch** - post-processing pipeline, markupR rebrand |
+| 2.0.0 | 2026-02-05 | **Public launch** - post-processing pipeline, MarkuprX rebrand |
 | 1.0.0 | 2026-02-04 | **Initial Public Release** - Bulletproof state machine, offline Whisper |
 | 0.4.0 | 2026-02-02 | Export formats, crash recovery, auto-updater |
 | 0.3.0 | 2026-01-15 | Transcription preview, intelligent capture, settings |
 | 0.2.0 | 2026-01-01 | Window selector, manual screenshots |
 | 0.1.0 | 2025-12-15 | Initial scaffold |
 
-[2.3.0]: https://github.com/eddiesanjuan/markupr/compare/v2.2.0...v2.3.0
-[2.2.0]: https://github.com/eddiesanjuan/markupr/compare/v2.1.0...v2.2.0
-[2.1.0]: https://github.com/eddiesanjuan/markupr/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/eddiesanjuan/markupr/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/eddiesanjuan/markupr/compare/v0.4.0...v1.0.0
-[0.4.0]: https://github.com/eddiesanjuan/markupr/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/eddiesanjuan/markupr/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/eddiesanjuan/markupr/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/eddiesanjuan/markupr/releases/tag/v0.1.0
+[2.3.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/eddiesanjuan/markuprx/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/eddiesanjuan/markuprx/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.4.0...v1.0.0
+[0.4.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/eddiesanjuan/markuprx/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/eddiesanjuan/markuprx/releases/tag/v0.1.0

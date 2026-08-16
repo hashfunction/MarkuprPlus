@@ -19,8 +19,8 @@ describe('analysis provider preload bridge', () => {
   beforeAll(async () => {
     vi.resetModules();
     await import('../../src/preload/index');
-    const exposure = vi.mocked(contextBridge.exposeInMainWorld).mock.calls.find(([name]) => name === 'markupr');
-    if (!exposure) throw new Error('markupr preload API was not exposed');
+    const exposure = vi.mocked(contextBridge.exposeInMainWorld).mock.calls.find(([name]) => name === 'markuprx');
+    if (!exposure) throw new Error('markuprx preload API was not exposed');
     analysisProviders = (exposure[1] as { analysisProviders: ExposedAnalysisProvidersApi }).analysisProviders;
   });
 
@@ -38,7 +38,7 @@ describe('analysis provider preload bridge', () => {
     vi.mocked(ipcRenderer.invoke).mockResolvedValue(statuses);
 
     await expect(analysisProviders.discover(true)).resolves.toEqual(statuses);
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markupr:analysis-providers:discover', true);
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markuprx:analysis-providers:discover', true);
   });
 
   it('tests a validated provider through the fixed test channel', async () => {
@@ -51,7 +51,7 @@ describe('analysis provider preload bridge', () => {
     vi.mocked(ipcRenderer.invoke).mockResolvedValue(status);
 
     await expect(analysisProviders.test('codex-cli')).resolves.toEqual(status);
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markupr:analysis-provider:test', 'codex-cli');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('markuprx:analysis-provider:test', 'codex-cli');
   });
 
   it('lists models through the narrow provider-model channel', async () => {
@@ -62,7 +62,7 @@ describe('analysis provider preload bridge', () => {
 
     await expect(analysisProviders.models('ollama', true)).resolves.toEqual(models);
     expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-      'markupr:analysis-provider:models',
+      'markuprx:analysis-provider:models',
       'ollama',
       true,
     );

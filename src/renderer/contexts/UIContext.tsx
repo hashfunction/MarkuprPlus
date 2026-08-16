@@ -111,14 +111,14 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
 
   const refreshAnalysisProviderStatus = useCallback(async () => {
-    if (!window.markupr?.settings || !window.markupr?.analysisProviders) {
+    if (!window.markuprx?.settings || !window.markuprx?.analysisProviders) {
       setAnalysisProviderStatuses([]);
       return;
     }
     try {
       const [loadedSettings, statuses] = await Promise.all([
-        window.markupr.settings.getAll(),
-        window.markupr.analysisProviders.discover(false),
+        window.markuprx.settings.getAll(),
+        window.markuprx.analysisProviders.discover(false),
       ]);
       setSettings({ ...DEFAULT_SETTINGS, ...loadedSettings });
       setAnalysisProviderStatuses(statuses);
@@ -128,7 +128,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   useEffect(() => {
-    if (!window.markupr?.settings) return;
+    if (!window.markuprx?.settings) return;
     const loadInitialSettings = async () => {
       try {
         await refreshAnalysisProviderStatus();
@@ -142,7 +142,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // Re-check provider readiness when returning to the main view from settings.
   useEffect(() => {
-    if (!window.markupr?.settings || currentView !== 'main') return;
+    if (!window.markuprx?.settings || currentView !== 'main') return;
     void refreshAnalysisProviderStatus();
   }, [currentView, refreshAnalysisProviderStatus]);
 
@@ -150,9 +150,9 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const handleSettingsUpdated = () => {
       void refreshAnalysisProviderStatus();
     };
-    window.addEventListener('markupr:settings-updated', handleSettingsUpdated);
+    window.addEventListener('markuprx:settings-updated', handleSettingsUpdated);
     return () => {
-      window.removeEventListener('markupr:settings-updated', handleSettingsUpdated);
+      window.removeEventListener('markuprx:settings-updated', handleSettingsUpdated);
     };
   }, [refreshAnalysisProviderStatus]);
 
@@ -160,7 +160,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Navigation event listeners (from main process menu/tray)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const nav = window.markupr?.navigation;
+    const nav = window.markuprx?.navigation;
     if (!nav) return;
 
     const unsubSettings = nav.onShowSettings(() => setCurrentView('settings'));
@@ -192,14 +192,14 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Popover resize on state/view change
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!window.markupr?.popover) return;
+    if (!window.markuprx?.popover) return;
     if (currentView !== 'main') {
       const { width, height } = mapOverlaySize(currentView);
-      window.markupr.popover.resize(width, height).catch(() => {});
+      window.markuprx.popover.resize(width, height).catch(() => {});
       return;
     }
 
-    window.markupr.popover.resizeToState(mapPopoverState(recording.state)).catch(() => {});
+    window.markuprx.popover.resizeToState(mapPopoverState(recording.state)).catch(() => {});
   }, [recording.state, currentView]);
 
   // ---------------------------------------------------------------------------
@@ -274,9 +274,9 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
-    window.markupr?.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
+    window.markuprx?.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
     void refreshAnalysisProviderStatus();
-    window.markupr?.whisper
+    window.markuprx?.whisper
       ?.hasTranscriptionCapability()
       .then(() => {})
       .catch(() => {});
@@ -284,7 +284,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const handleOnboardingSkip = useCallback(() => {
     setShowOnboarding(false);
-    window.markupr.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
+    window.markuprx.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
   }, []);
 
   const handleExport = useCallback(async (_options: { format: string; projectName: string; includeImages: boolean; theme: string }) => {

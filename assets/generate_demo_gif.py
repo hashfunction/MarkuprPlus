@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate an animated GIF demoing the markupr CLI workflow.
+Generate an animated GIF demoing the markuprx CLI workflow.
 Uses Pillow to render terminal frames and saves as an optimized GIF.
 """
 
@@ -55,7 +55,7 @@ def draw_title_bar(draw):
         cy = TITLE_BAR_H // 2
         draw.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=c)
     # Title text
-    title = "Terminal -- markupr"
+    title = "Terminal -- markuprx"
     draw.text((WIDTH // 2 - 70, 11), title, fill=DIM_COLOR, font=font_title)
 
 
@@ -104,7 +104,7 @@ def generate_frames():
         ]), 300))
 
     # -- Phase 1: Type command character by character --
-    command = "npx markupr analyze ./demo-recording.mov"
+    command = "npx markuprx analyze ./demo-recording.mov"
     for i in range(1, len(command) + 1):
         line = [build_cursor_line(command, i)]
         # Faster typing with occasional pauses
@@ -123,7 +123,7 @@ def generate_frames():
     header_lines = [
         [("$ ", PROMPT_COLOR), (command, TEXT_COLOR)],
         [],
-        [("  markupr", CYAN), (" v2.6.0", DIM_COLOR), (" \u2014 Intelligent Developer Feedback", DIM_COLOR)],
+        [("  markuprx", CYAN), (" v2.6.0", DIM_COLOR), (" \u2014 Intelligent Developer Feedback", DIM_COLOR)],
         [],
     ]
 
@@ -243,7 +243,7 @@ def generate_frames():
 
     s2 = s1 + [
         [],
-        [("  \u2713 ", GREEN), ("Output: ", TEXT_COLOR), ("./markupr-output/demo-recording.md", CYAN)],
+        [("  \u2713 ", GREEN), ("Output: ", TEXT_COLOR), ("./markuprx-output/demo-recording.md", CYAN)],
     ]
     frames.append((create_frame(s2), 800))
 

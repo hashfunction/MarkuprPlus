@@ -1,10 +1,10 @@
 # Security -- Electron Application Security Audit
 
-Perform a thorough security audit of markupr, an Electron app that handles API keys, screen recordings, voice data, and AI API communication. This audit covers Electron-specific attack surfaces, OWASP Top 10 adapted for desktop apps, and markupr's specific threat model.
+Perform a thorough security audit of markuprx, an Electron app that handles API keys, screen recordings, voice data, and AI API communication. This audit covers Electron-specific attack surfaces, OWASP Top 10 adapted for desktop apps, and markuprx's specific threat model.
 
 ## Threat Model
 
-markupr's attack surface includes:
+markuprx's attack surface includes:
 - **API keys** (OpenAI, Anthropic) stored via keytar/OS keychain
 - **Screen recordings** and **voice recordings** saved to disk
 - **Network traffic** to OpenAI Whisper API, Anthropic Claude API, HuggingFace model downloads
@@ -19,22 +19,22 @@ markupr's attack surface includes:
 ### 1. Dependency Vulnerability Scan
 
 ```bash
-cd ~/Projects/markupr && npm audit --omit=dev 2>&1
-cd ~/Projects/markupr && npm audit 2>&1
+cd ~/Projects/markuprx && npm audit --omit=dev 2>&1
+cd ~/Projects/markuprx && npm audit 2>&1
 ```
 
 Report all vulnerabilities by severity (critical, high, moderate, low). For each critical/high:
 - Which package and what CVE?
 - Is it in a production dependency or dev-only?
-- Is it actually reachable in markupr's code paths?
+- Is it actually reachable in markuprx's code paths?
 
 ### 2. Hardcoded Secrets Scan
 
 Search the entire codebase for leaked secrets:
 
 ```bash
-cd ~/Projects/markupr && grep -rn "sk-\|api[_-]key\|secret\|token\|password\|credential" src/ --include="*.ts" --include="*.tsx" -i 2>&1
-cd ~/Projects/markupr && grep -rn "ANTHROPIC_API_KEY\|OPENAI_API_KEY\|GITHUB_TOKEN" src/ .env* .github/ --include="*.ts" --include="*.tsx" --include="*.yml" --include="*.env*" 2>&1
+cd ~/Projects/markuprx && grep -rn "sk-\|api[_-]key\|secret\|token\|password\|credential" src/ --include="*.ts" --include="*.tsx" -i 2>&1
+cd ~/Projects/markuprx && grep -rn "ANTHROPIC_API_KEY\|OPENAI_API_KEY\|GITHUB_TOKEN" src/ .env* .github/ --include="*.ts" --include="*.tsx" --include="*.yml" --include="*.env*" 2>&1
 ```
 
 Verify:
@@ -99,7 +99,7 @@ Specific handlers to scrutinize:
 
 ### 6. Command Injection via External Processes
 
-markupr spawns child processes. Check each for injection risks:
+markuprx spawns child processes. Check each for injection risks:
 
 **ffmpeg (`src/main/pipeline/FrameExtractor.ts`)**
 - Are file paths passed to ffmpeg properly escaped/quoted?
@@ -130,7 +130,7 @@ markupr spawns child processes. Check each for injection risks:
 **Auto-Updater**
 - Read `src/main/AutoUpdater.ts`: Is update verification enabled?
 - Does `electron-updater` verify code signatures on downloaded updates?
-- Is the update feed URL locked to `github.com/eddiesanjuan/markupr`?
+- Is the update feed URL locked to `github.com/eddiesanjuan/markuprx`?
 
 ### 8. Data at Rest Security
 
@@ -153,10 +153,10 @@ Read `src/mcp/server.ts` and each tool in `src/mcp/tools/`:
 
 ### 10. OWASP Desktop Top 10 Checklist
 
-Produce a checklist adapted for markupr:
+Produce a checklist adapted for markuprx:
 
 ```
-=== SECURITY AUDIT: markupr vX.X.X ===
+=== SECURITY AUDIT: markuprx vX.X.X ===
 
 [PASS/FAIL/PARTIAL] D1: Injection (command injection via ffmpeg/Whisper, path traversal via IPC)
 [PASS/FAIL/PARTIAL] D2: Broken Authentication (API key storage, MCP server access control)

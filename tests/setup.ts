@@ -1,5 +1,5 @@
 /**
- * Test Setup - Global mocks and configuration for markupr tests
+ * Test Setup - Global mocks and configuration for markuprx tests
  *
  * This file sets up common mocks for Electron modules and other
  * dependencies that don't work in a Node.js test environment.
@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
       };
       return paths[name] || '/tmp/test';
     }),
-    getName: vi.fn(() => 'markupr'),
+    getName: vi.fn(() => 'markuprx'),
     getVersion: vi.fn(() => '2.0.0'),
     getAppPath: vi.fn(() => '/mock/app/path'),
     isReady: vi.fn(() => true),

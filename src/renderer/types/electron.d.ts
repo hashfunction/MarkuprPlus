@@ -1,7 +1,7 @@
 /**
- * markupr - Electron Type Declarations for Renderer
+ * markuprx - Electron Type Declarations for Renderer
  *
- * This file provides TypeScript type support for the window.markupr API
+ * This file provides TypeScript type support for the window.markuprx API
  * exposed by the preload script via contextBridge.
  */
 
@@ -269,7 +269,7 @@ interface OutputAPI {
 }
 
 /**
- * Complete markupr API
+ * Complete markuprx API
  */
 /**
  * Navigation API (Main -> Renderer navigation events)
@@ -403,9 +403,9 @@ interface WhisperAPI {
 }
 
 /**
- * Complete markupr API
+ * Complete markuprx API
  */
-export interface MarkuprAPI {
+export interface MarkuprXAPI {
   // Domain APIs
   session: SessionAPI;
   capture: CaptureAPI;
@@ -445,7 +445,7 @@ export interface MarkuprAPI {
 
 declare global {
   interface Window {
-    markupr: MarkuprAPI;
+    markuprx: MarkuprXAPI;
   }
 }
 

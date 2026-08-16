@@ -1,5 +1,5 @@
 /**
- * markupR UI Components
+ * MarkuprX UI Components
  *
  * Re-exports all components for clean imports:
  * import { RecordingOverlay, StatusIndicator, SessionReview, Onboarding, ErrorBoundary, AnnotationOverlay, AudioWaveform } from './components';

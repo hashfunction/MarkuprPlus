@@ -312,7 +312,7 @@ git commit -m "feat: draw while holding modifier and preserve click-through"
 **Interfaces:**
 - Produces: `RecordingCompositor.capturePng(): Promise<Uint8Array>`.
 - Produces: `MarkedIssueArtifactStore.stageCandidate(sessionId, revision, bytes)` and `promoteIssues(sessionId, issues, sessionDir)`.
-- Produces renderer API: `window.markupr.capture.stageMarkedIssueCandidate(payload)` before the later rebrand task.
+- Produces renderer API: `window.markuprx.capture.stageMarkedIssueCandidate(payload)` before the later rebrand task.
 
 - [ ] **Step 1: Add failing compositor tests for render barrier, PNG bytes, stopped state, and encoding failure**
 
@@ -554,7 +554,7 @@ git commit -m "feat: complete multi-issue annotation workflow"
 - Modify: `src/**/*.tsx`
 - Modify: `tests/**/*.ts`
 - Modify: `scripts/*`
-- Rename: `scripts/setup-markupr.sh` -> `scripts/setup-markuprx.sh`
+- Rename: `scripts/setup-markuprx.sh` -> `scripts/setup-markuprx.sh`
 - Test: `tests/unit/legacyBrandMigration.test.ts`
 - Test: `tests/unit/brandAudit.test.ts`
 
@@ -581,7 +581,7 @@ Keep all previous-name literals inside this module. Call it before new settings/
 
 - [ ] **Step 4: Perform the mechanical machine-identifier rename**
 
-Apply the mappings `MARKUPR` -> `MARKUPRX`, `markupr` -> `markuprx`, and old mixed-case display spelling -> `MarkuprX` across source/tests/config. Rename the setup script. Then manually correct class names, test descriptions, package binaries, config files, temp/output directories, and bridge declarations.
+Apply the mappings `MARKUPRX` -> `MARKUPRX`, `markuprx` -> `markuprx`, and old mixed-case display spelling -> `MarkuprX` across source/tests/config. Rename the setup script. Then manually correct class names, test descriptions, package binaries, config files, temp/output directories, and bridge declarations.
 
 - [ ] **Step 5: Set release/package metadata to 3.0.0 and new identifiers**
 
@@ -634,7 +634,7 @@ git commit -m "feat!: rebrand runtime and package as MarkuprX"
 - Modify: `assets/**`
 - Modify: `src/renderer/assets/logo.svg`
 - Modify: `src/renderer/assets/logo-dark.svg`
-- Rename: `markupr-action/` -> `markuprx-action/`
+- Rename: `markuprx-action/` -> `markuprx-action/`
 - Modify: `electron-builder.yml`
 - Modify: `scripts/generate-*.{mjs,cjs}`
 

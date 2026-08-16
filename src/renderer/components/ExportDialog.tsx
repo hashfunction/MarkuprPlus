@@ -1,5 +1,5 @@
 /**
- * ExportDialog - Premium Export Experience for markupr
+ * ExportDialog - Premium Export Experience for markuprx
  *
  * A beautiful modal dialog for selecting export format and options.
  *

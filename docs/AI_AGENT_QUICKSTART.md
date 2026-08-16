@@ -7,9 +7,9 @@ This repo includes a one-command setup path for coding agents.
 From repo root:
 
 ```bash
-npm run setup:markupr
+npm run setup:markuprx
 # or directly:
-./scripts/setup-markupr.sh
+./scripts/setup-markuprx.sh
 ```
 
 This command:
@@ -20,8 +20,8 @@ This command:
 ## Fast Variants
 
 ```bash
-./scripts/setup-markupr.sh --skip-install
-./scripts/setup-markupr.sh --skip-checks
+./scripts/setup-markuprx.sh --skip-install
+./scripts/setup-markuprx.sh --skip-checks
 ```
 
 ## First Run Test Loop

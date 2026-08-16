@@ -277,7 +277,7 @@ describe('Markdown Template', () => {
 
   it('renders header with session timestamp', () => {
     const output = markdownTemplate.render(makeContext());
-    expect(output.content).toContain('# markupR Session');
+    expect(output.content).toContain('# MarkuprX Session');
     expect(output.content).toContain('Feb');
     expect(output.content).toContain('2026');
     expect(output.fileExtension).toBe('.md');
@@ -301,7 +301,7 @@ describe('Markdown Template', () => {
 
   it('renders footer', () => {
     const output = markdownTemplate.render(makeContext());
-    expect(output.content).toContain('markupr.com');
+    expect(output.content).toContain('markuprx.com');
     expect(output.content).toContain('Ko-fi');
   });
 
@@ -322,8 +322,8 @@ describe('Markdown Template', () => {
     const genOutput = generator.generateFromPostProcess(ctx.result, ctx.sessionDir);
 
     // Both should have the same structural elements
-    expect(templateOutput.content).toContain('# markupR Session');
-    expect(genOutput).toContain('# markupR Session');
+    expect(templateOutput.content).toContain('# MarkuprX Session');
+    expect(genOutput).toContain('# MarkuprX Session');
     expect(templateOutput.content).toContain('## Transcript');
     expect(genOutput).toContain('## Transcript');
     expect(templateOutput.content).toContain('[0:00]');
@@ -361,7 +361,7 @@ describe('JSON Template', () => {
     const output = jsonTemplate.render(makeContext());
     const parsed = JSON.parse(output.content);
     expect(parsed.version).toBe('1.0');
-    expect(parsed.generator).toBe('markupR');
+    expect(parsed.generator).toBe('MarkuprX');
     expect(parsed.summary.segments).toBe(3);
     expect(parsed.summary.frames).toBe(2);
   });
@@ -428,10 +428,10 @@ describe('GitHub Issue Template', () => {
     expect(output.content).toContain('![Screenshot]');
   });
 
-  it('renders header with markupR link', () => {
+  it('renders header with MarkuprX link', () => {
     const output = githubIssueTemplate.render(makeContext());
     expect(output.content).toContain('## Feedback Report');
-    expect(output.content).toContain('markupR');
+    expect(output.content).toContain('MarkuprX');
   });
 
   it('handles empty input', () => {
@@ -524,7 +524,7 @@ describe('Jira Template', () => {
 
   it('renders Jira link syntax in footer', () => {
     const output = jiraTemplate.render(makeContext());
-    expect(output.content).toContain('[markupR|https://markupr.com]');
+    expect(output.content).toContain('[MarkuprX|https://markuprx.com]');
   });
 
   it('handles empty input', () => {

@@ -394,7 +394,7 @@ export class CLIPipeline {
 
     // Extract audio from video
     this.log('  Extracting audio from video...');
-    const tempAudioPath = join(tmpdir(), `markupr-cli-audio-${randomUUID()}.wav`);
+    const tempAudioPath = join(tmpdir(), `markuprx-cli-audio-${randomUUID()}.wav`);
     this.tempFiles.push(tempAudioPath);
 
     try {

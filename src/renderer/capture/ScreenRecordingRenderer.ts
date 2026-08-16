@@ -279,7 +279,7 @@ export class ScreenRecordingRenderer {
       const composedStream = await this.acquireAndComposeExactSource(target.sourceId, target);
 
       const recordingStartTime = Date.now();
-      const startResult = await window.markupr.screenRecording.start(
+      const startResult = await window.markuprx.screenRecording.start(
         options.sessionId,
         mimeType,
         recordingStartTime
@@ -295,7 +295,7 @@ export class ScreenRecordingRenderer {
       } catch (error) {
         // MediaRecorder construction failed — clean up the main-process artifact and stream.
         this.cleanupStream();
-        await window.markupr.screenRecording.stop(options.sessionId).catch(() => {});
+        await window.markuprx.screenRecording.stop(options.sessionId).catch(() => {});
         throw error;
       }
 
@@ -308,7 +308,7 @@ export class ScreenRecordingRenderer {
         const writePromise = event.data
           .arrayBuffer()
           .then((buffer) =>
-            window.markupr.screenRecording.appendChunk(sessionId, new Uint8Array(buffer))
+            window.markuprx.screenRecording.appendChunk(sessionId, new Uint8Array(buffer))
           )
           .then((result) => {
             if (!result.success) {
@@ -338,7 +338,7 @@ export class ScreenRecordingRenderer {
       this.snapshotRevisions.clear();
       this.snapshotWritesByRevision.clear();
       this.fatalStopInProgress = false;
-      this.annotationUnsubscribe = window.markupr.capture?.onAnnotationEvent?.((event) => {
+      this.annotationUnsubscribe = window.markuprx.capture?.onAnnotationEvent?.((event) => {
         if (event.sessionId !== this.activeSessionId) return;
         if (event.type === 'snapshot-request') {
           this.captureMarkedSnapshot(event);
@@ -357,7 +357,7 @@ export class ScreenRecordingRenderer {
         this.activeSessionId = null;
         this.activeSourceName = null;
         this.recordingStartTime = null;
-        await window.markupr.screenRecording.stop(options.sessionId).catch(() => {});
+        await window.markuprx.screenRecording.stop(options.sessionId).catch(() => {});
         throw error;
       }
     })();
@@ -454,7 +454,7 @@ export class ScreenRecordingRenderer {
 
         try {
           const finalized = await Promise.race([
-            window.markupr.screenRecording.stop(sessionId),
+            window.markuprx.screenRecording.stop(sessionId),
             new Promise<StopResult>((resolve) => {
               setTimeout(
                 () =>
@@ -591,7 +591,7 @@ export class ScreenRecordingRenderer {
     this.snapshotRevisions.add(event.revision);
 
     const snapshotWrite = compositor.capturePng()
-      .then((bytes) => window.markupr.capture.stageMarkedIssueCandidate({
+      .then((bytes) => window.markuprx.capture.stageMarkedIssueCandidate({
         sessionId,
         revision: event.revision,
         bytes,
@@ -634,13 +634,13 @@ export class ScreenRecordingRenderer {
     console.error(`[ScreenRecordingRenderer] ${message} (${endedSessionId}).`);
     this.fatalErrorHandler?.(message);
     void (async () => {
-      const finalization = await window.markupr.capture?.endAnnotation?.(true)
+      const finalization = await window.markuprx.capture?.endAnnotation?.(true)
         .catch(() => ({ success: false, snapshotRevision: undefined }));
       if (finalization?.snapshotRevision) {
         await this.waitForMarkedSnapshot(finalization.snapshotRevision).catch(() => false);
       }
       await this.stop();
-      await window.markupr.session?.stop().catch((error) => {
+      await window.markuprx.session?.stop().catch((error) => {
         console.error('[ScreenRecordingRenderer] Failed to stop session after capture failure:', error);
       });
     })().finally(() => {

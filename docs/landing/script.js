@@ -1,5 +1,5 @@
 /**
- * markupr Landing Page Scripts
+ * markuprx Landing Page Scripts
  * Handles navigation, animations, and interactions
  */
 
@@ -253,7 +253,7 @@ function activateEasterEgg() {
         document.body.style.filter = '';
     }, 3000);
 
-    console.log('🎙️ markupr Easter Egg Activated!');
+    console.log('🎙️ markuprx Easter Egg Activated!');
 }
 
 /**
@@ -333,10 +333,10 @@ document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => {
  * Console welcome message
  */
 console.log(`
-%c🎙️ markupr
+%c🎙️ markuprx
 %cCapture developer feedback in seconds
 
 Looking for a job? We're hiring!
-Check out markupr.com/careers
+Check out markuprx.com/careers
 
 `, 'font-size: 24px; font-weight: bold; color: #6366F1;', 'font-size: 14px; color: #94A3B8;');

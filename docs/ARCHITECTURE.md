@@ -1,6 +1,6 @@
 # Architecture
 
-This document provides a high-level overview of markupr's architecture.
+This document provides a high-level overview of markuprx's architecture.
 
 ## Table of Contents
 
@@ -13,11 +13,11 @@ This document provides a high-level overview of markupr's architecture.
 
 ## Overview
 
-markupr is an Electron application with a React frontend. It follows Electron's multi-process architecture with clear separation between the main process (Node.js) and renderer process (Chromium).
+markuprx is an Electron application with a React frontend. It follows Electron's multi-process architecture with clear separation between the main process (Node.js) and renderer process (Chromium).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        markupr                              │
+│                        markuprx                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────┐                ┌──────────────────────┐   │
@@ -67,9 +67,9 @@ The preload script bridges the two processes:
 
 ```typescript
 // Preload exposes a safe API
-contextBridge.exposeInMainWorld('markupr', {
+contextBridge.exposeInMainWorld('markuprx', {
   session: {
-    start: (sourceId) => ipcRenderer.invoke('markupr:session:start', sourceId),
+    start: (sourceId) => ipcRenderer.invoke('markuprx:session:start', sourceId),
     // ...
   },
   // ...
@@ -129,7 +129,7 @@ function App() {
   const [state, setState] = useState<SessionState>('idle');
 
   useEffect(() => {
-    const unsubscribe = window.markupr.session.onStateChange(({ state }) => {
+    const unsubscribe = window.markuprx.session.onStateChange(({ state }) => {
       setState(state);
     });
     return unsubscribe;
@@ -336,8 +336,8 @@ API keys are stored using system keychain:
 
 import keytar from 'keytar';
 
-await keytar.setPassword('markupr', 'openai', apiKey);
-const key = await keytar.getPassword('markupr', 'openai');
+await keytar.setPassword('markuprx', 'openai', apiKey);
+const key = await keytar.getPassword('markuprx', 'openai');
 ```
 
 ### Content Security Policy
@@ -356,7 +356,7 @@ All IPC channels are:
 
 ```typescript
 // Safe: Defined channel with specific handler
-ipcMain.handle('markupr:session:start', async (_, sourceId: string) => {
+ipcMain.handle('markuprx:session:start', async (_, sourceId: string) => {
   // Validate input
   if (typeof sourceId !== 'string') throw new Error('Invalid sourceId');
   return sessionController.start(sourceId);
@@ -378,7 +378,7 @@ graph TD
     end
 
     subgraph Preload
-        API[markupr API]
+        API[markuprx API]
     end
 
     subgraph Main

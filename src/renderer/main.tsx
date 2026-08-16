@@ -1,5 +1,5 @@
 /**
- * markupr - Renderer Entry Point
+ * markuprx - Renderer Entry Point
  */
 
 import React from 'react';

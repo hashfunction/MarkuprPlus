@@ -22,7 +22,7 @@ afterEach(async () => {
 
 describe('multi-issue marked recording flow', () => {
   it('keeps three marked screens, screenshots, and narrated comments separate', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'markupr-marked-session-'));
+    const root = await mkdtemp(join(tmpdir(), 'markuprx-marked-session-'));
     temporaryRoots.push(root);
     const outputDir = join(root, 'output');
     const artifacts = new MarkedIssueArtifactStore(join(root, 'staging'));

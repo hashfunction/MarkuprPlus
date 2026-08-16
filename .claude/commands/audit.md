@@ -1,6 +1,6 @@
 # Code Quality Audit
 
-Perform a targeted code quality audit of the markupr codebase.
+Perform a targeted code quality audit of the markuprx codebase.
 
 ## Instructions
 

@@ -198,7 +198,7 @@ export async function appendTranscriptionFailureToReport(
   const notice = [
     heading,
     '',
-    '> Narration was recorded, but markupR could not transcribe it. Your recording and audio were saved.',
+    '> Narration was recorded, but MarkuprX could not transcribe it. Your recording and audio were saved.',
     '',
     failure.message.trim(),
     '',

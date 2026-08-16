@@ -28,7 +28,7 @@ import { captureOverlayManager } from '../capture/CaptureOverlayManager';
 import { MarkedIssueArtifactStore } from '../capture/MarkedIssueArtifactStore';
 
 const markedIssueArtifactStore = new MarkedIssueArtifactStore(
-  join(app.getPath('temp'), 'markupr-marked-issues'),
+  join(app.getPath('temp'), 'markuprx-marked-issues'),
 );
 
 export function getMarkedIssueArtifactStore(): MarkedIssueArtifactStore {
@@ -336,7 +336,7 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
         }
 
         const extension = extensionFromMimeType(mimeType);
-        const recordingsDir = join(app.getPath('temp'), 'markupr-recordings');
+        const recordingsDir = join(app.getPath('temp'), 'markuprx-recordings');
         await fs.mkdir(recordingsDir, { recursive: true });
 
         const tempPath = join(recordingsDir, `${sessionId}${extension}`);

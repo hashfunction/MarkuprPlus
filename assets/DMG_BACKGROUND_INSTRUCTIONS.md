@@ -1,6 +1,6 @@
 # DMG Background Image Instructions
 
-Create a professional DMG background for markupr installation.
+Create a professional DMG background for markuprx installation.
 
 ## Specifications
 
@@ -38,7 +38,7 @@ The DMG window has two drop zones:
    - Position: centered, below the arrow (y~280)
 
 3. **App Branding** (optional)
-   - Small markupr logo in top-left corner
+   - Small markuprx logo in top-left corner
    - Very subtle, ~40px height
 
 ### Color Palette

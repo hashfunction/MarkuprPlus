@@ -1,5 +1,5 @@
 /**
- * markupr Premium Theme System
+ * markuprx Premium Theme System
  *
  * Design tokens for a premium, Apple/Linear quality experience.
  * Supports dark/light/system modes with customizable accent colors.

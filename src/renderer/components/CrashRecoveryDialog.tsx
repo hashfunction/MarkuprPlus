@@ -1,7 +1,7 @@
 /**
  * CrashRecoveryDialog - Recovery UI for incomplete sessions
  *
- * Shows when markupR detects an incomplete session from a previous
+ * Shows when MarkuprX detects an incomplete session from a previous
  * crash or abnormal exit. Offers the user the choice to recover or discard.
  */
 
@@ -246,7 +246,7 @@ export function CrashRecoveryDialog({
             fontSize: 14,
           }}
         >
-          markupR found an incomplete session from{' '}
+          MarkuprX found an incomplete session from{' '}
           <span style={{ color: colors.text.primary, fontWeight: 500 }}>{formattedTime} ago</span>.
         </p>
 
@@ -540,7 +540,7 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
     const checkForIncompleteSession = async () => {
       try {
         // Listen for crash recovery notification from main process
-        unsubscribe = window.markupr?.crashRecovery.onIncompleteFound(
+        unsubscribe = window.markuprx?.crashRecovery.onIncompleteFound(
           (data) => {
             if (data.session) {
               // Map from IPC type to local type
@@ -565,7 +565,7 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
         );
 
         // Request check from main process
-        const result = await window.markupr?.crashRecovery.check();
+        const result = await window.markuprx?.crashRecovery.check();
 
         if (result?.session) {
           // Map from IPC type to local type
@@ -605,13 +605,13 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
 
   const recoverSession = async () => {
     if (incompleteSession) {
-      await window.markupr?.crashRecovery.recover(incompleteSession.id);
+      await window.markuprx?.crashRecovery.recover(incompleteSession.id);
       setIncompleteSession(null);
     }
   };
 
   const discardSession = async () => {
-    await window.markupr?.crashRecovery.discard();
+    await window.markuprx?.crashRecovery.discard();
     setIncompleteSession(null);
   };
 

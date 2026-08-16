@@ -1,5 +1,5 @@
 /**
- * ExportService - Multi-Format Export for markupr
+ * ExportService - Multi-Format Export for markuprx
  *
  * Supports:
  * - Markdown (default, via MarkdownGenerator)
@@ -195,7 +195,7 @@ class ExportServiceImpl {
 
     // Write HTML to a temp file to avoid Chromium's ~2MB data: URL limit
     // which breaks sessions with 5+ base64-embedded screenshots.
-    const tmpHtmlPath = path.join(tmpdir(), `markupr-pdf-export-${Date.now()}.html`);
+    const tmpHtmlPath = path.join(tmpdir(), `markuprx-pdf-export-${Date.now()}.html`);
 
     try {
       await fs.writeFile(tmpHtmlPath, htmlContent, 'utf-8');
@@ -400,7 +400,7 @@ class ExportServiceImpl {
 
     return {
       version: JSON_EXPORT_SCHEMA_VERSION,
-      generator: `markupR v${app.getVersion()}`,
+      generator: `MarkuprX v${app.getVersion()}`,
       exportedAt: new Date().toISOString(),
       session: {
         id: session.id,

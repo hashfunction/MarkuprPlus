@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers everything you need to know to develop markupr.
+This guide covers everything you need to know to develop markuprx.
 
 ## Table of Contents
 
@@ -47,8 +47,8 @@ Create `.vscode/extensions.json`:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/eddiesanjuan/markupr.git
-cd markupr
+git clone https://github.com/eddiesanjuan/markuprx.git
+cd markuprx
 ```
 
 ### 2. Install Dependencies
@@ -77,7 +77,7 @@ Create a `.env.local` file (optional, for development):
 DEEPGRAM_API_KEY=your_dev_api_key
 
 # Enable additional logging
-DEBUG=markupr:*
+DEBUG=markuprx:*
 ```
 
 ### 4. Start Development Server
@@ -97,7 +97,7 @@ This starts:
 
 ### 5. Verify Setup
 
-1. The markupr window should open
+1. The markuprx window should open
 2. Tray icon should appear
 3. Press `Cmd+Shift+F` (or `Ctrl+Shift+F`)
 4. If you see the window selector, setup is complete!
@@ -105,7 +105,7 @@ This starts:
 ## Project Structure
 
 ```
-markupr/
+markuprx/
 ├── src/
 │   ├── main/                    # Electron main process
 │   │   ├── index.ts             # Entry point, orchestration
@@ -184,7 +184,7 @@ markupr/
 
 ## Build System
 
-markupr uses [electron-vite](https://electron-vite.org/) for building.
+markuprx uses [electron-vite](https://electron-vite.org/) for building.
 
 ### Configuration Files
 
@@ -224,15 +224,15 @@ dist/
 └── renderer/       # Compiled React app
 
 release/            # Packaged applications
-├── markupr-0.4.0.dmg
-├── markupr-0.4.0-arm64.dmg
-├── markupr Setup 0.4.0.exe
-└── markupr_0.4.0_amd64.deb
+├── markuprx-0.4.0.dmg
+├── markuprx-0.4.0-arm64.dmg
+├── markuprx Setup 0.4.0.exe
+└── markuprx_0.4.0_amd64.deb
 ```
 
 ## Testing
 
-markupr uses [Vitest](https://vitest.dev/) for testing.
+markuprx uses [Vitest](https://vitest.dev/) for testing.
 
 ### Running Tests
 
@@ -305,7 +305,7 @@ vi.mock('electron', () => ({
 Or set in environment:
 
 ```bash
-DEBUG=markupr:* npm run dev
+DEBUG=markuprx:* npm run dev
 ```
 
 ### DevTools
@@ -324,7 +324,7 @@ Main process logs appear in the terminal:
 [Main] Settings loaded
 [Main] Session controller initialized
 [Main] Transcription service configured
-[Main] markupr initialization complete
+[Main] markuprx initialization complete
 ```
 
 Renderer logs appear in DevTools console.
@@ -333,10 +333,10 @@ Renderer logs appear in DevTools console.
 
 ```bash
 # Enable all debug output
-DEBUG=markupr:*
+DEBUG=markuprx:*
 
 # Enable specific modules
-DEBUG=markupr:transcription,markupr:capture
+DEBUG=markuprx:transcription,markuprx:capture
 
 # Verbose Electron logs
 ELECTRON_ENABLE_LOGGING=1

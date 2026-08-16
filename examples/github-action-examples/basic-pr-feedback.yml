@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Analyze recordings and comment on PR
-        uses: eddiesanjuan/markupr-action@v1
+        uses: eddiesanjuan/markuprx-action@v1
         with:
           video-path: ./recordings/
           github-token: ${{ secrets.GITHUB_TOKEN }}

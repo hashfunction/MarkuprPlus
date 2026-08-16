@@ -47,7 +47,7 @@ import {
   createDefaultConfig,
   CONFIG_FILENAME,
   type InitOptions,
-  type MarkuprConfig,
+  type MarkuprXConfig,
 } from '../../src/cli/init';
 
 // ============================================================================
@@ -57,7 +57,7 @@ import {
 function makeInitOptions(overrides: Partial<InitOptions> = {}): InitOptions {
   return {
     directory: '/test/project',
-    outputDir: './markupr-output',
+    outputDir: './markuprx-output',
     skipGitignore: false,
     force: false,
     ...overrides,
@@ -81,8 +81,8 @@ describe('init', () => {
   // --------------------------------------------------------------------------
 
   describe('CONFIG_FILENAME', () => {
-    it('is .markupr.json', () => {
-      expect(CONFIG_FILENAME).toBe('.markupr.json');
+    it('is .markuprx.json', () => {
+      expect(CONFIG_FILENAME).toBe('.markuprx.json');
     });
   });
 
@@ -132,8 +132,8 @@ describe('init', () => {
       // Verify writeFile was called with valid JSON
       expect(mockWriteFile).toHaveBeenCalledTimes(1);
       const writtenContent = mockWriteFile.mock.calls[0][1] as string;
-      const parsed = JSON.parse(writtenContent) as MarkuprConfig;
-      expect(parsed.outputDir).toBe('./markupr-output');
+      const parsed = JSON.parse(writtenContent) as MarkuprXConfig;
+      expect(parsed.outputDir).toBe('./markuprx-output');
       expect(parsed.recording).toBeDefined();
       expect(parsed.apiKeys).toBeDefined();
     });
@@ -174,7 +174,7 @@ describe('init', () => {
       await runInit(makeInitOptions({ outputDir: './custom-output' }));
 
       const writtenContent = mockWriteFile.mock.calls[0][1] as string;
-      const parsed = JSON.parse(writtenContent) as MarkuprConfig;
+      const parsed = JSON.parse(writtenContent) as MarkuprXConfig;
       expect(parsed.outputDir).toBe('./custom-output');
     });
 
@@ -199,14 +199,14 @@ describe('init', () => {
       mockReadFile.mockResolvedValue('');
       mockAppendFile.mockResolvedValue(undefined);
 
-      const updated = await updateGitignore('/test/project', './markupr-output');
+      const updated = await updateGitignore('/test/project', './markuprx-output');
 
       expect(updated).toBe(true);
       expect(mockAppendFile).toHaveBeenCalledTimes(1);
       const appended = mockAppendFile.mock.calls[0][1] as string;
-      expect(appended).toContain('./markupr-output');
-      expect(appended).toContain('.markupr-watch.log');
-      expect(appended).toContain('# markupr output');
+      expect(appended).toContain('./markuprx-output');
+      expect(appended).toContain('.markuprx-watch.log');
+      expect(appended).toContain('# markuprx output');
     });
 
     it('appends to existing .gitignore', async () => {
@@ -214,20 +214,20 @@ describe('init', () => {
       mockReadFile.mockResolvedValue('node_modules\n.env\n');
       mockAppendFile.mockResolvedValue(undefined);
 
-      const updated = await updateGitignore('/test/project', './markupr-output');
+      const updated = await updateGitignore('/test/project', './markuprx-output');
 
       expect(updated).toBe(true);
       const appended = mockAppendFile.mock.calls[0][1] as string;
-      expect(appended).toContain('./markupr-output');
+      expect(appended).toContain('./markuprx-output');
     });
 
     it('skips if entries already exist in .gitignore', async () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFile.mockResolvedValue(
-        'node_modules\n./markupr-output\n.markupr-watch.log\n',
+        'node_modules\n./markuprx-output\n.markuprx-watch.log\n',
       );
 
-      const updated = await updateGitignore('/test/project', './markupr-output');
+      const updated = await updateGitignore('/test/project', './markuprx-output');
 
       expect(updated).toBe(false);
       expect(mockAppendFile).not.toHaveBeenCalled();
@@ -235,16 +235,16 @@ describe('init', () => {
 
     it('only adds missing entries', async () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFile.mockResolvedValue('node_modules\n./markupr-output\n');
+      mockReadFile.mockResolvedValue('node_modules\n./markuprx-output\n');
       mockAppendFile.mockResolvedValue(undefined);
 
-      const updated = await updateGitignore('/test/project', './markupr-output');
+      const updated = await updateGitignore('/test/project', './markuprx-output');
 
       expect(updated).toBe(true);
       const appended = mockAppendFile.mock.calls[0][1] as string;
-      // Should only add the missing .markupr-watch.log entry
-      expect(appended).toContain('.markupr-watch.log');
-      expect(appended).not.toContain('./markupr-output');
+      // Should only add the missing .markuprx-watch.log entry
+      expect(appended).toContain('.markuprx-watch.log');
+      expect(appended).not.toContain('./markuprx-output');
     });
   });
 });

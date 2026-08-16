@@ -96,7 +96,7 @@ vi.stubGlobal('navigator', {
 });
 
 // ---------------------------------------------------------------------------
-// Mock window.markupr.screenRecording IPC
+// Mock window.markuprx.screenRecording IPC
 // ---------------------------------------------------------------------------
 
 const mockScreenRecordingIPC = {
@@ -124,7 +124,7 @@ const mockCaptureIPC = {
 };
 
 vi.stubGlobal('window', {
-  markupr: {
+  markuprx: {
     screenRecording: mockScreenRecordingIPC,
     capture: mockCaptureIPC,
     session: mockSessionIPC,

@@ -119,7 +119,7 @@ describe('AudioCaptureRenderer', () => {
     });
     vi.stubGlobal('window', {
       AudioContext: MockAudioContext,
-      markupr: { audio: audioApi },
+      markuprx: { audio: audioApi },
     });
 
     renderer = new AudioCaptureRenderer();

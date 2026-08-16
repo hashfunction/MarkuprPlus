@@ -1,7 +1,7 @@
 /**
  * Linear Integration Types
  *
- * Types for creating Linear issues from markupR feedback sessions.
+ * Types for creating Linear issues from MarkuprX feedback sessions.
  * Uses raw GraphQL API (no @linear/sdk dependency).
  */
 
@@ -47,7 +47,7 @@ export interface LinearPushOptions {
   dryRun?: boolean;
 }
 
-/** Parsed feedback item extracted from a markupR markdown report */
+/** Parsed feedback item extracted from a MarkuprX markdown report */
 export interface ParsedFeedbackItem {
   id: string;
   title: string;
@@ -72,7 +72,7 @@ export interface LinearLabel {
   name: string;
 }
 
-/** Map from markupR severity to Linear priority */
+/** Map from MarkuprX severity to Linear priority */
 export const SEVERITY_TO_PRIORITY: Record<FeedbackSeverity, LinearPriority> = {
   Critical: 1,
   High: 2,
@@ -80,7 +80,7 @@ export const SEVERITY_TO_PRIORITY: Record<FeedbackSeverity, LinearPriority> = {
   Low: 4,
 };
 
-/** Map from markupR category to Linear label name */
+/** Map from MarkuprX category to Linear label name */
 export const CATEGORY_TO_LABEL: Record<string, string> = {
   'Bug': 'Bug',
   'UX Issue': 'Improvement',

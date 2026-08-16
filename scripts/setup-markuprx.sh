@@ -17,7 +17,7 @@ for arg in "$@"; do
       ;;
     *)
       echo "Unknown option: $arg"
-      echo "Usage: scripts/setup-markupr.sh [--skip-install] [--skip-checks]"
+      echo "Usage: scripts/setup-markuprx.sh [--skip-install] [--skip-checks]"
       exit 1
       ;;
   esac
@@ -49,7 +49,7 @@ if [[ "$SKIP_CHECKS" -eq 0 ]]; then
 fi
 
 echo
-echo "markupr setup complete."
+echo "markuprx setup complete."
 echo "Next:"
 echo "  1) npm run dev"
 echo "  2) ./scripts/one-click-clean-test.sh --skip-checks"

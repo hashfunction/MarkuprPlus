@@ -1,6 +1,6 @@
 # API Reference
 
-markupr uses Electron's IPC (Inter-Process Communication) for all communication between the main process and renderer. This document covers the internal API for developers.
+markuprx uses Electron's IPC (Inter-Process Communication) for all communication between the main process and renderer. This document covers the internal API for developers.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ markupr uses Electron's IPC (Inter-Process Communication) for all communication 
 │  │       │            │            │                   │   │
 │  │       └────────────┴────────────┘                   │   │
 │  │                     │                                │   │
-│  │              window.markupr                     │   │
+│  │              window.markuprx                     │   │
 │  └─────────────────────┬───────────────────────────────┘   │
 │                        │                                     │
 ├────────────────────────┼─────────────────────────────────────┤
@@ -61,21 +61,21 @@ All IPC channels are defined in `src/shared/types.ts` with the `IPC_CHANNELS` co
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:session:start` | invoke | Select a target and start recording | `{success, sessionId?, cancelled?, error?}` |
-| `markupr:session:stop` | invoke | Stop recording | `{success, session?, error?}` |
-| `markupr:session:cancel` | invoke | Cancel without saving | `{success}` |
-| `markupr:session:get-status` | invoke | Get current status | `SessionStatusPayload` |
-| `markupr:session:get-current` | invoke | Get session data | `SessionPayload | null` |
+| `markuprx:session:start` | invoke | Select a target and start recording | `{success, sessionId?, cancelled?, error?}` |
+| `markuprx:session:stop` | invoke | Stop recording | `{success, session?, error?}` |
+| `markuprx:session:cancel` | invoke | Cancel without saving | `{success}` |
+| `markuprx:session:get-status` | invoke | Get current status | `SessionStatusPayload` |
+| `markuprx:session:get-current` | invoke | Get session data | `SessionPayload | null` |
 
 #### Main to Renderer
 
 | Channel | Description | Payload |
 |---------|-------------|---------|
-| `markupr:session:state-changed` | State transition | `{state, session}` |
-| `markupr:session:status-update` | Periodic status | `SessionStatusPayload` |
-| `markupr:session:complete` | Session finished | `SessionPayload` |
-| `markupr:session:feedback-item` | New item captured | `FeedbackItemPayload` |
-| `markupr:session:error` | Error occurred | `{message}` |
+| `markuprx:session:state-changed` | State transition | `{state, session}` |
+| `markuprx:session:status-update` | Periodic status | `SessionStatusPayload` |
+| `markuprx:session:complete` | Session finished | `SessionPayload` |
+| `markuprx:session:feedback-item` | New item captured | `FeedbackItemPayload` |
+| `markuprx:session:error` | Error occurred | `{message}` |
 
 ### Capture Channels
 
@@ -83,31 +83,31 @@ All IPC channels are defined in `src/shared/types.ts` with the `IPC_CHANNELS` co
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:capture:get-sources` | invoke | List sources | `CaptureSource[]` |
-| `markupr:capture:select-target` | invoke | Open the protected target selector | `CaptureTarget | null` |
-| `markupr:capture:annotation-begin` | invoke | Open the protected annotation layer | `{success, error?}` |
-| `markupr:capture:annotation-end` | invoke | Close the annotation layer | `{success}` |
-| `markupr:capture:annotation-set-mode` | invoke | Switch interaction/drawing mode | `{success, error?}` |
-| `markupr:capture:manual-screenshot` | invoke | Take screenshot | `{success}` |
+| `markuprx:capture:get-sources` | invoke | List sources | `CaptureSource[]` |
+| `markuprx:capture:select-target` | invoke | Open the protected target selector | `CaptureTarget | null` |
+| `markuprx:capture:annotation-begin` | invoke | Open the protected annotation layer | `{success, error?}` |
+| `markuprx:capture:annotation-end` | invoke | Close the annotation layer | `{success}` |
+| `markuprx:capture:annotation-set-mode` | invoke | Switch interaction/drawing mode | `{success, error?}` |
+| `markuprx:capture:manual-screenshot` | invoke | Take screenshot | `{success}` |
 
 Protected selector/annotation renderer windows additionally use:
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:capture-overlay:get-state` | invoke | Read the calling overlay's issued state | `CaptureOverlayState \| null` |
-| `markupr:capture-overlay:confirm` | invoke | Confirm an issued exact target | `{success, error?}` |
-| `markupr:capture-overlay:cancel` | invoke | Cancel all selector windows | `{success}` |
-| `markupr:capture-overlay:set-selection-mode` | invoke | Synchronize Window/Region/Screen across displays | `{success, error?}` |
-| `markupr:capture-overlay:annotation-event` | invoke | Submit one bounded, normalized draw event | `{success, error?}` |
+| `markuprx:capture-overlay:get-state` | invoke | Read the calling overlay's issued state | `CaptureOverlayState \| null` |
+| `markuprx:capture-overlay:confirm` | invoke | Confirm an issued exact target | `{success, error?}` |
+| `markuprx:capture-overlay:cancel` | invoke | Cancel all selector windows | `{success}` |
+| `markuprx:capture-overlay:set-selection-mode` | invoke | Synchronize Window/Region/Screen across displays | `{success, error?}` |
+| `markuprx:capture-overlay:annotation-event` | invoke | Submit one bounded, normalized draw event | `{success, error?}` |
 
 #### Main to Renderer
 
 | Channel | Description | Payload |
 |---------|-------------|---------|
-| `markupr:capture:screenshot-taken` | Screenshot captured | `ScreenshotCapturedPayload` |
-| `markupr:capture:manual-triggered` | Manual hotkey used | `{timestamp}` |
-| `markupr:capture:annotation-event` | Validated normalized cursor/stroke event | `AnnotationEvent` |
-| `markupr:capture:annotation-state` | Annotation overlay lifecycle/mode | `AnnotationStatePayload` |
+| `markuprx:capture:screenshot-taken` | Screenshot captured | `ScreenshotCapturedPayload` |
+| `markuprx:capture:manual-triggered` | Manual hotkey used | `{timestamp}` |
+| `markuprx:capture:annotation-event` | Validated normalized cursor/stroke event | `AnnotationEvent` |
+| `markuprx:capture:annotation-state` | Annotation overlay lifecycle/mode | `AnnotationStatePayload` |
 
 ### Audio Channels
 
@@ -133,68 +133,68 @@ Main Process                    Renderer Process
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:settings:get` | invoke | Get single setting | `AppSettings[K]` |
-| `markupr:settings:get-all` | invoke | Get all settings | `AppSettings` |
-| `markupr:settings:set` | invoke | Set single setting | `AppSettings` |
-| `markupr:settings:get-api-key` | invoke | Get API key (secure) | `string | null` |
-| `markupr:settings:set-api-key` | invoke | Set API key (secure) | `boolean` |
+| `markuprx:settings:get` | invoke | Get single setting | `AppSettings[K]` |
+| `markuprx:settings:get-all` | invoke | Get all settings | `AppSettings` |
+| `markuprx:settings:set` | invoke | Set single setting | `AppSettings` |
+| `markuprx:settings:get-api-key` | invoke | Get API key (secure) | `string | null` |
+| `markuprx:settings:set-api-key` | invoke | Set API key (secure) | `boolean` |
 
 ### Update Channels
 
 | Channel | Method | Description | Returns |
 |---------|--------|-------------|---------|
-| `markupr:update:check` | invoke | Check for updates | `UpdateInfo` |
-| `markupr:update:download` | invoke | Download update | `void` |
-| `markupr:update:install` | invoke | Install and restart | `void` |
+| `markuprx:update:check` | invoke | Check for updates | `UpdateInfo` |
+| `markuprx:update:download` | invoke | Download update | `void` |
+| `markuprx:update:install` | invoke | Install and restart | `void` |
 
 #### Main to Renderer
 
 | Channel | Description | Payload |
 |---------|-------------|---------|
-| `markupr:update:status` | Update status change | `UpdateStatusPayload` |
+| `markuprx:update:status` | Update status change | `UpdateStatusPayload` |
 
 ## Preload API
 
-The preload script (`src/preload/index.ts`) exposes a safe API to the renderer via `window.markupr`.
+The preload script (`src/preload/index.ts`) exposes a safe API to the renderer via `window.markuprx`.
 
 ### Session API
 
 ```typescript
 // Interactive start: opens the selector in Window mode by default
-const result = await window.markupr.session.start();
+const result = await window.markuprx.session.start();
 // Returns: { success: boolean; sessionId?: string; cancelled?: boolean; error?: string }
 
 // An already validated target can also be passed explicitly
-const explicitResult = await window.markupr.session.start(captureTarget);
+const explicitResult = await window.markuprx.session.start(captureTarget);
 
 // Stop the current session
-const result = await window.markupr.session.stop();
+const result = await window.markuprx.session.stop();
 // Returns: { success: boolean; session?: SessionPayload; error?: string }
 
 // Cancel without saving
-const result = await window.markupr.session.cancel();
+const result = await window.markuprx.session.cancel();
 // Returns: { success: boolean }
 
 // Get current status
-const status = await window.markupr.session.getStatus();
+const status = await window.markuprx.session.getStatus();
 // Returns: SessionStatusPayload
 
 // Get current session data
-const session = await window.markupr.session.getCurrent();
+const session = await window.markuprx.session.getCurrent();
 // Returns: SessionPayload | null
 
 // Subscribe to state changes
-const unsubscribe = window.markupr.session.onStateChange(({ state, session }) => {
+const unsubscribe = window.markuprx.session.onStateChange(({ state, session }) => {
   console.log('State:', state);
 });
 
 // Subscribe to new feedback items
-const unsubscribe = window.markupr.session.onFeedbackItem((item) => {
+const unsubscribe = window.markuprx.session.onFeedbackItem((item) => {
   console.log('New item:', item);
 });
 
 // Subscribe to errors
-const unsubscribe = window.markupr.session.onError(({ message }) => {
+const unsubscribe = window.markuprx.session.onError(({ message }) => {
   console.error('Error:', message);
 });
 ```
@@ -203,32 +203,32 @@ const unsubscribe = window.markupr.session.onError(({ message }) => {
 
 ```typescript
 // Get available capture sources
-const sources = await window.markupr.capture.getSources();
+const sources = await window.markuprx.capture.getSources();
 // Returns: CaptureSource[]
 
 // Open the protected Window / Region / Full Screen selector
-const target = await window.markupr.capture.selectTarget();
+const target = await window.markuprx.capture.selectTarget();
 // Returns: CaptureTarget | null (null means the user cancelled)
 
 // Annotation lifecycle for the active target
-await window.markupr.capture.beginAnnotation(sessionId, target);
-await window.markupr.capture.setAnnotationMode('draw');
-await window.markupr.capture.setAnnotationMode('interact');
-await window.markupr.capture.endAnnotation();
+await window.markuprx.capture.beginAnnotation(sessionId, target);
+await window.markuprx.capture.setAnnotationMode('draw');
+await window.markuprx.capture.setAnnotationMode('interact');
+await window.markuprx.capture.endAnnotation();
 
-const unsubscribeAnnotation = window.markupr.capture.onAnnotationEvent((event) => {
+const unsubscribeAnnotation = window.markuprx.capture.onAnnotationEvent((event) => {
   console.log(event.type, event.sessionId);
 });
 
-const unsubscribeAnnotationState = window.markupr.capture.onAnnotationState(({ active, mode }) => {
+const unsubscribeAnnotationState = window.markuprx.capture.onAnnotationState(({ active, mode }) => {
   console.log({ active, mode });
 });
 
 // Trigger manual screenshot
-await window.markupr.capture.manualScreenshot();
+await window.markuprx.capture.manualScreenshot();
 
 // Subscribe to screenshots
-const unsubscribe = window.markupr.capture.onScreenshot((data) => {
+const unsubscribe = window.markuprx.capture.onScreenshot((data) => {
   console.log('Screenshot:', data.id, data.count);
 });
 ```
@@ -237,18 +237,18 @@ const unsubscribe = window.markupr.capture.onScreenshot((data) => {
 
 ```typescript
 // Get available devices (enumeration happens in renderer)
-const devices = await window.markupr.audio.getDevices();
+const devices = await window.markuprx.audio.getDevices();
 
 // Set preferred device
-await window.markupr.audio.setDevice(deviceId);
+await window.markuprx.audio.setDevice(deviceId);
 
 // Subscribe to audio level (for visualization)
-const unsubscribe = window.markupr.audio.onLevel((level) => {
+const unsubscribe = window.markuprx.audio.onLevel((level) => {
   // level is 0-1 normalized amplitude
 });
 
 // Subscribe to voice activity
-const unsubscribe = window.markupr.audio.onVoiceActivity((isActive) => {
+const unsubscribe = window.markuprx.audio.onVoiceActivity((isActive) => {
   // isActive is boolean
 });
 ```
@@ -257,36 +257,36 @@ const unsubscribe = window.markupr.audio.onVoiceActivity((isActive) => {
 
 ```typescript
 // Get a single setting
-const theme = await window.markupr.settings.get('theme');
+const theme = await window.markuprx.settings.get('theme');
 
 // Get all settings
-const settings = await window.markupr.settings.getAll();
+const settings = await window.markuprx.settings.getAll();
 
 // Set a setting
-const updated = await window.markupr.settings.set('theme', 'dark');
+const updated = await window.markuprx.settings.set('theme', 'dark');
 
 // Get API key from secure storage
-const apiKey = await window.markupr.settings.getApiKey('openai');
+const apiKey = await window.markuprx.settings.getApiKey('openai');
 
 // Set API key in secure storage
-const success = await window.markupr.settings.setApiKey('openai', 'your-key');
+const success = await window.markuprx.settings.setApiKey('openai', 'your-key');
 ```
 
 ### Hotkeys API
 
 ```typescript
 // Get current configuration
-const config = await window.markupr.hotkeys.getConfig();
+const config = await window.markuprx.hotkeys.getConfig();
 // Returns: HotkeyConfig
 
 // Update configuration
-const result = await window.markupr.hotkeys.updateConfig({
+const result = await window.markuprx.hotkeys.updateConfig({
   toggleRecording: 'CommandOrControl+Shift+G'
 });
 // Returns: { config: HotkeyConfig; results: RegistrationResult[] }
 
 // Subscribe to hotkey triggers
-const unsubscribe = window.markupr.hotkeys.onTriggered(({ action, accelerator }) => {
+const unsubscribe = window.markuprx.hotkeys.onTriggered(({ action, accelerator }) => {
   console.log('Hotkey:', action);
 });
 ```
@@ -295,42 +295,42 @@ const unsubscribe = window.markupr.hotkeys.onTriggered(({ action, accelerator })
 
 ```typescript
 // Save current session
-const result = await window.markupr.output.save();
+const result = await window.markuprx.output.save();
 // Returns: SaveResult
 
 // Copy to clipboard
-const success = await window.markupr.output.copyClipboard();
+const success = await window.markuprx.output.copyClipboard();
 
 // Open output folder
-await window.markupr.output.openFolder();
+await window.markuprx.output.openFolder();
 
 // List saved sessions
-const sessions = await window.markupr.output.listSessions();
+const sessions = await window.markuprx.output.listSessions();
 
 // Delete a session
-await window.markupr.output.deleteSession(sessionId);
+await window.markuprx.output.deleteSession(sessionId);
 
 // Export a session
-await window.markupr.output.exportSession(sessionId, 'pdf');
+await window.markuprx.output.exportSession(sessionId, 'pdf');
 ```
 
 ### Crash Recovery API
 
 ```typescript
 // Check for incomplete sessions
-const { hasIncomplete, session } = await window.markupr.crashRecovery.check();
+const { hasIncomplete, session } = await window.markuprx.crashRecovery.check();
 
 // Recover an incomplete session
-const result = await window.markupr.crashRecovery.recover(sessionId);
+const result = await window.markuprx.crashRecovery.recover(sessionId);
 
 // Discard incomplete session
-await window.markupr.crashRecovery.discard();
+await window.markuprx.crashRecovery.discard();
 
 // Get crash logs
-const logs = await window.markupr.crashRecovery.getLogs(10);
+const logs = await window.markuprx.crashRecovery.getLogs(10);
 
 // Subscribe to found incomplete sessions (on startup)
-const unsubscribe = window.markupr.crashRecovery.onIncompleteFound(({ session }) => {
+const unsubscribe = window.markuprx.crashRecovery.onIncompleteFound(({ session }) => {
   // Show recovery dialog
 });
 ```
@@ -339,16 +339,16 @@ const unsubscribe = window.markupr.crashRecovery.onIncompleteFound(({ session })
 
 ```typescript
 // Check for updates
-await window.markupr.updates.check();
+await window.markuprx.updates.check();
 
 // Download available update
-await window.markupr.updates.download();
+await window.markuprx.updates.download();
 
 // Install and restart
-await window.markupr.updates.install();
+await window.markuprx.updates.install();
 
 // Subscribe to update status
-const unsubscribe = window.markupr.updates.onStatus((status) => {
+const unsubscribe = window.markuprx.updates.onStatus((status) => {
   console.log('Update status:', status.status);
   if (status.percent) {
     console.log('Progress:', status.percent);
@@ -364,7 +364,7 @@ All event subscriptions return an unsubscribe function:
 
 ```typescript
 // Subscribe
-const unsubscribe = window.markupr.session.onStateChange((data) => {
+const unsubscribe = window.markuprx.session.onStateChange((data) => {
   // Handle event
 });
 
@@ -381,7 +381,7 @@ function useSessionState() {
   const [state, setState] = useState<SessionState>('idle');
 
   useEffect(() => {
-    const unsubscribe = window.markupr.session.onStateChange(({ state }) => {
+    const unsubscribe = window.markuprx.session.onStateChange(({ state }) => {
       setState(state);
     });
 
@@ -394,7 +394,7 @@ function useSessionState() {
 
 ## Plugin Architecture
 
-markupr is designed to support plugins in future versions.
+markuprx is designed to support plugins in future versions.
 
 ### Planned Plugin Types
 
@@ -406,7 +406,7 @@ markupr is designed to support plugins in future versions.
 ### Plugin Interface (Draft)
 
 ```typescript
-interface markuprPlugin {
+interface markuprxPlugin {
   name: string;
   version: string;
   type: 'formatter' | 'transcription' | 'integration' | 'annotation';
@@ -420,7 +420,7 @@ interface markuprPlugin {
 }
 
 // Example: Custom formatter plugin
-interface FormatterPlugin extends markuprPlugin {
+interface FormatterPlugin extends markuprxPlugin {
   type: 'formatter';
 
   format(session: Session): Promise<{

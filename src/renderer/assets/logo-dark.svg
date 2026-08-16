@@ -3,5 +3,5 @@
   <rect x="4" y="6" width="36" height="36" rx="10" fill="#1D2431" stroke="#3A4352"/>
   <path d="M12 30V17L22 25L32 17V30" stroke="#F8FAFC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="32" cy="30" r="2.25" fill="#F8FAFC"/>
-  <text x="52" y="31" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif" font-size="24" font-weight="650" fill="#F3F4F6">markupR</text>
+  <text x="52" y="31" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif" font-size="24" font-weight="650" fill="#F3F4F6">MarkuprX</text>
 </svg>

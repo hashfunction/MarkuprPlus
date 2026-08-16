@@ -34,7 +34,7 @@ describe('transcription failure output', () => {
   });
 
   it('adds one actionable transcription error notice to the saved report', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markupr-report-'));
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-report-'));
     temporaryDirectories.push(directory);
     const reportPath = join(directory, 'feedback-report.md');
     await writeFile(reportPath, '# Feedback Report\n', 'utf8');

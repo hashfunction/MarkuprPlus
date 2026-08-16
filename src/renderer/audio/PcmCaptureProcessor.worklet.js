@@ -1,4 +1,4 @@
-class MarkuprPcmCaptureProcessor extends AudioWorkletProcessor {
+class MarkuprXPcmCaptureProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.chunkSamples = Math.max(128, options.processorOptions?.chunkSamples || 12000);
@@ -38,4 +38,4 @@ class MarkuprPcmCaptureProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('markupr-pcm-capture', MarkuprPcmCaptureProcessor);
+registerProcessor('markuprx-pcm-capture', MarkuprXPcmCaptureProcessor);

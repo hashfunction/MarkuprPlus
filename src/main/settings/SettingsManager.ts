@@ -1,5 +1,5 @@
 /**
- * SettingsManager - Secure Settings Storage for markupr
+ * SettingsManager - Secure Settings Storage for markuprx
  *
  * Handles:
  * - Persistent settings storage with electron-store (schema validated)
@@ -28,6 +28,10 @@ import {
   type AppSettings,
   type HotkeyConfig,
 } from '../../shared/types';
+import {
+  CURRENT_KEYTAR_SERVICE,
+  LEGACY_KEYTAR_SERVICES,
+} from '../migration/LegacyBrandMigration';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -66,8 +70,7 @@ export interface ISettingsManager {
 // Constants
 // ============================================================================
 
-const KEYTAR_SERVICE = 'com.markupr.app';
-const LEGACY_KEYTAR_SERVICES = ['com.feedbackflow.app', 'feedbackflow'] as const;
+const KEYTAR_SERVICE = CURRENT_KEYTAR_SERVICE;
 const FALLBACK_SECRET_STORE_NAME = 'secure-keys';
 const LEGACY_INSECURE_SECRET_STORE_KEY = '__plaintext_fallback__';
 const INSECURE_SECRET_PREFIX = 'plaintext:';
@@ -226,7 +229,7 @@ export class SettingsManager implements ISettingsManager {
 
     return {
       ...DEFAULT_SETTINGS,
-      outputDirectory: join(documentsPath, 'markupr'),
+      outputDirectory: join(documentsPath, 'markuprx'),
     };
   }
 
@@ -381,7 +384,7 @@ export class SettingsManager implements ISettingsManager {
 
   private setFallbackApiKey(service: string, key: string): void {
     if (!this.canUseEncryptedFallback()) {
-      throw new Error('Secure storage is unavailable. API keys cannot be saved until the app is fully initialized. Try restarting markupR.');
+      throw new Error('Secure storage is unavailable. API keys cannot be saved until the app is fully initialized. Try restarting MarkuprX.');
     }
 
     const encrypted = safeStorage.encryptString(key).toString('base64');
@@ -528,7 +531,7 @@ export class SettingsManager implements ISettingsManager {
         } catch (insecureError) {
           throw new Error(
             `Unable to store API key for ${service}. All storage methods failed. ` +
-            `Try restarting markupR or check filesystem permissions. ` +
+            `Try restarting MarkuprX or check filesystem permissions. ` +
             `(${insecureError instanceof Error ? insecureError.message : String(insecureError)})`
           );
         }
@@ -541,11 +544,16 @@ export class SettingsManager implements ISettingsManager {
    */
   async deleteApiKey(service: string): Promise<void> {
     let keytarError: unknown = null;
-    try {
-      await keytar.deletePassword(KEYTAR_SERVICE, service);
-    } catch (error) {
-      keytarError = error;
-      console.warn(`[SettingsManager] Failed to delete keytar API key for ${service}:`, error);
+    for (const keytarService of [KEYTAR_SERVICE, ...LEGACY_KEYTAR_SERVICES]) {
+      try {
+        await keytar.deletePassword(keytarService, service);
+      } catch (error) {
+        keytarError ??= error;
+        console.warn(
+          `[SettingsManager] Failed to delete keytar API key for ${service} from ${keytarService}:`,
+          error,
+        );
+      }
     }
 
     this.clearFallbackApiKey(service);
@@ -783,10 +791,6 @@ export function createSettingsManager(): SettingsManager {
   return new SettingsManager();
 }
 
-// Singleton instance
-export const settingsManager = getSettingsManager();
-
 export { DEFAULT_SETTINGS, SETTINGS_VERSION };
 // Re-export AppSettings from shared/types for downstream consumers
 export type { AppSettings } from '../../shared/types';
-export default settingsManager;

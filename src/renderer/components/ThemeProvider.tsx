@@ -1,5 +1,5 @@
 /**
- * markupr Theme Provider
+ * markuprx Theme Provider
  *
  * Provides theme context to the entire application.
  * Handles dark/light/system mode detection, accent color customization,

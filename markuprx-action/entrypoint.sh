@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# markupr GitHub Action Entrypoint
+# markuprx GitHub Action Entrypoint
 # =============================================================================
 # Standalone script that can be used outside of the composite action.
 # The composite action (action.yml) calls this for the core analysis logic.
@@ -11,7 +11,7 @@
 # Environment variables:
 #   GITHUB_TOKEN     - GitHub token for API access
 #   INPUT_TEMPLATE   - Output template (default: markdown)
-#   INPUT_OUTPUT_DIR - Output directory (default: ./markupr-output)
+#   INPUT_OUTPUT_DIR - Output directory (default: ./markuprx-output)
 # =============================================================================
 
 set -euo pipefail
@@ -32,7 +32,7 @@ endgroup() { echo "::endgroup::"; }
 
 VIDEO_PATH="${1:?Usage: entrypoint.sh <video-path>}"
 TEMPLATE="${INPUT_TEMPLATE:-markdown}"
-OUTPUT_DIR="${INPUT_OUTPUT_DIR:-./markupr-output}"
+OUTPUT_DIR="${INPUT_OUTPUT_DIR:-./markuprx-output}"
 
 # --------------------------------------------------------------------------
 # Preflight checks
@@ -71,7 +71,7 @@ process_video() {
   local out_dir="$2"
 
   group "Analyzing $(basename "$video")"
-  npx --yes markupr@latest analyze "$video" --output "$out_dir" --verbose 2>&1 || {
+  npx --yes markuprx@latest analyze "$video" --output "$out_dir" --verbose 2>&1 || {
     warn "Analysis failed for $(basename "$video")"
   }
   endgroup
@@ -116,6 +116,6 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
 fi
 
 echo ""
-echo "===== markupr Report ====="
+echo "===== markuprx Report ====="
 echo "$REPORT"
 echo "=========================="

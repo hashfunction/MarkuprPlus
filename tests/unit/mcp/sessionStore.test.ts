@@ -44,7 +44,7 @@ import { SessionStore } from '../../../src/mcp/session/SessionStore.js';
 
 describe('SessionStore', () => {
   let store: SessionStore;
-  const TEST_BASE = '/tmp/test-markupr-mcp';
+  const TEST_BASE = '/tmp/test-markuprx-mcp';
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,7 +64,7 @@ describe('SessionStore', () => {
       expect(mockMkdir).toHaveBeenCalledWith(TEST_BASE, { recursive: true });
       // Should create session dir (pattern: mcp-YYYYMMDD-HHMMSS)
       expect(mockMkdir).toHaveBeenCalledWith(
-        expect.stringMatching(/test-markupr-mcp\/mcp-\d{8}-\d{6}$/),
+        expect.stringMatching(/test-markuprx-mcp\/mcp-\d{8}-\d{6}$/),
         { recursive: true },
       );
       // Should create screenshots subdir

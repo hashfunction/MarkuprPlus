@@ -1,7 +1,7 @@
 /**
  * GitHub Issues Integration Types
  *
- * Types for creating GitHub issues from markupR feedback sessions.
+ * Types for creating GitHub issues from MarkuprX feedback sessions.
  */
 
 import type { FeedbackCategory, FeedbackSeverity } from '../../main/output/MarkdownGenerator';
@@ -100,8 +100,8 @@ export const SEVERITY_LABELS: Record<FeedbackSeverity, GitHubLabelInput> = {
   Low: { name: 'priority: low', color: '0e8a16', description: 'Low priority' },
 };
 
-export const MARKUPR_LABEL: GitHubLabelInput = {
-  name: 'markupR',
+export const MARKUPRX_LABEL: GitHubLabelInput = {
+  name: 'MarkuprX',
   color: '6f42c1',
-  description: 'Created from markupR feedback session',
+  description: 'Created from MarkuprX feedback session',
 };

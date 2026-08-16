@@ -1,5 +1,5 @@
 /**
- * SessionController - Core Orchestrator for markupr
+ * SessionController - Core Orchestrator for markuprx
  *
  * Implements a bulletproof finite state machine for session lifecycle:
  *   idle -> starting -> recording -> stopping -> processing -> complete
@@ -157,7 +157,7 @@ interface StoreSchema {
 }
 
 const store = new Store<StoreSchema>({
-  name: 'markupr-sessions',
+  name: 'markuprx-sessions',
   defaults: {
     currentSession: null,
     recentSessions: [],

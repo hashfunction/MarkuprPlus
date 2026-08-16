@@ -9,7 +9,7 @@ export function CaptureOverlayApp(): React.ReactElement {
 
   useEffect(() => {
     let mounted = true;
-    window.markupr.captureOverlay.getState()
+    window.markuprx.captureOverlay.getState()
       .then((nextState) => {
         if (!mounted) return;
         if (!nextState) setError('This capture overlay is no longer active.');
@@ -18,7 +18,7 @@ export function CaptureOverlayApp(): React.ReactElement {
       .catch((reason) => {
         if (mounted) setError(reason instanceof Error ? reason.message : 'Unable to load capture controls.');
       });
-    const unsubscribe = window.markupr.captureOverlay.onStateChange((nextState) => {
+    const unsubscribe = window.markuprx.captureOverlay.onStateChange((nextState) => {
       if (mounted) setState(nextState);
     });
     return () => {

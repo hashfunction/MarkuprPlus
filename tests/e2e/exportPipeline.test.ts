@@ -145,7 +145,7 @@ class TestableExportService {
 
     return {
       version: '1.0',
-      generator: 'markupr v2.4.0',
+      generator: 'markuprx v2.4.0',
       exportedAt: new Date().toISOString(),
       session: {
         id: session.id,
@@ -259,7 +259,7 @@ describe('Export Pipeline E2E', () => {
       const json = exportService.generateJsonExport(session, false);
 
       expect(json.version).toBe('1.0');
-      expect(json.generator).toContain('markupr');
+      expect(json.generator).toContain('markuprx');
       expect(json.exportedAt).toBeTruthy();
       expect(json.session.id).toBe(session.id);
       expect(json.session.items).toHaveLength(3);

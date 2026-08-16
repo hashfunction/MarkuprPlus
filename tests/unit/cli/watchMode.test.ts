@@ -77,7 +77,7 @@ import {
 function makeOptions(overrides: Partial<WatchModeOptions> = {}): WatchModeOptions {
   return {
     watchDir: '/watch',
-    outputDir: '/watch/markupr-output',
+    outputDir: '/watch/markuprx-output',
     skipFrames: true,
     verbose: false,
     stabilityInterval: 50,
@@ -189,7 +189,7 @@ describe('WatchMode', () => {
     });
 
     it('defines a watch log filename', () => {
-      expect(WATCH_LOG_FILENAME).toBe('.markupr-watch.log');
+      expect(WATCH_LOG_FILENAME).toBe('.markuprx-watch.log');
     });
   });
 
@@ -208,7 +208,7 @@ describe('WatchMode', () => {
     it('creates output directory if it does not exist', async () => {
       mockExistsSync.mockImplementation((p: string) => {
         if (p === '/watch') return true;
-        if (p === '/watch/markupr-output') return false;
+        if (p === '/watch/markuprx-output') return false;
         return true;
       });
       mockReaddir.mockResolvedValue([]);
@@ -221,7 +221,7 @@ describe('WatchMode', () => {
       watcher.stop();
       await startPromise;
 
-      expect(mockMkdirSync).toHaveBeenCalledWith('/watch/markupr-output', { recursive: true });
+      expect(mockMkdirSync).toHaveBeenCalledWith('/watch/markuprx-output', { recursive: true });
       expect(fakeWatcher.close).toHaveBeenCalled();
     });
   });
@@ -355,7 +355,7 @@ describe('WatchMode', () => {
       mockReaddir.mockResolvedValue([]);
       mockAppendFile.mockResolvedValue(undefined);
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 0,
         extractedFrames: 0,
         durationSeconds: 1.0,
@@ -390,7 +390,7 @@ describe('WatchMode', () => {
     it('skips files that are removed before stabilizing', async () => {
       mockExistsSync.mockImplementation((p: string) => {
         if (p === '/watch') return true;
-        if (p === '/watch/markupr-output') return true;
+        if (p === '/watch/markuprx-output') return true;
         if (p === '/watch/vanished.mov') return false;
         return true;
       });
@@ -451,7 +451,7 @@ describe('WatchMode', () => {
       mockReaddir.mockResolvedValue([]);
       mockAppendFile.mockResolvedValue(undefined);
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 0,
         extractedFrames: 0,
         durationSeconds: 1.0,
@@ -556,7 +556,7 @@ describe('WatchMode', () => {
 
     it('returns false when output directory does not exist', () => {
       mockExistsSync.mockImplementation((p: string) => {
-        if (p === '/watch/markupr-output') return false;
+        if (p === '/watch/markuprx-output') return false;
         return true;
       });
 
@@ -644,7 +644,7 @@ describe('WatchMode', () => {
       mockAppendFile.mockResolvedValue(undefined);
       mockReaddirSync.mockReturnValue([]);
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 5,
         extractedFrames: 3,
         durationSeconds: 2.5,
@@ -671,7 +671,7 @@ describe('WatchMode', () => {
       expect(mockPipelineRun).toHaveBeenCalledTimes(1);
       expect(callbacks.onProcessingComplete).toHaveBeenCalledWith(
         '/watch/test.mov',
-        '/watch/markupr-output/test-feedback.md'
+        '/watch/markuprx-output/test-feedback.md'
       );
     });
 
@@ -710,7 +710,7 @@ describe('WatchMode', () => {
       mockAppendFile.mockResolvedValue(undefined);
       mockStat.mockResolvedValue({ size: 5000 });
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 0,
         extractedFrames: 0,
         durationSeconds: 1.0,
@@ -745,7 +745,7 @@ describe('WatchMode', () => {
       mockAppendFile.mockResolvedValue(undefined);
       mockStat.mockResolvedValue({ size: 5000 });
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 0,
         extractedFrames: 0,
         durationSeconds: 1.0,
@@ -764,13 +764,13 @@ describe('WatchMode', () => {
       await startPromise;
 
       expect(mockAppendFile).toHaveBeenCalledWith(
-        '/watch/.markupr-watch.log',
+        '/watch/.markuprx-watch.log',
         expect.stringContaining('/watch/test.mov'),
         'utf-8'
       );
       expect(mockAppendFile).toHaveBeenCalledWith(
-        '/watch/.markupr-watch.log',
-        expect.stringContaining('/watch/markupr-output/test-feedback.md'),
+        '/watch/.markuprx-watch.log',
+        expect.stringContaining('/watch/markuprx-output/test-feedback.md'),
         'utf-8'
       );
     });
@@ -782,7 +782,7 @@ describe('WatchMode', () => {
       mockAppendFile.mockRejectedValue(new Error('EACCES'));
       mockStat.mockResolvedValue({ size: 5000 });
       mockPipelineRun.mockResolvedValue({
-        outputPath: '/watch/markupr-output/test-feedback.md',
+        outputPath: '/watch/markuprx-output/test-feedback.md',
         transcriptSegments: 0,
         extractedFrames: 0,
         durationSeconds: 1.0,
@@ -835,7 +835,7 @@ describe('WatchMode', () => {
   // --------------------------------------------------------------------------
 
   describe('default output directory', () => {
-    it('defaults to <watchDir>/markupr-output when no outputDir specified', () => {
+    it('defaults to <watchDir>/markuprx-output when no outputDir specified', () => {
       mockExistsSync.mockReturnValue(true);
       mockReaddirSync.mockReturnValue([]);
 
@@ -845,7 +845,7 @@ describe('WatchMode', () => {
       );
 
       watcher.hasExistingOutput('test.mov');
-      expect(mockExistsSync).toHaveBeenCalledWith('/my/dir/markupr-output');
+      expect(mockExistsSync).toHaveBeenCalledWith('/my/dir/markuprx-output');
     });
   });
 

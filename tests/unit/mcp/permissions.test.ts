@@ -114,7 +114,7 @@ describe('MCP Permissions', () => {
 
       await checkScreenRecording();
       expect(mockUnlink).toHaveBeenCalledWith(
-        expect.stringContaining('markupr-perm-test-'),
+        expect.stringContaining('markuprx-perm-test-'),
       );
     });
 

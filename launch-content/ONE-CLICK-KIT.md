@@ -1,4 +1,4 @@
-# markupr Launch Day: One-Click Posting Kit
+# markuprx Launch Day: One-Click Posting Kit
 
 > **Open this document on launch day. Every post is copy-paste ready.**
 > All URLs verified. All flairs noted. All compliance rules included.
@@ -10,7 +10,7 @@
 
 - **Space posts apart.** Reddit flags accounts that post similar content across subs rapidly. Minimum 4-6 hours between Reddit posts, ideally across different days.
 - **Eddie's account needs prior engagement** on r/webdev and r/programming before posting there. Comment on a few threads in those subs in the days before launch.
-- **All links use markupr.com** (not markupr.dev).
+- **All links use markuprx.com** (not markuprx.dev).
 - **Don't cross-link posts.** Each platform post should stand alone.
 
 ---
@@ -25,12 +25,12 @@
 
 **Title field:**
 ```
-Show HN: markupr -- Give your AI coding agent eyes and ears (open source)
+Show HN: markuprx -- Give your AI coding agent eyes and ears (open source)
 ```
 
 **URL field:**
 ```
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 ```
 
 > **Do NOT put anything in the "text" field.** HN only allows URL or text, not both. Post as a URL submission, then immediately add your body as the first comment.
@@ -38,9 +38,9 @@ https://github.com/eddiesanjuan/markupr
 **First comment** (post immediately after submission -- go to your post and click "add comment"):
 
 ```
-I built markupr because describing visual bugs to AI coding agents is lossy. You see a broken layout, but all you can give the agent is "the sidebar overlaps the content on mobile." Half the context is lost in translation.
+I built markuprx because describing visual bugs to AI coding agents is lossy. You see a broken layout, but all you can give the agent is "the sidebar overlaps the content on mobile." Half the context is lost in translation.
 
-markupr fixes this. It records your screen and microphone, runs the audio through Whisper for transcription, then does something I haven't seen elsewhere: it correlates transcript timestamps with the video to extract frames at the exact moments you were describing something. The output is a structured Markdown document with screenshots placed where they belong -- not at arbitrary intervals, but at the moments that matter.
+markuprx fixes this. It records your screen and microphone, runs the audio through Whisper for transcription, then does something I haven't seen elsewhere: it correlates transcript timestamps with the video to extract frames at the exact moments you were describing something. The output is a structured Markdown document with screenshots placed where they belong -- not at arbitrary intervals, but at the moments that matter.
 
 The pipeline:
 
@@ -53,25 +53,25 @@ There are three ways to use it:
 
 Desktop app -- macOS menu bar app. Press Cmd+Shift+F to start recording, press it again to stop. The file path to your Markdown report is copied to clipboard. Paste it into Claude Code or Cursor and the agent reads the structured feedback with screenshots.
 
-CLI -- `npx markupr analyze ./recording.mov` processes any screen recording into a Markdown report with extracted frames. No Electron, no desktop app needed.
+CLI -- `npx markuprx analyze ./recording.mov` processes any screen recording into a Markdown report with extracted frames. No Electron, no desktop app needed.
 
 MCP server -- Add 3 lines of JSON to your Claude Code or Cursor config and your agent gets 6 tools: screenshot capture, screen+voice recording, video analysis, and interactive recording sessions. The agent can see your screen mid-conversation.
 
   {
     "mcpServers": {
-      "markupr": { "command": "npx", "args": ["--yes", "--package", "markupr", "markupr-mcp"] }
+      "markuprx": { "command": "npx", "args": ["--yes", "--package", "markuprx", "markuprx-mcp"] }
     }
   }
 
 After setup, you can say "the sidebar is broken on mobile, can you see it?" and the agent captures a screenshot, sees the issue, and fixes it. No copy-pasting.
 
-New in v2.5.0: markupr now delivers feedback to your issue tracker.
+New in v2.5.0: markuprx now delivers feedback to your issue tracker.
 
 - Output Templates -- `--template github-issue` or `--template linear` formats feedback as structured issues. Also supports JSON and Jira.
-- Push to GitHub Issues -- `markupr push github --repo owner/repo` creates an issue with embedded screenshots.
-- Push to Linear -- `markupr push linear --team KEY` creates a Linear issue with full context.
-- Watch Mode -- `markupr watch ./dir` monitors a directory and auto-processes new recordings.
-- GitHub Action -- `eddiesanjuan/markupr-action@v1` runs markupr in CI. Posts structured visual feedback as PR comments.
+- Push to GitHub Issues -- `markuprx push github --repo owner/repo` creates an issue with embedded screenshots.
+- Push to Linear -- `markuprx push linear --team KEY` creates a Linear issue with full context.
+- Watch Mode -- `markuprx watch ./dir` monitors a directory and auto-processes new recordings.
+- GitHub Action -- `eddiesanjuan/markuprx-action@v1` runs markuprx in CI. Posts structured visual feedback as PR comments.
 
 The pipeline went from "record and structure" to "record, structure, and deliver."
 
@@ -79,10 +79,10 @@ Everything runs locally by default. Whisper transcription happens on your machin
 
 Open source, MIT licensed. 860 tests.
 
-Repo: https://github.com/eddiesanjuan/markupr
-Site: https://markupr.com
-npm: `npx --package markupr markupr-mcp` (MCP server) / `npx markupr analyze` (CLI)
-GitHub Action: `eddiesanjuan/markupr-action@v1`
+Repo: https://github.com/eddiesanjuan/markuprx
+Site: https://markuprx.com
+npm: `npx --package markuprx markuprx-mcp` (MCP server) / `npx markuprx analyze` (CLI)
+GitHub Action: `eddiesanjuan/markuprx-action@v1`
 ```
 
 ---
@@ -97,11 +97,11 @@ Post each tweet as a reply to the previous one. After posting Tweet 1, click it,
 ```
 Your AI coding agent can't see your screen. And even when it can, it can't file the bug for you. Both change today.
 
-markupr v2.5: record your screen, narrate bugs, get structured reports pushed directly to GitHub Issues or Linear.
+markuprx v2.5: record your screen, narrate bugs, get structured reports pushed directly to GitHub Issues or Linear.
 
 Open source. Free. Zero config.
 
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 ```
 
 > Attach: hero screenshot or demo GIF showing the workflow.
@@ -112,9 +112,9 @@ Add this to your Claude Code settings and your agent gets 6 tools -- screenshot 
 
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -156,7 +156,7 @@ All local. All automatic.
 
 **Tweet 5 (Open Source):**
 ```
-markupr is MIT licensed, fully open source.
+markuprx is MIT licensed, fully open source.
 
 - No telemetry
 - No tracking
@@ -169,10 +169,10 @@ The only external calls happen if you explicitly add an API key for cloud transc
 
 **Tweet 6 (Integrations -- NEW):**
 ```
-v2.5 closes the loop. markupr now pushes feedback directly to your issue tracker:
+v2.5 closes the loop. markuprx now pushes feedback directly to your issue tracker:
 
-`markupr push github --repo owner/repo`
-`markupr push linear --team KEY`
+`markuprx push github --repo owner/repo`
+`markuprx push linear --team KEY`
 
 Record the bug. Structure it. Push it to your backlog. One pipeline, zero copy-paste.
 
@@ -181,7 +181,7 @@ Also: `--template github-issue` / `--template jira` for custom output formats.
 
 **Tweet 7 (GitHub Action):**
 ```
-markupr now has a GitHub Action: `eddiesanjuan/markupr-action@v1`
+markuprx now has a GitHub Action: `eddiesanjuan/markuprx-action@v1`
 
 Push a commit. The action captures and analyzes visual changes. Posts structured feedback as a PR comment with screenshots.
 
@@ -193,9 +193,9 @@ Automated visual QA in your CI/CD. Free. Open source.
 Five ways to use it now:
 
 Desktop app -- menu bar, one hotkey
-CLI -- `npx markupr analyze ./video.mov`
-MCP server -- `npx --package markupr markupr-mcp`
-Watch mode -- `markupr watch ./dir` (auto-process recordings)
+CLI -- `npx markuprx analyze ./video.mov`
+MCP server -- `npx --package markuprx markuprx-mcp`
+Watch mode -- `markuprx watch ./dir` (auto-process recordings)
 GitHub Action -- CI/CD visual feedback
 
 Same pipeline. Pick whatever fits your workflow.
@@ -205,10 +205,10 @@ Same pipeline. Pick whatever fits your workflow.
 ```
 If you're tired of describing visual bugs in text, give it a try.
 
-GitHub: https://github.com/eddiesanjuan/markupr
-Site: https://markupr.com
-npm: `npx --package markupr markupr-mcp`
-Action: `eddiesanjuan/markupr-action@v1`
+GitHub: https://github.com/eddiesanjuan/markuprx
+Site: https://markuprx.com
+npm: `npx --package markuprx markuprx-mcp`
+Action: `eddiesanjuan/markuprx-action@v1`
 
 860 tests. MIT licensed. Contributions welcome.
 ```
@@ -230,7 +230,7 @@ I built an MCP server that lets Claude Code see your screen and hear your voice
 
 **Body:**
 ```
-I've been using Claude Code daily and the biggest friction point for me was context about visual issues. Describing what I see in text loses half the information. So I built markupr -- an MCP server that gives Claude Code direct access to screen capture and voice recording.
+I've been using Claude Code daily and the biggest friction point for me was context about visual issues. Describing what I see in text loses half the information. So I built markuprx -- an MCP server that gives Claude Code direct access to screen capture and voice recording.
 
 ### Setup
 
@@ -239,9 +239,9 @@ Add this to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -275,11 +275,11 @@ Claude calls `capture_screenshot`, gets the image, and responds with specific ob
 
 The latest update closes the feedback loop. After capturing and structuring your feedback, you can push it directly to GitHub Issues or Linear:
 
-- `markupr push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
-- `markupr push linear --team KEY` -- creates a Linear issue with full context
+- `markuprx push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
+- `markuprx push linear --team KEY` -- creates a Linear issue with full context
 - `--template github-issue` / `--template linear` / `--template jira` -- format output for your tracker
-- `markupr watch ./dir` -- auto-process any new recording that lands in a directory
-- **GitHub Action** (`eddiesanjuan/markupr-action@v1`) -- automated visual QA in CI/CD
+- `markuprx watch ./dir` -- auto-process any new recording that lands in a directory
+- **GitHub Action** (`eddiesanjuan/markuprx-action@v1`) -- automated visual QA in CI/CD
 
 Record the bug, push it to the backlog. The agent doesn't just see the problem -- it files the ticket.
 
@@ -293,7 +293,7 @@ The desktop app, CLI, and MCP server all share the same post-processing pipeline
 
 Everything runs locally. Whisper transcription is on your machine. No telemetry, no data collection. External calls only happen if you explicitly add API keys for cloud transcription.
 
-Open source, MIT, 860 tests: https://github.com/eddiesanjuan/markupr
+Open source, MIT, 860 tests: https://github.com/eddiesanjuan/markuprx
 ```
 
 > **Compliance notes:**
@@ -327,9 +327,9 @@ Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
 ```json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -362,13 +362,13 @@ For more complex feedback, `capture_with_voice({ duration: 30 })` records your s
 
 ### New in v2.5.0: Push to your issue tracker
 
-markupr now delivers feedback directly to GitHub Issues and Linear:
+markuprx now delivers feedback directly to GitHub Issues and Linear:
 
-- `markupr push github --repo owner/repo` -- creates a GitHub issue from your session
-- `markupr push linear --team KEY` -- creates a Linear issue with full context
-- `markupr watch ./dir` -- auto-process recordings as they appear
+- `markuprx push github --repo owner/repo` -- creates a GitHub issue from your session
+- `markuprx push linear --team KEY` -- creates a Linear issue with full context
+- `markuprx watch ./dir` -- auto-process recordings as they appear
 - Output templates: `--template github-issue`, `--template linear`, `--template jira`, `--template json`
-- **GitHub Action** (`eddiesanjuan/markupr-action@v1`) -- visual QA in CI/CD
+- **GitHub Action** (`eddiesanjuan/markuprx-action@v1`) -- visual QA in CI/CD
 
 Record it, structure it, push it. No more manual bug filing.
 
@@ -378,9 +378,9 @@ Record it, structure it, push it. No more manual bug filing.
 - ffmpeg (`brew install ffmpeg`) for recording tools
 - Screenshot tools work without ffmpeg
 
-Open source, MIT licensed, 860 tests: https://github.com/eddiesanjuan/markupr
+Open source, MIT licensed, 860 tests: https://github.com/eddiesanjuan/markuprx
 
-Full MCP docs: https://github.com/eddiesanjuan/markupr/blob/main/README-MCP.md
+Full MCP docs: https://github.com/eddiesanjuan/markuprx/blob/main/README-MCP.md
 ```
 
 > **Compliance notes:**
@@ -401,7 +401,7 @@ Paste the full article below. The frontmatter goes at the very top of the editor
 ---
 title: I Built an MCP Server That Gives AI Agents Eyes and Ears
 published: true
-description: markupr records your screen and voice, structures feedback with screenshots, and pushes it directly to GitHub Issues or Linear. Your AI coding agent sees what you see -- and files the ticket.
+description: markuprx records your screen and voice, structures feedback with screenshots, and pushes it directly to GitHub Issues or Linear. Your AI coding agent sees what you see -- and files the ticket.
 tags: ai, opensource, webdev, productivity
 cover_image:
 ---
@@ -424,14 +424,14 @@ Screenshot? Better. But now you're screenshotting, uploading, switching context,
 
 ## The Solution
 
-I built [markupr](https://github.com/eddiesanjuan/markupr). It records your screen and microphone, then runs a post-processing pipeline that:
+I built [markuprx](https://github.com/eddiesanjuan/markuprx). It records your screen and microphone, then runs a post-processing pipeline that:
 
 1. Transcribes your voice with local Whisper
 2. Analyzes the transcript to find key moments
 3. Extracts video frames at those exact timestamps
 4. Stitches everything into structured Markdown
 
-The key difference from "record screen + take periodic screenshots": markupr extracts frames that correspond to what you were describing. When you say "this button is hidden on mobile," the extracted frame shows exactly what was on screen at that moment.
+The key difference from "record screen + take periodic screenshots": markuprx extracts frames that correspond to what you were describing. When you say "this button is hidden on mobile," the extracted frame shows exactly what was on screen at that moment.
 
 The output is structured for AI consumption -- not a wall of text with random images, but a document where each feedback item has a timestamp, a transcript excerpt, and the corresponding screenshot.
 
@@ -491,7 +491,7 @@ The format is inspired by [llms.txt](https://llmstxt.org/) -- designed so LLMs c
 
 A macOS menu bar app. Press `Cmd+Shift+F` to start recording, press it again to stop. The pipeline runs automatically and copies the file path to your clipboard.
 
-Paste the path into Claude Code: "Read the feedback at /Users/me/markupr/sessions/.../feedback-report.md"
+Paste the path into Claude Code: "Read the feedback at /Users/me/markuprx/sessions/.../feedback-report.md"
 
 The agent reads the structured document with screenshots and starts fixing issues.
 
@@ -499,17 +499,17 @@ The agent reads the structured document with screenshots and starts fixing issue
 
 ```bash
 # Process any screen recording
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 
 # With options
-npx markupr analyze ./recording.mov --output ./reports --verbose
+npx markuprx analyze ./recording.mov --output ./reports --verbose
 ```
 
 No Electron, no desktop app. Works in CI/CD pipelines. An AI agent can run this command to process a recording programmatically.
 
 ### 3. MCP Server
 
-MCP (Model Context Protocol) lets AI coding agents call tools. The markupr MCP server gives your agent 6 tools for screen capture and recording.
+MCP (Model Context Protocol) lets AI coding agents call tools. The markuprx MCP server gives your agent 6 tools for screen capture and recording.
 
 #### Setup
 
@@ -518,9 +518,9 @@ Add to your IDE config -- Claude Code, Cursor, or Windsurf:
 ```json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -562,12 +562,12 @@ For longer reviews, the agent can call `capture_with_voice({ duration: 60 })` wh
 
 ## New in v2.5.0: Feedback Delivery Pipeline
 
-v2.5.0 closes the loop. markupr doesn't just capture and structure feedback -- it delivers it to your issue tracker.
+v2.5.0 closes the loop. markuprx doesn't just capture and structure feedback -- it delivers it to your issue tracker.
 
 ### Push to GitHub Issues
 
 ```bash
-markupr push github --repo owner/repo
+markuprx push github --repo owner/repo
 ```
 
 Creates a GitHub issue directly from your session. Screenshots are uploaded and embedded inline.
@@ -575,7 +575,7 @@ Creates a GitHub issue directly from your session. Screenshots are uploaded and 
 ### Push to Linear
 
 ```bash
-markupr push linear --team KEY
+markuprx push linear --team KEY
 ```
 
 Creates a Linear issue with full context -- transcript, screenshots, severity labels.
@@ -583,10 +583,10 @@ Creates a Linear issue with full context -- transcript, screenshots, severity la
 ### Output Templates
 
 ```bash
-npx markupr analyze ./recording.mov --template github-issue
-npx markupr analyze ./recording.mov --template linear
-npx markupr analyze ./recording.mov --template jira
-npx markupr analyze ./recording.mov --template json
+npx markuprx analyze ./recording.mov --template github-issue
+npx markuprx analyze ./recording.mov --template linear
+npx markuprx analyze ./recording.mov --template jira
+npx markuprx analyze ./recording.mov --template json
 ```
 
 Five template formats: standard Markdown (default), GitHub Issue, Linear, Jira, and JSON.
@@ -594,7 +594,7 @@ Five template formats: standard Markdown (default), GitHub Issue, Linear, Jira, 
 ### Watch Mode
 
 ```bash
-markupr watch ./recordings
+markuprx watch ./recordings
 ```
 
 Monitors a directory and auto-processes any new recording that appears.
@@ -602,10 +602,10 @@ Monitors a directory and auto-processes any new recording that appears.
 ### GitHub Action
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
 ```
 
-Runs markupr in CI/CD. Posts structured visual feedback as PR comments with screenshots.
+Runs markuprx in CI/CD. Posts structured visual feedback as PR comments with screenshots.
 
 ## Sample Output
 
@@ -665,16 +665,16 @@ You control when and whether data leaves your machine.
 
 ## Links
 
-- **GitHub**: [github.com/eddiesanjuan/markupr](https://github.com/eddiesanjuan/markupr)
-- **Site**: [markupr.com](https://markupr.com)
-- **MCP server**: `npx --package markupr markupr-mcp` (zero install)
-- **CLI**: `npx markupr analyze ./video.mov`
-- **GitHub Action**: `eddiesanjuan/markupr-action@v1`
-- **npm**: [npmjs.com/package/markupr](https://www.npmjs.com/package/markupr)
+- **GitHub**: [github.com/eddiesanjuan/markuprx](https://github.com/eddiesanjuan/markuprx)
+- **Site**: [markuprx.com](https://markuprx.com)
+- **MCP server**: `npx --package markuprx markuprx-mcp` (zero install)
+- **CLI**: `npx markuprx analyze ./video.mov`
+- **GitHub Action**: `eddiesanjuan/markuprx-action@v1`
+- **npm**: [npmjs.com/package/markuprx](https://www.npmjs.com/package/markuprx)
 
 Open source, MIT licensed. 860 tests across 44 files. Contributions welcome.
 
-If markupr saves you time, consider [supporting development on Ko-fi](https://ko-fi.com/eddiesanjuan).
+If markuprx saves you time, consider [supporting development on Ko-fi](https://ko-fi.com/eddiesanjuan).
 ```
 
 > **Notes:**
@@ -705,7 +705,7 @@ Building a timestamp-correlated frame extraction pipeline for screen recordings
 
 **Body:**
 ```
-I built an open source tool called markupr that processes screen recordings with voice narration into structured documents. The interesting technical bit is the pipeline that correlates transcript timestamps with video frames.
+I built an open source tool called markuprx that processes screen recordings with voice narration into structured documents. The interesting technical bit is the pipeline that correlates transcript timestamps with video frames.
 
 ### The problem
 
@@ -713,7 +713,7 @@ Most screen-to-document tools either capture at fixed intervals (every N seconds
 
 ### The approach
 
-markupr records screen and microphone simultaneously, then runs a post-processing pipeline:
+markuprx records screen and microphone simultaneously, then runs a post-processing pipeline:
 
 ```
 Audio --> Whisper (local) --> Timestamped transcript
@@ -773,25 +773,25 @@ The MCP server is a stdio-based JSON-RPC server that exposes 6 tools (screenshot
 
 ### Issue tracker integration (v2.5.0)
 
-The latest version adds a delivery step to the pipeline. After structuring the feedback, markupr can push it directly to GitHub Issues or Linear:
+The latest version adds a delivery step to the pipeline. After structuring the feedback, markuprx can push it directly to GitHub Issues or Linear:
 
 ```
-markupr push github --repo owner/repo    # Creates GitHub issue with screenshots
-markupr push linear --team KEY           # Creates Linear issue with full context
+markuprx push github --repo owner/repo    # Creates GitHub issue with screenshots
+markuprx push linear --team KEY           # Creates Linear issue with full context
 ```
 
 There's also a template system (`--template github-issue`, `--template linear`, `--template jira`, `--template json`) that formats the structured output for different consumers.
 
-Other additions: a watch mode (`markupr watch ./dir`) that auto-processes recordings from a directory, and a GitHub Action (`eddiesanjuan/markupr-action@v1`) that runs the pipeline in CI and posts visual feedback as PR comments.
+Other additions: a watch mode (`markuprx watch ./dir`) that auto-processes recordings from a directory, and a GitHub Action (`eddiesanjuan/markuprx-action@v1`) that runs the pipeline in CI and posts visual feedback as PR comments.
 
-Open source, MIT, 860 tests: https://github.com/eddiesanjuan/markupr
+Open source, MIT, 860 tests: https://github.com/eddiesanjuan/markuprx
 ```
 
 > **Compliance notes:**
 > - This post is framed as a technical writeup, NOT a product pitch
 > - r/programming values engineering substance -- the architecture decisions and state machine details are what make this appropriate
 > - Eddie's account should have recent r/programming comment history before posting
-> - Alternative: post as a link post with URL `https://github.com/eddiesanjuan/markupr` and add the technical breakdown as a comment
+> - Alternative: post as a link post with URL `https://github.com/eddiesanjuan/markuprx` and add the technical breakdown as a comment
 
 ---
 
@@ -820,7 +820,7 @@ How I closed the feedback loop between what I see and what my AI agent fixes
 ```
 The hardest part of using AI coding agents for frontend work isn't the code generation -- it's the context. You see a broken layout, a misaligned button, a color that's off. You try to describe it in text and half the information is lost.
 
-I built markupr to fix this. It records your screen and microphone, produces a structured Markdown document with screenshots at the exact moments that matter, and now in v2.5.0 -- pushes the feedback directly to your issue tracker.
+I built markuprx to fix this. It records your screen and microphone, produces a structured Markdown document with screenshots at the exact moments that matter, and now in v2.5.0 -- pushes the feedback directly to your issue tracker.
 
 ### How it works
 
@@ -833,8 +833,8 @@ I built markupr to fix this. It records your screen and microphone, produces a s
    - Extracts video frames via ffmpeg at those exact timestamps
    - Generates structured Markdown with screenshots placed where they belong
 5. **New:** Push to your issue tracker:
-   - `markupr push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
-   - `markupr push linear --team KEY` -- creates a Linear issue with full context
+   - `markuprx push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
+   - `markuprx push linear --team KEY` -- creates a Linear issue with full context
 
 The result isn't "screenshots taken every 5 seconds." It's contextually-aware frame extraction -- each image shows what you were talking about at that moment. And now it goes straight to your backlog.
 
@@ -842,13 +842,13 @@ The result isn't "screenshots taken every 5 seconds." It's contextually-aware fr
 
 **Desktop app** -- macOS menu bar. One hotkey to start, one to stop. File path copied to clipboard. Paste into whatever AI tool you use.
 
-**CLI** -- `npx markupr analyze ./recording.mov` -- process any screen recording. Supports output templates: `--template github-issue`, `--template linear`, `--template jira`, `--template json`.
+**CLI** -- `npx markuprx analyze ./recording.mov` -- process any screen recording. Supports output templates: `--template github-issue`, `--template linear`, `--template jira`, `--template json`.
 
-**MCP server** -- `npx --package markupr markupr-mcp` -- your AI coding agent (Claude Code, Cursor, Windsurf) gets direct access to screen capture and recording. The agent can see what you see mid-conversation.
+**MCP server** -- `npx --package markuprx markuprx-mcp` -- your AI coding agent (Claude Code, Cursor, Windsurf) gets direct access to screen capture and recording. The agent can see what you see mid-conversation.
 
-**Watch Mode** -- `markupr watch ./dir` -- monitors a directory and auto-processes any new recording that appears.
+**Watch Mode** -- `markuprx watch ./dir` -- monitors a directory and auto-processes any new recording that appears.
 
-**GitHub Action** -- `eddiesanjuan/markupr-action@v1` -- automated visual QA in CI/CD. Posts structured feedback as PR comments.
+**GitHub Action** -- `eddiesanjuan/markuprx-action@v1` -- automated visual QA in CI/CD. Posts structured feedback as PR comments.
 
 ### Example output
 
@@ -874,9 +874,9 @@ The result isn't "screenshots taken every 5 seconds." It's contextually-aware fr
 
 Everything runs locally. Open source, MIT licensed. 860 tests.
 
-GitHub: https://github.com/eddiesanjuan/markupr
-Site: https://markupr.com
-GitHub Action: https://github.com/marketplace/actions/markupr-action
+GitHub: https://github.com/eddiesanjuan/markuprx
+Site: https://markuprx.com
+GitHub Action: https://github.com/marketplace/actions/markuprx-action
 ```
 
 ---
@@ -893,7 +893,7 @@ GitHub Action: https://github.com/marketplace/actions/markupr-action
 
 **Name:**
 ```
-markupr
+markuprx
 ```
 
 **Tagline** (60 char max):
@@ -903,7 +903,7 @@ Record your screen, narrate bugs, AI fixes them
 
 **Description** (260 char max):
 ```
-markupr records your screen, structures feedback with screenshots at the moments that matter, and pushes it to GitHub Issues or Linear. CLI, MCP server, GitHub Action. Open source. Free. Works with Claude Code, Cursor, and any MCP client.
+markuprx records your screen, structures feedback with screenshots at the moments that matter, and pushes it to GitHub Issues or Linear. CLI, MCP server, GitHub Action. Open source. Free. Works with Claude Code, Cursor, and any MCP client.
 ```
 
 **Topics:** Developer Tools, Artificial Intelligence, Open Source, Productivity, Mac
@@ -912,47 +912,47 @@ markupr records your screen, structures feedback with screenshots at the moments
 
 **Website:**
 ```
-https://markupr.com
+https://markuprx.com
 ```
 
 **GitHub:**
 ```
-https://github.com/eddiesanjuan/markupr
+https://github.com/eddiesanjuan/markuprx
 ```
 
 **Maker Comment** (post IMMEDIATELY after launch goes live):
 ```
-Hey Product Hunt -- Eddie here, maker of markupr.
+Hey Product Hunt -- Eddie here, maker of markuprx.
 
 I built this because I kept running into the same wall with AI coding agents: I could *see* the bug, but I couldn't describe it precisely enough for Claude or Cursor to fix it. I'd spend ten minutes writing a paragraph about a visual issue that I could have pointed at and explained in thirty seconds.
 
-So I built markupr. You press a hotkey, narrate what you see, press the hotkey again, and you get a structured Markdown document with screenshots placed exactly where they belong -- at the moments in the video that match what you were saying. It's not a screen recorder that dumps a transcript next to random screenshots. It's an intelligent pipeline: Whisper transcribes your voice, ffmpeg extracts frames at the exact timestamps from your narration, and optionally Claude analyzes the whole thing into a structured report.
+So I built markuprx. You press a hotkey, narrate what you see, press the hotkey again, and you get a structured Markdown document with screenshots placed exactly where they belong -- at the moments in the video that match what you were saying. It's not a screen recorder that dumps a transcript next to random screenshots. It's an intelligent pipeline: Whisper transcribes your voice, ffmpeg extracts frames at the exact timestamps from your narration, and optionally Claude analyzes the whole thing into a structured report.
 
 The output is purpose-built for AI coding agents. Paste the file path into Claude Code, Cursor, or Windsurf and the agent has everything it needs to start fixing.
 
-The **MCP server** gives your AI agent eyes and ears. Three lines of JSON config, zero install (`npx --package markupr markupr-mcp`), and your agent has `capture_screenshot`, `capture_with_voice`, `start_recording`, and `stop_recording` tools. The agent looks at your screen and acts.
+The **MCP server** gives your AI agent eyes and ears. Three lines of JSON config, zero install (`npx --package markuprx markuprx-mcp`), and your agent has `capture_screenshot`, `capture_with_voice`, `start_recording`, and `stop_recording` tools. The agent looks at your screen and acts.
 
-What I'm most excited about in **v2.5.0** is the delivery pipeline. markupr now pushes feedback directly to your issue tracker:
-- `markupr push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
-- `markupr push linear --team KEY` -- creates a Linear issue with full context
-- `markupr watch ./dir` -- auto-process recordings from a directory
+What I'm most excited about in **v2.5.0** is the delivery pipeline. markuprx now pushes feedback directly to your issue tracker:
+- `markuprx push github --repo owner/repo` -- creates a GitHub issue with embedded screenshots
+- `markuprx push linear --team KEY` -- creates a Linear issue with full context
+- `markuprx watch ./dir` -- auto-process recordings from a directory
 - `--template github-issue/linear/jira/json` -- output in the format your tools consume
-- **GitHub Action** (`eddiesanjuan/markupr-action@v1`) -- automated visual QA in CI/CD
+- **GitHub Action** (`eddiesanjuan/markuprx-action@v1`) -- automated visual QA in CI/CD
 
 The pipeline went from "record and structure" to "record, structure, and deliver." You see a bug, record it, and it lands in your backlog. The feedback loop is closed.
 
-markupr is fully open source and MIT licensed. No telemetry, no tracking, no analytics. Local Whisper transcription runs entirely on your machine -- no API key needed to start. If you want cloud transcription or AI-enhanced analysis, bring your own OpenAI or Anthropic keys.
+markuprx is fully open source and MIT licensed. No telemetry, no tracking, no analytics. Local Whisper transcription runs entirely on your machine -- no API key needed to start. If you want cloud transcription or AI-enhanced analysis, bring your own OpenAI or Anthropic keys.
 
 Five ways to use it:
 1. **Desktop app** -- menu bar on macOS, system tray on Windows
-2. **CLI** -- `npx markupr analyze ./recording.mov`
-3. **MCP server** -- `npx --package markupr markupr-mcp` in your IDE config
-4. **Watch Mode** -- `markupr watch ./dir` auto-processes recordings
-5. **GitHub Action** -- `eddiesanjuan/markupr-action@v1` in CI/CD
+2. **CLI** -- `npx markuprx analyze ./recording.mov`
+3. **MCP server** -- `npx --package markuprx markuprx-mcp` in your IDE config
+4. **Watch Mode** -- `markuprx watch ./dir` auto-processes recordings
+5. **GitHub Action** -- `eddiesanjuan/markuprx-action@v1` in CI/CD
 
 I'd love your honest feedback. What would make this more useful in your workflow? What's missing? I'm shipping fast and building in public.
 
-Star the repo if you want to follow along: https://github.com/eddiesanjuan/markupr
+Star the repo if you want to follow along: https://github.com/eddiesanjuan/markuprx
 ```
 
 **Technical Comment** (post 5-10 minutes after maker comment):
@@ -960,18 +960,18 @@ Star the repo if you want to follow along: https://github.com/eddiesanjuan/marku
 For the technical crowd: here's what's under the hood.
 
 **The pipeline:**
-When you stop recording, markupr runs a 4-stage pipeline: (1) transcribe audio via local Whisper or OpenAI API, (2) analyze the transcript to detect key moments and topic changes, (3) extract video frames at the exact timestamps using ffmpeg, (4) stitch everything into structured Markdown with screenshots placed where they belong.
+When you stop recording, markuprx runs a 4-stage pipeline: (1) transcribe audio via local Whisper or OpenAI API, (2) analyze the transcript to detect key moments and topic changes, (3) extract video frames at the exact timestamps using ffmpeg, (4) stitch everything into structured Markdown with screenshots placed where they belong.
 
 The recording session is governed by a 7-state finite state machine with watchdog timers. Every state has a maximum duration -- nothing can get stuck. Crash recovery auto-saves every 5 seconds, so you never lose a session.
 
 **Three distribution channels, same pipeline:**
 - Desktop app (Electron + React, ~30 UI components)
-- CLI (`npx markupr analyze ./video.mov` -- no Electron, no desktop)
-- MCP server (`npx --package markupr markupr-mcp` -- gives AI agents 6 tools including `capture_screenshot` and `capture_with_voice`)
+- CLI (`npx markuprx analyze ./video.mov` -- no Electron, no desktop)
+- MCP server (`npx --package markuprx markuprx-mcp` -- gives AI agents 6 tools including `capture_screenshot` and `capture_with_voice`)
 
 The MCP server is the one I think will surprise people. Zero install -- npx handles everything. Add 3 lines to your Claude Code or Cursor config and your agent can look at your screen mid-conversation. It's the bridge between "I can see the bug" and "my agent can fix it."
 
-v2.5.0 adds a delivery layer: push structured feedback directly to GitHub Issues (`markupr push github --repo owner/repo`) or Linear (`markupr push linear --team KEY`). There's a template system (`--template github-issue`, `--template linear`, `--template jira`, `--template json`), a watch mode for auto-processing recordings, and a GitHub Action (`eddiesanjuan/markupr-action@v1`) for visual QA in CI/CD.
+v2.5.0 adds a delivery layer: push structured feedback directly to GitHub Issues (`markuprx push github --repo owner/repo`) or Linear (`markuprx push linear --team KEY`). There's a template system (`--template github-issue`, `--template linear`, `--template jira`, `--template json`), a watch mode for auto-processing recordings, and a GitHub Action (`eddiesanjuan/markuprx-action@v1`) for visual QA in CI/CD.
 
 **860 tests** across 44 files. MIT licensed. No vendor lock-in. The whole codebase is on GitHub.
 ```
@@ -1014,7 +1014,7 @@ mcp-publisher publish
 
 **Verify:**
 ```bash
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.eddiesanjuan/markupr"
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.eddiesanjuan/markuprx"
 ```
 
 ---
@@ -1030,24 +1030,24 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.edd
 3. Add this line:
 
 ```markdown
-- [markupr](https://github.com/eddiesanjuan/markupr) - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents.
+- [markuprx](https://github.com/eddiesanjuan/markuprx) - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents.
 ```
 
-4. Commit message: `Add markupr MCP server`
+4. Commit message: `Add markuprx MCP server`
 5. Open PR with:
 
 **PR title:**
 ```
-Add markupr - Screen capture & voice recording for AI agents
+Add markuprx - Screen capture & voice recording for AI agents
 ```
 
 **PR body:**
 ```
-## New Server: markupr
+## New Server: markuprx
 
-- **Name:** markupr
-- **URL:** https://github.com/eddiesanjuan/markupr
-- **npm:** `npx --package markupr markupr-mcp`
+- **Name:** markuprx
+- **URL:** https://github.com/eddiesanjuan/markuprx
+- **npm:** `npx --package markuprx markuprx-mcp`
 - **Language:** TypeScript
 - **Scope:** Local (runs on device)
 - **OS:** macOS, Windows
@@ -1062,13 +1062,13 @@ Add markupr - Screen capture & voice recording for AI agents
 **Open:** https://smithery.ai/new
 
 **Option A -- Web UI:**
-1. Enter npm package name: `markupr`
+1. Enter npm package name: `markuprx`
 2. Select transport: stdio
 3. Complete publishing workflow
 
 **Option B -- CLI:**
 ```bash
-npx @anthropic-ai/smithery-cli mcp publish --name @eddiesanjuan/markupr --transport stdio
+npx @anthropic-ai/smithery-cli mcp publish --name @eddiesanjuan/markuprx --transport stdio
 ```
 
 ---
@@ -1081,11 +1081,11 @@ npx @anthropic-ai/smithery-cli mcp publish --name @eddiesanjuan/markupr --transp
 
 | Field | Value |
 |-------|-------|
-| Server Name | `markupr` |
+| Server Name | `markuprx` |
 | Short Description | `Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice narration, analyze video, and generate structured Markdown feedback documents.` |
-| Link | `https://github.com/eddiesanjuan/markupr` |
+| Link | `https://github.com/eddiesanjuan/markuprx` |
 | Category | `development` |
-| Contact Email | `eddie@markupr.com` |
+| Contact Email | `eddie@markuprx.com` |
 
 ---
 
@@ -1096,9 +1096,9 @@ npx @anthropic-ai/smithery-cli mcp publish --name @eddiesanjuan/markupr --transp
 Add a comment with:
 
 ```
-**Server Name:** markupr
-**GitHub:** https://github.com/eddiesanjuan/markupr
-**npm:** markupr (run via `npx --package markupr markupr-mcp`)
+**Server Name:** markuprx
+**GitHub:** https://github.com/eddiesanjuan/markuprx
+**npm:** markuprx (run via `npx --package markuprx markuprx-mcp`)
 **Description:** Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents for code review.
 **Tools:** capture_screenshot, capture_with_voice, analyze_video, analyze_screenshot, start_recording, stop_recording
 **Category:** Developer Tools
@@ -1113,7 +1113,7 @@ Add a comment with:
 Same process as 9b. Add under **Development Tools** section:
 
 ```markdown
-- **[markupr](https://github.com/eddiesanjuan/markupr)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, and generate structured feedback.
+- **[markuprx](https://github.com/eddiesanjuan/markuprx)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, and generate structured feedback.
 ```
 
 ---

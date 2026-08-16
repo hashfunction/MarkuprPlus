@@ -1,5 +1,5 @@
 /**
- * PermissionManager - Centralized macOS System Permission Handling for markupR
+ * PermissionManager - Centralized macOS System Permission Handling for MarkuprX
  *
  * Handles:
  * - Startup permission verification
@@ -44,19 +44,19 @@ const PERMISSION_DESCRIPTIONS: Record<PermissionType, {
 }> = {
   microphone: {
     title: 'Microphone Access',
-    description: 'markupR needs microphone access to capture your voice feedback and transcribe it in real-time.',
+    description: 'MarkuprX needs microphone access to capture your voice feedback and transcribe it in real-time.',
     required: true,
     systemPrefsPane: 'Privacy_Microphone',
   },
   screen: {
     title: 'Screen Recording',
-    description: 'markupR needs screen recording permission to capture screenshots when you pause speaking.',
+    description: 'MarkuprX needs screen recording permission to capture screenshots when you pause speaking.',
     required: true,
     systemPrefsPane: 'Privacy_ScreenCapture',
   },
   accessibility: {
     title: 'Accessibility',
-    description: 'markupR uses accessibility features for global hotkeys. This is optional but recommended.',
+    description: 'MarkuprX uses accessibility features for global hotkeys. This is optional but recommended.',
     required: false,
     systemPrefsPane: 'Privacy_Accessibility',
   },
@@ -314,9 +314,9 @@ class PermissionManager {
         `${config.description}\n\n` +
         'To enable this permission:\n' +
         `1. Click "${settingsLabel}"\n` +
-        '2. Find markupR in the list\n' +
+        '2. Find MarkuprX in the list\n' +
         '3. Toggle it ON\n' +
-        '4. You may need to restart markupR',
+        '4. You may need to restart MarkuprX',
     };
 
     const { response } = this.mainWindow
@@ -347,9 +347,9 @@ class PermissionManager {
       defaultId: 0,
       cancelId: 2,
       title: 'Permissions Needed',
-      message: 'markupR needs your permission',
+      message: 'MarkuprX needs your permission',
       detail:
-        'To work properly, markupR needs access to:\n' +
+        'To work properly, MarkuprX needs access to:\n' +
         `${missingDescriptions}\n\n` +
         'Would you like to set up permissions now?',
     };

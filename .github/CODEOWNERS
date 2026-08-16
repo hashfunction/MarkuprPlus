@@ -1,5 +1,5 @@
 # =============================================================================
-# CODEOWNERS for markupr (low-noise)
+# CODEOWNERS for markuprx (low-noise)
 # =============================================================================
 # Intentionally scoped to runtime/security-critical areas.
 # Dependency/workflow/docs-only PRs are not auto-assigned by CODEOWNERS.

@@ -67,7 +67,7 @@ vi.mock('electron', () => ({
       };
       return paths[name] || '/tmp/test';
     }),
-    getName: vi.fn(() => 'markupr'),
+    getName: vi.fn(() => 'markuprx'),
     getVersion: vi.fn(() => '2.4.0'),
     isReady: vi.fn(() => true),
   },
@@ -128,6 +128,10 @@ vi.mock('fs/promises', () => ({
 // =============================================================================
 
 import { SettingsManager, DEFAULT_SETTINGS, SETTINGS_VERSION } from '../../src/main/settings/SettingsManager';
+import {
+  CURRENT_KEYTAR_SERVICE,
+  LEGACY_KEYTAR_SERVICES,
+} from '../../src/main/migration/LegacyBrandMigration';
 
 // =============================================================================
 // Tests
@@ -299,6 +303,18 @@ describe('Settings E2E', () => {
 
       const key = await settings.getApiKey('openai');
       expect(key).toBeNull();
+    });
+
+    it('should delete migrated keychain entries so they cannot be restored', async () => {
+      mockKeychain.set(`${LEGACY_KEYTAR_SERVICES[0]}:openai`, 'sk-legacy-key');
+
+      expect(await settings.getApiKey('openai')).toBe('sk-legacy-key');
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`)).toBe('sk-legacy-key');
+
+      await settings.deleteApiKey('openai');
+
+      expect(await settings.getApiKey('openai')).toBeNull();
+      expect(mockKeychain.has(`${LEGACY_KEYTAR_SERVICES[0]}:openai`)).toBe(false);
     });
 
     it('should check if API key exists', async () => {

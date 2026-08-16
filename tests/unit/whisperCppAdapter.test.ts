@@ -8,19 +8,19 @@ import {
 describe('Whisper.cpp adapter', () => {
   it('keeps paths with spaces as individual execFile arguments', () => {
     expect(buildWhisperCppArguments({
-      modelPath: '/Users/example/Application Support/markupr/ggml-tiny.bin',
-      wavPath: '/private/tmp/markupr audio/input.wav',
-      outputBasePath: '/private/tmp/markupr audio/result',
+      modelPath: '/Users/example/Application Support/markuprx/ggml-tiny.bin',
+      wavPath: '/private/tmp/markuprx audio/input.wav',
+      outputBasePath: '/private/tmp/markuprx audio/result',
       language: 'en',
       threads: 4,
       translateToEnglish: false,
     })).toEqual([
-      '-m', '/Users/example/Application Support/markupr/ggml-tiny.bin',
-      '-f', '/private/tmp/markupr audio/input.wav',
+      '-m', '/Users/example/Application Support/markuprx/ggml-tiny.bin',
+      '-f', '/private/tmp/markuprx audio/input.wav',
       '-l', 'en',
       '-t', '4',
       '-oj',
-      '-of', '/private/tmp/markupr audio/result',
+      '-of', '/private/tmp/markuprx audio/result',
     ]);
   });
 
@@ -52,8 +52,8 @@ describe('Whisper.cpp adapter', () => {
   });
 
   it('maps packaged runtime paths out of app.asar', () => {
-    expect(toAsarUnpackedPath('/Applications/markupR.app/Contents/Resources/app.asar/node_modules/whisper-node'))
-      .toBe('/Applications/markupR.app/Contents/Resources/app.asar.unpacked/node_modules/whisper-node');
+    expect(toAsarUnpackedPath('/Applications/MarkuprX.app/Contents/Resources/app.asar/node_modules/whisper-node'))
+      .toBe('/Applications/MarkuprX.app/Contents/Resources/app.asar.unpacked/node_modules/whisper-node');
     expect(toAsarUnpackedPath('/workspace/node_modules/whisper-node'))
       .toBe('/workspace/node_modules/whisper-node');
   });

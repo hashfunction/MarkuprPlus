@@ -1,5 +1,5 @@
 /**
- * markupR Settings Panel
+ * MarkuprX Settings Panel
  *
  * Thin composition shell. State lives in useSettingsPanel hook,
  * primitives in ./primitives/, tabs in ./settings/.
@@ -146,7 +146,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div style={styles.footer}>
           <div style={styles.footerLeft}>
             <span style={styles.footerText}>
-              markupR {s.appVersion ? `v${s.appVersion}` : ''} {s.hasChanges && <span style={styles.savedIndicator}>Changes saved</span>}
+              MarkuprX {s.appVersion ? `v${s.appVersion}` : ''} {s.hasChanges && <span style={styles.savedIndicator}>Changes saved</span>}
             </span>
             <DonateButton />
           </div>

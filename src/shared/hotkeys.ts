@@ -1,5 +1,5 @@
 /**
- * Platform-aware hotkey definitions for markupR
+ * Platform-aware hotkey definitions for MarkuprX
  *
  * Provides consistent hotkey handling across macOS, Windows, and Linux.
  * Uses Electron's accelerator format internally but converts to
@@ -61,7 +61,7 @@ export function isWindows(): boolean {
 // ============================================================================
 
 /**
- * All hotkey definitions for markupR
+ * All hotkey definitions for MarkuprX
  * Uses Electron accelerator format (CommandOrControl, Shift, Alt, etc.)
  */
 export const HOTKEYS: HotkeyDefinition[] = [
@@ -103,7 +103,7 @@ export const HOTKEYS: HotkeyDefinition[] = [
   {
     id: 'quit',
     label: 'Quit',
-    description: 'Quit markupR',
+    description: 'Quit MarkuprX',
     macAccelerator: 'Command+Q',
     winLinuxAccelerator: 'Alt+F4',
   },

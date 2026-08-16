@@ -7,7 +7,6 @@
 
 export {
   SettingsManager,
-  settingsManager,
   getSettingsManager,
   createSettingsManager,
   DEFAULT_SETTINGS,
@@ -15,5 +14,3 @@ export {
 } from './SettingsManager';
 
 export type { AppSettings, ISettingsManager } from './SettingsManager';
-
-export { settingsManager as default } from './SettingsManager';

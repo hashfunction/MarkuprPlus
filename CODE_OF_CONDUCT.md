@@ -4,6 +4,6 @@ This project follows the [Contributor Covenant v2.1](https://www.contributor-cov
 
 ## Enforcement
 
-Report violations to: **conduct@markupr.app**
+Report violations to: **conduct@markuprx.app**
 
 All reports will be reviewed and investigated promptly.

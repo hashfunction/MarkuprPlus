@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make markupR use any valid downloaded Whisper model and preserve captured artifacts while surfacing an actionable error whenever recorded narration cannot be transcribed.
+**Goal:** Make MarkuprX use any valid downloaded Whisper model and preserve captured artifacts while surfacing an actionable error whenever recorded narration cannot be transcribed.
 
 **Architecture:** `WhisperService` will refresh an auto-discovered model path at use time while preserving explicit model overrides. `TranscriptionRecoveryService` will return a structured result with either transcript events or a typed failure. The stop pipeline will patch the saved report, publish output paths with an error status, and return a failed stop result without deleting the preserved recording or audio.
 
@@ -34,7 +34,7 @@
 
 ```ts
 it('selects Tiny when it is the only valid downloaded model', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'markupr-whisper-'));
+  const directory = await mkdtemp(join(tmpdir(), 'markuprx-whisper-'));
   await writeFile(join(directory, 'ggml-tiny.bin'), Buffer.alloc(16));
   expect(resolveDownloadedWhisperModelPath(directory)).toBe(join(directory, 'ggml-tiny.bin'));
 });
@@ -244,7 +244,7 @@ Append this idempotent section after artifacts have been attached:
 ```md
 ## Transcription Error
 
-> Narration was recorded, but markupR could not transcribe it. Your recording and audio were saved.
+> Narration was recorded, but MarkuprX could not transcribe it. Your recording and audio were saved.
 
 <actionable provider-specific reason>
 ```
@@ -298,7 +298,7 @@ Expected: Electron main, preload, and renderer bundles build successfully.
 Run:
 
 ```bash
-stat -f '%N | %z bytes' "$HOME/Library/Application Support/markupr/whisper-models/ggml-tiny.bin"
+stat -f '%N | %z bytes' "$HOME/Library/Application Support/markuprx/whisper-models/ggml-tiny.bin"
 git status --short
 git log --oneline -5
 ```

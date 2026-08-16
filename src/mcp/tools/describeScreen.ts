@@ -141,7 +141,7 @@ export function register(server: McpServer): void {
           // Capture fresh screenshot
           tempPath = join(
             tmpdir(),
-            `markupr-mcp-describe-${randomUUID()}.png`,
+            `markuprx-mcp-describe-${randomUUID()}.png`,
           );
           log(`Capturing screenshot for describe_screen: display=${display}`);
           await capture({ display, outputPath: tempPath });

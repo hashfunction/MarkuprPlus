@@ -1,6 +1,6 @@
 # Keyboard Shortcuts Reference
 
-markupr uses keyboard shortcuts for efficient workflows. This guide covers all available shortcuts and how to customize them.
+markuprx uses keyboard shortcuts for efficient workflows. This guide covers all available shortcuts and how to customize them.
 
 ## Table of Contents
 
@@ -96,12 +96,12 @@ Closes the current dialog, panel, or modal:
 ### Minimize Window
 **Shortcut**: `Cmd+M` (macOS)
 
-Minimizes the markupr window to the dock.
+Minimizes the markuprx window to the dock.
 
 ### Quit Application
 **Shortcut**: `Cmd+Q` (macOS) / `Alt+F4` (Windows)
 
-Completely quits markupr:
+Completely quits markuprx:
 - Stops any active recording
 - Saves session state for crash recovery
 - Removes tray icon
@@ -209,7 +209,7 @@ Minimizes to the dock.
 ### Hide Application
 **Shortcut**: `Cmd+H` (macOS)
 
-Hides all markupr windows (app stays running in tray).
+Hides all markuprx windows (app stays running in tray).
 
 ### Close Window
 **Shortcut**: `Cmd+W` (macOS) / `Ctrl+W` (Windows)
@@ -236,8 +236,8 @@ When the shortcut field is active:
 
 ### Conflict Detection
 
-markupr automatically detects conflicts:
-- **Internal conflicts**: Another markupr shortcut uses the same keys
+markuprx automatically detects conflicts:
+- **Internal conflicts**: Another markuprx shortcut uses the same keys
 - **System conflicts**: Known system shortcuts (may not catch all)
 
 If a conflict is detected:
@@ -300,13 +300,13 @@ Uses text labels instead of symbols:
 
 **Check global shortcut registration**:
 1. Look for the tray icon indicator
-2. If no icon, markupr may not have registered hotkeys
-3. Restart markupr
+2. If no icon, markuprx may not have registered hotkeys
+3. Restart markuprx
 
 **Check permissions (macOS)**:
 1. System Preferences > Security & Privacy > Accessibility
-2. Ensure markupr is checked
-3. Restart markupr if you made changes
+2. Ensure markuprx is checked
+3. Restart markuprx if you made changes
 
 **Check for conflicts**:
 1. Another app may be capturing the shortcut first

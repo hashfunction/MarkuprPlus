@@ -118,7 +118,7 @@ describe('CodexAnalyzer', () => {
     expect(invocation?.stdin).toContain('Button overlaps the header');
     expect(invocation?.stdin).toContain('Test App');
     expect(invocation?.timeoutMs).toBe(180_000);
-    expect(invocation?.cwd).toContain('markupr-codex-');
+    expect(invocation?.cwd).toContain('markuprx-codex-');
   });
 
   it('removes its temporary directory after a successful run', async () => {

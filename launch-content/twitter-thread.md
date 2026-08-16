@@ -5,11 +5,11 @@
 ## Tweet 1 (Hook)
 > Your AI coding agent can't see your screen. And even when it can, it can't file the bug for you. Both change today.
 >
-> markupr v2.5: record your screen, narrate bugs, get structured reports pushed directly to GitHub Issues or Linear.
+> markuprx v2.5: record your screen, narrate bugs, get structured reports pushed directly to GitHub Issues or Linear.
 >
 > Open source. Free. Zero config.
 >
-> https://github.com/eddiesanjuan/markupr
+> https://github.com/eddiesanjuan/markuprx
 
 **Characters:** ~280
 
@@ -21,9 +21,9 @@
 > ```json
 > {
 >   "mcpServers": {
->     "markupr": {
+>     "markuprx": {
 >       "command": "npx",
->       "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+>       "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
 >     }
 >   }
 > }
@@ -70,7 +70,7 @@
 ---
 
 ## Tweet 5 (Open Source)
-> markupr is MIT licensed, fully open source.
+> markuprx is MIT licensed, fully open source.
 >
 > - No telemetry
 > - No tracking
@@ -85,10 +85,10 @@
 ---
 
 ## Tweet 6 (Integrations -- NEW)
-> v2.5 closes the loop. markupr now pushes feedback directly to your issue tracker:
+> v2.5 closes the loop. markuprx now pushes feedback directly to your issue tracker:
 >
-> `markupr push github --repo owner/repo`
-> `markupr push linear --team KEY`
+> `markuprx push github --repo owner/repo`
+> `markuprx push linear --team KEY`
 >
 > Record the bug. Structure it. Push it to your backlog. One pipeline, zero copy-paste.
 >
@@ -99,7 +99,7 @@
 ---
 
 ## Tweet 7 (GitHub Action)
-> markupr now has a GitHub Action: `eddiesanjuan/markupr-action@v1`
+> markuprx now has a GitHub Action: `eddiesanjuan/markuprx-action@v1`
 >
 > Push a commit. The action captures and analyzes visual changes. Posts structured feedback as a PR comment with screenshots.
 >
@@ -113,9 +113,9 @@
 > Five ways to use it now:
 >
 > Desktop app -- menu bar, one hotkey
-> CLI -- `npx markupr analyze ./video.mov`
-> MCP server -- `npx --package markupr markupr-mcp`
-> Watch mode -- `markupr watch ./dir` (auto-process recordings)
+> CLI -- `npx markuprx analyze ./video.mov`
+> MCP server -- `npx --package markuprx markuprx-mcp`
+> Watch mode -- `markuprx watch ./dir` (auto-process recordings)
 > GitHub Action -- CI/CD visual feedback
 >
 > Same pipeline. Pick whatever fits your workflow.
@@ -127,10 +127,10 @@
 ## Tweet 9 (CTA)
 > If you're tired of describing visual bugs in text, give it a try.
 >
-> GitHub: https://github.com/eddiesanjuan/markupr
-> Site: https://markupr.com
-> npm: `npx --package markupr markupr-mcp`
-> Action: `eddiesanjuan/markupr-action@v1`
+> GitHub: https://github.com/eddiesanjuan/markuprx
+> Site: https://markuprx.com
+> npm: `npx --package markuprx markuprx-mcp`
+> Action: `eddiesanjuan/markuprx-action@v1`
 >
 > 860 tests. MIT licensed. Contributions welcome.
 

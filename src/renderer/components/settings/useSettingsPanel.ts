@@ -79,8 +79,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const getApiKeyPresence = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
     try {
       const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
-        window.markupr.settings.hasApiKey('openai'),
-        window.markupr.settings.hasApiKey('anthropic'),
+        window.markuprx.settings.hasApiKey('openai'),
+        window.markuprx.settings.hasApiKey('anthropic'),
       ]);
       return { hasOpenAiKey, hasAnthropicKey };
     } catch {
@@ -91,7 +91,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const refreshAnalysisProviders = useCallback(async (force = true): Promise<AnalysisProviderStatus[]> => {
     setIsScanningProviders(true);
     try {
-      const statuses = await window.markupr.analysisProviders.discover(force);
+      const statuses = await window.markuprx.analysisProviders.discover(force);
       setAnalysisProviderStatuses(statuses);
       return statuses;
     } catch (error) {
@@ -112,15 +112,15 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
     const loadSettings = async () => {
       try {
-        const allSettings = await window.markupr.settings.getAll();
+        const allSettings = await window.markuprx.settings.getAll();
         const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
         setSettings(loadedSettings);
 
         const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus] = await Promise.all([
-          window.markupr.audio.getDevices(),
+          window.markuprx.audio.getDevices(),
           refreshAnalysisProviders(false),
           getApiKeyPresence(),
-          window.markupr.whisper.checkModel().catch(() => null),
+          window.markuprx.whisper.checkModel().catch(() => null),
         ]);
         setAudioDevices(devices);
         setWhisperModelStatus(localModelStatus);
@@ -139,7 +139,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         }
 
         try {
-          const ver = await window.markupr.version();
+          const ver = await window.markuprx.version();
           setAppVersion(ver);
         } catch {
           setAppVersion('');
@@ -161,10 +161,10 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSettings((prev) => ({ ...prev, [key]: value }));
       setHasChanges(true);
       try {
-        await window.markupr.settings.set(key, value);
+        await window.markuprx.settings.set(key, value);
         if (key === 'analysisProvider' || key === 'analysisModelsByProvider') {
           await refreshAnalysisProviders(true);
-          window.dispatchEvent(new CustomEvent('markupr:settings-updated', {
+          window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
             detail: { type: 'analysis-provider', provider: key === 'analysisProvider' ? value : undefined },
           }));
         }
@@ -190,11 +190,11 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setIsRepairingLocalTranscription(true);
     setLocalTranscriptionError(null);
     try {
-      const result = await window.markupr.whisper.downloadModel('tiny');
+      const result = await window.markuprx.whisper.downloadModel('tiny');
       if (!result.success) {
         throw new Error(result.error || 'The local transcription model download failed.');
       }
-      const updated = await window.markupr.whisper.checkModel();
+      const updated = await window.markuprx.whisper.checkModel();
       setWhisperModelStatus(updated);
       if (!updated.hasAnyModel) {
         throw new Error('The downloaded local transcription model could not be verified.');
@@ -214,8 +214,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSettings((prev) => ({ ...prev, hotkeys: newHotkeys }));
       setHasChanges(true);
       try {
-        await window.markupr.settings.set('hotkeys', newHotkeys);
-        await window.markupr.hotkeys.updateConfig(newHotkeys);
+        await window.markuprx.settings.set('hotkeys', newHotkeys);
+        await window.markuprx.hotkeys.updateConfig(newHotkeys);
       } catch (error) {
         console.error('Failed to update hotkey:', error);
       }
@@ -240,7 +240,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     try {
       let candidateKey = openAiApiKey.value.trim();
       if (candidateKey === MASKED_API_KEY_PLACEHOLDER) {
-        const storedKey = await window.markupr.settings.getApiKey('openai');
+        const storedKey = await window.markuprx.settings.getApiKey('openai');
         if (!storedKey) {
           setOpenAiApiKey((prev) => ({
             ...prev, valid: false,
@@ -251,13 +251,13 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         candidateKey = storedKey.trim();
       }
       const validation = await withTimeout(
-        window.markupr.settings.testApiKey('openai', candidateKey),
+        window.markuprx.settings.testApiKey('openai', candidateKey),
         API_TEST_TIMEOUT_MS,
         'OpenAI API test timed out. Please try again.'
       );
       if (validation.valid) {
         const saved = await withTimeout(
-          window.markupr.settings.setApiKey('openai', candidateKey),
+          window.markuprx.settings.setApiKey('openai', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving OpenAI key timed out. Please try again.'
         );
@@ -269,7 +269,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
           return;
         }
         setOpenAiApiKey((prev) => ({ ...prev, valid: true }));
-        window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'api-key', provider: 'openai' } }));
+        window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'openai' } }));
       } else {
         setOpenAiApiKey((prev) => ({
           ...prev, valid: false,
@@ -299,7 +299,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     try {
       let candidateKey = anthropicApiKey.value.trim();
       if (candidateKey === MASKED_API_KEY_PLACEHOLDER) {
-        const storedKey = await window.markupr.settings.getApiKey('anthropic');
+        const storedKey = await window.markuprx.settings.getApiKey('anthropic');
         if (!storedKey) {
           setAnthropicApiKey((prev) => ({
             ...prev, valid: false,
@@ -310,13 +310,13 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         candidateKey = storedKey.trim();
       }
       const validation = await withTimeout(
-        window.markupr.settings.testApiKey('anthropic', candidateKey),
+        window.markuprx.settings.testApiKey('anthropic', candidateKey),
         API_TEST_TIMEOUT_MS,
         'Anthropic API test timed out. Please try again.'
       );
       if (validation.valid) {
         const saved = await withTimeout(
-          window.markupr.settings.setApiKey('anthropic', candidateKey),
+          window.markuprx.settings.setApiKey('anthropic', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving Anthropic key timed out. Please try again.'
         );
@@ -329,7 +329,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         }
         await refreshAnalysisProviders(true);
         setAnthropicApiKey((prev) => ({ ...prev, valid: true }));
-        window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'api-key', provider: 'anthropic' } }));
+        window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'anthropic' } }));
       } else {
         setAnthropicApiKey((prev) => ({
           ...prev, valid: false,
@@ -358,7 +358,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
     for (const [key, value] of Object.entries(defaults)) {
-      await window.markupr.settings.set(key as keyof AppSettings, value);
+      await window.markuprx.settings.set(key as keyof AppSettings, value);
     }
   }, []);
 
@@ -373,7 +373,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
     for (const [key, value] of Object.entries(defaults)) {
-      await window.markupr.settings.set(key as keyof AppSettings, value);
+      await window.markuprx.settings.set(key as keyof AppSettings, value);
     }
   }, []);
 
@@ -384,16 +384,16 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
     for (const [key, value] of Object.entries(defaults)) {
-      await window.markupr.settings.set(key as keyof AppSettings, value);
+      await window.markuprx.settings.set(key as keyof AppSettings, value);
     }
   }, []);
 
   const resetHotkeysSection = useCallback(async () => {
     const defaults = { ...DEFAULT_HOTKEY_CONFIG };
     setSettings((prev) => ({ ...prev, hotkeys: defaults }));
-    await window.markupr.settings.set('hotkeys', defaults);
+    await window.markuprx.settings.set('hotkeys', defaults);
     // @ts-expect-error - update may be named updateConfig in type definition
-    await (window.markupr.hotkeys.update ?? window.markupr.hotkeys.updateConfig)?.(defaults);
+    await (window.markuprx.hotkeys.update ?? window.markuprx.hotkeys.updateConfig)?.(defaults);
   }, []);
 
   const resetAdvancedSection = useCallback(async () => {
@@ -405,9 +405,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
     for (const [key, value] of Object.entries(defaults)) {
-      await window.markupr.settings.set(key as keyof AppSettings, value);
+      await window.markuprx.settings.set(key as keyof AppSettings, value);
     }
-    window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
+    window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
     await refreshAnalysisProviders(true);
   }, [refreshAnalysisProviders]);
 
@@ -417,12 +417,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const handleClearAllData = useCallback(async () => {
     try {
-      await window.markupr.settings.clearAllData();
+      await window.markuprx.settings.clearAllData();
       setSettings(DEFAULT_SETTINGS);
       setOpenAiApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnthropicApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnalysisProviderStatuses([]);
-      window.dispatchEvent(new CustomEvent('markupr:settings-updated', { detail: { type: 'reset' } }));
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'reset' } }));
     } catch (error) {
       console.error('Failed to clear data:', error);
     }
@@ -430,7 +430,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const handleExportSettings = useCallback(async () => {
     try {
-      await window.markupr.settings.export();
+      await window.markuprx.settings.export();
     } catch (error) {
       console.error('Failed to export settings:', error);
     }
@@ -438,7 +438,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const handleImportSettings = useCallback(async () => {
     try {
-      const imported = await window.markupr.settings.import();
+      const imported = await window.markuprx.settings.import();
       if (imported) {
         setSettings({ ...DEFAULT_SETTINGS, ...imported });
       }

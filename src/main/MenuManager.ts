@@ -1,7 +1,7 @@
 /**
  * MenuManager - Native macOS Menu Bar Integration
  *
- * Creates a polished, native-feeling menu bar experience for markupR:
+ * Creates a polished, native-feeling menu bar experience for MarkuprX:
  * - Standard macOS menus (File, Edit, View, Window, Help)
  * - Proper keyboard shortcuts matching Apple HIG
  * - Recent Sessions submenu with quick access
@@ -9,12 +9,12 @@
  * - Theme switching via View menu
  * - Auto-updater integration via Help menu
  *
- * This module follows the singleton pattern used throughout markupR.
+ * This module follows the singleton pattern used throughout MarkuprX.
  */
 
 import { Menu, app, shell, BrowserWindow, MenuItemConstructorOptions } from 'electron';
 import { sessionController } from './SessionController';
-import { settingsManager } from './settings/SettingsManager';
+import { getSettingsManager } from './settings/SettingsManager';
 
 // =============================================================================
 // Types
@@ -315,28 +315,28 @@ export class MenuManager {
           },
           { type: 'separator' },
           {
-            label: 'markupR Documentation',
+            label: 'MarkuprX Documentation',
             click: () =>
-              shell.openExternal('https://github.com/eddiesanjuan/markupr#readme'),
+              shell.openExternal('https://github.com/eddiesanjuan/markuprx#readme'),
           },
           {
             label: 'Release Notes',
             click: () =>
               shell.openExternal(
-                'https://github.com/eddiesanjuan/markupr/releases'
+                'https://github.com/eddiesanjuan/markuprx/releases'
               ),
           },
           { type: 'separator' },
           {
             label: 'Report Issue...',
             click: () =>
-              shell.openExternal('https://github.com/eddiesanjuan/markupr/issues'),
+              shell.openExternal('https://github.com/eddiesanjuan/markuprx/issues'),
           },
           {
             label: 'Feature Request...',
             click: () =>
               shell.openExternal(
-                'https://github.com/eddiesanjuan/markupr/discussions/new?category=ideas'
+                'https://github.com/eddiesanjuan/markuprx/discussions/new?category=ideas'
               ),
           },
           { type: 'separator' },
@@ -418,7 +418,7 @@ export class MenuManager {
     key: K
   ): import('./settings/SettingsManager').AppSettings[K] {
     try {
-      return settingsManager.get(key);
+      return getSettingsManager().get(key);
     } catch {
       // Return sensible defaults if settings not available
       const defaults: Record<string, unknown> = {
@@ -438,7 +438,7 @@ export class MenuManager {
     value: import('./settings/SettingsManager').AppSettings[K]
   ): void {
     try {
-      settingsManager.set(key, value);
+      getSettingsManager().set(key, value);
       this.buildMenu();
       // Notify renderer of setting change
       this.sendToRenderer('menu:setting-changed', { key, value });

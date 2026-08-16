@@ -1,5 +1,5 @@
 # Visual Regression
-# Records E2E test runs with xvfb + ffmpeg, then analyzes the recording with markupr
+# Records E2E test runs with xvfb + ffmpeg, then analyzes the recording with markuprx
 # to detect visual regressions and post a report on the PR.
 #
 # Setup:
@@ -51,7 +51,7 @@ jobs:
           wait $FFMPEG_PID 2>/dev/null || true
 
       - name: Analyze recording for visual issues
-        uses: eddiesanjuan/markupr-action@v1
+        uses: eddiesanjuan/markuprx-action@v1
         with:
           video-path: ./test-recording.mp4
           github-token: ${{ secrets.GITHUB_TOKEN }}

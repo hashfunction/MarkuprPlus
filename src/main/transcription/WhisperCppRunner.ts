@@ -107,11 +107,11 @@ async function ensureWhisperCppBinary(directory: string): Promise<string> {
   }
 
   if (directory.includes('app.asar.unpacked')) {
-    throw new Error('The packaged Whisper runtime is missing. Reinstall markupR and try again.');
+    throw new Error('The packaged Whisper runtime is missing. Reinstall MarkuprX and try again.');
   }
 
   if (!existsSync(join(directory, 'Makefile'))) {
-    throw new Error('The local Whisper runtime is missing. Reinstall markupR dependencies and try again.');
+    throw new Error('The local Whisper runtime is missing. Reinstall MarkuprX dependencies and try again.');
   }
 
   try {
@@ -144,7 +144,7 @@ function whisperRuntimeEnvironment(): NodeJS.ProcessEnv {
 export async function runWhisperCppOnSamples(
   input: WhisperCppRunInput,
 ): Promise<WhisperTranscriptResult[]> {
-  const workingDirectory = await mkdtemp(join(tmpdir(), 'markupr-whisper-'));
+  const workingDirectory = await mkdtemp(join(tmpdir(), 'markuprx-whisper-'));
   const wavPath = join(workingDirectory, 'input.wav');
   const outputBasePath = join(workingDirectory, 'result');
   const outputJsonPath = `${outputBasePath}.json`;

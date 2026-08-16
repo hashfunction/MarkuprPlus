@@ -11,7 +11,7 @@ describe('Whisper model selection', () => {
   const temporaryDirectories: string[] = [];
 
   async function createModelsDirectory(): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), 'markupr-whisper-'));
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-whisper-'));
     temporaryDirectories.push(directory);
     return directory;
   }

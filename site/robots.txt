@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://markupr.com/sitemap.xml
+Sitemap: https://markuprx.com/sitemap.xml

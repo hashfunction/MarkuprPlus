@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.eddiesanjuan/markupr",
+  "name": "io.github.eddiesanjuan/markuprx",
   "description": "Screen capture and voice recording MCP server for AI coding agents.",
   "repository": {
-    "url": "https://github.com/eddiesanjuan/markupr",
+    "url": "https://github.com/eddiesanjuan/markuprx",
     "source": "github"
   },
-  "version": "2.4.0",
+  "version": "3.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "markupr",
-      "version": "2.4.0",
+      "identifier": "markuprx",
+      "version": "3.0.0",
       "transport": {
         "type": "stdio"
       },

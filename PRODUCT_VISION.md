@@ -1,4 +1,4 @@
-# markupR Product Vision
+# MarkuprX Product Vision
 
 **Version 1.2** | February 2026
 **Author**: Eddie San Juan
@@ -24,9 +24,9 @@ Bug reporting tools assume something is *broken*. Development feedback captures 
 
 ---
 
-## What markupR Does
+## What MarkuprX Does
 
-markupR is a menu bar app that intelligently captures your development feedback. Press a hotkey, talk through what you see, and markupR records your screen while transcribing your voice in real time. When you stop, an intelligent post-processing pipeline correlates your transcript timestamps with the screen recording to extract the right frames at the right moments -- then stitches everything into a structured, AI-ready markdown document.
+MarkuprX is a menu bar app that intelligently captures your development feedback. Press a hotkey, talk through what you see, and MarkuprX records your screen while transcribing your voice in real time. When you stop, an intelligent post-processing pipeline correlates your transcript timestamps with the screen recording to extract the right frames at the right moments -- then stitches everything into a structured, AI-ready markdown document.
 
 One hotkey to start. One hotkey to stop. A markdown file with your words, contextually-placed screenshots, and intelligent structure -- ready to hand to your AI coding agent, paste into a GitHub issue, or drop in a Slack thread. The output isn't a transcript with screenshots attached. It's a document that understands the relationship between what you said and what was on screen.
 
@@ -48,7 +48,7 @@ You talk naturally:
 
 *"This button is way too small on mobile. And it's competing with the header -- look, they're practically overlapping."*
 
-You pause for a beat. markupR detects the silence -- about 1.2 seconds of quiet -- and captures a screenshot of exactly what you're looking at.
+You pause for a beat. MarkuprX detects the silence -- about 1.2 seconds of quiet -- and captures a screenshot of exactly what you're looking at.
 
 You scroll down.
 
@@ -75,7 +75,7 @@ Press `Cmd+Shift+F` again. The menu bar icon spins briefly while the session pro
 Everything is saved to an organized folder on your machine:
 
 ```
-~/markupr/sessions/2026-02-05_14-23-41/
+~/markuprx/sessions/2026-02-05_14-23-41/
   feedback.md
   screenshots/
     fb-001.png
@@ -124,12 +124,12 @@ The common thread: these are people who think faster than they type, test their 
 
 ### Free Tier (Open Source, MIT License)
 
-markupR is free and fully functional with no feature gates:
+MarkuprX is free and fully functional with no feature gates:
 
 - **Local Whisper transcription** runs entirely on your machine. No API key. No internet required after the initial model download (~500MB).
 - **BYOK (Bring Your Own Key)** for AI analysis. Plug in any API key you want -- Anthropic, OpenAI, whatever you prefer.
 - **All features unlocked.** Screenshots, transcription, markdown output, crash recovery, silence detection, manual capture -- everything works.
-- **Offline capable.** Once the Whisper model is downloaded, markupR works without a network connection.
+- **Offline capable.** Once the Whisper model is downloaded, MarkuprX works without a network connection.
 
 A donate button rotates through messages like "Buy Eddie a Taco" and "Fund Eddie's Caffeine Addiction" -- a single link to Ko-fi. It never blocks your workflow. It never nags. It's there if you feel like it.
 
@@ -150,13 +150,13 @@ This is not an OpenAI integration. The analysis is powered by Anthropic's Claude
 
 ## Design Principles
 
-**Zero-config first run.** markupR works the moment you open it. No API keys. No account creation. No onboarding wizard with seven steps. You click the menu bar icon, press the hotkey, and start talking.
+**Zero-config first run.** MarkuprX works the moment you open it. No API keys. No account creation. No onboarding wizard with seven steps. You click the menu bar icon, press the hotkey, and start talking.
 
-**Menu bar native.** No dock icon. No window chrome. markupR lives in your menu bar like a system utility. It's there when you need it and invisible when you don't. Inspired by how the Claude Status app behaves -- minimal, professional, out of the way.
+**Menu bar native.** No dock icon. No window chrome. MarkuprX lives in your menu bar like a system utility. It's there when you need it and invisible when you don't. Inspired by how the Claude Status app behaves -- minimal, professional, out of the way.
 
 **Never lose work.** Session state is written to disk every 5 seconds. If the app crashes, your data is recovered on restart. If your clipboard gets overwritten, the file is still on disk. If processing hangs, a watchdog timer forces recovery within 10 seconds. You will never lose a feedback session.
 
-**AI is the luxury, not the baseline.** The free tier is a complete, production-quality tool. AI analysis makes the output smarter and more structured, but markupR is useful without it. This is not a demo that upsells you.
+**AI is the luxury, not the baseline.** The free tier is a complete, production-quality tool. AI analysis makes the output smarter and more structured, but MarkuprX is useful without it. This is not a demo that upsells you.
 
 **Open source first.** MIT license. Fork it, improve it, ship it. Contributions welcome. The codebase is designed to be readable and well-documented. Community-driven development, not SaaS-driven.
 
@@ -166,7 +166,7 @@ This is not an OpenAI integration. The analysis is powered by Anthropic's Claude
 
 ## How It Works Under the Hood
 
-markupR is an Electron app with a React frontend. The recording session is governed by a 7-state finite state machine:
+MarkuprX is an Electron app with a React frontend. The recording session is governed by a 7-state finite state machine:
 
 **idle** -- ready to record
 **starting** -- initializing microphone and transcription (5-second timeout)
@@ -186,11 +186,11 @@ Transcription degrades gracefully:
 2. **Local Whisper** (default) -- runs on your machine, 90%+ accuracy, 1-2 second latency. No API key. No internet.
 3. **macOS Dictation** (emergency fallback) -- real-time, ~85% accuracy. Uses the system's built-in speech recognition.
 
-If OpenAI fails mid-session, markupR falls back to Whisper. If Whisper isn't available, it falls back to macOS Dictation. If nothing works, it continues capturing screenshots on a timer and saves whatever audio it has.
+If OpenAI fails mid-session, MarkuprX falls back to Whisper. If Whisper isn't available, it falls back to macOS Dictation. If nothing works, it continues capturing screenshots on a timer and saves whatever audio it has.
 
 ### Intelligent Screen Recording & Frame Extraction
 
-During a session, markupR continuously records your screen (up to 4K@30fps, VP9/VP8 encoded). Simultaneously, silence detection monitors audio input using RMS amplitude analysis -- when you pause for ~1.2 seconds, the system notes a capture point. You can also trigger a manual capture at any time with `Cmd+Shift+S`.
+During a session, MarkuprX continuously records your screen (up to 4K@30fps, VP9/VP8 encoded). Simultaneously, silence detection monitors audio input using RMS amplitude analysis -- when you pause for ~1.2 seconds, the system notes a capture point. You can also trigger a manual capture at any time with `Cmd+Shift+S`.
 
 The real intelligence happens in post-processing. When you end a session, the pipeline:
 
@@ -205,7 +205,7 @@ This means the output isn't just "screenshots taken during pauses" -- it's conte
 
 Session state persists to disk every 5 seconds. If the app is force-quit or crashes during a recording:
 
-1. On next launch, markupR detects the incomplete session.
+1. On next launch, MarkuprX detects the incomplete session.
 2. It presents a recovery dialog with the partial data.
 3. You can resume or discard the session.
 
@@ -213,9 +213,9 @@ This means even a power failure mid-session doesn't lose your work.
 
 ---
 
-## What Makes markupR Different
+## What Makes MarkuprX Different
 
-| | markupR | Loom | Jam.dev | Screenshots + Notes |
+| | MarkuprX | Loom | Jam.dev | Screenshots + Notes |
 |---|---|---|---|---|
 | Voice + Screen Recording | Yes | Video only | Browser only | Manual |
 | AI-Ready Output | Structured markdown | No | Partial | No |
@@ -226,7 +226,7 @@ This means even a power failure mid-session doesn't lose your work.
 | Open Source | MIT | No | No | N/A |
 | Output format | Markdown + images | MP4 | Web report | Scattered files |
 
-The core differentiator: markupR's intelligent pipeline understands the relationship between what you said and what was on screen, then produces a structured document optimized for AI consumption. Video files can't do that -- AI tools can't read them. Browser-only tools miss everything outside the browser. Manual note-taking breaks your flow. markupR captures everything, then intelligently assembles the output.
+The core differentiator: MarkuprX's intelligent pipeline understands the relationship between what you said and what was on screen, then produces a structured document optimized for AI consumption. Video files can't do that -- AI tools can't read them. Browser-only tools miss everything outside the browser. Manual note-taking breaks your flow. MarkuprX captures everything, then intelligently assembles the output.
 
 ---
 
@@ -268,10 +268,10 @@ The core differentiator: markupR's intelligent pipeline understands the relation
 
 ## The Vision in One Sentence
 
-markupR turns the way you naturally think about software -- talking through what you see -- into intelligently structured documents where every screenshot is placed exactly where it belongs, ready for humans and AI tools to act on immediately.
+MarkuprX turns the way you naturally think about software -- talking through what you see -- into intelligently structured documents where every screenshot is placed exactly where it belongs, ready for humans and AI tools to act on immediately.
 
 ---
 
 *Built by Eddie San Juan. Open source. MIT licensed.*
-*[github.com/eddiesanjuan/markupr](https://github.com/eddiesanjuan/markupr)*
+*[github.com/eddiesanjuan/markuprx](https://github.com/eddiesanjuan/markuprx)*
 *[ko-fi.com/eddiesanjuan](https://ko-fi.com/eddiesanjuan)*

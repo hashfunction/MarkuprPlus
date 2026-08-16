@@ -139,5 +139,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`markupR site serving on port ${PORT}`);
+  console.log(`MarkuprX site serving on port ${PORT}`);
 });

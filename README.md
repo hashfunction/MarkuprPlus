@@ -1,25 +1,25 @@
 <p align="center">
-  <img src="src/renderer/assets/logo.svg" alt="markupR" width="80" height="80">
+  <img src="src/renderer/assets/logo.svg" alt="MarkuprX" width="80" height="80">
 </p>
 
-<h1 align="center">markupR</h1>
+<h1 align="center">MarkuprX</h1>
 
 <p align="center">
   <strong>Record your screen. Say what's wrong. Your AI agent fixes it.</strong>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/markupr"><img src="https://img.shields.io/npm/v/markupr?style=flat-square" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/markupr"><img src="https://img.shields.io/npm/dm/markupr?style=flat-square" alt="npm downloads"></a>
-  <a href="https://github.com/eddiesanjuan/markupr/actions/workflows/ci.yml"><img src="https://github.com/eddiesanjuan/markupr/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/v/markuprx?style=flat-square" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/dm/markuprx?style=flat-square" alt="npm downloads"></a>
+  <a href="https://github.com/eddiesanjuan/markuprx/actions/workflows/ci.yml"><img src="https://github.com/eddiesanjuan/markuprx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
-  <a href="https://github.com/eddiesanjuan/markupr/stargazers"><img src="https://img.shields.io/github/stars/eddiesanjuan/markupr?style=flat-square" alt="GitHub stars"></a>
+  <a href="https://github.com/eddiesanjuan/markuprx/stargazers"><img src="https://img.shields.io/github/stars/eddiesanjuan/markuprx?style=flat-square" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#context-aware-capture-what-your-agent-actually-gets">Context-Aware Capture</a> &middot;
-  <a href="#why-markupr">Why markupR</a> &middot;
+  <a href="#why-markuprx">Why MarkuprX</a> &middot;
   <a href="#mcp-server">MCP Server</a> &middot;
   <a href="#cli">CLI</a> &middot;
   <a href="#integrations">Integrations</a> &middot;
@@ -29,7 +29,7 @@
 ---
 
 <p align="center">
-  <img src="assets/demo-cli.gif" alt="markupR desktop-to-report workflow demo" width="800">
+  <img src="assets/demo-cli.gif" alt="MarkuprX desktop-to-report workflow demo" width="800">
 </p>
 
 Desktop app workflow is the default: record + narrate + stop, then ship context-rich markdown (frames + cursor/window/focus hints when available) directly to your agent.
@@ -40,7 +40,7 @@ AI coding agents can't see your screen. When you find a bug, you context-switch 
 
 ## The Solution
 
-markupR is a desktop capture app first. You hit a hotkey, narrate what you see, and stop. Then it runs a post-session pipeline that aligns transcript timestamps with the recording, extracts the right frames, and outputs structured Markdown your agent can execute against immediately.
+MarkuprX is a desktop capture app first. You hit a hotkey, narrate what you see, and stop. Then it runs a post-session pipeline that aligns transcript timestamps with the recording, extracts the right frames, and outputs structured Markdown your agent can execute against immediately.
 
 - **Record** -- press a hotkey, talk through what you see
 - **Process** -- Whisper transcribes, ffmpeg extracts frames at the exact moments you described
@@ -55,25 +55,26 @@ Cmd+Shift+F  -->  talk  -->  Cmd+Shift+F  -->  Cmd+V into your agent
 
 ### Desktop App (recommended)
 
-Download from [markupr.com](https://markupr.com) or [GitHub Releases](https://github.com/eddiesanjuan/markupr/releases).
+Download from [markuprx.com](https://markuprx.com) or [GitHub Releases](https://github.com/eddiesanjuan/markuprx/releases).
 
-> **macOS install note:** Apple notarization is currently rolling out. If macOS warns on first launch, use **Right-click -> Open** once to trust the app. If needed, run: `xattr -dr com.apple.quarantine /Applications/markupR.app`
+> **macOS install note:** Apple notarization is currently rolling out. If macOS warns on first launch, use **Right-click -> Open** once to trust the app. If needed, run: `xattr -dr com.apple.quarantine /Applications/MarkuprX.app`
 
 1. Press `Cmd+Shift+F` (macOS) or `Ctrl+Shift+F` (Windows) to start
-2. Narrate what you see and mark shots when needed
-3. Press the hotkey again to stop
-4. Paste the generated report path into Claude Code, Cursor, Windsurf, or any coding agent
+2. Narrate what you see. Hold `Command` on macOS or `Control` on Windows and drag to mark the live screen.
+3. Release the key, then click normally to save and clear that issue while the click still reaches the app. Repeat for every finding.
+4. Press the recording hotkey again to stop.
+5. Paste the generated report path into Claude Code, Cursor, Windsurf, or any coding agent. Every marked issue includes its own screenshot and matching narration.
 
 ### MCP Server (for AI coding agents)
 
 ```bash
-npx --package markupr markupr-mcp
+npx --package markuprx markuprx-mcp
 ```
 
 ### CLI (for existing recordings / CI / automation)
 
 ```bash
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 ```
 
 Use this when you already have a video file. The desktop app remains the primary capture workflow.
@@ -89,7 +90,7 @@ Every important frame can carry extra machine-usable context, not just pixels.
 
 This makes the report a high-signal liaison between you and your agent: what you said, what you saw, and where your attention was.
 
-## Why markupR?
+## Why MarkuprX?
 
 **Local-first.** Whisper runs on your device. Your recordings, transcripts, and screenshots never leave your machine. No cloud dependency, no account required.
 
@@ -123,7 +124,7 @@ Each screenshot is extracted from the exact video frame matching your narration 
 
 ## MCP Server
 
-Give your AI coding agent eyes and ears. Add markupR as an MCP server and it can capture screenshots, record your screen with voice, and receive structured reports -- all mid-conversation.
+Give your AI coding agent eyes and ears. Add MarkuprX as an MCP server and it can capture screenshots, record your screen with voice, and receive structured reports -- all mid-conversation.
 
 ### Setup
 
@@ -132,9 +133,9 @@ Give your AI coding agent eyes and ears. Add markupR as an MCP server and it can
 ```json
 {
   "mcpServers": {
-    "markupR": {
+    "MarkuprX": {
       "command": "npx",
-      "args": ["--yes", "--package", "markupr", "markupr-mcp"]
+      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
   }
 }
@@ -175,40 +176,40 @@ Full MCP documentation: [README-MCP.md](README-MCP.md)
 
 ```bash
 # Run without installing
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 
 # Or install globally
-npm install -g markupr
+npm install -g markuprx
 ```
 
 ### Commands
 
-**`markupr analyze <video>`** -- Process an existing screen recording into structured Markdown.
+**`markuprx analyze <video>`** -- Process an existing screen recording into structured Markdown.
 
 ```bash
-markupr analyze ./bug-demo.mov
-markupr analyze ./recording.mov --output ./reports
-markupr analyze ./recording.mov --template github-issue
-markupr analyze ./recording.mov --no-frames  # transcript only
+markuprx analyze ./bug-demo.mov
+markuprx analyze ./recording.mov --output ./reports
+markuprx analyze ./recording.mov --template github-issue
+markuprx analyze ./recording.mov --no-frames  # transcript only
 ```
 
-**`markupr watch [directory]`** -- Watch for new recordings and auto-process them.
+**`markuprx watch [directory]`** -- Watch for new recordings and auto-process them.
 
 ```bash
-markupr watch ~/Desktop --output ./reports
+markuprx watch ~/Desktop --output ./reports
 ```
 
-**`markupr push github <report>`** -- Create GitHub issues from a feedback report.
+**`markuprx push github <report>`** -- Create GitHub issues from a feedback report.
 
 ```bash
-markupr push github ./report.md --repo myorg/myapp
-markupr push github ./report.md --repo myorg/myapp --dry-run
+markuprx push github ./report.md --repo myorg/myapp
+markuprx push github ./report.md --repo myorg/myapp --dry-run
 ```
 
-**`markupr push linear <report>`** -- Create Linear issues from a feedback report.
+**`markuprx push linear <report>`** -- Create Linear issues from a feedback report.
 
 ```bash
-markupr push linear ./report.md --team ENG
+markuprx push linear ./report.md --team ENG
 ```
 
 ### Output Templates
@@ -224,10 +225,10 @@ markupr push linear ./report.md --team ENG
 
 ### GitHub Action
 
-Run markupR in CI to get visual feedback on pull requests:
+Run MarkuprX in CI to get visual feedback on pull requests:
 
 ```yaml
-- uses: eddiesanjuan/markupr-action@v1
+- uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -269,8 +270,8 @@ For architecture details, see [CLAUDE.md](CLAUDE.md).
 ## Development
 
 ```bash
-git clone https://github.com/eddiesanjuan/markupr.git
-cd markupR
+git clone https://github.com/eddiesanjuan/markuprx.git
+cd MarkuprX
 npm install
 npm run dev
 ```
@@ -300,5 +301,5 @@ MIT -- see [LICENSE](LICENSE).
 
 <p align="center">
   Built by <a href="https://github.com/eddiesanjuan">Eddie San Juan</a><br>
-  <a href="https://markupr.com">markupr.com</a>
+  <a href="https://markuprx.com">markuprx.com</a>
 </p>

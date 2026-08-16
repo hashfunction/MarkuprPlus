@@ -96,7 +96,7 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
   app: {
     getPath: vi.fn(() => '/tmp'),
-    getName: vi.fn(() => 'markupr'),
+    getName: vi.fn(() => 'markuprx'),
     getVersion: vi.fn(() => '0.4.0'),
   },
 }));

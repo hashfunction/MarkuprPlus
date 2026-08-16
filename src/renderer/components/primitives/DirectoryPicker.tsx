@@ -9,7 +9,7 @@ export const DirectoryPicker: React.FC<{
 }> = ({ label, description, value, onChange }) => {
   const handleBrowse = useCallback(async () => {
     try {
-      const result = await window.markupr.settings.selectDirectory();
+      const result = await window.markuprx.settings.selectDirectory();
       if (result) {
         onChange(result);
       }

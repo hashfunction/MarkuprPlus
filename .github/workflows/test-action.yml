@@ -1,7 +1,7 @@
 # =============================================================================
-# Test markupr GitHub Action
+# Test markuprx GitHub Action
 # =============================================================================
-# Validates the markupr-action works correctly.
+# Validates the markuprx-action works correctly.
 # Runs on PRs that modify the action, and on manual dispatch.
 # =============================================================================
 
@@ -10,7 +10,7 @@ name: Test Action
 on:
   pull_request:
     paths:
-      - 'markupr-action/**'
+      - 'markuprx-action/**'
       - '.github/workflows/test-action.yml'
   workflow_dispatch:
     inputs:
@@ -36,14 +36,14 @@ jobs:
 
       - name: Verify action.yml exists and is valid YAML
         run: |
-          if [ ! -f markupr-action/action.yml ]; then
-            echo "::error::markupr-action/action.yml not found"
+          if [ ! -f markuprx-action/action.yml ]; then
+            echo "::error::markuprx-action/action.yml not found"
             exit 1
           fi
           # Basic YAML validation via python
           python3 -c "
           import yaml, sys
-          with open('markupr-action/action.yml') as f:
+          with open('markuprx-action/action.yml') as f:
               data = yaml.safe_load(f)
           assert 'inputs' in data, 'Missing inputs'
           assert 'outputs' in data, 'Missing outputs'
@@ -54,12 +54,12 @@ jobs:
 
       - name: Verify entrypoint.sh is executable-ready
         run: |
-          if [ ! -f markupr-action/entrypoint.sh ]; then
+          if [ ! -f markuprx-action/entrypoint.sh ]; then
             echo "::error::entrypoint.sh not found"
             exit 1
           fi
           # Check it has a shebang
-          head -1 markupr-action/entrypoint.sh | grep -q '^#!/' || {
+          head -1 markuprx-action/entrypoint.sh | grep -q '^#!/' || {
             echo "::error::entrypoint.sh missing shebang"
             exit 1
           }
@@ -69,7 +69,7 @@ jobs:
         run: |
           python3 -c "
           import yaml
-          with open('markupr-action/action.yml') as f:
+          with open('markuprx-action/action.yml') as f:
               data = yaml.safe_load(f)
           inputs = data.get('inputs', {})
           required = ['video-path', 'github-token']
@@ -112,9 +112,9 @@ jobs:
                  -y test-recording.mp4
           echo "Generated test video: $(ls -lh test-recording.mp4)"
 
-      - name: Run markupr analyze directly
+      - name: Run markuprx analyze directly
         run: |
-          npx --yes markupr@latest analyze test-recording.mp4 \
+          npx --yes markuprx@latest analyze test-recording.mp4 \
             --output ./test-output \
             --verbose || echo "::warning::Analysis exited with non-zero (expected for synthetic video)"
 
@@ -166,9 +166,9 @@ jobs:
 
       - name: Test entrypoint.sh directly
         run: |
-          chmod +x markupr-action/entrypoint.sh
+          chmod +x markuprx-action/entrypoint.sh
           INPUT_OUTPUT_DIR=./integration-output \
-            bash markupr-action/entrypoint.sh recordings/test.mp4 || {
+            bash markuprx-action/entrypoint.sh recordings/test.mp4 || {
               echo "::warning::Entrypoint exited non-zero (acceptable for synthetic video)"
             }
 
@@ -180,6 +180,6 @@ jobs:
       - name: Test directory processing
         run: |
           INPUT_OUTPUT_DIR=./dir-output \
-            bash markupr-action/entrypoint.sh recordings/ || {
+            bash markuprx-action/entrypoint.sh recordings/ || {
               echo "::warning::Directory processing exited non-zero (acceptable for synthetic)"
             }

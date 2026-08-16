@@ -33,7 +33,7 @@ const SoftwareUpdateSection: React.FC<{
     let cancelled = false;
     const load = async (): Promise<void> => {
       try {
-        const status = await window.markupr.updates.getStatus();
+        const status = await window.markuprx.updates.getStatus();
         if (!cancelled) {
           setUpdateStatus(status);
         }
@@ -44,7 +44,7 @@ const SoftwareUpdateSection: React.FC<{
     void load();
 
     // Subscribe to live update status changes
-    const unsubscribe = window.markupr.updates.onStatus((payload: UpdateStatusPayload) => {
+    const unsubscribe = window.markuprx.updates.onStatus((payload: UpdateStatusPayload) => {
       if (cancelled) return;
       setUpdateStatus((prev) => {
         if (!prev) return null;
@@ -79,7 +79,7 @@ const SoftwareUpdateSection: React.FC<{
     setIsChecking(true);
     setLastCheckResult(null);
     try {
-      await window.markupr.updates.check();
+      await window.markuprx.updates.check();
       // Result comes via the onStatus subscription above
       // Set a timeout in case no response comes
       setTimeout(() => {
@@ -99,7 +99,7 @@ const SoftwareUpdateSection: React.FC<{
 
   const handleDownload = useCallback(async () => {
     try {
-      await window.markupr.updates.download();
+      await window.markuprx.updates.download();
     } catch {
       // Error will come through onStatus
     }
@@ -107,7 +107,7 @@ const SoftwareUpdateSection: React.FC<{
 
   const handleInstall = useCallback(async () => {
     try {
-      await window.markupr.updates.install();
+      await window.markuprx.updates.install();
     } catch {
       // Error will come through onStatus
     }
@@ -121,7 +121,7 @@ const SoftwareUpdateSection: React.FC<{
   return (
     <SettingsSection
       title="Software Update"
-      description="Keep markupR up to date"
+      description="Keep MarkuprX up to date"
     >
       {/* Version Info */}
       <div style={styles.settingRow}>
@@ -166,7 +166,7 @@ const SoftwareUpdateSection: React.FC<{
               color: 'var(--text-secondary)',
               marginTop: 2,
             }}>
-              A new version of markupR is ready to download.
+              A new version of MarkuprX is ready to download.
             </span>
           </div>
           <button
@@ -263,7 +263,7 @@ const SoftwareUpdateSection: React.FC<{
               color: 'var(--text-secondary)',
               marginTop: 2,
             }}>
-              Restart markupR to apply the update. Your work will be saved.
+              Restart MarkuprX to apply the update. Your work will be saved.
             </span>
           </div>
           <button
@@ -340,7 +340,7 @@ const SoftwareUpdateSection: React.FC<{
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             Auto-updates unavailable (local build). Download the latest release from{' '}
             <a
-              href="https://github.com/eddiesanjuan/markupr/releases"
+              href="https://github.com/eddiesanjuan/markuprx/releases"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: 'var(--text-link)', textDecoration: 'underline' }}
@@ -415,7 +415,7 @@ export const GeneralTab: React.FC<{
     <SettingsSection title="Startup">
       <ToggleSetting
         label="Launch at Login"
-        description="Start markupR automatically when you log in"
+        description="Start MarkuprX automatically when you log in"
         value={settings.launchAtLogin}
         onChange={(value) => onSettingChange('launchAtLogin', value)}
       />

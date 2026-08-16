@@ -155,7 +155,7 @@ class TestableExportService {
 
     return {
       version: '1.0',
-      generator: 'markupr v2.0.0',
+      generator: 'markuprx v2.0.0',
       exportedAt: new Date().toISOString(),
       session: {
         id: session.id,
@@ -412,7 +412,7 @@ describe('ExportService (expanded)', () => {
       const parsed = JSON.parse(content!);
 
       expect(parsed.version).toBe('1.0');
-      expect(parsed.generator).toContain('markupr');
+      expect(parsed.generator).toContain('markuprx');
       expect(parsed.session.id).toBe('export-test-session');
       expect(parsed.session.items).toHaveLength(2);
     });

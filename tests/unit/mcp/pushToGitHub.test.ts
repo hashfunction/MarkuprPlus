@@ -144,7 +144,7 @@ describe('push_to_github MCP tool', () => {
         { title: 'FB-001: Button misaligned' },
         { title: 'FB-002: Slow load time' },
       ],
-      labelsCreated: ['markupr', 'bug'],
+      labelsCreated: ['markuprx', 'bug'],
       errors: [],
     });
 
@@ -158,7 +158,7 @@ describe('push_to_github MCP tool', () => {
     expect(result.content[0].text).toContain('Dry run');
     expect(result.content[0].text).toContain('2 issue(s) would be created');
     expect(result.content[0].text).toContain('FB-001: Button misaligned');
-    expect(result.content[0].text).toContain('Labels to create: markupr, bug');
+    expect(result.content[0].text).toContain('Labels to create: markuprx, bug');
   });
 
   it('formats created issues with numbers and URLs', async () => {
@@ -169,7 +169,7 @@ describe('push_to_github MCP tool', () => {
       created: [
         { number: 42, title: 'FB-001: Bug', url: 'https://github.com/test/app/issues/42' },
       ],
-      labelsCreated: ['markupr'],
+      labelsCreated: ['markuprx'],
       errors: [],
     });
 
@@ -182,7 +182,7 @@ describe('push_to_github MCP tool', () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain('Created 1 issue(s)');
     expect(result.content[0].text).toContain('#42: FB-001: Bug');
-    expect(result.content[0].text).toContain('Labels created: markupr');
+    expect(result.content[0].text).toContain('Labels created: markuprx');
   });
 
   it('reports partial errors from push', async () => {

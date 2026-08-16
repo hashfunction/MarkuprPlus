@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug to help us improve markupr
+about: Report a bug to help us improve markuprx
 title: '[Bug] '
 labels: bug
 assignees: ''
@@ -31,7 +31,7 @@ If applicable, add screenshots to help explain the problem.
 ## Environment
 
 - **OS**: [e.g., macOS 14.0, Windows 11]
-- **markupr Version**: [from Settings footer, e.g., 2.2.0]
+- **markuprx Version**: [from Settings footer, e.g., 2.2.0]
 - **Installation Method**: [e.g., DMG, installer, AppImage]
 
 ## Logs
@@ -52,5 +52,5 @@ Add any other context about the problem here.
 ## Checklist
 
 - [ ] I have searched existing issues to ensure this is not a duplicate
-- [ ] I have tried the latest version of markupr
+- [ ] I have tried the latest version of markuprx
 - [ ] I have included all relevant information above

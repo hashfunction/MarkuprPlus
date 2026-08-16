@@ -104,7 +104,7 @@ git commit -m "feat: add capture target geometry contracts"
 
 - [ ] **Step 1: Write failing parser and provider tests**
 
-Use representative Core Graphics, PowerShell, and `wmctrl -lGpx` output. Assert exact `window:<nativeId>:0` matching (including hexadecimal X11 IDs), retained front-to-back order, exclusion of markupR/current PID/system layers/zero-area windows, missing `wmctrl`, malformed output fallback to `[]`, and command timeout fallback.
+Use representative Core Graphics, PowerShell, and `wmctrl -lGpx` output. Assert exact `window:<nativeId>:0` matching (including hexadecimal X11 IDs), retained front-to-back order, exclusion of MarkuprX/current PID/system layers/zero-area windows, missing `wmctrl`, malformed output fallback to `[]`, and command timeout fallback.
 
 - [ ] **Step 2: Verify RED**
 

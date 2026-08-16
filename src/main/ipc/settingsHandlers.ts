@@ -194,8 +194,8 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
     const mainWindow = getMainWindow();
     const options: Electron.SaveDialogOptions = {
-      title: 'Export markupR Settings',
-      defaultPath: join(app.getPath('documents'), 'markupR-settings.json'),
+      title: 'Export MarkuprX Settings',
+      defaultPath: join(app.getPath('documents'), 'MarkuprX-settings.json'),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
     const result = mainWindow
@@ -219,7 +219,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
       const mainWindow = getMainWindow();
       const options: Electron.OpenDialogOptions = {
-        title: 'Import markupR Settings',
+        title: 'Import MarkuprX Settings',
         properties: ['openFile'],
         filters: [{ name: 'JSON', extensions: ['json'] }],
       };

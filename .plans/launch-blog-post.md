@@ -2,7 +2,7 @@
 
 1. **I built an MCP server that lets Claude Code see your screen**
 2. **Your AI coding agent is blind. Here's how to fix it.**
-3. **Screen recording for AI agents: introducing markupr**
+3. **Screen recording for AI agents: introducing markuprx**
 
 ---
 
@@ -12,7 +12,7 @@ You know that thing where you find a CSS bug, open your AI coding agent, and the
 
 Your agent can read every file in your codebase. It can grep, diff, and refactor. But it cannot look at your screen. You are the bottleneck, translating a visual problem into words so a language model can turn those words back into a fix.
 
-I built [markupr](https://github.com/eddiesanjuan/markupr) to close that gap.
+I built [markuprx](https://github.com/eddiesanjuan/markuprx) to close that gap.
 
 ## The Problem
 
@@ -28,7 +28,7 @@ Bug reports are hard to write well. We all know this. The current options:
 
 ## The Solution
 
-markupr records your screen while you narrate what's wrong. When you stop, it runs a pipeline:
+markuprx records your screen while you narrate what's wrong. When you stop, it runs a pipeline:
 
 1. **Whisper** transcribes your voice locally (nothing leaves your machine by default)
 2. **Transcript analysis** identifies key moments -- the timestamps where you described specific issues
@@ -64,23 +64,23 @@ Every screenshot is placed at exactly the point in the document where you were d
 Already have a screen recording? Process it from your terminal:
 
 ```bash
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 ```
 
 That's it. No install, no config. It transcribes the audio, identifies key moments, extracts frames, and writes a Markdown report to disk. Works with `.mov`, `.mp4`, and any format ffmpeg supports.
 
 ```bash
 # Output to a specific directory
-markupr analyze ./recording.mov --output ./reports
+markuprx analyze ./recording.mov --output ./reports
 
 # Use a GitHub Issues template
-markupr analyze ./recording.mov --template github-issue
+markuprx analyze ./recording.mov --template github-issue
 
 # Watch a folder and auto-process new recordings
-markupr watch ~/Desktop --output ./reports
+markuprx watch ~/Desktop --output ./reports
 
 # Push feedback items directly to GitHub Issues
-markupr push github ./report.md --repo myorg/myapp
+markuprx push github ./report.md --repo myorg/myapp
 ```
 
 Requirements: Node.js 18+ and ffmpeg on your PATH.
@@ -95,9 +95,9 @@ Add three lines to your Claude Code config:
 // ~/.claude/settings.json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["-y", "markupr-mcp"]
+      "args": ["-y", "markuprx-mcp"]
     }
   }
 }
@@ -120,7 +120,7 @@ Now your AI agent has access to these tools:
 
 ### 3. Desktop App: Hotkey-Driven Recording
 
-Download from [markupr.com](https://markupr.com) or [GitHub Releases](https://github.com/eddiesanjuan/markupr/releases). Available for macOS and Windows.
+Download from [markuprx.com](https://markuprx.com) or [GitHub Releases](https://github.com/eddiesanjuan/markuprx/releases). Available for macOS and Windows.
 
 The workflow is four keystrokes:
 
@@ -198,9 +198,9 @@ Screen + Voice --> Whisper (local) --> Timestamped transcript
 
 ## Open Source
 
-markupr is MIT licensed. No telemetry, no tracking, no analytics, no account required. Read the source, fork it, build on it.
+markuprx is MIT licensed. No telemetry, no tracking, no analytics, no account required. Read the source, fork it, build on it.
 
-The codebase is TypeScript end-to-end: Electron + React for the desktop app, esbuild bundles for the CLI and MCP server. Tests run on Vitest. The [CLAUDE.md](https://github.com/eddiesanjuan/markupr/blob/main/CLAUDE.md) in the repo root is a full architecture guide if you want to contribute.
+The codebase is TypeScript end-to-end: Electron + React for the desktop app, esbuild bundles for the CLI and MCP server. Tests run on Vitest. The [CLAUDE.md](https://github.com/eddiesanjuan/markuprx/blob/main/CLAUDE.md) in the repo root is a full architecture guide if you want to contribute.
 
 What's next: more output templates, better key-moment detection, and deeper IDE integrations. But I am not going to overpromise a roadmap. The tool works now, and I ship updates fast.
 
@@ -208,28 +208,28 @@ What's next: more output templates, better key-moment detection, and deeper IDE 
 
 **CLI** (zero install):
 ```bash
-npx markupr analyze ./recording.mov
+npx markuprx analyze ./recording.mov
 ```
 
 **MCP Server** (for Claude Code, Cursor, Windsurf):
 ```json
 {
   "mcpServers": {
-    "markupr": {
+    "markuprx": {
       "command": "npx",
-      "args": ["-y", "markupr-mcp"]
+      "args": ["-y", "markuprx-mcp"]
     }
   }
 }
 ```
 
 **Desktop App:**
-[markupr.com](https://markupr.com) | [GitHub Releases](https://github.com/eddiesanjuan/markupr/releases)
+[markuprx.com](https://markuprx.com) | [GitHub Releases](https://github.com/eddiesanjuan/markuprx/releases)
 
 **Source:**
-[github.com/eddiesanjuan/markupr](https://github.com/eddiesanjuan/markupr)
+[github.com/eddiesanjuan/markuprx](https://github.com/eddiesanjuan/markuprx)
 
-If markupr saves you a debugging session, star the repo. If you find a bug, open an issue. If you want to contribute, the `good first issue` label has your name on it.
+If markuprx saves you a debugging session, star the repo. If you find a bug, open an issue. If you want to contribute, the `good first issue` label has your name on it.
 
 ---
 
