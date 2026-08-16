@@ -144,6 +144,15 @@ const screenTarget: CaptureTarget = {
   displayId: '1',
   displayBounds: { x: 0, y: 0, width: 1920, height: 1080 },
 };
+const windowTarget: CaptureTarget = {
+  kind: 'window',
+  sourceId: 'window:703:0',
+  sourceName: 'Android Emulator - Medium_Phone_API_36.1:5554',
+  nativeWindowId: '703',
+  appName: 'qemu-system-aarch64',
+  bounds: { x: 960, y: 58, width: 552, height: 922 },
+  geometryAvailable: true,
+};
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
 
 // ---------------------------------------------------------------------------
@@ -214,6 +223,24 @@ describe('ScreenRecordingRenderer', () => {
 
       expect(mockCaptureIPC.getSources).not.toHaveBeenCalled();
       expect(compositor.start).toHaveBeenCalledWith(rawStream, screenTarget);
+      expect(mockRecorderInstance.stream).toBe(composedStream);
+    });
+
+    it('acquires window targets once without display-size constraints', async () => {
+      await renderer.start({ sessionId: 'sess-1', target: windowTarget });
+
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        audio: false,
+        video: {
+          cursor: 'never',
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: windowTarget.sourceId,
+          },
+        },
+      });
+      expect(compositor.start).toHaveBeenCalledWith(rawStream, windowTarget);
       expect(mockRecorderInstance.stream).toBe(composedStream);
     });
 

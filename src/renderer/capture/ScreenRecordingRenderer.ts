@@ -204,7 +204,8 @@ export class ScreenRecordingRenderer {
       }
     }
 
-    for (const highQuality of [true, false]) {
+    const qualityAttempts = target.kind === 'window' ? [false] : [true, false];
+    for (const highQuality of qualityAttempts) {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia(
