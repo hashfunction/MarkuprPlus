@@ -14,7 +14,7 @@ The product will also be rebranded from its previous name to MarkuprX/markuprx a
 - On macOS, make Command-held primary-button drags draw over the selected recording target.
 - Use Control as the corresponding modifier on Windows. Retain the existing explicit Draw control as a fallback where a reliable global modifier observer is unavailable.
 - Never require a persistent mouse-blocking drawing mode for the primary workflow.
-- Clear visible marks on the next unmodified primary click inside the captured area while allowing that click to reach the underlying application.
+- Clear visible marks on the next unmodified primary click anywhere while allowing that click to reach its underlying target.
 - Treat all Command-held strokes made before the next ordinary click as one marked issue.
 - Capture the marked screen before navigation can change it.
 - Associate spoken comments with the correct marked issue deterministically.
@@ -90,7 +90,7 @@ Rules:
 - If the modifier is released before the browser overlay receives `pointerup`, the main process ends the active stroke at the latest validated cursor position.
 - Releasing the modifier makes the overlay click-through immediately, then asks the compositor for a candidate screenshot after a render barrier.
 - Additional modified strokes update the same candidate until an ordinary click commits it.
-- An unmodified primary-button transition inside the capture bounds commits only when at least one completed stroke exists. It then broadcasts `clear` regardless of report-processing latency.
+- An unmodified primary-button transition anywhere commits only when at least one completed stroke exists. It then broadcasts `clear` regardless of report-processing latency.
 - The ordinary click is never synthesized or replayed: the overlay is already ignoring mouse events, so the OS delivers the original click to the underlying application.
 - Tool-control clicks occur while the modifier is held and are excluded from stroke and issue-finalization logic.
 - Pausing ends an in-progress stroke at the latest validated point, captures its candidate if it is valid, preserves completed marks without committing the issue, and forces click-through mode. Resuming starts in click-through mode with that issue still pending.
@@ -184,7 +184,7 @@ Report generation remains useful when AI analysis is unavailable: marked issue g
 - Selected source ends: retain all committed issues and use the existing fail-closed recording cleanup.
 - Pause/cancel/stop/crash: stop the monitor and destroy overlays idempotently.
 
-Raw global input is not persisted. Only modifier transitions, primary-button transitions inside the selected capture bounds, and normalized cursor points needed for strokes are processed. No keystroke content is observed. Existing content protection and exact-source capture guarantees remain in place.
+Raw global input is not persisted. Only modifier transitions, primary-button transitions while a recording is active, and normalized cursor points needed for strokes are processed. No keystroke content is observed. Existing content protection and exact-source capture guarantees remain in place.
 
 ## Complete MarkuprX Rebrand
 
@@ -257,7 +257,7 @@ The UI suite will verify onboarding, permissions guidance, target selection, HUD
 1. Without Command or Control held, the selected application receives ordinary mouse interaction and MarkuprX does not focus or intercept it.
 2. Holding the platform modifier before dragging draws over the current selected capture target.
 3. Releasing the modifier restores click-through behavior and preserves the visible marks.
-4. The next unmodified primary click inside the capture target reaches the underlying application, commits one issue, and clears the marks.
+4. The next unmodified primary click reaches its underlying target, commits one issue, and clears the marks regardless of where the reviewer clicks.
 5. Multiple strokes before the ordinary click appear in one marked screenshot; strokes after it appear in a separate issue.
 6. Stopping with uncommitted marks commits a final issue.
 7. Each committed issue appears separately in the report with the correct marked screenshot and spoken comment or explicit narration status.
