@@ -171,4 +171,18 @@ describe('MarkedIssueArtifactStore', () => {
     await expect(stat(staging)).resolves.toBeDefined();
     expect(await readdir(staging)).toEqual([]);
   });
+
+  it('preserves an explicitly recoverable session during startup cleanup', async () => {
+    const root = await temporaryRoot();
+    const staging = join(root, 'staging');
+    const store = new MarkedIssueArtifactStore(staging);
+    const staleSession = '223e4567-e89b-42d3-a456-426614174000';
+    await store.stageCandidate(SESSION_ID, 1, PNG);
+    await store.stageCandidate(staleSession, 1, PNG);
+
+    await store.cleanupStaleSessions([SESSION_ID]);
+
+    expect(await readdir(staging)).toEqual([SESSION_ID]);
+    expect(await readdir(join(staging, SESSION_ID))).toEqual(['candidate-1.png']);
+  });
 });

@@ -99,10 +99,12 @@ import {
   appendTranscriptionFailureToReport,
   syncExtractedFrameMetadata,
   syncExtractedFrameSummary,
+  syncMarkedIssueMetadata,
   writeProcessingTrace,
 } from './output/MarkdownPatcher';
 import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
 import {
+  attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
   nearestCaptureContext,
 } from './pipeline/CaptureMomentHints';
@@ -423,6 +425,7 @@ function mapToTrayState(state: SessionState): TrayState {
 function handleSessionStateChange(state: SessionState, session: Session | null): void {
   console.log(`[Main] Session state changed: ${state}`);
   if (state === 'idle') annotationCueTracker.clear();
+  if (state === 'stopping') captureOverlayManager.finalizePendingIssue();
   if (state === 'stopping' || state === 'processing' || state === 'complete'
     || state === 'error' || state === 'idle') {
     captureOverlayManager.endAnnotation();
@@ -489,6 +492,15 @@ function handleMarkedIssueCommitted(issue: MarkedIssuePayload): void {
       issue.snapshotRevision,
       issue.ordinal,
     );
+    const issues = sessionController.getMarkedIssues();
+    const nextIssues = issues.some((existing) => existing.id === issue.id)
+      ? issues.map((existing) => existing.id === issue.id ? issue : existing)
+      : [...issues, issue];
+    sessionController.setMarkedIssues(nextIssues);
+    crashRecovery.updateSession({
+      markedIssues: nextIssues,
+      screenshotCount: sessionController.getStatus().screenshotCount,
+    });
   } catch (error) {
     console.warn('[Main] Failed to reserve marked screenshot candidate:', error);
   }
@@ -1003,6 +1015,7 @@ async function startSession(sourceId?: CaptureTarget | string, sourceName?: stri
         sourceId: session.sourceId,
         sourceName: resolvedSourceName || 'Unknown Source',
         screenshotCount: 0,
+        markedIssues: [],
         metadata: {
           appVersion: app.getVersion(),
           platform: process.platform,
@@ -1047,6 +1060,9 @@ async function stopSession(): Promise<{
   let stopPhasePercent = 6;
 
   const cleanupRecordingArtifacts = async (sessionId: string): Promise<void> => {
+    await getMarkedIssueArtifactStore().cleanupSession(sessionId).catch((error) => {
+      console.warn('[Main] Failed to clean marked screenshot staging:', error);
+    });
     const artifact = await finalizeScreenRecording(sessionId).catch(() => null);
     if (!artifact?.tempPath) {
       deleteFinalizedRecording(sessionId);
@@ -1117,12 +1133,13 @@ async function stopSession(): Promise<{
     const recordingProbe = getScreenRecordingSnapshot(session.id);
     const hasTranscript = session.transcriptBuffer.some((entry) => entry.text.trim().length > 0);
     const hasRecording = !!recordingProbe && recordingProbe.bytesWritten > 0;
+    const hasMarkedIssues = (session.metadata.markedIssues?.length ?? 0) > 0;
     const recordingExtension = hasRecording
       ? extname(recordingProbe?.tempPath ?? '') || extensionFromMimeType(recordingProbe?.mimeType)
       : '.webm';
     const recordingFilename = `session-recording${recordingExtension}`;
 
-    if (!hasTranscript && !hasRecording) {
+    if (!hasTranscript && !hasRecording && !hasMarkedIssues) {
       await cleanupRecordingArtifacts(session.id);
       sessionController.clearCapturedAudio();
       windowsTaskbar?.clearProgress();
@@ -1210,6 +1227,25 @@ async function stopSession(): Promise<{
     }
     emitProcessingProgress(64, 'saving');
 
+    let finalizedMarkedIssues = structuredClone(session.metadata.markedIssues ?? []);
+    if (finalizedMarkedIssues.length > 0) {
+      try {
+        finalizedMarkedIssues = await getMarkedIssueArtifactStore().promoteIssues(
+          session.id,
+          finalizedMarkedIssues,
+          saveResult.sessionDir,
+        );
+      } catch (error) {
+        console.warn('[Main] Failed to promote marked screenshots; recorded-video fallback will be attempted:', error);
+        finalizedMarkedIssues = finalizedMarkedIssues.map((issue) => ({
+          ...issue,
+          evidenceWarning: 'Direct marked screenshot unavailable; using recorded-video fallback.',
+        }));
+      }
+      session.metadata.markedIssues = structuredClone(finalizedMarkedIssues);
+      sessionController.setMarkedIssues(finalizedMarkedIssues);
+    }
+
     console.log('[Main:stopSession] Step 4/6: Attaching recording and audio artifacts...');
     const recordingArtifact = await attachRecordingToSessionOutput(
       session.id,
@@ -1258,6 +1294,7 @@ async function stopSession(): Promise<{
     const annotationMomentHints = captureContextsToKeyMoments(
       captureContexts,
       session.metadata.videoStartTime || recordingArtifact?.startTime || session.startTime,
+      finalizedMarkedIssues,
     );
     const frameMomentHints = [...aiMomentHints, ...annotationMomentHints];
     aiFrameHintCount = aiMomentHints.length;
@@ -1297,6 +1334,10 @@ async function stopSession(): Promise<{
             postProcessResult.extractedFrames,
             captureContexts
           );
+          finalizedMarkedIssues = attachFallbackFramesToMarkedIssues(
+            finalizedMarkedIssues,
+            postProcessResult.extractedFrames,
+          );
         }
 
         console.log(
@@ -1315,6 +1356,24 @@ async function stopSession(): Promise<{
       }
     } else {
       console.log('[Main:stopSession] Step 5/6 skipped: no audio or recording artifacts available');
+    }
+
+    if (finalizedMarkedIssues.length > 0) {
+      finalizedMarkedIssues = attachFallbackFramesToMarkedIssues(
+        finalizedMarkedIssues,
+        postProcessResult?.extractedFrames ?? [],
+      );
+      session.metadata.markedIssues = structuredClone(finalizedMarkedIssues);
+      sessionController.setMarkedIssues(finalizedMarkedIssues);
+      const ordinaryFrameCount = postProcessResult?.extractedFrames
+        .filter((frame) => !frame.markedIssueId).length ?? 0;
+      const markedEvidenceCount = finalizedMarkedIssues
+        .filter((issue) => Boolean(issue.screenshotPath)).length;
+      await syncMarkedIssueMetadata(
+        saveResult.sessionDir,
+        finalizedMarkedIssues,
+        ordinaryFrameCount + markedEvidenceCount,
+      );
     }
     emitProcessingProgress(93, 'generating-report');
 
@@ -1481,6 +1540,9 @@ function cancelSession(): { success: boolean } {
   crashRecovery.stopTracking();
 
   if (currentSessionId) {
+    void getMarkedIssueArtifactStore().cleanupSession(currentSessionId).catch((error) => {
+      console.warn('[Main] Failed to clean canceled marked screenshots:', error);
+    });
     void finalizeScreenRecording(currentSessionId).then(async (artifact) => {
       if (artifact?.tempPath) {
         await fs.unlink(artifact.tempPath).catch(() => {
@@ -1627,6 +1689,26 @@ app.whenReady().then(async () => {
   await crashRecovery.initialize();
   console.log('[Main] Crash recovery initialized');
 
+  const incompleteSession = crashRecovery.getIncompleteSession();
+  await getMarkedIssueArtifactStore()
+    .cleanupStaleSessions(incompleteSession ? [incompleteSession.id] : [])
+    .catch((error) => {
+      console.warn('[Main] Failed to clean stale marked screenshot staging:', error);
+    });
+  if (incompleteSession?.markedIssues) {
+    for (const issue of incompleteSession.markedIssues) {
+      try {
+        getMarkedIssueArtifactStore().markCommitted(
+          incompleteSession.id,
+          issue.snapshotRevision,
+          issue.ordinal,
+        );
+      } catch (error) {
+        console.warn('[Main] Failed to restore marked screenshot reservation:', error);
+      }
+    }
+  }
+
   // 2. Initialize settings manager
   settingsManager = new SettingsManager();
   console.log('[Main] Settings loaded');
@@ -1693,6 +1775,9 @@ app.whenReady().then(async () => {
     getHostWindow: () => mainWindow,
     onAnnotationEvent: handleAnnotationEvent,
     onMarkedIssueCommitted: handleMarkedIssueCommitted,
+    onMarkedIssueAccumulatorChanged: (snapshot) => {
+      crashRecovery.updateSession({ markedIssueAccumulator: snapshot });
+    },
     isAnnotationEnabled: () => sessionController.getState() === 'recording'
       && !sessionController.isSessionPaused(),
   });

@@ -9,7 +9,7 @@
  * - Edge cases (empty timestamps, single frame, etc.)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // =============================================================================
 // Mock child_process
@@ -31,17 +31,13 @@ vi.mock('util', async (importOriginal) => {
   const actual = await importOriginal<typeof import('util')>();
   return {
     ...actual,
-    promisify: (fn: unknown) => mockExecFile,
+    promisify: (_fn: unknown) => mockExecFile,
   };
 });
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(() => true),
   mkdirSync: vi.fn(),
-}));
-
-vi.mock('fs/promises', () => ({
-  stat: vi.fn(() => Promise.resolve({ size: 1024 })),
 }));
 
 // =============================================================================

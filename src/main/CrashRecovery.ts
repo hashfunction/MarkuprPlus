@@ -14,8 +14,12 @@ import Store from 'electron-store';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
-import { IPC_CHANNELS } from '../shared/types';
+import {
+  IPC_CHANNELS,
+  type MarkedIssuePayload,
+} from '../shared/types';
 import { errorHandler } from './ErrorHandler';
+import type { MarkedIssueAccumulatorSnapshot } from './capture/MarkedIssueAccumulator';
 
 // ============================================================================
 // Types
@@ -34,6 +38,8 @@ export interface RecoverableSession {
   sourceId: string;
   sourceName: string;
   screenshotCount: number;
+  markedIssues?: MarkedIssuePayload[];
+  markedIssueAccumulator?: MarkedIssueAccumulatorSnapshot;
   metadata: {
     appVersion: string;
     platform: string;
@@ -106,7 +112,7 @@ const store = new Store<CrashRecoveryStoreSchema>({
 // CrashRecoveryManager Class
 // ============================================================================
 
-class CrashRecoveryManager {
+export class CrashRecoveryManager {
   private saveInterval: NodeJS.Timeout | null = null;
   private currentSession: RecoverableSession | null = null;
   private mainWindow: BrowserWindow | null = null;
@@ -269,6 +275,10 @@ class CrashRecoveryManager {
 
     this.currentSession = {
       ...session,
+      markedIssues: structuredClone(session.markedIssues ?? []),
+      ...(session.markedIssueAccumulator
+        ? { markedIssueAccumulator: structuredClone(session.markedIssueAccumulator) }
+        : {}),
       lastSaveTime: Date.now(),
       metadata: {
         appVersion: app.getVersion(),
@@ -302,6 +312,12 @@ class CrashRecoveryManager {
     this.currentSession = {
       ...this.currentSession,
       ...updates,
+      ...(updates.markedIssues
+        ? { markedIssues: structuredClone(updates.markedIssues) }
+        : {}),
+      ...(updates.markedIssueAccumulator
+        ? { markedIssueAccumulator: structuredClone(updates.markedIssueAccumulator) }
+        : {}),
       lastSaveTime: Date.now(),
       metadata: {
         ...this.currentSession.metadata,
@@ -376,7 +392,8 @@ class CrashRecoveryManager {
    * Check if there's an incomplete session to recover
    */
   getIncompleteSession(): RecoverableSession | null {
-    return store.get('activeSession') || null;
+    const session = store.get('activeSession');
+    return session ? structuredClone(session) : null;
   }
 
   /**

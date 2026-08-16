@@ -179,11 +179,17 @@ export class MarkedIssueArtifactStore {
     });
   }
 
-  async cleanupStaleSessions(): Promise<void> {
+  async cleanupStaleSessions(preserveSessionIds: string[] = []): Promise<void> {
+    preserveSessionIds.forEach(validateSessionId);
+    const preserved = new Set(preserveSessionIds);
     await Promise.allSettled([...this.sessionChains.values()]);
-    await rm(this.stagingRoot, { recursive: true, force: true });
     await mkdir(this.stagingRoot, { recursive: true });
-    this.committedRevisions.clear();
+    const entries = await readdir(this.stagingRoot);
+    await Promise.all(entries.map(async (name) => {
+      if (preserved.has(name)) return;
+      await rm(join(this.stagingRoot, name), { recursive: true, force: true });
+      this.committedRevisions.delete(name);
+    }));
   }
 
   private stagingSessionDir(sessionId: string): string {

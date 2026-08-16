@@ -1,23 +1,49 @@
-import type { CaptureContextSnapshot } from '../../shared/types';
+import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 import type { KeyMoment } from './TranscriptAnalyzer';
+import { basename } from 'node:path';
 
-/** A short delay lets the compositor present the completed stroke before ffmpeg samples it. */
-const ANNOTATION_SETTLE_SECONDS = 0.15;
+interface MarkedIssueFrame {
+  path: string;
+  markedIssueId?: string;
+}
+
+export function attachFallbackFramesToMarkedIssues(
+  issues: MarkedIssuePayload[],
+  frames: MarkedIssueFrame[],
+): MarkedIssuePayload[] {
+  const frameByIssueId = new Map(
+    frames
+      .filter((frame): frame is MarkedIssueFrame & { markedIssueId: string } =>
+        Boolean(frame.markedIssueId))
+      .map((frame) => [frame.markedIssueId, frame]),
+  );
+
+  return structuredClone(issues).map((issue) => {
+    if (issue.screenshotPath) return issue;
+    const fallback = frameByIssueId.get(issue.id);
+    if (fallback) {
+      issue.screenshotPath = `screenshots/${basename(fallback.path)}`;
+      delete issue.evidenceWarning;
+      return issue;
+    }
+    issue.evidenceWarning = 'No marked screenshot could be recovered for this issue.';
+    return issue;
+  });
+}
 
 export function captureContextsToKeyMoments(
-  contexts: CaptureContextSnapshot[],
+  _contexts: CaptureContextSnapshot[],
   videoStartTime: number,
+  markedIssues: MarkedIssuePayload[] = [],
 ): KeyMoment[] {
   if (!Number.isFinite(videoStartTime)) return [];
-  return contexts
-    .filter((context) => context.trigger === 'annotation'
-      && Boolean(context.annotation)
-      && Number.isFinite(context.recordedAt))
-    .map((context): KeyMoment => ({
-      timestamp: Math.max(0, (context.recordedAt - videoStartTime) / 1000)
-        + ANNOTATION_SETTLE_SECONDS,
-      reason: `Annotation completed: ${context.annotation!.tool}`,
+  return markedIssues
+    .filter((issue) => !issue.screenshotPath && Number.isFinite(issue.fallbackVideoTimestamp))
+    .map((issue): KeyMoment => ({
+      timestamp: Math.max(0, issue.fallbackVideoTimestamp),
+      reason: `Marked issue MX-${String(issue.ordinal).padStart(3, '0')}`,
       confidence: 1,
+      markedIssueId: issue.id,
     }))
     .sort((left, right) => left.timestamp - right.timestamp);
 }

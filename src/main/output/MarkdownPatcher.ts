@@ -13,6 +13,7 @@ import type {
   AnalysisConnection,
   AnalysisProvider,
   CaptureContextSnapshot,
+  MarkedIssuePayload,
   TranscriptionFailure,
 } from '../../shared/types';
 
@@ -308,6 +309,30 @@ export async function syncExtractedFrameMetadata(
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
   } catch (error) {
     console.warn('[Main] Failed to sync extracted frame metadata:', error);
+  }
+}
+
+/** Persist finalized, identity-bearing marked issues after evidence promotion/fallback. */
+export async function syncMarkedIssueMetadata(
+  sessionDir: string,
+  markedIssues: MarkedIssuePayload[],
+  screenshotCount: number,
+): Promise<void> {
+  const metadataPath = join(sessionDir, 'metadata.json');
+  try {
+    const raw = await fs.readFile(metadataPath, 'utf-8');
+    const metadata = JSON.parse(raw) as {
+      markedIssues?: MarkedIssuePayload[];
+      screenshotCount?: number;
+    };
+    metadata.markedIssues = structuredClone(markedIssues);
+    metadata.screenshotCount = Math.max(
+      Number.isFinite(metadata.screenshotCount) ? Number(metadata.screenshotCount) : 0,
+      Math.max(0, screenshotCount),
+    );
+    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+  } catch (error) {
+    console.warn('[Main] Failed to sync marked issue metadata:', error);
   }
 }
 

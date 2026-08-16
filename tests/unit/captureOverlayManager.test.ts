@@ -590,6 +590,32 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     expect(committedIssues[0]).toMatchObject({ strokeIds: ['before-pause'] });
   });
 
+  it('snapshots and commits one final pending issue when recording stops', async () => {
+    const { manager, windows, host, inputMonitor, committedIssues } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget, 500);
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
+    manager.submitAnnotationEvent(windows[0].webContents.id, {
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'at-stop', tool: 'circle', color: '#0a84ff', width: 0.007,
+        points: [{ x: 0.3, y: 0.4 }],
+      },
+    });
+    host.webContents.send.mockClear();
+
+    expect(manager.finalizePendingIssue(1_500)).toMatchObject({
+      id: 'marked-issue-001', strokeIds: ['at-stop'], snapshotRevision: 1,
+    });
+    expect(manager.finalizePendingIssue(1_600)).toBeNull();
+
+    const sentTypes = host.webContents.send.mock.calls
+      .filter((call) => call[0].includes('annotation-event'))
+      .map((call) => (call[1] as AnnotationEvent).type);
+    expect(sentTypes).toEqual(['stroke-end', 'mode', 'snapshot-request', 'clear']);
+    expect(committedIssues).toHaveLength(1);
+  });
+
   it('routes only active-session annotation events from its annotation window', async () => {
     const { manager, windows, host } = createHarness();
     await manager.beginAnnotation('session-1', windowTarget);

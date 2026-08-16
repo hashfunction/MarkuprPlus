@@ -90,4 +90,22 @@ describe('TranscriptAnalyzer', () => {
     expect(result.some((moment) => moment.timestamp === 2.6 && /highlight/.test(moment.reason))).toBe(true);
     expect(result.some((moment) => moment.timestamp === 2 && /circle/.test(moment.reason))).toBe(false);
   });
+
+  it('preserves every separate marked issue outside the ordinary 20-frame cap and dedupe window', () => {
+    const analyzer = new TranscriptAnalyzer();
+    const marked: KeyMoment[] = Array.from({ length: 25 }, (_, index) => ({
+      timestamp: 5 + index * 0.05,
+      reason: `Marked issue MX-${String(index + 1).padStart(3, '0')}`,
+      confidence: 1,
+      markedIssueId: `marked-issue-${String(index + 1).padStart(3, '0')}`,
+    }));
+
+    const result = analyzer.analyze(makeSegments(), marked);
+
+    expect(result.filter((moment) => moment.markedIssueId)).toHaveLength(25);
+    expect(new Set(result.flatMap((moment) => moment.markedIssueId ?? []))).toEqual(
+      new Set(marked.map((moment) => moment.markedIssueId)),
+    );
+    expect(result.filter((moment) => !moment.markedIssueId).length).toBeLessThanOrEqual(20);
+  });
 });

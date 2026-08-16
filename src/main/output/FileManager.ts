@@ -58,6 +58,7 @@ interface StoredSessionMetadata {
     version: string;
   };
   captureContexts?: Session['metadata']['captureContexts'];
+  markedIssues?: Session['metadata']['markedIssues'];
 }
 
 /**
@@ -351,6 +352,7 @@ export class FileManager {
         version: app.getVersion(),
       },
       captureContexts: session.metadata?.captureContexts?.slice(-400),
+      markedIssues: structuredClone(session.metadata?.markedIssues ?? []),
     };
 
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');

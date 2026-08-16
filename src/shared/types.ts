@@ -1140,6 +1140,8 @@ export interface SessionMetadata {
   videoStartTime?: number;
   /** Best-effort cue-time metadata snapshots for marked captures */
   captureContexts?: CaptureContextSnapshot[];
+  /** Separately committed annotation groups with their own evidence and comment. */
+  markedIssues?: MarkedIssuePayload[];
   /** Actionable reason recorded narration did not produce a transcript. */
   transcriptionFailure?: TranscriptionFailure;
 }

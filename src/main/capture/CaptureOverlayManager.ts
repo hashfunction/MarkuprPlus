@@ -30,7 +30,10 @@ import {
   reduceAnnotationInput,
   type GlobalAnnotationInputSample,
 } from './annotationInputModel';
-import { MarkedIssueAccumulator } from './MarkedIssueAccumulator';
+import {
+  MarkedIssueAccumulator,
+  type MarkedIssueAccumulatorSnapshot,
+} from './MarkedIssueAccumulator';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -85,6 +88,7 @@ export interface CaptureOverlayManagerDependencies {
   now?: () => number;
   isAnnotationEnabled?: () => boolean;
   onMarkedIssueCommitted?: (issue: MarkedIssuePayload) => void;
+  onMarkedIssueAccumulatorChanged?: (snapshot: MarkedIssueAccumulatorSnapshot) => void;
 }
 
 interface ActiveOverlay {
@@ -404,6 +408,7 @@ export class CaptureOverlayManager {
       ? videoStartTime
       : this.now();
     this.issueAccumulator = new MarkedIssueAccumulator(sessionId);
+    this.emitAccumulatorSnapshot();
     this.activeStroke = null;
     this.inputSample = null;
     const overlayId = `annotation-${sessionId}`;
@@ -484,6 +489,24 @@ export class CaptureOverlayManager {
     return { success: true };
   }
 
+  finalizePendingIssue(completedAt = this.now()): MarkedIssuePayload | null {
+    const active = this.annotation;
+    const accumulator = this.issueAccumulator;
+    if (!active || active.state.kind !== 'annotation' || !accumulator?.snapshot().active) {
+      return null;
+    }
+
+    this.finishActiveStroke(null, completedAt);
+    this.applyAnnotationMode('interact');
+    this.requestIssueSnapshot(completedAt);
+    const issue = accumulator.finalize(completedAt);
+    if (!issue) return null;
+    this.dependencies.onMarkedIssueCommitted?.(issue);
+    this.sendAnnotationToHost({ type: 'clear', sessionId: active.state.sessionId });
+    this.emitAccumulatorSnapshot();
+    return issue;
+  }
+
   submitAnnotationEvent(senderId: number, event: AnnotationEvent): { success: boolean; error?: string } {
     const overlay = this.overlays.get(senderId);
     if (!overlay || overlay !== this.annotation || overlay.state.kind !== 'annotation') {
@@ -528,6 +551,7 @@ export class CaptureOverlayManager {
       this.activeStroke = null;
     }
     this.sendAnnotationToHost(event, false);
+    this.emitAccumulatorSnapshot();
     return { success: true };
   }
 
@@ -730,6 +754,7 @@ export class CaptureOverlayManager {
       if (!issue) continue;
       this.dependencies.onMarkedIssueCommitted?.(issue);
       this.sendAnnotationToHost({ type: 'clear', sessionId: active.state.sessionId });
+      this.emitAccumulatorSnapshot();
     }
   }
 
@@ -785,7 +810,15 @@ export class CaptureOverlayManager {
       requestedAt,
       this.annotationVideoStartTime,
     );
-    if (request) this.sendAnnotationToHost({ type: 'snapshot-request', ...request });
+    if (request) {
+      this.sendAnnotationToHost({ type: 'snapshot-request', ...request });
+      this.emitAccumulatorSnapshot();
+    }
+  }
+
+  private emitAccumulatorSnapshot(): void {
+    if (!this.issueAccumulator) return;
+    this.dependencies.onMarkedIssueAccumulatorChanged?.(this.issueAccumulator.snapshot());
   }
 }
 

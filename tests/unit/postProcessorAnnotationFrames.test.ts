@@ -41,4 +41,52 @@ describe('PostProcessor annotation-only frames', () => {
       transcriptSegment: undefined,
     }]);
   });
+
+  it('preserves separate marked issue identities into fallback extracted frames', async () => {
+    const hints: KeyMoment[] = [
+      {
+        timestamp: 3.1,
+        reason: 'Marked issue MX-001',
+        confidence: 1,
+        markedIssueId: 'marked-issue-001',
+      },
+      {
+        timestamp: 3.15,
+        reason: 'Marked issue MX-002',
+        confidence: 1,
+        markedIssueId: 'marked-issue-002',
+      },
+    ];
+    const analyzer = { analyze: vi.fn(() => hints) } as unknown as TranscriptAnalyzer;
+    const extractor = {
+      extract: vi.fn(() => Promise.resolve({
+        ffmpegAvailable: true,
+        frames: hints.map((hint, index) => ({
+          path: `/tmp/frames/marked-issue-00${index + 1}.png`,
+          timestamp: hint.timestamp,
+          success: true,
+          markedIssueId: hint.markedIssueId,
+        })),
+      })),
+    } as unknown as FrameExtractor;
+    const processor = new PostProcessor(analyzer, extractor);
+
+    const result = await processor.process({
+      videoPath: '/tmp/recording.webm',
+      audioPath: '',
+      sessionDir: '/tmp/report',
+      aiMomentHints: hints,
+    });
+
+    expect(extractor.extract).toHaveBeenCalledWith({
+      videoPath: '/tmp/recording.webm',
+      timestamps: [3.1, 3.15],
+      moments: hints,
+      outputDir: '/tmp/report',
+    });
+    expect(result.extractedFrames.map((frame) => frame.markedIssueId)).toEqual([
+      'marked-issue-001',
+      'marked-issue-002',
+    ]);
+  });
 });

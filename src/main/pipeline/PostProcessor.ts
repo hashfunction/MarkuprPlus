@@ -34,6 +34,7 @@ export interface ExtractedFrame {
   path: string; // path to extracted PNG
   timestamp: number; // seconds from start of recording
   reason: string; // why this frame was selected
+  markedIssueId?: string; // stable identity for separately committed marked issues
   transcriptSegment?: TranscriptSegment; // associated transcript segment
   captureContext?: CaptureContextSnapshot; // nearest cue-time metadata snapshot
 }
@@ -258,9 +259,11 @@ export class PostProcessor {
     try {
       const timestamps = keyMoments.map((m) => m.timestamp);
 
+      const hasMarkedIssueMoments = keyMoments.some((moment) => Boolean(moment.markedIssueId));
       const extractionResult = await this.extractor.extract({
         videoPath,
         timestamps,
+        ...(hasMarkedIssueMoments ? { moments: keyMoments } : {}),
         outputDir: sessionDir,
       });
 
@@ -277,9 +280,9 @@ export class PostProcessor {
           .filter((f) => f.success)
           .map((frame) => {
             // Find the key moment that corresponds to this frame
-            const moment = keyMoments.find(
-              (m) => Math.abs(m.timestamp - frame.timestamp) < 0.5
-            );
+            const moment = frame.markedIssueId
+              ? keyMoments.find((candidate) => candidate.markedIssueId === frame.markedIssueId)
+              : keyMoments.find((candidate) => Math.abs(candidate.timestamp - frame.timestamp) < 0.5);
 
             // Find the closest transcript segment
             const closestSegment = this.findClosestSegment(
@@ -291,6 +294,7 @@ export class PostProcessor {
               path: frame.path,
               timestamp: frame.timestamp,
               reason: moment?.reason ?? 'Extracted frame',
+              ...(frame.markedIssueId ? { markedIssueId: frame.markedIssueId } : {}),
               transcriptSegment: closestSegment,
             };
           });

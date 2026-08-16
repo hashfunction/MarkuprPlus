@@ -24,6 +24,7 @@ import {
   type SessionMetadata,
   type CaptureContextSnapshot,
   type CaptureTarget,
+  type MarkedIssuePayload,
 } from '../shared/types';
 import { errorHandler } from './ErrorHandler';
 import { type PostProcessResult, type PostProcessProgress } from './pipeline';
@@ -115,6 +116,10 @@ export interface SessionControllerEvents {
   onStateChange: (state: SessionState, session: Session | null) => void;
   onFeedbackItem: (item: FeedbackItem) => void;
   onError: (error: Error) => void;
+}
+
+function cloneMarkedIssues(issues: MarkedIssuePayload[] | undefined): MarkedIssuePayload[] {
+  return issues ? structuredClone(issues) : [];
 }
 
 /**
@@ -438,6 +443,7 @@ export class SessionController {
         sourceType: captureTarget?.kind
           || (sourceId.startsWith('window:') ? 'window' : 'screen'),
         captureTarget,
+        markedIssues: [],
       },
     };
 
@@ -657,7 +663,9 @@ export class SessionController {
       state: this.state,
       duration,
       feedbackCount: this.session?.feedbackItems.length ?? 0,
-      screenshotCount: this.session ? this.captureCount : 0,
+      screenshotCount: this.session
+        ? this.captureCount + (this.session.metadata.markedIssues?.length ?? 0)
+        : 0,
       isPaused: this.state === 'recording' && this.isPaused,
     };
 
@@ -757,7 +765,26 @@ export class SessionController {
    * Get current session
    */
   getSession(): Session | null {
-    return this.session ? { ...this.session } : null;
+    if (!this.session) return null;
+    return {
+      ...this.session,
+      metadata: {
+        ...this.session.metadata,
+        markedIssues: cloneMarkedIssues(this.session.metadata.markedIssues),
+      },
+    };
+  }
+
+  setMarkedIssues(issues: MarkedIssuePayload[]): boolean {
+    if (!this.session || issues.length > 200) return false;
+    this.session.metadata.markedIssues = cloneMarkedIssues(issues);
+    this.persistSession();
+    this.emitStatus();
+    return true;
+  }
+
+  getMarkedIssues(): MarkedIssuePayload[] {
+    return cloneMarkedIssues(this.session?.metadata.markedIssues);
   }
 
   /**
@@ -771,6 +798,9 @@ export class SessionController {
     this.session.metadata = {
       ...this.session.metadata,
       ...updates,
+      ...(updates.markedIssues
+        ? { markedIssues: cloneMarkedIssues(updates.markedIssues) }
+        : {}),
     };
 
     this.persistSession();

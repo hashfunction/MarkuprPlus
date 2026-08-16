@@ -467,6 +467,10 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         startTime: session.startTime,
         sourceName: session.sourceName,
         screenshotCount: session.screenshotCount,
+        markedIssues: structuredClone(session.markedIssues ?? []),
+        markedIssueAccumulator: session.markedIssueAccumulator
+          ? structuredClone(session.markedIssueAccumulator)
+          : undefined,
       },
     };
   });

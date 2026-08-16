@@ -21,6 +21,8 @@ export interface KeyMoment {
   timestamp: number; // seconds from start of recording
   reason: string; // human-readable reason for selection
   confidence: number; // 0-1
+  /** Stable identity for a separately committed marked issue fallback frame. */
+  markedIssueId?: string;
 }
 
 // ============================================================================
@@ -147,24 +149,27 @@ export class TranscriptAnalyzer {
       timestamp: Math.max(0, Number.isFinite(hint.timestamp) ? hint.timestamp : 0),
       reason: hint.reason?.trim() || 'AI-highlighted context',
       confidence: Math.max(0, Math.min(1, Number.isFinite(hint.confidence) ? hint.confidence : 0.8)),
+      ...(hint.markedIssueId ? { markedIssueId: hint.markedIssueId } : {}),
     };
   }
 
   private finalizeMoments(moments: KeyMoment[]): KeyMoment[] {
     const deduped = this.deduplicateMoments(moments);
     deduped.sort((a, b) => a.timestamp - b.timestamp);
-    if (deduped.length <= MAX_KEY_MOMENTS) return deduped;
+    const marked = deduped.filter((moment) => Boolean(moment.markedIssueId));
+    const ordinary = deduped.filter((moment) => !moment.markedIssueId);
+    if (ordinary.length <= MAX_KEY_MOMENTS) return deduped;
 
-    const first = deduped[0];
-    const last = deduped[deduped.length - 1];
-    const middle = deduped
+    const first = ordinary[0];
+    const last = ordinary[ordinary.length - 1];
+    const middle = ordinary
       .slice(1, -1)
       .sort((a, b) => {
         const priorityDelta = this.momentPriority(b) - this.momentPriority(a);
         return priorityDelta || b.confidence - a.confidence;
       })
       .slice(0, MAX_KEY_MOMENTS - 2);
-    const capped = [first, ...middle, last];
+    const capped = [...marked, first, ...middle, last];
     capped.sort((a, b) => a.timestamp - b.timestamp);
     return capped;
   }
@@ -187,6 +192,16 @@ export class TranscriptAnalyzer {
       const curr = sorted[i];
 
       if (curr.timestamp - prev.timestamp < 1.0) {
+        if (curr.markedIssueId && prev.markedIssueId
+          && curr.markedIssueId !== prev.markedIssueId) {
+          result.push(curr);
+          continue;
+        }
+        if (curr.markedIssueId && !prev.markedIssueId) {
+          result[result.length - 1] = curr;
+          continue;
+        }
+        if (!curr.markedIssueId && prev.markedIssueId) continue;
         // Prefer higher-priority moments (AI / semantic captures over periodic).
         const currPriority = this.momentPriority(curr);
         const prevPriority = this.momentPriority(prev);
@@ -208,6 +223,7 @@ export class TranscriptAnalyzer {
   }
 
   private momentPriority(moment: KeyMoment): number {
+    if (moment.markedIssueId) return 6;
     const reason = (moment.reason || '').toLowerCase();
     if (reason.includes('annotation completed')) {
       return 5;

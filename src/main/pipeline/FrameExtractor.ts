@@ -13,6 +13,7 @@ import { promisify } from 'util';
 import { existsSync, mkdirSync } from 'fs';
 import { stat as statFile } from 'fs/promises';
 import { join } from 'path';
+import type { KeyMoment } from './TranscriptAnalyzer';
 
 const execFile = promisify(execFileCb);
 
@@ -25,6 +26,8 @@ export interface FrameExtractionRequest {
   timestamps: number[]; // seconds from start of recording
   outputDir: string; // directory to save PNGs
   maxFrames?: number; // cap at 20 by default
+  /** Identity-bearing requests used for separately committed marked issues. */
+  moments?: KeyMoment[];
 }
 
 export interface FrameExtractionResult {
@@ -32,6 +35,7 @@ export interface FrameExtractionResult {
     path: string;
     timestamp: number;
     success: boolean;
+    markedIssueId?: string;
   }>;
   ffmpegAvailable: boolean;
 }
@@ -58,6 +62,8 @@ const FRAME_EDGE_MARGIN_SECONDS = 0.35;
 /** Collapse nearly-identical timestamps after clamping */
 const TIMESTAMP_DEDUPE_WINDOW_SECONDS = 0.15;
 
+const MAX_MARKED_FRAME_REQUESTS = 200;
+
 /** Minimal env for child processes - avoids leaking API keys to ffmpeg */
 const SAFE_CHILD_ENV = {
   PATH: process.env.PATH,
@@ -67,6 +73,50 @@ const SAFE_CHILD_ENV = {
   TMPDIR: process.env.TMPDIR || process.env.TEMP,
   TEMP: process.env.TEMP,
 };
+
+function distributeMoments(sorted: KeyMoment[], count: number): KeyMoment[] {
+  if (sorted.length <= count) return sorted;
+  if (count <= 0) return [];
+  if (count === 1) return [sorted[0]];
+  const result = [sorted[0]];
+  const step = (sorted.length - 1) / (count - 1);
+  for (let index = 1; index < count - 1; index += 1) {
+    result.push(sorted[Math.round(index * step)]);
+  }
+  result.push(sorted[sorted.length - 1]);
+  return result;
+}
+
+function clampFrameTimestamp(timestamp: number, durationSeconds: number | null): number {
+  const clean = Math.max(0, timestamp);
+  if (!durationSeconds || durationSeconds <= 0) return clean;
+  const minimum = Math.min(FRAME_EDGE_MARGIN_SECONDS, Math.max(0, durationSeconds - 0.05));
+  const maximum = Math.max(minimum, durationSeconds - FRAME_EDGE_MARGIN_SECONDS);
+  return Math.max(minimum, Math.min(clean, maximum));
+}
+
+export function selectFrameMomentRequests(
+  moments: KeyMoment[],
+  durationSeconds: number | null,
+  maxOrdinaryFrames = DEFAULT_MAX_FRAMES,
+): KeyMoment[] {
+  const normalized = moments
+    .filter((moment) => Number.isFinite(moment.timestamp))
+    .map((moment) => ({
+      ...moment,
+      timestamp: clampFrameTimestamp(moment.timestamp, durationSeconds),
+    }));
+  const marked = normalized
+    .filter((moment) => Boolean(moment.markedIssueId))
+    .slice(0, MAX_MARKED_FRAME_REQUESTS);
+  const ordinary = distributeMoments(
+    normalized.filter((moment) => !moment.markedIssueId)
+      .sort((left, right) => left.timestamp - right.timestamp),
+    maxOrdinaryFrames,
+  ).filter((moment, index, selected) => index === 0
+    || Math.abs(moment.timestamp - selected[index - 1].timestamp) >= TIMESTAMP_DEDUPE_WINDOW_SECONDS);
+  return [...marked, ...ordinary].sort((left, right) => left.timestamp - right.timestamp);
+}
 
 // ============================================================================
 // FrameExtractor Class
@@ -116,17 +166,24 @@ export class FrameExtractor {
       return { frames: [], ffmpegAvailable: false };
     }
 
-    const maxFrames = request.maxFrames ?? DEFAULT_MAX_FRAMES;
-
-    // Cap timestamps to maxFrames, keeping evenly distributed ones
-    let timestamps = [...request.timestamps].sort((a, b) => a - b);
-    if (timestamps.length > maxFrames) {
-      timestamps = this.selectDistributed(timestamps, maxFrames);
-    }
-
     const videoDurationSeconds = await this.getVideoDurationSeconds(request.videoPath);
-    timestamps = this.normalizeTimestamps(timestamps, videoDurationSeconds);
-    if (timestamps.length === 0) {
+    const maxFrames = request.maxFrames ?? DEFAULT_MAX_FRAMES;
+    let selectedMoments: KeyMoment[];
+    if (request.moments) {
+      selectedMoments = selectFrameMomentRequests(request.moments, videoDurationSeconds, maxFrames);
+    } else {
+      let timestamps = [...request.timestamps].sort((a, b) => a - b);
+      if (timestamps.length > maxFrames) {
+        timestamps = this.selectDistributed(timestamps, maxFrames);
+      }
+      timestamps = this.normalizeTimestamps(timestamps, videoDurationSeconds);
+      selectedMoments = timestamps.map((timestamp) => ({
+        timestamp,
+        reason: 'Extracted frame',
+        confidence: 0,
+      }));
+    }
+    if (selectedMoments.length === 0) {
       return { frames: [], ffmpegAvailable: true };
     }
 
@@ -139,10 +196,15 @@ export class FrameExtractor {
     // Extract each frame
     const frames: FrameExtractionResult['frames'] = [];
 
-    for (let i = 0; i < timestamps.length; i++) {
-      const timestamp = timestamps[i];
+    for (let i = 0; i < selectedMoments.length; i++) {
+      const moment = selectedMoments[i];
+      const timestamp = moment.timestamp;
       const frameNumber = String(i + 1).padStart(3, '0');
-      const outputPath = join(screenshotsDir, `frame-${frameNumber}.png`);
+      const markedOrdinal = /^marked-issue-(\d{3})$/.exec(moment.markedIssueId || '')?.[1];
+      const outputPath = join(
+        screenshotsDir,
+        markedOrdinal ? `marked-issue-${markedOrdinal}.png` : `frame-${frameNumber}.png`,
+      );
 
       try {
         await this.extractSingleFrame(request.videoPath, timestamp, outputPath);
@@ -156,6 +218,7 @@ export class FrameExtractor {
           path: outputPath,
           timestamp,
           success: true,
+          ...(moment.markedIssueId ? { markedIssueId: moment.markedIssueId } : {}),
         });
 
         this.log(`Extracted frame ${frameNumber} at ${timestamp.toFixed(2)}s`);
@@ -167,6 +230,7 @@ export class FrameExtractor {
           path: outputPath,
           timestamp,
           success: false,
+          ...(moment.markedIssueId ? { markedIssueId: moment.markedIssueId } : {}),
         });
       }
     }
