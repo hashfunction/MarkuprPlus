@@ -33,6 +33,10 @@ extraResources:
 # whisper.cpp is executed as a child process and its Metal shader is loaded at
 # runtime, so both files must live outside the read-only app.asar archive.
 asarUnpack:
+  # Native addons must retain their on-disk relative paths. In particular,
+  # Sharp resolves libvips beside its .node binary and cannot run from ASAR's
+  # temporary dlopen extraction directory.
+  - "node_modules/**/*.node"
   - "node_modules/whisper-node/lib/whisper.cpp/main*"
   - "node_modules/whisper-node/lib/whisper.cpp/ggml-metal.metal"
 

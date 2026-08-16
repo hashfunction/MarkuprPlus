@@ -94,6 +94,7 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "verify:brand": "node scripts/verify-brand.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
     "audit": "npm audit --omit=dev --audit-level=high",
     "setup:markuprx": "bash ./scripts/setup-markuprx.sh",
     "typecheck": "tsc --noEmit",

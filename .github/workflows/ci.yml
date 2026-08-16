@@ -181,7 +181,6 @@ jobs:
       # Build unsigned packages for CI validation (--publish never to skip GH_TOKEN requirement)
       - name: Package application (unsigned)
         shell: bash
-        continue-on-error: ${{ matrix.os == 'windows-latest' }}
         run: |
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
             CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --publish never --config electron-builder.yml
@@ -190,6 +189,9 @@ jobs:
           fi
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Verify packaged native runtime
+        run: npm run verify:package
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
