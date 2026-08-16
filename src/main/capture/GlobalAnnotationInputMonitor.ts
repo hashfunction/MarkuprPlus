@@ -365,4 +365,3 @@ export function createGlobalAnnotationInputMonitor(
 ): GlobalAnnotationInputMonitor {
   return new GlobalAnnotationInputMonitorImpl(options);
 }
-
