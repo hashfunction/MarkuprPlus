@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  AnnotationEvent,
-  CaptureDisplay,
-  CapturableWindow,
-  CaptureTarget,
+import {
+  IPC_CHANNELS,
+  type AnnotationEvent,
+  type CaptureDisplay,
+  type CapturableWindow,
+  type CaptureTarget,
 } from '../../src/shared/types';
 import {
   CaptureOverlayManager,
@@ -141,6 +142,10 @@ function createHarness(selectionOverrides: Partial<{
   const dependencies: CaptureOverlayManagerDependencies = {
     prepareSelection: vi.fn().mockResolvedValue({
       displays: selectionOverrides.displays ?? [display],
+      windows: selectionOverrides.windows ?? [capturableWindow],
+      windowSources: selectionOverrides.windowSources ?? [],
+    }),
+    refreshSelection: vi.fn().mockResolvedValue({
       windows: selectionOverrides.windows ?? [capturableWindow],
       windowSources: selectionOverrides.windowSources ?? [],
     }),
@@ -352,6 +357,105 @@ describe('CaptureOverlayManager selection lifecycle', () => {
       ...windowTarget,
       bounds: { x: 120, y: 90, width: 920, height: 710 },
     });
+  });
+
+  it('broadcasts reordered and newly opened windows while selection remains active', async () => {
+    const initialWindow: CapturableWindow = {
+      ...capturableWindow,
+      thumbnail: 'data:image/png;base64,documentation',
+      appIcon: 'data:image/png;base64,safari',
+    };
+    const initialSource = {
+      id: capturableWindow.sourceId,
+      name: capturableWindow.sourceName,
+      type: 'window' as const,
+      thumbnail: initialWindow.thumbnail,
+      appIcon: initialWindow.appIcon,
+    };
+    const { manager, windows, intervals, dependencies } = createHarness({
+      windows: [initialWindow],
+      windowSources: [initialSource],
+    });
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    const frontWindow: CapturableWindow = {
+      sourceId: 'window:330:0',
+      sourceName: 'New issue',
+      nativeWindowId: '330',
+      appName: 'Terminal',
+      bounds: { x: 60, y: 40, width: 1100, height: 760 },
+      ownerPid: 80,
+    };
+    const frontSource = {
+      id: frontWindow.sourceId,
+      name: frontWindow.sourceName,
+      type: 'window' as const,
+    };
+    vi.mocked(dependencies.refreshSelection).mockResolvedValueOnce({
+      windows: [frontWindow, capturableWindow],
+      windowSources: [
+        frontSource,
+        { id: capturableWindow.sourceId, name: capturableWindow.sourceName, type: 'window' },
+      ],
+    });
+    windows[0].webContents.send.mockClear();
+
+    await vi.waitFor(() => expect(intervals.size).toBe(1));
+    Array.from(intervals.values())[0]();
+
+    await vi.waitFor(() => {
+      expect(dependencies.refreshSelection).toHaveBeenCalledOnce();
+      expect(windows[0].webContents.send).toHaveBeenCalledWith(
+        IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED,
+        expect.objectContaining({
+          kind: 'selection',
+          windows: [frontWindow, initialWindow],
+          windowSources: [frontSource, initialSource],
+        }),
+      );
+    });
+
+    const refreshedTarget: CaptureTarget = {
+      kind: 'window',
+      sourceId: frontWindow.sourceId,
+      sourceName: frontWindow.sourceName,
+      nativeWindowId: frontWindow.nativeWindowId,
+      appName: frontWindow.appName,
+      bounds: frontWindow.bounds,
+      geometryAvailable: true,
+    };
+    vi.mocked(dependencies.refreshWindow).mockResolvedValueOnce(frontWindow);
+    await expect(manager.confirmTarget(windows[0].webContents.id, refreshedTarget))
+      .resolves.toEqual({ success: true });
+    await expect(selection).resolves.toEqual(refreshedTarget);
+  });
+
+  it('does not overlap selection refreshes and ignores results after cancellation', async () => {
+    const { manager, windows, intervals, dependencies } = createHarness();
+    let resolveRefresh!: (value: {
+      windows: CapturableWindow[];
+      windowSources: [];
+    }) => void;
+    vi.mocked(dependencies.refreshSelection).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRefresh = resolve;
+    }));
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    windows[0].webContents.send.mockClear();
+
+    await vi.waitFor(() => expect(intervals.size).toBe(1));
+    const refresh = Array.from(intervals.values())[0];
+    refresh();
+    refresh();
+    expect(dependencies.refreshSelection).toHaveBeenCalledOnce();
+
+    manager.cancelSelection();
+    await expect(selection).resolves.toBeNull();
+    expect(intervals.size).toBe(0);
+    resolveRefresh({ windows: [], windowSources: [] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(windows[0].webContents.send).not.toHaveBeenCalled();
   });
 
   it('keeps selection open when the exact window disappears during confirmation', async () => {

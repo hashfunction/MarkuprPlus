@@ -69,14 +69,18 @@ interface CaptureOverlayHostWindow {
   };
 }
 
-interface PreparedSelection {
-  displays: CaptureDisplay[];
+interface SelectionWindowSnapshot {
   windows: CapturableWindow[];
   windowSources: CaptureSource[];
 }
 
+interface PreparedSelection extends SelectionWindowSnapshot {
+  displays: CaptureDisplay[];
+}
+
 export interface CaptureOverlayManagerDependencies {
   prepareSelection: () => Promise<PreparedSelection>;
+  refreshSelection: () => Promise<SelectionWindowSnapshot>;
   createWindow: (kind: CaptureOverlayState['kind']) => CaptureOverlayWindow;
   loadRenderer: (
     window: CaptureOverlayWindow,
@@ -105,11 +109,25 @@ interface ActiveOverlay {
 interface PendingSelection {
   promise: Promise<CaptureTarget | null>;
   resolve: (target: CaptureTarget | null) => void;
+  refreshHandle: unknown | null;
+  refreshInFlight: boolean;
 }
+
+const SELECTION_REFRESH_INTERVAL_MS = 250;
 
 function toDataUrl(image: Electron.NativeImage | null): string | undefined {
   if (!image || image.isEmpty()) return undefined;
   return image.toDataURL();
+}
+
+function toCaptureSource(source: Electron.DesktopCapturerSource): CaptureSource {
+  return {
+    id: source.id,
+    name: source.name,
+    type: source.id.startsWith('screen:') ? 'screen' : 'window',
+    thumbnail: toDataUrl(source.thumbnail),
+    appIcon: toDataUrl(source.appIcon),
+  };
 }
 
 async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
@@ -130,13 +148,7 @@ async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
     thumbnailSize: { width: 320, height: 180 },
     fetchWindowIcons: true,
   });
-  const captureSources: CaptureSource[] = rawSources.map((source) => ({
-    id: source.id,
-    name: source.name,
-    type: source.id.startsWith('screen:') ? 'screen' : 'window',
-    thumbnail: toDataUrl(source.thumbnail),
-    appIcon: toDataUrl(source.appIcon),
-  }));
+  const captureSources = rawSources.map(toCaptureSource);
   const rawScreenSources = rawSources.filter((source) => source.id.startsWith('screen:'));
   const displays = matchCaptureDisplays(
     screen.getAllDisplays(),
@@ -152,6 +164,32 @@ async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
     displays,
     windows: await windowGeometryProvider.listWindows(captureSources),
     windowSources: captureSources.filter((source) => source.type === 'window' && !source.id.endsWith(':1')),
+  };
+}
+
+async function refreshSelectionFromElectron(): Promise<SelectionWindowSnapshot> {
+  if (isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  })) {
+    const fixture = createElectronTestCaptureFixtures(screen.getPrimaryDisplay());
+    return {
+      windows: [fixture.window],
+      windowSources: [fixture.windowSource],
+    };
+  }
+
+  const rawSources = await desktopCapturer.getSources({
+    types: ['window'],
+    thumbnailSize: { width: 0, height: 0 },
+    fetchWindowIcons: false,
+  });
+  const windowSources = rawSources
+    .map(toCaptureSource)
+    .filter((source) => source.type === 'window' && !source.id.endsWith(':1'));
+  return {
+    windows: await windowGeometryProvider.listWindows(windowSources),
+    windowSources,
   };
 }
 
@@ -206,13 +244,14 @@ async function refreshElectronWindow(target: CaptureTarget): Promise<CapturableW
     const fixture = createElectronTestCaptureFixtures(screen.getPrimaryDisplay());
     return target.sourceId === fixture.window.sourceId ? fixture.window : null;
   }
-  const selection = await prepareSelectionFromElectron();
+  const selection = await refreshSelectionFromElectron();
   return selection.windows.find((window) => window.sourceId === target.sourceId) || null;
 }
 
 function defaultDependencies(): CaptureOverlayManagerDependencies {
   return {
     prepareSelection: prepareSelectionFromElectron,
+    refreshSelection: refreshSelectionFromElectron,
     createWindow: createElectronOverlayWindow,
     loadRenderer: loadElectronOverlay,
     getHostWindow: () => null,
@@ -258,6 +297,73 @@ function sameBounds(left: CaptureBounds, right: CaptureBounds): boolean {
     && left.width === right.width && left.height === right.height;
 }
 
+function sameCaptureSource(left: CaptureSource, right: CaptureSource): boolean {
+  return left.id === right.id
+    && left.name === right.name
+    && left.type === right.type
+    && left.thumbnail === right.thumbnail
+    && left.appIcon === right.appIcon;
+}
+
+function sameCapturableWindow(left: CapturableWindow, right: CapturableWindow): boolean {
+  return left.sourceId === right.sourceId
+    && left.sourceName === right.sourceName
+    && left.nativeWindowId === right.nativeWindowId
+    && left.appName === right.appName
+    && left.ownerPid === right.ownerPid
+    && left.thumbnail === right.thumbnail
+    && left.appIcon === right.appIcon
+    && sameBounds(left.bounds, right.bounds);
+}
+
+function sameOrderedItems<T>(
+  left: T[],
+  right: T[],
+  sameItem: (leftItem: T, rightItem: T) => boolean,
+): boolean {
+  return left.length === right.length
+    && left.every((item, index) => sameItem(item, right[index]));
+}
+
+function sameSelectionWindowSnapshot(
+  left: SelectionWindowSnapshot,
+  right: SelectionWindowSnapshot,
+): boolean {
+  return sameOrderedItems(left.windows, right.windows, sameCapturableWindow)
+    && sameOrderedItems(left.windowSources, right.windowSources, sameCaptureSource);
+}
+
+function mergeSelectionWindowSnapshot(
+  previous: SelectionWindowSnapshot,
+  refreshed: SelectionWindowSnapshot,
+): SelectionWindowSnapshot {
+  const previousSources = new Map(previous.windowSources.map((source) => [source.id, source]));
+  const windowSources = refreshed.windowSources.map((source) => {
+    const existing = previousSources.get(source.id);
+    const thumbnail = source.thumbnail ?? existing?.thumbnail;
+    const appIcon = source.appIcon ?? existing?.appIcon;
+    return {
+      ...source,
+      ...(thumbnail !== undefined ? { thumbnail } : {}),
+      ...(appIcon !== undefined ? { appIcon } : {}),
+    };
+  });
+  const mergedSources = new Map(windowSources.map((source) => [source.id, source]));
+  const previousWindows = new Map(previous.windows.map((window) => [window.sourceId, window]));
+  const windows = refreshed.windows.map((window) => {
+    const existing = previousWindows.get(window.sourceId);
+    const source = mergedSources.get(window.sourceId);
+    const thumbnail = window.thumbnail ?? existing?.thumbnail ?? source?.thumbnail;
+    const appIcon = window.appIcon ?? existing?.appIcon ?? source?.appIcon;
+    return {
+      ...window,
+      ...(thumbnail !== undefined ? { thumbnail } : {}),
+      ...(appIcon !== undefined ? { appIcon } : {}),
+    };
+  });
+  return { windows, windowSources };
+}
+
 export class CaptureOverlayManager {
   private dependencies: CaptureOverlayManagerDependencies;
   private overlays = new Map<number, ActiveOverlay>();
@@ -296,7 +402,12 @@ export class CaptureOverlayManager {
     const promise = new Promise<CaptureTarget | null>((resolve) => {
       resolveSelection = resolve;
     });
-    const request: PendingSelection = { promise, resolve: resolveSelection };
+    const request: PendingSelection = {
+      promise,
+      resolve: resolveSelection,
+      refreshHandle: null,
+      refreshInFlight: false,
+    };
     this.pendingSelection = request;
     this.selectionMode = 'window';
 
@@ -340,6 +451,7 @@ export class CaptureOverlayManager {
           }
         }
       }));
+      if (this.pendingSelection === request) this.startSelectionPolling(request);
     } catch (error) {
       if (this.pendingSelection !== request) return promise;
       console.error('[CaptureOverlayManager] Failed to open selector:', error);
@@ -640,9 +752,57 @@ export class CaptureOverlayManager {
     }
   }
 
+  private startSelectionPolling(request: PendingSelection): void {
+    if (this.pendingSelection !== request || request.refreshHandle !== null) return;
+    request.refreshHandle = this.dependencies.setInterval(() => {
+      if (this.pendingSelection !== request || request.refreshInFlight) return;
+      request.refreshInFlight = true;
+      let refresh: Promise<SelectionWindowSnapshot>;
+      try {
+        refresh = this.dependencies.refreshSelection();
+      } catch (error) {
+        request.refreshInFlight = false;
+        console.warn('[CaptureOverlayManager] Selection refresh failed:', error);
+        return;
+      }
+      void refresh
+        .then((snapshot) => this.publishSelectionSnapshot(request, snapshot))
+        .catch((error) => console.warn('[CaptureOverlayManager] Selection refresh failed:', error))
+        .finally(() => { request.refreshInFlight = false; });
+    }, SELECTION_REFRESH_INTERVAL_MS);
+  }
+
+  private publishSelectionSnapshot(
+    request: PendingSelection,
+    refreshed: SelectionWindowSnapshot,
+  ): void {
+    if (this.pendingSelection !== request) return;
+    const first = Array.from(this.overlays.values()).find((overlay) =>
+      overlay.state.kind === 'selection' && !overlay.window.isDestroyed()
+    );
+    if (!first || first.state.kind !== 'selection') return;
+    const previous = {
+      windows: first.state.windows,
+      windowSources: first.state.windowSources,
+    };
+    const merged = mergeSelectionWindowSnapshot(previous, refreshed);
+    if (sameSelectionWindowSnapshot(previous, merged)) return;
+
+    for (const [webContentsId, overlay] of this.overlays) {
+      if (overlay.state.kind !== 'selection' || overlay.window.isDestroyed()) continue;
+      overlay.state = { ...overlay.state, ...merged };
+      this.overlays.set(webContentsId, overlay);
+      overlay.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, overlay.state);
+    }
+  }
+
   private finishSelection(target: CaptureTarget | null, restoreHost: boolean): void {
     const pending = this.pendingSelection;
     this.pendingSelection = null;
+    if (pending && pending.refreshHandle !== null) {
+      this.dependencies.clearInterval(pending.refreshHandle);
+      pending.refreshHandle = null;
+    }
     const selectionWindows = Array.from(this.overlays.values())
       .filter((overlay) => overlay.state.kind === 'selection');
     for (const overlay of selectionWindows) {

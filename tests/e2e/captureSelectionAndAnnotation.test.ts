@@ -115,6 +115,9 @@ describe('capture selection and annotation lifecycle', () => {
       prepareSelection: vi.fn().mockResolvedValue({
         displays: [display], windows: [exactWindow], windowSources: [],
       }),
+      refreshSelection: vi.fn().mockResolvedValue({
+        windows: [exactWindow], windowSources: [],
+      }),
       createWindow: vi.fn(() => {
         const window = new LifecycleWindow();
         windows.push(window);
