@@ -90,6 +90,7 @@
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:ui-electron": "playwright test",
+    "test:package-smoke": "node scripts/smoke-packaged-app.mjs",
     "test:all": "npm run test:ci && npm run build:desktop && npm run test:ui-electron",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
