@@ -1045,6 +1045,33 @@ export type AnnotationEvent =
   | (AnnotationEventBase & { type: 'mode'; mode: AnnotationMode })
   | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds });
 
+/** A single independently captured problem or requested change in a recording. */
+export interface MarkedIssuePayload {
+  id: string;
+  ordinal: number;
+  startedAt: number;
+  markedAt: number;
+  completedAt: number;
+  strokeIds: string[];
+  tools: AnnotationTool[];
+  colors: AnnotationColor[];
+  screenshotPath?: string;
+  fallbackVideoTimestamp: number;
+  captureContext?: CaptureContextSnapshot;
+  comment?: string;
+  transcriptionStatus: 'pending' | 'available' | 'unavailable';
+  snapshotRevision: number;
+  transcriptSegmentIds: string[];
+  evidenceWarning?: string;
+}
+
+/** Request to capture the current marked frame before the user navigates away. */
+export interface MarkedIssueSnapshotRequest {
+  sessionId: string;
+  revision: number;
+  requestedAt: number;
+}
+
 export interface CaptureSelectionOverlayState {
   kind: 'selection';
   overlayId: string;
