@@ -702,8 +702,8 @@ const markuprxApi = {
     /**
      * Save the current session to disk
      */
-    save: (session?: SessionPayload): Promise<SaveResult> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.OUTPUT_SAVE, session);
+    save: (session?: ReviewSession, sessionDir?: string): Promise<SaveResult> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.OUTPUT_SAVE, session, sessionDir);
     },
 
     /**

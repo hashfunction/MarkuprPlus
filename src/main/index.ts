@@ -62,7 +62,7 @@ import { sessionController, type Session } from './SessionController';
 import { trayManager } from './TrayManager';
 import { audioCapture } from './audio/AudioCapture';
 import { getSettingsManager, type SettingsManager } from './settings';
-import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForMarkdown } from './output';
+import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
 import { errorHandler } from './ErrorHandler';
@@ -1157,6 +1157,22 @@ async function stopSession(): Promise<{
       ? extname(recordingProbe?.tempPath ?? '') || extensionFromMimeType(recordingProbe?.mimeType)
       : '.webm';
     const recordingFilename = `session-recording${recordingExtension}`;
+    const providedTranscriptSegments = buildPostProcessTranscriptSegments(session);
+
+    // Establish transcript ownership before the first document is generated so
+    // narration claimed by a marked issue is not also emitted as generic feedback.
+    if (hasMarkedIssues && providedTranscriptSegments.length > 0) {
+      const initiallyAssignedIssues = assignMarkedIssueComments(
+        session.metadata.markedIssues ?? [],
+        providedTranscriptSegments,
+        {
+          videoStartTime: session.metadata.videoStartTime || session.startTime,
+          hasAudio: true,
+        },
+      );
+      session.metadata.markedIssues = structuredClone(initiallyAssignedIssues);
+      sessionController.setMarkedIssues(initiallyAssignedIssues);
+    }
 
     if (!hasTranscript && !hasRecording && !hasMarkedIssues) {
       await cleanupRecordingArtifacts(session.id);
@@ -1305,7 +1321,6 @@ async function stopSession(): Promise<{
     // Run the post-processor if we have audio and/or video artifacts.
     // Progress and completion events are sent to the renderer via IPC.
     let postProcessResult: PostProcessResult | null = null;
-    const providedTranscriptSegments = buildPostProcessTranscriptSegments(session);
     const captureContexts = getSessionCaptureContexts(session);
     const aiMomentHints = extractAiFrameHintsFromMarkdown(
       document.content,
@@ -1485,7 +1500,7 @@ async function stopSession(): Promise<{
     }, 1000);
 
     // Build the review session for the SessionReview component
-    const reviewSession = adaptSessionForMarkdown(session);
+    const reviewSession = adaptSessionForReview(session);
 
     await writeProcessingTrace(saveResult.sessionDir, {
       reportPath: saveResult.markdownPath,

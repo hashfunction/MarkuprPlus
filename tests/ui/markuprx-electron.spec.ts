@@ -679,6 +679,7 @@ test.describe('MarkuprX desktop application', () => {
       cases.map((issue) => issue.comment),
     );
     expect(new Set(metadata.markedIssues.flatMap((issue) => issue.transcriptSegmentIds)).size).toBe(3);
+    expect(metadata.itemCount).toBe(3);
     expect(metadata.screenshotCount).toBe(3);
     expect(report).toContain(`Items: ${metadata.itemCount} | Screenshots: 3`);
     expect(report).toContain('3 screenshots were aligned to spoken context.');
@@ -710,6 +711,63 @@ test.describe('MarkuprX desktop application', () => {
     await expect.poll(async () => (await diagnostics(mainWindow)).state).toBe('complete');
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
     await expect(mainWindow.getByText('Latest Report Path')).toBeVisible();
+    await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
+
+    // Exercise the completed-session editor against the already-saved report.
+    // The update must happen in place without losing marked evidence or media.
+    await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
+    await expect(mainWindow.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+    const reviewActions = await Promise.all(
+      ['Open Folder', 'Copy', 'Save', 'Close'].map(async (name) => {
+        const box = await mainWindow.getByRole('button', { name, exact: true }).boundingBox();
+        expect(box, `${name} should have a visible review-toolbar box`).not.toBeNull();
+        return box!;
+      }),
+    );
+    for (let index = 1; index < reviewActions.length; index += 1) {
+      expect(reviewActions[index].x).toBeGreaterThanOrEqual(
+        reviewActions[index - 1].x + reviewActions[index - 1].width,
+      );
+    }
+    const reviewViewportWidth = await mainWindow.evaluate(() => window.innerWidth);
+    expect(reviewActions.at(-1)!.x + reviewActions.at(-1)!.width)
+      .toBeLessThanOrEqual(reviewViewportWidth);
+    expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
+    await mainWindow.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
+    const editor = mainWindow.getByPlaceholder('Enter feedback text...');
+    const editedComment = 'Edited review: the primary action fails contrast requirements.';
+    await editor.fill(editedComment);
+    await editor.press('Enter');
+    await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect.poll(async () => {
+      const updated = await readFile(reportPath, 'utf8');
+      return updated.includes(editedComment);
+    }).toBe(true);
+
+    const updatedReport = await readFile(reportPath, 'utf8');
+    const updatedMetadata = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+      itemCount: number;
+      screenshotCount: number;
+      reviewFeedbackItems: Array<{ transcription: string }>;
+      markedIssues: Array<{ comment?: string; screenshotPath?: string }>;
+    };
+    expect(occurrences(updatedReport, cases[0].comment)).toBe(0);
+    expect(updatedReport).toContain(editedComment);
+    expect(updatedReport).toContain('./session-recording.webm');
+    expect(updatedReport).toContain('./session-audio.wav');
+    for (const [index, issue] of cases.entries()) {
+      expect(updatedReport).toContain(index === 0 ? editedComment : issue.comment);
+      expect(updatedReport).toContain(
+        `./screenshots/marked-issue-${String(index + 1).padStart(3, '0')}.png`,
+      );
+    }
+    expect(updatedMetadata.reviewFeedbackItems[0].transcription).toBe(editedComment);
+    expect(updatedMetadata.markedIssues).toHaveLength(3);
+    expect(updatedMetadata.markedIssues[0].comment).toBe(editedComment);
+    expect(updatedMetadata.screenshotCount).toBe(3);
+    expect(updatedMetadata.itemCount).toBe(metadata.itemCount);
+    await mainWindow.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Open Session History' }).click();

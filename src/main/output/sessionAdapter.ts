@@ -10,6 +10,7 @@
 
 import type { Session as ControllerSession, FeedbackItem as ControllerFeedbackItem } from '../SessionController';
 import type { TranscriptEvent } from '../transcription/types';
+import type { ReviewSession } from '../../shared/types';
 import type {
   Session as MarkdownSession,
   FeedbackItem as MarkdownFeedbackItem,
@@ -17,6 +18,7 @@ import type {
   FeedbackSeverity,
   GenerateOptions,
 } from './MarkdownGenerator';
+import { buildMarkedIssueFeedbackItems } from './MarkedIssueReportBuilder';
 import type { MarkdownDocument as FileManagerDocument } from './FileManager';
 import { markdownGenerator } from './MarkdownGenerator';
 import { feedbackAnalyzer } from '../analysis';
@@ -83,13 +85,25 @@ function adaptFeedbackItem(item: ControllerFeedbackItem, index: number): Markdow
   };
 }
 
+function claimedTranscriptIndexes(session: ControllerSession): Set<number> {
+  const indexes = new Set<number>();
+  for (const issue of session.metadata?.markedIssues ?? []) {
+    for (const id of issue.transcriptSegmentIds) {
+      const match = /^transcript-segment-(\d{4})$/.exec(id);
+      if (match) indexes.add(Number(match[1]) - 1);
+    }
+  }
+  return indexes;
+}
+
 function buildTranscriptOnlyItems(session: ControllerSession): MarkdownFeedbackItem[] {
   const finalTranscripts = session.transcriptBuffer
     .filter((event) => event.isFinal && event.text.trim().length > 0)
     .sort((a, b) => a.timestamp - b.timestamp);
 
+  const claimed = claimedTranscriptIndexes(session);
   const usableTranscripts = finalTranscripts.length > 0
-    ? finalTranscripts
+    ? finalTranscripts.filter((_event, index) => !claimed.has(index))
     : session.transcriptBuffer
         .filter((event) => event.text.trim().length > 0)
         .sort((a, b) => a.timestamp - b.timestamp);
@@ -169,6 +183,33 @@ export function adaptSessionForMarkdown(session: ControllerSession): MarkdownSes
       captureContexts: session.metadata?.captureContexts,
       markedIssues: structuredClone(session.metadata?.markedIssues ?? []),
     },
+  };
+}
+
+/** Build the review model, including committed marks as editable first-class items. */
+export function adaptSessionForReview(session: ControllerSession): ReviewSession {
+  const markdownSession = adaptSessionForMarkdown(session);
+  const markedItems = buildMarkedIssueFeedbackItems(
+    session.metadata?.markedIssues ?? [],
+  ).map((item) => {
+    const issue = session.metadata?.markedIssues
+      ?.find((candidate) => candidate.id === item.id);
+    return {
+      ...item,
+      reviewItemKind: 'marked-issue' as const,
+      markedIssueOrdinal: issue?.ordinal,
+    };
+  });
+
+  return {
+    ...markdownSession,
+    feedbackItems: [
+      ...markdownSession.feedbackItems.map((item) => ({
+        ...item,
+        reviewItemKind: 'feedback' as const,
+      })),
+      ...markedItems,
+    ],
   };
 }
 

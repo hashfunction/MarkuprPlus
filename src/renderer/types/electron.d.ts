@@ -255,7 +255,7 @@ interface SessionHistoryItem {
  * Output API
  */
 interface OutputAPI {
-  save: (session?: SessionPayload) => Promise<SaveResult>;
+  save: (session?: ReviewSession, sessionDir?: string) => Promise<SaveResult>;
   copyClipboard: () => Promise<boolean>;
   openFolder: (sessionDir?: string) => Promise<{ success: boolean; error?: string }>;
   onReady: (callback: (data: OutputReadyPayload) => void) => Unsubscribe;

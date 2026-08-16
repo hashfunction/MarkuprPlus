@@ -15,8 +15,13 @@ import {
   clipboardService,
   generateDocumentForFileManager,
 } from '../output';
+import { updateSavedReviewSession } from '../output/SavedReviewUpdater';
 import { processSession as aiProcessSession } from '../ai';
-import { IPC_CHANNELS, type SaveResult } from '../../shared/types';
+import {
+  IPC_CHANNELS,
+  type ReviewSession,
+  type SaveResult,
+} from '../../shared/types';
 import type { IpcContext } from './types';
 
 // =============================================================================
@@ -148,8 +153,23 @@ async function exportSessionFolders(sessionIds: string[]): Promise<string> {
 export function registerOutputHandlers(ctx: IpcContext): void {
   const { getSettingsManager } = ctx;
 
-  ipcMain.handle(IPC_CHANNELS.OUTPUT_SAVE, async (): Promise<SaveResult> => {
+  ipcMain.handle(IPC_CHANNELS.OUTPUT_SAVE, async (
+    _,
+    reviewSession?: ReviewSession,
+    savedSessionDir?: string,
+  ): Promise<SaveResult> => {
     try {
+      if (reviewSession !== undefined || savedSessionDir !== undefined) {
+        if (!reviewSession || typeof savedSessionDir !== 'string') {
+          return { success: false, error: 'A review session and saved report folder are required.' };
+        }
+        return await updateSavedReviewSession(
+          reviewSession,
+          savedSessionDir,
+          fileManager.getOutputDirectory(),
+        );
+      }
+
       const session = sessionController.getSession();
       if (!session) {
         return { success: false, error: 'No session to save' };

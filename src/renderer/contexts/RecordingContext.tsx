@@ -764,13 +764,22 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await rawDiscardSession();
   }, [rawDiscardSession]);
 
-  const reviewSave = useCallback(async (_session: ReviewSession) => {
+  const reviewSave = useCallback(async (updatedSession: ReviewSession) => {
     try {
-      await window.markuprx.output.save();
-    } catch {
-      // Save failure is non-fatal in review mode
+      if (!sessionDir) {
+        throw new Error('The saved report folder is unavailable.');
+      }
+      const result = await window.markuprx.output.save(updatedSession, sessionDir);
+      if (!result.success) {
+        throw new Error(result.error || 'Unable to save review changes.');
+      }
+      setReviewSession(updatedSession);
+      setErrorMessage(null);
+      await loadRecentSessions();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to save review changes.');
     }
-  }, []);
+  }, [sessionDir, loadRecentSessions]);
 
   const reviewClose = useCallback(() => {
     setShowReviewEditor(false);

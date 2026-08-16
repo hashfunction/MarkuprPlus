@@ -424,7 +424,13 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ session, projectName 
         </svg>
         <span style={styles.previewTitle}>Markdown Preview</span>
       </div>
-      <pre style={styles.previewContent}>{markdown}</pre>
+      <pre
+        style={styles.previewContent}
+        tabIndex={0}
+        aria-label="Markdown report preview"
+      >
+        {markdown}
+      </pre>
     </div>
   );
 };
@@ -480,24 +486,36 @@ const ActionToolbar: React.FC<ActionToolbarProps> = ({
   hasChanges,
 }) => {
   return (
-    <div style={styles.toolbar}>
-      <div style={styles.toolbarLeft}>
+    <div style={styles.toolbar} className="markuprx-review-toolbar">
+      <div style={styles.toolbarLeft} className="markuprx-review-toolbar-left">
         <span style={styles.itemCount}>{itemCount} items</span>
         {hasChanges && <span style={styles.unsavedBadge}>Unsaved changes</span>}
       </div>
-      <div style={styles.toolbarRight}>
-        <button onClick={onOpenFolder} style={styles.toolbarButton} title="Open folder">
+      <div style={styles.toolbarRight} className="markuprx-review-toolbar-right">
+        <button
+          onClick={onOpenFolder}
+          style={styles.toolbarButton}
+          className="markuprx-review-action"
+          title="Open folder"
+          aria-label="Open Folder"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
           </svg>
-          <span>Open Folder</span>
+          <span className="markuprx-review-action-label">Open Folder</span>
         </button>
-        <button onClick={onCopy} style={styles.toolbarButton} title="Copy to clipboard">
+        <button
+          onClick={onCopy}
+          style={styles.toolbarButton}
+          className="markuprx-review-action"
+          title="Copy to clipboard"
+          aria-label="Copy"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
           </svg>
-          <span>Copy</span>
+          <span className="markuprx-review-action-label">Copy</span>
         </button>
         <button
           onClick={onSave}
@@ -505,14 +523,16 @@ const ActionToolbar: React.FC<ActionToolbarProps> = ({
             ...styles.toolbarButton,
             ...styles.primaryButton,
           }}
+          className="markuprx-review-action"
           title="Save changes"
+          aria-label="Save"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
           </svg>
-          <span>Save</span>
+          <span className="markuprx-review-action-label">Save</span>
         </button>
         <button onClick={onClose} style={styles.closeButton} title="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -788,6 +808,43 @@ const SessionReview: React.FC<SessionReviewProps> = ({
           .markuprx-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(107, 114, 128, 0.7);
           }
+
+          @media (max-width: 620px) {
+            .markuprx-review-toolbar {
+              flex-wrap: wrap;
+              gap: 8px;
+              padding: 10px 12px !important;
+            }
+
+            .markuprx-review-toolbar-left {
+              flex: 1 1 auto;
+              min-width: 0;
+              gap: 6px !important;
+            }
+
+            .markuprx-review-toolbar-right {
+              flex: 0 0 auto;
+              gap: 4px !important;
+            }
+
+            .markuprx-review-action {
+              width: 36px;
+              height: 36px;
+              padding: 0 !important;
+              justify-content: center;
+            }
+
+            .markuprx-review-action-label,
+            .markuprx-review-preview,
+            .markuprx-review-shortcuts {
+              display: none !important;
+            }
+
+            .markuprx-review-items {
+              width: 100% !important;
+              padding: 12px !important;
+            }
+          }
         `}
       </style>
 
@@ -802,9 +859,9 @@ const SessionReview: React.FC<SessionReviewProps> = ({
       />
 
       {/* Main Content */}
-      <div style={styles.mainContent}>
+      <div style={styles.mainContent} className="markuprx-review-main">
         {/* Items List (60%) */}
-        <div style={styles.itemsPane} className="markuprx-scrollbar">
+        <div style={styles.itemsPane} className="markuprx-scrollbar markuprx-review-items">
           {items.length === 0 ? (
             <div style={styles.emptyState}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -846,7 +903,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
         </div>
 
         {/* Preview Pane (40%) */}
-        <div style={styles.previewPane}>
+        <div style={styles.previewPane} className="markuprx-review-preview">
           <MarkdownPreview session={currentSession} projectName={session.metadata?.sourceName} />
         </div>
       </div>
@@ -873,7 +930,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
       )}
 
       {/* Keyboard Shortcuts Help */}
-      <div style={styles.shortcutsHint}>
+      <div style={styles.shortcutsHint} className="markuprx-review-shortcuts">
         <span style={styles.shortcutKey}>Arrow</span> Navigate
         <span style={styles.shortcutKey}>Enter</span> Edit
         <span style={styles.shortcutKey}>Del</span> Remove
@@ -901,7 +958,9 @@ const styles: Record<string, ExtendedCSSProperties> = {
     backgroundImage: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)',
     color: 'var(--text-primary)',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    position: 'relative',
+    position: 'fixed',
+    inset: 0,
+    zIndex: 100,
     overflow: 'hidden',
   },
 

@@ -720,6 +720,10 @@ export interface ReviewFeedbackItem {
   keywords?: string[];
   category?: ReviewFeedbackCategory;
   severity?: ReviewFeedbackSeverity;
+  /** Distinguishes a separately committed annotation from generic feedback. */
+  reviewItemKind?: 'feedback' | 'marked-issue';
+  /** Stable display ordinal for a committed marked issue. */
+  markedIssueOrdinal?: number;
 }
 
 /**

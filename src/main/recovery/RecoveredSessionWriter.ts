@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import type { SaveResult, MarkdownDocument } from '../output/FileManager';
 import {
-  adaptSessionForMarkdown,
+  adaptSessionForReview,
   generateDocumentForFileManager,
 } from '../output';
 import {
@@ -175,7 +175,7 @@ export async function saveRecoveredSession(
 
   return {
     session,
-    reviewSession: adaptSessionForMarkdown(session),
+    reviewSession: adaptSessionForReview(session),
     reportPath: saved.markdownPath,
     sessionDir: saved.sessionDir,
   };

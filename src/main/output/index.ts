@@ -165,6 +165,7 @@ export {
 // Re-export session adapter for type conversion
 export {
   adaptSessionForMarkdown,
+  adaptSessionForReview,
   generateDocumentForFileManager,
   generateClipboardSummary,
 } from './sessionAdapter';
