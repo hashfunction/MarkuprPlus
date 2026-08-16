@@ -73,8 +73,113 @@ function uniqueInOrder<T>(values: T[]): T[] {
   return values.filter((value, index) => values.indexOf(value) === index);
 }
 
-function validTimestamp(value: number): boolean {
-  return Number.isFinite(value) && value >= 0;
+function validTimestamp(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validCounter(value: unknown, allowZero = false): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= (allowZero ? 0 : 1);
+}
+
+function validStrokeId(value: unknown, seen: Set<string>): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 128 || seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  return true;
+}
+
+function validCompletedStroke(value: unknown, seen: Set<string>): boolean {
+  if (!isRecord(value)
+    || !validStrokeId(value.id, seen)
+    || (value.tool !== 'freehand' && value.tool !== 'circle' && value.tool !== 'highlight')
+    || (value.color !== '#ff3b30' && value.color !== '#ffcc00'
+      && value.color !== '#34c759' && value.color !== '#0a84ff')
+    || !validTimestamp(value.startedAt)
+    || !validTimestamp(value.endedAt)) {
+    return false;
+  }
+  return Number(value.endedAt) >= Number(value.startedAt);
+}
+
+function validAccumulatorSnapshot(value: unknown): value is MarkedIssueAccumulatorSnapshot {
+  if (!isRecord(value)
+    || typeof value.sessionId !== 'string'
+    || !Array.isArray(value.issues)
+    || value.issues.length > MAX_MARKED_ISSUES_PER_SESSION
+    || !validCounter(value.nextOrdinal)
+    || Number(value.nextOrdinal) !== value.issues.length + 1
+    || !validCounter(value.nextRevision)) {
+    return false;
+  }
+
+  const seenStrokeIds = new Set<string>();
+  let greatestRevision = 0;
+  for (let index = 0; index < value.issues.length; index += 1) {
+    const issue = value.issues[index];
+    const ordinal = index + 1;
+    if (!isRecord(issue)
+      || issue.id !== `marked-issue-${String(ordinal).padStart(3, '0')}`
+      || issue.ordinal !== ordinal
+      || !validTimestamp(issue.startedAt)
+      || !validTimestamp(issue.markedAt)
+      || !validTimestamp(issue.completedAt)
+      || Number(issue.markedAt) < Number(issue.startedAt)
+      || Number(issue.completedAt) < Number(issue.markedAt)
+      || !Array.isArray(issue.strokeIds)
+      || issue.strokeIds.length === 0
+      || issue.strokeIds.length > MAX_STROKES_PER_MARKED_ISSUE
+      || issue.strokeIds.some((id) => !validStrokeId(id, seenStrokeIds))
+      || !Array.isArray(issue.tools)
+      || issue.tools.some((tool) => tool !== 'freehand' && tool !== 'circle' && tool !== 'highlight')
+      || !Array.isArray(issue.colors)
+      || issue.colors.some((color) => color !== '#ff3b30' && color !== '#ffcc00'
+        && color !== '#34c759' && color !== '#0a84ff')
+      || !validTimestamp(issue.fallbackVideoTimestamp)
+      || !validCounter(issue.snapshotRevision, true)
+      || !Array.isArray(issue.transcriptSegmentIds)
+      || issue.transcriptSegmentIds.some((id) => typeof id !== 'string' || id.length > 128)) {
+      return false;
+    }
+    greatestRevision = Math.max(greatestRevision, Number(issue.snapshotRevision));
+  }
+
+  if (value.active !== null) {
+    const active = value.active;
+    if (!isRecord(active)
+      || !validTimestamp(active.startedAt)
+      || !validTimestamp(active.markedAt)
+      || Number(active.markedAt) < Number(active.startedAt)
+      || !validCounter(active.snapshotRevision, true)
+      || !validTimestamp(active.fallbackVideoTimestamp)
+      || typeof active.dirty !== 'boolean'
+      || !Array.isArray(active.strokes)
+      || active.strokes.length > MAX_STROKES_PER_MARKED_ISSUE
+      || active.strokes.some((stroke) => !validCompletedStroke(stroke, seenStrokeIds))
+      || (active.activeStroke !== null && !isRecord(active.activeStroke))) {
+      return false;
+    }
+    if (active.activeStroke !== null) {
+      const stroke = active.activeStroke;
+      if (active.strokes.length >= MAX_STROKES_PER_MARKED_ISSUE
+        || !validStrokeId(stroke.id, seenStrokeIds)
+        || (stroke.tool !== 'freehand' && stroke.tool !== 'circle' && stroke.tool !== 'highlight')
+        || (stroke.color !== '#ff3b30' && stroke.color !== '#ffcc00'
+          && stroke.color !== '#34c759' && stroke.color !== '#0a84ff')
+        || !validTimestamp(stroke.startedAt)
+        || Number(stroke.startedAt) < Number(active.startedAt)) {
+        return false;
+      }
+    }
+    if (active.strokes.length === 0 && active.activeStroke === null) return false;
+    greatestRevision = Math.max(greatestRevision, Number(active.snapshotRevision));
+  }
+
+  return Number(value.nextRevision) > greatestRevision;
 }
 
 export class MarkedIssueAccumulator {
@@ -100,8 +205,14 @@ export class MarkedIssueAccumulator {
     sessionId: string,
     snapshot: MarkedIssueAccumulatorSnapshot,
   ): MarkedIssueAccumulator {
+    if (!isRecord(snapshot)) {
+      throw new Error('Marked issue snapshot is invalid.');
+    }
     if (snapshot.sessionId !== sessionId) {
       throw new Error('Marked issue snapshot belongs to a different session.');
+    }
+    if (!validAccumulatorSnapshot(snapshot)) {
+      throw new Error('Marked issue snapshot is invalid.');
     }
     return new MarkedIssueAccumulator(sessionId, structuredClone(snapshot));
   }
@@ -214,7 +325,7 @@ export class MarkedIssueAccumulator {
     if (this.issues.length >= MAX_MARKED_ISSUES_PER_SESSION) {
       return { accepted: false, limitReached: 'issues' };
     }
-    if (this.active?.strokes.length === MAX_STROKES_PER_MARKED_ISSUE) {
+    if ((this.active?.strokes.length ?? 0) >= MAX_STROKES_PER_MARKED_ISSUE) {
       return { accepted: false, limitReached: 'strokes' };
     }
     if (!id || this.active?.activeStroke || this.hasStroke(id)) {

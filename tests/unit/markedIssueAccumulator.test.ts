@@ -207,4 +207,52 @@ describe('MarkedIssueAccumulator', () => {
     expect(() => MarkedIssueAccumulator.restore(SESSION_ID, snapshot))
       .toThrow('Marked issue snapshot belongs to a different session.');
   });
+
+  it('rejects malformed crash snapshots before they can bypass runtime bounds', () => {
+    const accumulator = new MarkedIssueAccumulator(SESSION_ID);
+    for (let index = 0; index < 100; index += 1) {
+      completeStroke(accumulator, `stroke-${index}`, index * 2, index * 2 + 1);
+    }
+    const oversized = accumulator.snapshot();
+    oversized.active!.strokes.push({
+      ...oversized.active!.strokes[0],
+      id: 'overflow',
+    });
+
+    expect(() => MarkedIssueAccumulator.restore(SESSION_ID, oversized))
+      .toThrow('Marked issue snapshot is invalid.');
+
+    const invalidTimestamp = accumulator.snapshot();
+    invalidTimestamp.active!.startedAt = Number.NaN;
+    expect(() => MarkedIssueAccumulator.restore(SESSION_ID, invalidTimestamp))
+      .toThrow('Marked issue snapshot is invalid.');
+
+    expect(() => MarkedIssueAccumulator.restore(
+      SESSION_ID,
+      null as unknown as MarkedIssueAccumulatorSnapshot,
+    )).toThrow('Marked issue snapshot is invalid.');
+
+    const coercedTimestamp = accumulator.snapshot();
+    coercedTimestamp.active!.startedAt = '0' as unknown as number;
+    expect(() => MarkedIssueAccumulator.restore(SESSION_ID, coercedTimestamp))
+      .toThrow('Marked issue snapshot is invalid.');
+  });
+
+  it('rejects duplicate stroke identities and inconsistent crash counters', () => {
+    const accumulator = new MarkedIssueAccumulator(SESSION_ID);
+    completeStroke(accumulator, 'committed', 100, 150);
+    accumulator.releaseModifier(160, 0);
+    accumulator.commit(170);
+    completeStroke(accumulator, 'pending', 200, 250);
+    const duplicated = accumulator.snapshot();
+    duplicated.active!.strokes[0].id = 'committed';
+
+    expect(() => MarkedIssueAccumulator.restore(SESSION_ID, duplicated))
+      .toThrow('Marked issue snapshot is invalid.');
+
+    const inconsistentCounter = accumulator.snapshot();
+    inconsistentCounter.nextOrdinal = 1;
+    expect(() => MarkedIssueAccumulator.restore(SESSION_ID, inconsistentCounter))
+      .toThrow('Marked issue snapshot is invalid.');
+  });
 });
