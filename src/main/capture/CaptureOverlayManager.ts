@@ -39,6 +39,7 @@ import {
   electronTestInputMonitor,
   isElectronTestHarnessAllowed,
 } from '../e2e/ElectronTestHarness';
+import { protectRendererNavigation } from '../security/NavigationGuard';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -156,7 +157,7 @@ async function prepareSelectionFromElectron(): Promise<PreparedSelection> {
 
 function createElectronOverlayWindow(): CaptureOverlayWindow {
   const preloadPath = join(app.getAppPath(), 'dist', 'preload', 'index.cjs');
-  return new BrowserWindow({
+  const window = new BrowserWindow({
     show: false,
     frame: false,
     transparent: true,
@@ -175,7 +176,9 @@ function createElectronOverlayWindow(): CaptureOverlayWindow {
       contextIsolation: true,
       sandbox: true,
     },
-  }) as unknown as CaptureOverlayWindow;
+  });
+  protectRendererNavigation(window.webContents);
+  return window as unknown as CaptureOverlayWindow;
 }
 
 async function loadElectronOverlay(

@@ -23,6 +23,7 @@ import { markdownGenerator } from './MarkdownGenerator';
 import type { PostProcessResult } from '../pipeline/PostProcessor';
 import { generateHtmlDocument } from './templates/html-template';
 import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
+import { protectRendererNavigation } from '../security/NavigationGuard';
 
 /**
  * JSON export schema version. Bump when the schema changes:
@@ -192,6 +193,7 @@ class ExportServiceImpl {
         offscreen: true,
       },
     });
+    protectRendererNavigation(pdfWindow.webContents);
 
     // Write HTML to a temp file to avoid Chromium's ~2MB data: URL limit
     // which breaks sessions with 5+ base64-embedded screenshots.

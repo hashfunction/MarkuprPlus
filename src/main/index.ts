@@ -24,7 +24,6 @@ import {
   app,
   BrowserWindow,
   ipcMain,
-  shell,
   Notification,
 } from 'electron';
 import * as fs from 'fs/promises';
@@ -120,6 +119,7 @@ import {
   captureContextsToKeyMoments,
   nearestCaptureContext,
 } from './pipeline/CaptureMomentHints';
+import { protectRendererNavigation } from './security/NavigationGuard';
 
 // Guard against stdio EIO crashes when the parent terminal/PTY closes.
 type ConsoleMethod = (...args: unknown[]) => void;
@@ -343,6 +343,7 @@ function createWindow(): void {
       sandbox: true,
     },
   });
+  protectRendererNavigation(mainWindow.webContents);
 
   attachRendererDiagnostics(mainWindow, 'Main');
   void loadRendererIntoWindow(mainWindow, 'Main');
@@ -369,21 +370,6 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-
-  // Handle external links - only allow http/https protocols
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
-        shell.openExternal(url);
-      } else {
-        console.warn(`[Main] Blocked external URL with protocol: ${parsed.protocol}`);
-      }
-    } catch {
-      console.warn(`[Main] Blocked invalid external URL`);
-    }
-    return { action: 'deny' };
   });
 
   // Set main window on session controller

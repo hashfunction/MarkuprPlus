@@ -11,6 +11,7 @@
 
 import { BrowserWindow, screen, Tray, app } from 'electron';
 import { join } from 'path';
+import { protectRendererNavigation } from '../security/NavigationGuard';
 
 /**
  * Popover sizes for different application states
@@ -88,6 +89,7 @@ export class PopoverManager {
         sandbox: true,
       },
     });
+    protectRendererNavigation(this.window.webContents);
 
     // Hide on blur (clicking outside the popover)
     this.window.on('blur', () => {

@@ -268,6 +268,37 @@ test.describe('MarkuprX desktop application', () => {
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
   });
 
+  test('blocks renderer-initiated navigation away from the trusted application page', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    const trustedUrl = window.url();
+
+    await window.evaluate(() => {
+      window.location.assign('https://navigation-should-be-blocked.invalid/');
+    });
+    await window.waitForTimeout(300);
+
+    const guardedState = await application.evaluate(async ({ BrowserWindow }, expectedUrl) => {
+      const guardedWindow = BrowserWindow.getAllWindows()
+        .find((candidate) => candidate.webContents.getURL() === expectedUrl);
+      if (!guardedWindow) return null;
+      return {
+        url: guardedWindow.webContents.getURL(),
+        title: guardedWindow.webContents.getTitle(),
+        hasStartAction: await guardedWindow.webContents.executeJavaScript(
+          `document.body?.textContent?.toLowerCase().includes('start session') === true`,
+        ),
+      };
+    }, trustedUrl);
+    expect(guardedState).toEqual({
+      url: trustedUrl,
+      title: 'MarkuprX',
+      hasStartAction: true,
+    });
+  });
+
   test('guides first-run users through multi-issue annotation and remembers completion', async () => {
     await harness.cleanup();
     harness = await createElectronHarnessEnvironment({ showOnboarding: true });
