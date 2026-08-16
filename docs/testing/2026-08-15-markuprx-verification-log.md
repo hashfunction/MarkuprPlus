@@ -123,3 +123,48 @@ Captured at 2026-08-16 01:30 PDT:
 - Process cleanup: no application, Vitest, or Playwright process remained.
 - Review: the requirements-to-diff and critical-boundary review found and fixed snapshot restore, target-native runtime, saved-review identity, coalesced click, and navigation issues. A separate review agent was not permitted by the session's higher-level collaboration constraint, so this was an explicit direct self-review. No unresolved critical or important finding remains from that review.
 - Remaining release constraint: artifacts are unsigned and unnotarized because Apple credentials were not supplied. The environment-bounded native capture and external media/transcription limitations are recorded above.
+
+## Post-Merge Robustness Addendum
+
+Captured on `main` from 2026-08-16 08:54 through 09:26 PDT after the verified feature branch was merged and its temporary worktree was removed.
+
+### Findings and improvements
+
+- A final 14-scenario Electron run initially exposed an intermittent report assertion. The unchanged coalesced release/click test failed 7 of 10 isolated repetitions.
+- Boundary diagnostics proved snapshot dispatch, renderer PNG capture, main-process staging, and promotion all succeeded. The test was reading the report when its directory appeared, before the app emitted its user-visible `Report Ready` completion state. Waiting on that semantic completion contract fixed the false failure without weakening comment, link, or PNG assertions (`5ca1a0b`). All temporary diagnostics were removed.
+- A new pending-stop scenario verifies that a narrated mark is finalized with metadata and PNG evidence even when the user presses Stop before the ordinary navigation click (`f02b140`).
+- A new back-to-back session scenario found a real state-machine defect: the UI exposed Start Session after completion while `SessionController` rejected the request from `complete`. A failing real-controller regression drove the minimal `complete -> idle -> starting` reset; recording-state double starts remain rejected (`95178fe`).
+- A reusable packaged-runtime check now launches the real executable with an isolated profile and verifies architecture, packaged status, name, version, title, and onboarding (`d2f8152`).
+
+### Fresh verification evidence
+
+- Vitest: 117/117 files and 1,523/1,523 tests passed.
+- Typecheck: passed.
+- Lint: zero errors and the same six known hook/unused-variable warnings listed above.
+- Brand audit: passed across 562 repository files.
+- Production dependency audit: zero vulnerabilities with `npm audit --omit=dev --audit-level=low`.
+- Coalesced Command-release/navigation-click stress: 20/20 consecutive Electron runs passed.
+- Pending-mark Stop finalization stress: 10/10 consecutive Electron runs passed.
+- Back-to-back session isolation stress: 5/5 consecutive Electron runs passed.
+- Full Electron UI: two consecutive 14/14 passes (28/28 total), covering startup, navigation security, onboarding, accessibility, appearance persistence, capture selection, selector keyboard controls, ordinary mouse behavior, pause/resume, coalesced input, pending-stop finalization, session isolation, fallback annotation controls, forced-process recovery, three distinct narrated issues, saved review editing, and media/report artifacts.
+- Desktop, CLI, and MCP builds passed from the final source tree.
+- Both x64 and arm64 unsigned apps, DMGs, ZIPs, and block maps rebuilt successfully.
+- Target-native runtime verification passed for both packaged apps.
+- The final arm64 package smoke reported `arch=arm64`, `packaged=true`, `name=MarkuprX`, `version=3.0.0`, title `MarkuprX`, and visible onboarding.
+- Both DMGs passed `hdiutil verify`; both ZIPs passed `unzip -tq`.
+
+Final artifact SHA-256 values:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `markuprx-3.0.0-x64.dmg` | `0861d32080ae60db1477def6030600da55dbbcf339f8a81b82939826183e501f` |
+| `markuprx-3.0.0-arm64.dmg` | `e3d065d14190ee93c432933ec7b117a6fe9a284ac503c6c2f867d8222060391d` |
+| `MarkuprX-3.0.0-mac.zip` | `827f735f70f4fa2b02d9ad74297a8680258e591283c1aff72cab8183d2ba4e2b` |
+| `MarkuprX-3.0.0-arm64-mac.zip` | `8d0638dc47a6321e8d8de56de42a2067ba67d0be42aa54ceec209fcf357e61d9` |
+
+### Reinstallation
+
+- Installed the final arm64 bundle at `/Applications/MarkuprX.app` through a staged transactional copy.
+- Preserved the previous installation at `/Applications/MarkuprX.app.backup-20260816-092600`.
+- The installed-path smoke check passed with bundle ID `com.eddiesanjuan.markuprx`, version `3.0.0`, a Mach-O arm64 executable, packaged runtime identity, and visible fresh-profile onboarding.
+- Signing and notarization remain intentionally skipped because Apple credentials were not supplied.
