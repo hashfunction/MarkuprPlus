@@ -545,6 +545,55 @@ test.describe('MarkuprX desktop application', () => {
       .toBeGreaterThan(1_000);
   });
 
+  test('finalizes an unclicked marked area with narration when Stop is chosen', async () => {
+    test.setTimeout(90_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    const annotation = await selectDeterministicWindow(application, mainWindow);
+    const input = createInputSequence(mainWindow);
+    const comment = 'The final pending mark must be included when recording stops.';
+
+    await input.next();
+    await input.next({ modifierDown: true });
+    await drawStroke(annotation, { x: 230, y: 190 }, { x: 450, y: 280 });
+    await input.next({ modifierDown: false });
+    await expect.poll(async () => (await diagnostics(mainWindow)).pendingMarkedIssue).toBe(true);
+    expect(await mainWindow.evaluate(async ({ text, recordedAt }) => {
+      if (!window.markuprx.e2e) throw new Error('Electron test bridge is unavailable.');
+      return window.markuprx.e2e.injectTranscript(text, recordedAt);
+    }, { text: comment, recordedAt: Date.now() })).toEqual({ success: true });
+    await mainWindow.waitForTimeout(2_200);
+
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 60_000 });
+
+    const sessionDir = await findOnlySessionDirectory(harness.outputRoot);
+    const report = await readFile(join(sessionDir, 'feedback-report.md'), 'utf8');
+    const metadata = JSON.parse(
+      await readFile(join(sessionDir, 'metadata.json'), 'utf8'),
+    ) as {
+      itemCount: number;
+      screenshotCount: number;
+      markedIssues: Array<{ id: string; comment?: string; screenshotPath?: string }>;
+    };
+    expect(report).toContain('### MX-001');
+    expect(report).toContain(comment);
+    expect(report).toContain('./screenshots/marked-issue-001.png');
+    expect(metadata).toMatchObject({
+      itemCount: 1,
+      screenshotCount: 1,
+      markedIssues: [{
+        id: 'marked-issue-001',
+        comment,
+        screenshotPath: 'screenshots/marked-issue-001.png',
+      }],
+    });
+    expect((await stat(join(sessionDir, 'screenshots', 'marked-issue-001.png'))).size)
+      .toBeGreaterThan(1_000);
+  });
+
   test('recovers from modifier monitoring failure with Draw, Undo, Clear, and Done controls', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
