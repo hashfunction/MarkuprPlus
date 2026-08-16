@@ -13,6 +13,7 @@ function streamFixture() {
 function createHarness(options: {
   context?: CanvasRenderingContext2D | null;
   metadataInitiallyReady?: boolean;
+  encodedPng?: Blob | null;
 } = {}) {
   const operations: unknown[][] = [];
   const context = options.context === undefined ? {
@@ -42,6 +43,11 @@ function createHarness(options: {
     height: 0,
     getContext: vi.fn(() => context),
     captureStream: vi.fn(() => output.stream),
+    toBlob: vi.fn((callback: BlobCallback) => {
+      callback(options.encodedPng === undefined
+        ? new Blob([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' })
+        : options.encodedPng);
+    }),
   } as unknown as HTMLCanvasElement;
   const metadataInitiallyReady = options.metadataInitiallyReady !== false;
   let video: HTMLVideoElement;
@@ -92,6 +98,102 @@ const regionTarget: CaptureTarget = {
 };
 
 describe('RecordingCompositor', () => {
+  it('captures PNG bytes only after the next frame contains final annotation events', async () => {
+    const source = streamFixture();
+    const { compositor, canvas, operations, scheduled } = createHarness();
+    await compositor.start(source.stream, regionTarget);
+    compositor.applyAnnotationEvent({
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'marked', tool: 'circle', color: '#ffcc00', width: 0.007,
+        points: [{ x: 0.1, y: 0.1 }],
+      },
+    });
+    compositor.applyAnnotationEvent({
+      type: 'stroke-points', sessionId: 'session-1', strokeId: 'marked',
+      points: [{ x: 0.8, y: 0.8 }],
+    });
+    compositor.applyAnnotationEvent({
+      type: 'stroke-end', sessionId: 'session-1', strokeId: 'marked',
+    });
+
+    const capture = compositor.capturePng();
+    expect(canvas.toBlob).not.toHaveBeenCalled();
+    const [frameId, frame] = [...scheduled.entries()][0];
+    scheduled.delete(frameId);
+    frame(16);
+
+    await expect(capture).resolves.toEqual(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+    expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+    const yellowStroke = operations.findIndex((operation) =>
+      operation[0] === 'strokeStyle' && operation[1] === '#ffcc00');
+    expect(yellowStroke).toBeGreaterThan(-1);
+  });
+
+  it('freezes the requested annotation scene even if a rapid navigation click clears live marks', async () => {
+    const source = streamFixture();
+    const { compositor, operations, scheduled } = createHarness();
+    await compositor.start(source.stream, regionTarget);
+    operations.splice(0);
+    compositor.applyAnnotationEvent({
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'frozen', tool: 'freehand', color: '#34c759', width: 0.008,
+        points: [{ x: 0.1, y: 0.1 }],
+      },
+    });
+    compositor.applyAnnotationEvent({
+      type: 'stroke-points', sessionId: 'session-1', strokeId: 'frozen',
+      points: [{ x: 0.9, y: 0.9 }],
+    });
+    compositor.applyAnnotationEvent({
+      type: 'stroke-end', sessionId: 'session-1', strokeId: 'frozen',
+    });
+
+    const capture = compositor.capturePng();
+    compositor.applyAnnotationEvent({ type: 'clear', sessionId: 'session-1' });
+    const [frameId, frame] = [...scheduled.entries()][0];
+    scheduled.delete(frameId);
+    frame(16);
+    await capture;
+
+    expect(operations).toContainEqual(['strokeStyle', '#34c759']);
+  });
+
+  it('rejects capture when PNG encoding fails or exceeds the bounded size', async () => {
+    const failed = createHarness({ encodedPng: null });
+    const failedSource = streamFixture();
+    await failed.compositor.start(failedSource.stream, regionTarget);
+    const failedCapture = failed.compositor.capturePng();
+    const [failedId, failedFrame] = [...failed.scheduled.entries()][0];
+    failed.scheduled.delete(failedId);
+    failedFrame(16);
+    await expect(failedCapture).rejects.toThrow('encode');
+
+    const oversized = createHarness({
+      encodedPng: new Blob([new Uint8Array(15 * 1024 * 1024 + 1)], { type: 'image/png' }),
+    });
+    const oversizedSource = streamFixture();
+    await oversized.compositor.start(oversizedSource.stream, regionTarget);
+    const oversizedCapture = oversized.compositor.capturePng();
+    const [oversizedId, oversizedFrame] = [...oversized.scheduled.entries()][0];
+    oversized.scheduled.delete(oversizedId);
+    oversizedFrame(16);
+    await expect(oversizedCapture).rejects.toThrow('size limit');
+  });
+
+  it('rejects capture before start and if stop wins during the render barrier', async () => {
+    const source = streamFixture();
+    const { compositor } = createHarness();
+    await expect(compositor.capturePng()).rejects.toThrow('not active');
+
+    await compositor.start(source.stream, regionTarget);
+    const capture = compositor.capturePng();
+    compositor.stop();
+
+    await expect(capture).rejects.toThrow('stopped');
+  });
+
   it('starts detached video playback before waiting for capture metadata', async () => {
     const source = streamFixture();
     const { compositor, video } = createHarness({ metadataInitiallyReady: false });

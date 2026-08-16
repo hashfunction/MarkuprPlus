@@ -4,6 +4,7 @@ import type {
   AnnotationEvent,
   CaptureOverlayState,
   CaptureTarget,
+  MarkedIssueCandidatePayload,
 } from '../../src/shared/types';
 
 interface ExposedApi {
@@ -13,6 +14,7 @@ interface ExposedApi {
     endAnnotation(): Promise<{ success: boolean }>;
     setAnnotationMode(mode: 'interact' | 'draw'): Promise<{ success: boolean }>;
     onAnnotationEvent(callback: (event: AnnotationEvent) => void): () => void;
+    stageMarkedIssueCandidate(payload: MarkedIssueCandidatePayload): Promise<{ success: boolean }>;
   };
   captureOverlay: {
     getState(): Promise<CaptureOverlayState | null>;
@@ -93,5 +95,21 @@ describe('capture overlay preload bridge', () => {
 
     unsubscribe();
     expect(ipcRenderer.removeListener).toHaveBeenCalledWith(registration[0], registration[1]);
+  });
+
+  it('stages marked screenshot bytes through one fixed validated IPC channel', async () => {
+    vi.mocked(ipcRenderer.invoke).mockResolvedValue({ success: true });
+    const payload: MarkedIssueCandidatePayload = {
+      sessionId: '123e4567-e89b-42d3-a456-426614174000',
+      revision: 3,
+      bytes: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+    };
+
+    await api.capture.stageMarkedIssueCandidate(payload);
+
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'markupr:capture:stage-marked-issue-candidate',
+      payload,
+    );
   });
 });

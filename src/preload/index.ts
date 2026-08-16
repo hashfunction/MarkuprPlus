@@ -48,6 +48,7 @@ import {
   type AnnotationStatePayload,
   type CaptureOverlayState,
   type CaptureTarget,
+  type MarkedIssueCandidatePayload,
 } from '../shared/types';
 
 // =============================================================================
@@ -207,6 +208,12 @@ const markuprApi = {
     onAnnotationEvent: createEventSubscriber<AnnotationEvent>(IPC_CHANNELS.CAPTURE_ANNOTATION_EVENT),
 
     onAnnotationState: createEventSubscriber<AnnotationStatePayload>(IPC_CHANNELS.CAPTURE_ANNOTATION_STATE),
+
+    stageMarkedIssueCandidate: (
+      payload: MarkedIssueCandidatePayload
+    ): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_STAGE_MARKED_ISSUE_CANDIDATE, payload);
+    },
 
     /**
      * Trigger a manual screenshot during recording

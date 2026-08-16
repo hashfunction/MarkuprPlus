@@ -40,6 +40,7 @@ import type {
   AnnotationStatePayload,
   CaptureOverlayState,
   CaptureTarget,
+  MarkedIssueCandidatePayload,
 } from '../../shared/types';
 
 type Unsubscribe = () => void;
@@ -85,6 +86,9 @@ interface CaptureAPI {
   setAnnotationMode: (mode: AnnotationMode) => Promise<{ success: boolean; error?: string }>;
   onAnnotationEvent: (callback: (event: AnnotationEvent) => void) => Unsubscribe;
   onAnnotationState: (callback: (state: AnnotationStatePayload) => void) => Unsubscribe;
+  stageMarkedIssueCandidate: (
+    payload: MarkedIssueCandidatePayload
+  ) => Promise<{ success: boolean; error?: string }>;
   manualScreenshot: (context?: {
     focusedElementHint?: FocusedElementHint;
   }) => Promise<{ success: boolean; error?: string }>;

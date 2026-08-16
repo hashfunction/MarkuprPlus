@@ -120,6 +120,7 @@ const mockCaptureIPC = {
     return () => annotationListeners.delete(listener);
   }),
   endAnnotation: vi.fn(() => Promise.resolve({ success: true })),
+  stageMarkedIssueCandidate: vi.fn(() => Promise.resolve({ success: true })),
 };
 
 vi.stubGlobal('window', {
@@ -143,6 +144,7 @@ const screenTarget: CaptureTarget = {
   displayId: '1',
   displayBounds: { x: 0, y: 0, width: 1920, height: 1080 },
 };
+const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -155,6 +157,7 @@ describe('ScreenRecordingRenderer', () => {
   let compositor: {
     start: ReturnType<typeof vi.fn>;
     applyAnnotationEvent: ReturnType<typeof vi.fn>;
+    capturePng: ReturnType<typeof vi.fn>;
     stop: ReturnType<typeof vi.fn>;
   };
 
@@ -169,6 +172,9 @@ describe('ScreenRecordingRenderer', () => {
     compositor = {
       start: vi.fn(() => Promise.resolve(composedStream as unknown as MediaStream)),
       applyAnnotationEvent: vi.fn(),
+      capturePng: vi.fn(() => Promise.resolve(
+        new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]),
+      )),
       stop: vi.fn(() => {
         rawStream.getTracks().forEach((track) => track.stop());
         composedStream.getTracks().forEach((track) => track.stop());
@@ -242,6 +248,49 @@ describe('ScreenRecordingRenderer', () => {
 
       await renderer.stop();
       expect(annotationListeners.size).toBe(0);
+    });
+
+    it('captures and stages each main-owned marked snapshot request', async () => {
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+      const request: AnnotationEvent = {
+        type: 'snapshot-request', sessionId: 'sess-1', revision: 3, requestedAt: 2_000,
+      };
+
+      annotationListeners.forEach((listener) => listener(request));
+      await vi.waitFor(() => expect(mockCaptureIPC.stageMarkedIssueCandidate).toHaveBeenCalled());
+
+      expect(compositor.capturePng).toHaveBeenCalledOnce();
+      expect(mockCaptureIPC.stageMarkedIssueCandidate).toHaveBeenCalledWith({
+        sessionId: 'sess-1',
+        revision: 3,
+        bytes: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]),
+      });
+      expect(compositor.applyAnnotationEvent).not.toHaveBeenCalledWith(request);
+    });
+
+    it('keeps recording when candidate capture or staging fails', async () => {
+      const error = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+      compositor.capturePng.mockRejectedValueOnce(new Error('encode failed'));
+      annotationListeners.forEach((listener) => listener({
+        type: 'snapshot-request', sessionId: 'sess-1', revision: 1, requestedAt: 2_000,
+      }));
+      await vi.waitFor(() => expect(error).toHaveBeenCalledWith(
+        '[ScreenRecordingRenderer] Marked screenshot staging failed:',
+        expect.any(Error),
+      ));
+      expect(renderer.isRecording()).toBe(true);
+
+      compositor.capturePng.mockResolvedValueOnce(PNG_BYTES);
+      mockCaptureIPC.stageMarkedIssueCandidate.mockResolvedValueOnce({
+        success: false, error: 'disk full',
+      });
+      annotationListeners.forEach((listener) => listener({
+        type: 'snapshot-request', sessionId: 'sess-1', revision: 2, requestedAt: 2_100,
+      }));
+      await vi.waitFor(() => expect(error).toHaveBeenCalledTimes(2));
+      expect(renderer.isRecording()).toBe(true);
+      error.mockRestore();
     });
 
     it('releases the selected source when composition cannot initialize', async () => {
@@ -437,6 +486,25 @@ describe('ScreenRecordingRenderer', () => {
   // ========================================================================
 
   describe('stop', () => {
+    it('waits for marked screenshot staging before finalizing persistence', async () => {
+      let resolveCapture!: (bytes: Uint8Array) => void;
+      compositor.capturePng.mockImplementationOnce(() => new Promise((resolve) => {
+        resolveCapture = resolve;
+      }));
+      await renderer.start({ sessionId: 'sess-1', target: screenTarget });
+      annotationListeners.forEach((listener) => listener({
+        type: 'snapshot-request', sessionId: 'sess-1', revision: 1, requestedAt: 2_000,
+      }));
+
+      const stopping = renderer.stop();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(mockScreenRecordingIPC.stop).not.toHaveBeenCalled();
+      resolveCapture(PNG_BYTES);
+
+      await stopping;
+      expect(mockCaptureIPC.stageMarkedIssueCandidate).toHaveBeenCalled();
+      expect(mockScreenRecordingIPC.stop).toHaveBeenCalledWith('sess-1');
+    });
     it('immediately releases the compositor and both capture streams', async () => {
       await renderer.start({ sessionId: 'sess-1', target: screenTarget });
 

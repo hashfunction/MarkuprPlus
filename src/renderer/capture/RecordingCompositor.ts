@@ -1,4 +1,9 @@
-import type { AnnotationEvent, CaptureBounds, CaptureTarget } from '../../shared/types';
+import {
+  MAX_MARKED_SCREENSHOT_BYTES,
+  type AnnotationEvent,
+  type CaptureBounds,
+  type CaptureTarget,
+} from '../../shared/types';
 import { containRect, regionToSourceCrop } from '../../shared/captureGeometry';
 import {
   createAnnotationScene,
@@ -38,6 +43,18 @@ function stopTracks(stream: MediaStream | null): void {
   }
 }
 
+function cloneScene(scene: AnnotationScene): AnnotationScene {
+  const cloneStroke = (stroke: NonNullable<AnnotationScene['activeStroke']>) => ({
+    ...stroke,
+    points: stroke.points.map((point) => ({ ...point })),
+  });
+  return {
+    completedStrokes: scene.completedStrokes.map(cloneStroke),
+    activeStroke: scene.activeStroke ? cloneStroke(scene.activeStroke) : null,
+    cursor: scene.cursor ? { ...scene.cursor } : null,
+  };
+}
+
 export class RecordingCompositor {
   private readonly dependencies: RecordingCompositorDependencies;
   private sourceStream: MediaStream | null = null;
@@ -49,6 +66,10 @@ export class RecordingCompositor {
   private scene: AnnotationScene = createAnnotationScene();
   private animationFrame: number | null = null;
   private running = false;
+  private frameWaiters = new Set<{
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }>();
 
   constructor(dependencies: RecordingCompositorDependencies = defaultDependencies()) {
     this.dependencies = dependencies;
@@ -104,9 +125,51 @@ export class RecordingCompositor {
     this.scene = reduceAnnotationEvent(this.scene, event);
   }
 
+  async capturePng(): Promise<Uint8Array> {
+    const canvas = this.canvas;
+    if (!this.running || !canvas) {
+      throw new Error('Recording compositor is not active.');
+    }
+
+    const requestedScene = cloneScene(this.scene);
+    await this.afterNextRenderedFrame();
+    if (!this.running || this.canvas !== canvas) {
+      throw new Error('Recording compositor stopped before marked screenshot capture.');
+    }
+    if (typeof canvas.toBlob !== 'function') {
+      throw new Error('Canvas PNG encoding is unavailable.');
+    }
+    if (!this.renderScene(requestedScene)) {
+      throw new Error('Recording compositor could not render the marked screenshot.');
+    }
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      try {
+        canvas.toBlob((encoded) => {
+          if (encoded) resolve(encoded);
+          else reject(new Error('Failed to encode the marked screenshot as PNG.'));
+        }, 'image/png');
+      } catch (error) {
+        reject(error instanceof Error
+          ? error
+          : new Error('Failed to encode the marked screenshot as PNG.'));
+      }
+    });
+    if (blob.size > MAX_MARKED_SCREENSHOT_BYTES) {
+      throw new Error('Marked screenshot exceeds the size limit.');
+    }
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
   renderFrame(): void {
+    if (this.renderScene(this.scene)) this.resolveFrameWaiters();
+  }
+
+  private renderScene(scene: AnnotationScene): boolean {
     const { video, canvas, context, target } = this;
-    if (!video || !canvas || !context || !target || video.videoWidth <= 0 || video.videoHeight <= 0) return;
+    if (!video || !canvas || !context || !target || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      return false;
+    }
     const crop: CaptureBounds = regionToSourceCrop(target, {
       width: video.videoWidth,
       height: video.videoHeight,
@@ -132,15 +195,17 @@ export class RecordingCompositor {
     );
     context.save();
     context.translate(destination.x, destination.y);
-    drawAnnotationScene(context, this.scene, {
+    drawAnnotationScene(context, scene, {
       width: destination.width,
       height: destination.height,
     });
     context.restore();
+    return true;
   }
 
   stop(): void {
     this.running = false;
+    this.rejectFrameWaiters(new Error('Recording compositor stopped before marked screenshot capture.'));
     if (this.animationFrame !== null) {
       this.dependencies.cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
@@ -166,6 +231,28 @@ export class RecordingCompositor {
       this.renderFrame();
       this.scheduleNextFrame();
     });
+  }
+
+  private afterNextRenderedFrame(): Promise<void> {
+    if (!this.running) {
+      return Promise.reject(new Error('Recording compositor is not active.'));
+    }
+    return new Promise((resolve, reject) => {
+      this.frameWaiters.add({ resolve, reject });
+      this.scheduleNextFrame();
+    });
+  }
+
+  private resolveFrameWaiters(): void {
+    const waiters = [...this.frameWaiters];
+    this.frameWaiters.clear();
+    waiters.forEach(({ resolve }) => resolve());
+  }
+
+  private rejectFrameWaiters(error: Error): void {
+    const waiters = [...this.frameWaiters];
+    this.frameWaiters.clear();
+    waiters.forEach(({ reject }) => reject(error));
   }
 
   private waitForMetadata(video: HTMLVideoElement): Promise<void> {

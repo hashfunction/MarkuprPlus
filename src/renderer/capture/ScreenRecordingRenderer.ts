@@ -25,6 +25,7 @@ type StartOptions = TargetStartOptions | LegacyStartOptions;
 export interface RecordingCompositorLike {
   start(sourceStream: MediaStream, target: CaptureTarget): Promise<MediaStream>;
   applyAnnotationEvent(event: AnnotationEvent): void;
+  capturePng(): Promise<Uint8Array>;
   stop(): void;
 }
 
@@ -76,6 +77,8 @@ export class ScreenRecordingRenderer {
   private selectedSourceTrack: MediaStreamTrack | null = null;
   private activeSessionId: string | null = null;
   private inFlightWrites: Set<Promise<void>> = new Set();
+  private snapshotWrites: Set<Promise<void>> = new Set();
+  private snapshotRevisions = new Set<number>();
   private startPromise: Promise<void> | null = null;
   private stopping = false;
   private stopPromise: Promise<StopResult> | null = null;
@@ -316,10 +319,14 @@ export class ScreenRecordingRenderer {
       this.activeSourceName = target.sourceName;
       this.stopping = false;
       this.recordingStartTime = recordingStartTime;
+      this.snapshotRevisions.clear();
       this.annotationUnsubscribe = window.markupr.capture?.onAnnotationEvent?.((event) => {
-        if (event.sessionId === this.activeSessionId) {
-          this.compositor?.applyAnnotationEvent(event);
+        if (event.sessionId !== this.activeSessionId) return;
+        if (event.type === 'snapshot-request') {
+          this.captureMarkedSnapshot(event);
+          return;
         }
+        this.compositor?.applyAnnotationEvent(event);
       }) || null;
 
       // Emit chunks every second for near-real-time persistence.
@@ -412,6 +419,9 @@ export class ScreenRecordingRenderer {
         recorder.onstop = null;
         this.stopTracks(recorder.stream);
 
+        await Promise.allSettled(Array.from(this.snapshotWrites));
+        this.snapshotWrites.clear();
+
         // Release screen-capture tracks immediately so macOS indicator turns off
         // even if persistence finalization takes longer than expected.
         this.cleanupStream();
@@ -452,6 +462,7 @@ export class ScreenRecordingRenderer {
         this.activeSourceName = null;
         this.stopping = false;
         this.recordingStartTime = null;
+        this.snapshotRevisions.clear();
       }
 
       return result;
@@ -548,6 +559,34 @@ export class ScreenRecordingRenderer {
     this.compositor = null;
     this.stopTracks(this.mediaStream);
     this.mediaStream = null;
+  }
+
+  private captureMarkedSnapshot(
+    event: Extract<AnnotationEvent, { type: 'snapshot-request' }>,
+  ): void {
+    const compositor = this.compositor;
+    const sessionId = this.activeSessionId;
+    if (!compositor || !sessionId || this.snapshotRevisions.has(event.revision)) return;
+    this.snapshotRevisions.add(event.revision);
+
+    const snapshotWrite = compositor.capturePng()
+      .then((bytes) => window.markupr.capture.stageMarkedIssueCandidate({
+        sessionId,
+        revision: event.revision,
+        bytes,
+      }))
+      .then((result) => {
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to stage marked screenshot.');
+        }
+      })
+      .catch((error) => {
+        console.warn('[ScreenRecordingRenderer] Marked screenshot staging failed:', error);
+      })
+      .finally(() => {
+        this.snapshotWrites.delete(snapshotWrite);
+      });
+    this.snapshotWrites.add(snapshotWrite);
   }
 
   private watchSelectedSource(stream: MediaStream): void {

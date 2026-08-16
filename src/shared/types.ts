@@ -374,6 +374,7 @@ export const IPC_CHANNELS = {
   CAPTURE_ANNOTATION_BEGIN: 'markupr:capture:annotation-begin',
   CAPTURE_ANNOTATION_END: 'markupr:capture:annotation-end',
   CAPTURE_ANNOTATION_SET_MODE: 'markupr:capture:annotation-set-mode',
+  CAPTURE_STAGE_MARKED_ISSUE_CANDIDATE: 'markupr:capture:stage-marked-issue-candidate',
   CAPTURE_OVERLAY_GET_STATE: 'markupr:capture-overlay:get-state',
   CAPTURE_OVERLAY_CONFIRM: 'markupr:capture-overlay:confirm',
   CAPTURE_OVERLAY_CANCEL: 'markupr:capture-overlay:cancel',
@@ -1017,6 +1018,7 @@ export type AnnotationMode = 'interact' | 'draw';
 export type CaptureSelectionMode = 'window' | 'region' | 'screen';
 export type AnnotationTool = 'freehand' | 'circle' | 'highlight';
 export type AnnotationColor = '#ff3b30' | '#ffcc00' | '#34c759' | '#0a84ff';
+export const MAX_MARKED_SCREENSHOT_BYTES = 15 * 1024 * 1024;
 
 export interface NormalizedPoint {
   x: number;
@@ -1075,6 +1077,12 @@ export interface MarkedIssueSnapshotRequest {
   sessionId: string;
   revision: number;
   requestedAt: number;
+}
+
+export interface MarkedIssueCandidatePayload {
+  sessionId: string;
+  revision: number;
+  bytes: Uint8Array;
 }
 
 export interface CaptureSelectionOverlayState {

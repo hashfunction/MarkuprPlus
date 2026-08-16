@@ -53,6 +53,7 @@ import {
   type CaptureTarget,
   type AnalysisConnection,
   type AnalysisProvider,
+  type MarkedIssuePayload,
 } from '../shared/types';
 import { hotkeyManager, type HotkeyAction } from './HotkeyManager';
 import { formatHotkeyForDisplay } from '../shared/hotkeys';
@@ -84,6 +85,7 @@ import {
   deleteFinalizedRecording,
   getActiveScreenRecordings,
   getFinalizedScreenRecordings,
+  getMarkedIssueArtifactStore,
 } from './ipc';
 import { probeCaptureContext } from './capture/CaptureContextProbe';
 import { captureOverlayManager } from './capture/CaptureOverlayManager';
@@ -476,6 +478,20 @@ function handleAnnotationEvent(event: AnnotationEvent): void {
   if (!context) return;
   const cue = sessionController.registerCaptureCue('annotation', context);
   if (cue) crashRecovery.updateSession({ screenshotCount: cue.count });
+}
+
+function handleMarkedIssueCommitted(issue: MarkedIssuePayload): void {
+  const session = sessionController.getSession();
+  if (!session) return;
+  try {
+    getMarkedIssueArtifactStore().markCommitted(
+      session.id,
+      issue.snapshotRevision,
+      issue.ordinal,
+    );
+  } catch (error) {
+    console.warn('[Main] Failed to reserve marked screenshot candidate:', error);
+  }
 }
 
 /**
@@ -1676,6 +1692,9 @@ app.whenReady().then(async () => {
   captureOverlayManager.configure({
     getHostWindow: () => mainWindow,
     onAnnotationEvent: handleAnnotationEvent,
+    onMarkedIssueCommitted: handleMarkedIssueCommitted,
+    isAnnotationEnabled: () => sessionController.getState() === 'recording'
+      && !sessionController.isSessionPaused(),
   });
 
   wireAudioTelemetry();

@@ -18,11 +18,56 @@ import {
   type AnnotationEvent,
   type AnnotationMode,
   type CaptureTarget,
+  MAX_MARKED_SCREENSHOT_BYTES,
+  type MarkedIssueCandidatePayload,
 } from '../../shared/types';
 import { sameCaptureTarget } from '../../shared/captureGeometry';
 import type { IpcContext } from './types';
 import { probeCaptureContext } from '../capture/CaptureContextProbe';
 import { captureOverlayManager } from '../capture/CaptureOverlayManager';
+import { MarkedIssueArtifactStore } from '../capture/MarkedIssueArtifactStore';
+
+const markedIssueArtifactStore = new MarkedIssueArtifactStore(
+  join(app.getPath('temp'), 'markupr-marked-issues'),
+);
+
+export function getMarkedIssueArtifactStore(): MarkedIssueArtifactStore {
+  return markedIssueArtifactStore;
+}
+
+function validateMarkedIssueCandidatePayload(
+  payload: unknown,
+): { success: true; value: MarkedIssueCandidatePayload } | { success: false; error: string } {
+  if (!payload || typeof payload !== 'object') {
+    return { success: false, error: 'Marked screenshot payload must contain bytes.' };
+  }
+  const candidate = payload as Partial<MarkedIssueCandidatePayload>;
+  if (typeof candidate.sessionId !== 'string' || !candidate.sessionId) {
+    return { success: false, error: 'Invalid marked screenshot session.' };
+  }
+  if (!Number.isSafeInteger(candidate.revision) || Number(candidate.revision) <= 0) {
+    return { success: false, error: 'Invalid marked screenshot revision.' };
+  }
+  if (!(candidate.bytes instanceof Uint8Array)) {
+    return { success: false, error: 'Marked screenshot bytes must be a Uint8Array.' };
+  }
+  if (candidate.bytes.byteLength > MAX_MARKED_SCREENSHOT_BYTES) {
+    return { success: false, error: 'Marked screenshot exceeds the size limit.' };
+  }
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (candidate.bytes.byteLength < signature.length
+    || signature.some((byte, index) => candidate.bytes?.[index] !== byte)) {
+    return { success: false, error: 'Marked screenshot does not have a valid PNG signature.' };
+  }
+  return {
+    success: true,
+    value: {
+      sessionId: candidate.sessionId,
+      revision: Number(candidate.revision),
+      bytes: candidate.bytes,
+    },
+  };
+}
 
 // =============================================================================
 // Screen Recording State
@@ -150,7 +195,11 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
           || !sameCaptureTarget(expectedTarget, target as CaptureTarget)) {
           return { success: false, error: 'Annotation target does not match the active recording.' };
         }
-        await captureOverlayManager.beginAnnotation(sessionId, target as CaptureTarget);
+        await captureOverlayManager.beginAnnotation(
+          sessionId,
+          target as CaptureTarget,
+          activeSession.metadata.videoStartTime || activeSession.startTime,
+        );
         return { success: true };
       } catch (error) {
         return {
@@ -202,6 +251,32 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
     }
     return captureOverlayManager.submitAnnotationEvent(event.sender.id, annotationEvent as AnnotationEvent);
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.CAPTURE_STAGE_MARKED_ISSUE_CANDIDATE,
+    async (_, payload: unknown): Promise<{ success: boolean; error?: string }> => {
+      const validated = validateMarkedIssueCandidatePayload(payload);
+      if (!validated.success) return validated;
+      const activeSession = sessionController.getSession();
+      if (!activeSession || activeSession.id !== validated.value.sessionId
+        || (activeSession.state !== 'recording' && activeSession.state !== 'stopping')) {
+        return { success: false, error: 'Marked screenshot does not belong to the active session.' };
+      }
+      try {
+        await markedIssueArtifactStore.stageCandidate(
+          validated.value.sessionId,
+          validated.value.revision,
+          validated.value.bytes,
+        );
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to stage marked screenshot.',
+        };
+      }
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.CAPTURE_GET_SOURCES, async (): Promise<CaptureSource[]> => {
     try {
