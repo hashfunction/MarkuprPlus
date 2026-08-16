@@ -149,7 +149,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
 
   return (
     <div
-      role="row"
+      role="listitem"
       tabIndex={0}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -968,11 +968,18 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
 
       <div style={styles.backdrop} onClick={onClose} />
 
-      <div ref={containerRef} style={styles.panel} className="ff-dialog-enter">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="markuprx-session-history-title"
+        style={styles.panel}
+        className="ff-dialog-enter"
+      >
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            <h2 style={styles.headerTitle}>Session History</h2>
+            <h2 id="markuprx-session-history-title" style={styles.headerTitle}>Session History</h2>
             {!isLoading && (
               <span style={styles.sessionCount}>
                 {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
@@ -1036,7 +1043,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         </div>
 
         {/* Content */}
-        <div ref={listRef} style={styles.content} className="markuprx-history-scrollbar" role="grid">
+        <div ref={listRef} style={styles.content} className="markuprx-history-scrollbar" role="list">
           {isLoading ? (
             <LoadingState />
           ) : filteredSessions.length === 0 ? (

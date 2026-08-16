@@ -339,6 +339,32 @@ export async function syncMarkedIssueMetadata(
   }
 }
 
+/** Keep every supported report summary format aligned with finalized evidence. */
+export async function syncReportScreenshotSummary(
+  markdownPath: string,
+  screenshotCount: number,
+): Promise<void> {
+  const count = Math.max(0, Math.floor(screenshotCount));
+  const markdown = await fs.readFile(markdownPath, 'utf-8');
+  const updated = markdown
+    .replace(
+      /(>\s*Duration:[^\n]*\|\s*Screenshots:\s*)\d+/,
+      `$1${count}`,
+    )
+    .replace(
+      /(^-\s*)\d+(\s+screenshots were aligned to spoken context\.\s*$)/m,
+      `$1${count}$2`,
+    )
+    .replace(/(-\s*\*\*Screenshots:\*\*\s*)\d+/, `$1${count}`)
+    .replace(
+      /(\|\s*Duration:\s*[^|\n]+\|\s*)\d+(\s+screenshots\s*\|\s*\d+\s+items identified\s*$)/m,
+      `$1${count}$2`,
+    );
+  if (updated !== markdown) {
+    await fs.writeFile(markdownPath, updated, 'utf-8');
+  }
+}
+
 /**
  * Sync extracted frame count into feedback-summary.md.
  */

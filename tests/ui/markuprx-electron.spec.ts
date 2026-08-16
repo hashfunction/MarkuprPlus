@@ -588,6 +588,8 @@ test.describe('MarkuprX desktop application', () => {
 
     const report = await readFile(reportPath, 'utf8');
     const metadata = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+      itemCount: number;
+      screenshotCount: number;
       markedIssues: Array<{
         id: string;
         ordinal: number;
@@ -605,6 +607,9 @@ test.describe('MarkuprX desktop application', () => {
       cases.map((issue) => issue.comment),
     );
     expect(new Set(metadata.markedIssues.flatMap((issue) => issue.transcriptSegmentIds)).size).toBe(3);
+    expect(metadata.screenshotCount).toBe(3);
+    expect(report).toContain(`Items: ${metadata.itemCount} | Screenshots: 3`);
+    expect(report).toContain('3 screenshots were aligned to spoken context.');
 
     for (const [index, issue] of cases.entries()) {
       const ordinal = index + 1;
@@ -629,5 +634,21 @@ test.describe('MarkuprX desktop application', () => {
     expect((await stat(join(sessionDir, recordingName!))).size).toBeGreaterThan(1_000);
     expect((await stat(join(sessionDir, 'session-audio.wav'))).size).toBeGreaterThan(1_000);
     expect((await stat(join(sessionDir, 'processing-trace.json'))).size).toBeGreaterThan(100);
+
+    await expect.poll(async () => (await diagnostics(mainWindow)).state).toBe('complete');
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
+    await expect(mainWindow.getByText('Latest Report Path')).toBeVisible();
+    await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Open Session History' }).click();
+    const historyDialog = mainWindow.getByRole('dialog', { name: 'Session History' });
+    await expect(historyDialog).toBeVisible();
+    await expect(historyDialog.getByText('1 session', { exact: true })).toBeVisible();
+    const historyRow = historyDialog.getByRole('listitem').filter({
+      hasText: `${metadata.itemCount} items`,
+    });
+    await expect(historyRow).toBeVisible();
+    await expect(historyRow.getByText(String(metadata.screenshotCount), { exact: true })).toBeVisible();
+    expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
   });
 });

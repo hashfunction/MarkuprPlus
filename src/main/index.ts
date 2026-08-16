@@ -101,6 +101,7 @@ import {
   syncExtractedFrameMetadata,
   syncExtractedFrameSummary,
   syncMarkedIssueMetadata,
+  syncReportScreenshotSummary,
   writeProcessingTrace,
 } from './output/MarkdownPatcher';
 import { resolveSavedTranscriptionFailure } from './transcription/TranscriptionCompletion';
@@ -1447,6 +1448,10 @@ async function stopSession(): Promise<{
           console.warn('[Main] Failed to insert marked issues into report:', error);
         });
       await syncExtractedFrameSummary(saveResult.sessionDir, finalizedScreenshotCount);
+      await syncReportScreenshotSummary(
+        saveResult.markdownPath,
+        finalizedScreenshotCount,
+      );
     }
 
     if (transcriptionFailure) {
@@ -1547,11 +1552,12 @@ async function stopSession(): Promise<{
         `${aiFallbackReason} A Local Rules report was saved.`,
       );
     } else {
+      const savedItemCount = session.feedbackItems.length + finalizedMarkedIssues.length;
       showSuccessNotification(
         'Feedback Captured!',
         clipboardCopied
-          ? `${session.feedbackItems.length} items saved. Report path copied to clipboard.`
-          : `${session.feedbackItems.length} items saved. Clipboard copy failed, use Copy Path in the app.`
+          ? `${savedItemCount} ${savedItemCount === 1 ? 'item' : 'items'} saved. Report path copied to clipboard.`
+          : `${savedItemCount} ${savedItemCount === 1 ? 'item' : 'items'} saved. Clipboard copy failed, use Copy Path in the app.`
       );
     }
 

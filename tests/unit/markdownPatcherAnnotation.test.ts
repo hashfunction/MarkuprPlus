@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   appendExtractedFramesToReport,
   syncMarkedIssueMetadata,
+  syncReportScreenshotSummary,
 } from '../../src/main/output/MarkdownPatcher';
 import type { MarkedIssuePayload } from '../../src/shared/types';
 
@@ -61,6 +62,28 @@ describe('MarkdownPatcher annotation context', () => {
       markedIssues: [issue],
       screenshotCount: 1,
     });
+  });
+
+  it('keeps current and legacy report screenshot summaries aligned after promotion', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'markuprx-report-summary-'));
+    const report = join(directory, 'feedback-report.md');
+    await writeFile(report, [
+      '# Project Feedback Report',
+      '> Duration: 0:06 | Items: 4 | Screenshots: 0',
+      '',
+      '- 0 screenshots were aligned to spoken context.',
+      '- **Screenshots:** 0',
+      '| Duration: 0:06 | 0 screenshots | 4 items identified',
+      '',
+    ].join('\n'));
+
+    await syncReportScreenshotSummary(report, 3);
+
+    const markdown = await readFile(report, 'utf8');
+    expect(markdown).toContain('> Duration: 0:06 | Items: 4 | Screenshots: 3');
+    expect(markdown).toContain('- 3 screenshots were aligned to spoken context.');
+    expect(markdown).toContain('- **Screenshots:** 3');
+    expect(markdown).toContain('| Duration: 0:06 | 3 screenshots | 4 items identified');
   });
 
   it('does not duplicate marked issue fallback frames in the generic screenshot section', async () => {
