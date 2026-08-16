@@ -1043,7 +1043,12 @@ export type AnnotationEvent =
   | (AnnotationEventBase & { type: 'undo' })
   | (AnnotationEventBase & { type: 'clear' })
   | (AnnotationEventBase & { type: 'mode'; mode: AnnotationMode })
-  | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds });
+  | (AnnotationEventBase & { type: 'bounds'; bounds: CaptureBounds })
+  | (AnnotationEventBase & {
+    type: 'snapshot-request';
+    revision: number;
+    requestedAt: number;
+  });
 
 /** A single independently captured problem or requested change in a recording. */
 export interface MarkedIssuePayload {
@@ -1088,6 +1093,9 @@ export interface CaptureAnnotationOverlayState {
   sessionId: string;
   target: CaptureTarget;
   mode: AnnotationMode;
+  modifierKey?: 'Command' | 'Control';
+  modifierInputAvailable?: boolean;
+  modifierInputError?: string;
 }
 
 export type CaptureOverlayState = CaptureSelectionOverlayState | CaptureAnnotationOverlayState;
@@ -1095,6 +1103,8 @@ export type CaptureOverlayState = CaptureSelectionOverlayState | CaptureAnnotati
 export interface AnnotationStatePayload {
   active: boolean;
   mode: AnnotationMode;
+  inputMode?: 'modifier' | 'fallback';
+  modifierKey?: 'Command' | 'Control';
   error?: string;
 }
 

@@ -10,6 +10,7 @@ import {
   type CaptureOverlayManagerDependencies,
   type CaptureOverlayWindow,
 } from '../../src/main/capture/CaptureOverlayManager';
+import type { GlobalAnnotationInputMonitor } from '../../src/main/capture/GlobalAnnotationInputMonitor';
 
 const display: CaptureDisplay = {
   id: '44',
@@ -46,6 +47,7 @@ class LifecycleWindow implements CaptureOverlayWindow {
   readonly setContentProtection = vi.fn();
   readonly setAlwaysOnTop = vi.fn();
   readonly setVisibleOnAllWorkspaces = vi.fn();
+  readonly setFocusable = vi.fn();
   readonly setIgnoreMouseEvents = vi.fn();
   readonly setBounds = vi.fn();
   readonly showInactive = vi.fn();
@@ -104,6 +106,11 @@ describe('capture selection and annotation lifecycle', () => {
     const timers = new Map<number, () => void>();
     const annotationEvents: AnnotationEvent[] = [];
     let timerId = 0;
+    const inputMonitor: GlobalAnnotationInputMonitor = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      health: () => ({ state: 'running', platform: 'darwin', restartCount: 0 }),
+    };
     const dependencies: CaptureOverlayManagerDependencies = {
       prepareSelection: vi.fn().mockResolvedValue({
         displays: [display], windows: [exactWindow], windowSources: [],
@@ -125,6 +132,7 @@ describe('capture selection and annotation lifecycle', () => {
       clearInterval: (id) => { timers.delete(id as number); },
       onDisplayChange: () => () => undefined,
       onAnnotationEvent: (event) => annotationEvents.push(event),
+      inputMonitor,
     };
     const manager = new CaptureOverlayManager(dependencies);
 

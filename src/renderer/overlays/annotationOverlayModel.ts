@@ -31,6 +31,17 @@ export interface AnnotationOverlayResult {
   events: AnnotationEvent[];
 }
 
+export function annotationDirection(
+  modifierKey: 'Command' | 'Control',
+  modifierInputAvailable: boolean,
+): string {
+  if (!modifierInputAvailable) {
+    return 'Hold-to-draw is unavailable · use the fallback Draw control';
+  }
+  const key = modifierKey === 'Control' ? 'Ctrl' : '⌘';
+  return `Hold ${key} and drag to mark · click to save and continue`;
+}
+
 export function normalizeOverlayPoint(
   x: number,
   y: number,

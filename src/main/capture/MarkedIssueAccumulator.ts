@@ -126,6 +126,8 @@ export class MarkedIssueAccumulator {
       case 'mode':
       case 'bounds':
         return { accepted: true };
+      case 'snapshot-request':
+        return { accepted: false };
     }
   }
 

@@ -13,6 +13,8 @@ import {
   type CaptureSelectionMode,
   type CaptureSource,
   type CaptureTarget,
+  type MarkedIssuePayload,
+  type NormalizedPoint,
 } from '../../shared/types';
 import {
   matchCaptureDisplays,
@@ -20,6 +22,15 @@ import {
   validateCaptureTarget,
 } from '../../shared/captureGeometry';
 import { windowGeometryProvider } from './WindowGeometryProvider';
+import {
+  createGlobalAnnotationInputMonitor,
+  type GlobalAnnotationInputMonitor,
+} from './GlobalAnnotationInputMonitor';
+import {
+  reduceAnnotationInput,
+  type GlobalAnnotationInputSample,
+} from './annotationInputModel';
+import { MarkedIssueAccumulator } from './MarkedIssueAccumulator';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -30,6 +41,7 @@ export interface CaptureOverlayWindow {
   setContentProtection(enabled: boolean): void;
   setAlwaysOnTop(enabled: boolean, level?: string): void;
   setVisibleOnAllWorkspaces(enabled: boolean, options?: { visibleOnFullScreen?: boolean }): void;
+  setFocusable(focusable: boolean): void;
   setIgnoreMouseEvents(ignore: boolean, options?: { forward?: boolean }): void;
   setBounds(bounds: CaptureBounds): void;
   showInactive(): void;
@@ -69,6 +81,10 @@ export interface CaptureOverlayManagerDependencies {
   clearInterval: (handle: unknown) => void;
   onDisplayChange?: (callback: () => void) => () => void;
   onAnnotationEvent?: (event: AnnotationEvent) => void;
+  inputMonitor?: GlobalAnnotationInputMonitor;
+  now?: () => number;
+  isAnnotationEnabled?: () => boolean;
+  onMarkedIssueCommitted?: (issue: MarkedIssuePayload) => void;
 }
 
 interface ActiveOverlay {
@@ -184,6 +200,9 @@ function defaultDependencies(): CaptureOverlayManagerDependencies {
         screen.removeListener('display-metrics-changed', callback);
       };
     },
+    inputMonitor: createGlobalAnnotationInputMonitor(),
+    now: () => Date.now(),
+    isAnnotationEnabled: () => true,
   };
 }
 
@@ -213,6 +232,12 @@ export class CaptureOverlayManager {
   private intervalHandles = new Set<unknown>();
   private windowRefreshInFlight = false;
   private unsubscribeDisplayChange: (() => void) | null = null;
+  private inputSample: GlobalAnnotationInputSample | null = null;
+  private issueAccumulator: MarkedIssueAccumulator | null = null;
+  private activeStroke: { id: string; lastPoint: NormalizedPoint } | null = null;
+  private annotationVideoStartTime = 0;
+  private inputMode: 'modifier' | 'fallback' = 'fallback';
+  private inputError: string | undefined;
 
   constructor(dependencies?: CaptureOverlayManagerDependencies) {
     this.dependencies = dependencies || defaultDependencies();
@@ -365,12 +390,22 @@ export class CaptureOverlayManager {
     this.finishSelection(null, true);
   }
 
-  async beginAnnotation(sessionId: string, target: CaptureTarget): Promise<void> {
+  async beginAnnotation(
+    sessionId: string,
+    target: CaptureTarget,
+    videoStartTime = this.now(),
+  ): Promise<void> {
     this.endAnnotation();
     if (target.kind === 'window' && target.geometryAvailable === false) {
       throw new Error('Live annotation is unavailable because this window system did not provide trustworthy window geometry.');
     }
     this.annotationMode = 'interact';
+    this.annotationVideoStartTime = Number.isFinite(videoStartTime) && videoStartTime >= 0
+      ? videoStartTime
+      : this.now();
+    this.issueAccumulator = new MarkedIssueAccumulator(sessionId);
+    this.activeStroke = null;
+    this.inputSample = null;
     const overlayId = `annotation-${sessionId}`;
     const state: CaptureOverlayState = {
       kind: 'annotation',
@@ -387,6 +422,17 @@ export class CaptureOverlayManager {
     this.overlays.set(senderId, this.annotation);
     window.on('closed', () => this.endAnnotation());
     try {
+      await this.dependencies.inputMonitor?.start((sample) => this.handleInputSample(sample));
+      this.updateInputHealth();
+      if (this.annotation?.state.kind === 'annotation') {
+        this.annotation.state = {
+          ...this.annotation.state,
+          modifierKey: this.modifierKey(),
+          modifierInputAvailable: this.inputMode === 'modifier',
+          ...(this.inputError ? { modifierInputError: this.inputError } : {}),
+        };
+        this.overlays.set(senderId, this.annotation);
+      }
       await this.dependencies.loadRenderer(window, 'annotation', overlayId);
     } catch (error) {
       this.endAnnotation();
@@ -401,10 +447,17 @@ export class CaptureOverlayManager {
     for (const handle of this.intervalHandles) this.dependencies.clearInterval(handle);
     this.intervalHandles.clear();
     this.windowRefreshInFlight = false;
+    void this.dependencies.inputMonitor?.stop();
+    this.inputSample = null;
+    this.activeStroke = null;
+    this.issueAccumulator = null;
     const active = this.annotation;
     this.annotation = null;
     this.annotationMode = 'interact';
     if (active) {
+      if (!active.window.isDestroyed()) {
+        active.window.setIgnoreMouseEvents(true, { forward: true });
+      }
       this.overlays.delete(active.window.webContents.id);
       if (!active.window.isDestroyed()) active.window.destroy();
     }
@@ -416,24 +469,18 @@ export class CaptureOverlayManager {
     if (!active || active.state.kind !== 'annotation') {
       return { success: false, error: 'No annotation overlay is active.' };
     }
-    this.annotationMode = mode;
-    active.state = { ...active.state, mode };
-    this.overlays.set(active.window.webContents.id, active);
     if (mode === 'draw') {
-      active.window.setIgnoreMouseEvents(false);
-      active.window.show();
-      active.window.focus();
+      if (this.dependencies.isAnnotationEnabled?.() === false) {
+        return { success: false, error: 'Drawing is unavailable while recording is paused.' };
+      }
     } else {
-      active.window.setIgnoreMouseEvents(true, { forward: true });
-      active.window.showInactive();
+      const recordedAt = this.now();
+      this.finishActiveStroke(null, recordedAt);
+      this.applyAnnotationMode('interact');
+      this.requestIssueSnapshot(recordedAt);
+      return { success: true };
     }
-    active.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, active.state);
-    this.sendAnnotationToHost({
-      type: 'mode',
-      sessionId: active.state.sessionId,
-      mode,
-    });
-    this.emitAnnotationState();
+    this.applyAnnotationMode('draw');
     return { success: true };
   }
 
@@ -448,6 +495,9 @@ export class CaptureOverlayManager {
     if (!validateAnnotationEvent(event)) {
       return { success: false, error: 'Invalid annotation event.' };
     }
+    if (event.type === 'snapshot-request') {
+      return { success: false, error: 'Snapshot requests are owned by the main process.' };
+    }
     const requiresDrawMode = event.type === 'stroke-start'
       || event.type === 'stroke-points'
       || event.type === 'stroke-end'
@@ -455,6 +505,27 @@ export class CaptureOverlayManager {
       || event.type === 'clear';
     if (requiresDrawMode && this.annotationMode !== 'draw') {
       return { success: false, error: 'Drawing is not active.' };
+    }
+    const recordedAt = this.now();
+    const consumed = this.issueAccumulator?.consume(event, recordedAt);
+    if (consumed && !consumed.accepted) {
+      const suffix = consumed.limitReached
+        ? ` The ${consumed.limitReached} limit was reached.`
+        : '';
+      return { success: false, error: `Annotation event is out of order.${suffix}` };
+    }
+    if (event.type === 'stroke-start') {
+      this.activeStroke = {
+        id: event.stroke.id,
+        lastPoint: event.stroke.points[event.stroke.points.length - 1],
+      };
+    } else if (event.type === 'stroke-points'
+      && this.activeStroke?.id === event.strokeId) {
+      this.activeStroke.lastPoint = event.points[event.points.length - 1];
+    } else if (event.type === 'stroke-end' && this.activeStroke?.id === event.strokeId) {
+      this.activeStroke = null;
+    } else if (event.type === 'clear' || event.type === 'undo') {
+      this.activeStroke = null;
     }
     this.sendAnnotationToHost(event, false);
     return { success: true };
@@ -473,6 +544,7 @@ export class CaptureOverlayManager {
     window.setContentProtection(true);
     window.setAlwaysOnTop(true, 'screen-saver');
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    if (kind === 'annotation') window.setFocusable(false);
     window.webContents.on('render-process-gone', () => {
       this.handleOverlayRendererFailure(senderId);
     });
@@ -511,6 +583,10 @@ export class CaptureOverlayManager {
     const payload: AnnotationStatePayload = {
       active: Boolean(this.annotation),
       mode: this.annotation ? this.annotationMode : 'interact',
+      ...(this.annotation ? {
+        inputMode: this.inputMode,
+        modifierKey: this.modifierKey(),
+      } : {}),
       ...(error ? { error } : {}),
     };
     this.sendToHost(IPC_CHANNELS.CAPTURE_ANNOTATION_STATE, payload);
@@ -537,6 +613,7 @@ export class CaptureOverlayManager {
 
   private startAnnotationPolling(): void {
     const cursorHandle = this.dependencies.setInterval(() => {
+      this.updateInputHealth();
       const active = this.annotation;
       if (!active || active.state.kind !== 'annotation') return;
       const bounds = annotationBounds(active.state.target);
@@ -587,6 +664,128 @@ export class CaptureOverlayManager {
       if (this.pendingSelection) this.finishSelection(null, true);
       if (this.annotation) this.endAnnotation();
     }) || null;
+  }
+
+  private now(): number {
+    return this.dependencies.now?.() ?? Date.now();
+  }
+
+  private modifierKey(): 'Command' | 'Control' {
+    return this.dependencies.inputMonitor?.health().platform === 'darwin'
+      ? 'Command'
+      : 'Control';
+  }
+
+  private updateInputHealth(): void {
+    const health = this.dependencies.inputMonitor?.health();
+    const nextMode = health?.state === 'running' ? 'modifier' : 'fallback';
+    const nextError = health?.error;
+    if (nextMode === this.inputMode && nextError === this.inputError) return;
+
+    this.inputMode = nextMode;
+    this.inputError = nextError;
+    if (nextMode === 'fallback' && this.annotationMode === 'draw') {
+      const recordedAt = this.now();
+      this.finishActiveStroke(null, recordedAt);
+      this.applyAnnotationMode('interact');
+      this.requestIssueSnapshot(recordedAt);
+    }
+    const active = this.annotation;
+    if (active?.state.kind === 'annotation') {
+      active.state = {
+        ...active.state,
+        modifierKey: this.modifierKey(),
+        modifierInputAvailable: nextMode === 'modifier',
+        ...(nextError ? { modifierInputError: nextError } : {}),
+      };
+      this.overlays.set(active.window.webContents.id, active);
+      active.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, active.state);
+    }
+    this.emitAnnotationState();
+  }
+
+  private handleInputSample(sample: GlobalAnnotationInputSample): void {
+    const active = this.annotation;
+    if (!active || active.state.kind !== 'annotation') return;
+    const previous = this.inputSample;
+    this.inputSample = sample;
+    const actions = reduceAnnotationInput(previous, sample, annotationBounds(active.state.target));
+    for (const action of actions) {
+      if (action.type === 'modifier-down') {
+        if (this.dependencies.isAnnotationEnabled?.() !== false && this.inputMode === 'modifier') {
+          this.applyAnnotationMode('draw');
+        } else {
+          this.applyAnnotationMode('interact');
+        }
+        continue;
+      }
+      if (action.type === 'modifier-up') {
+        this.finishActiveStroke(action.point, sample.capturedAt);
+        this.applyAnnotationMode('interact');
+        this.requestIssueSnapshot(sample.capturedAt);
+        continue;
+      }
+
+      const issue = this.issueAccumulator?.commit(sample.capturedAt);
+      if (!issue) continue;
+      this.dependencies.onMarkedIssueCommitted?.(issue);
+      this.sendAnnotationToHost({ type: 'clear', sessionId: active.state.sessionId });
+    }
+  }
+
+  private finishActiveStroke(point: NormalizedPoint | null, recordedAt: number): void {
+    const active = this.annotation;
+    const stroke = this.activeStroke;
+    if (!active || active.state.kind !== 'annotation' || !stroke) return;
+
+    if (point && (point.x !== stroke.lastPoint.x || point.y !== stroke.lastPoint.y)) {
+      const pointEvent: AnnotationEvent = {
+        type: 'stroke-points',
+        sessionId: active.state.sessionId,
+        strokeId: stroke.id,
+        points: [point],
+      };
+      this.issueAccumulator?.consume(pointEvent, recordedAt);
+      this.sendAnnotationToHost(pointEvent);
+      stroke.lastPoint = point;
+    }
+    const endEvent: AnnotationEvent = {
+      type: 'stroke-end',
+      sessionId: active.state.sessionId,
+      strokeId: stroke.id,
+    };
+    this.issueAccumulator?.consume(endEvent, recordedAt);
+    this.activeStroke = null;
+    this.sendAnnotationToHost(endEvent);
+  }
+
+  private applyAnnotationMode(mode: AnnotationMode): void {
+    const active = this.annotation;
+    if (!active || active.state.kind !== 'annotation') return;
+    this.annotationMode = mode;
+    active.state = { ...active.state, mode };
+    this.overlays.set(active.window.webContents.id, active);
+    if (mode === 'draw') {
+      active.window.setIgnoreMouseEvents(false);
+    } else {
+      active.window.setIgnoreMouseEvents(true, { forward: true });
+    }
+    active.window.showInactive();
+    active.window.webContents.send(IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED, active.state);
+    this.sendAnnotationToHost({
+      type: 'mode',
+      sessionId: active.state.sessionId,
+      mode,
+    });
+    this.emitAnnotationState();
+  }
+
+  private requestIssueSnapshot(requestedAt: number): void {
+    const request = this.issueAccumulator?.releaseModifier(
+      requestedAt,
+      this.annotationVideoStartTime,
+    );
+    if (request) this.sendAnnotationToHost({ type: 'snapshot-request', ...request });
   }
 }
 

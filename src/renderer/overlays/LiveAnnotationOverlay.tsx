@@ -12,6 +12,7 @@ import {
   type AnnotationScene,
 } from '../capture/annotationScene';
 import {
+  annotationDirection,
   createAnnotationOverlayModel,
   normalizeOverlayPoint,
   reduceAnnotationOverlay,
@@ -46,6 +47,10 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
   const pendingEventsRef = useRef<AnnotationEvent[]>([]);
   const flushFrameRef = useRef<number | null>(null);
   const [model, setModel] = useState(modelRef.current);
+  const direction = annotationDirection(
+    overlayState.modifierKey ?? 'Command',
+    overlayState.modifierInputAvailable !== false,
+  );
 
   const renderScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -203,6 +208,31 @@ export function LiveAnnotationOverlay({ overlayState }: LiveAnnotationOverlayPro
         aria-hidden="true"
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
       />
+
+      <p
+        role="note"
+        data-annotation-control
+        style={{
+          position: 'fixed',
+          left: '50%',
+          bottom: 18,
+          transform: 'translateX(-50%)',
+          margin: 0,
+          padding: '8px 12px',
+          border: '1px solid rgba(255,255,255,.2)',
+          borderRadius: 10,
+          background: 'rgba(17,23,34,.9)',
+          boxShadow: '0 8px 24px rgba(0,0,0,.28)',
+          color: '#fff',
+          fontSize: 13,
+          fontWeight: 650,
+          lineHeight: 1.35,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {direction}
+      </p>
 
       {model.mode === 'draw' && (
         <section

@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
+  annotationDirection,
   createAnnotationOverlayModel,
   normalizeOverlayPoint,
   reduceAnnotationOverlay,
 } from '../../src/renderer/overlays/annotationOverlayModel';
 
 describe('annotationOverlayModel', () => {
+  it('provides platform-specific click-through directions and a fallback explanation', () => {
+    expect(annotationDirection('Command', true))
+      .toBe('Hold ⌘ and drag to mark · click to save and continue');
+    expect(annotationDirection('Control', true))
+      .toBe('Hold Ctrl and drag to mark · click to save and continue');
+    expect(annotationDirection('Command', false))
+      .toBe('Hold-to-draw is unavailable · use the fallback Draw control');
+  });
+
   it('normalizes and clamps pointer positions to the selected area', () => {
     expect(normalizeOverlayPoint(50, 25, 200, 100)).toEqual({ x: 0.25, y: 0.25 });
     expect(normalizeOverlayPoint(-4, 150, 200, 100)).toEqual({ x: 0, y: 1 });

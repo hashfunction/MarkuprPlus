@@ -10,6 +10,11 @@ import {
   type CaptureOverlayWindow,
   type CaptureOverlayManagerDependencies,
 } from '../../src/main/capture/CaptureOverlayManager';
+import type {
+  AnnotationInputHealth,
+  GlobalAnnotationInputMonitor,
+} from '../../src/main/capture/GlobalAnnotationInputMonitor';
+import type { GlobalAnnotationInputSample } from '../../src/main/capture/annotationInputModel';
 
 const display: CaptureDisplay = {
   id: '1',
@@ -54,6 +59,7 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
   readonly setContentProtection = vi.fn();
   readonly setAlwaysOnTop = vi.fn();
   readonly setVisibleOnAllWorkspaces = vi.fn();
+  readonly setFocusable = vi.fn();
   readonly setIgnoreMouseEvents = vi.fn();
   readonly setBounds = vi.fn();
   readonly showInactive = vi.fn();
@@ -82,6 +88,43 @@ class FakeOverlayWindow implements CaptureOverlayWindow {
   }
 }
 
+class FakeInputMonitor implements GlobalAnnotationInputMonitor {
+  readonly start = vi.fn(async (listener: (sample: GlobalAnnotationInputSample) => void) => {
+    this.listener = listener;
+  });
+  readonly stop = vi.fn(async () => undefined);
+  private listener: ((sample: GlobalAnnotationInputSample) => void) | null = null;
+  private inputHealth: AnnotationInputHealth = {
+    state: 'running', platform: 'darwin', restartCount: 0,
+  };
+
+  health(): AnnotationInputHealth {
+    return { ...this.inputHealth };
+  }
+
+  emit(sample: GlobalAnnotationInputSample): void {
+    this.listener?.(sample);
+  }
+
+  setHealth(inputHealth: AnnotationInputHealth): void {
+    this.inputHealth = inputHealth;
+  }
+}
+
+function inputSample(
+  sequence: number,
+  overrides: Partial<GlobalAnnotationInputSample> = {},
+): GlobalAnnotationInputSample {
+  return {
+    sequence,
+    modifierDown: false,
+    primaryDown: false,
+    cursor: { x: 200, y: 180 },
+    capturedAt: 1_000 + sequence * 100,
+    ...overrides,
+  };
+}
+
 function createHarness(selectionOverrides: Partial<{
   displays: CaptureDisplay[];
   windows: CapturableWindow[];
@@ -92,6 +135,9 @@ function createHarness(selectionOverrides: Partial<{
   const intervals = new Map<number, () => void>();
   let nextInterval = 1;
   let displayChangeHandler: (() => void) | null = null;
+  const inputMonitor = new FakeInputMonitor();
+  const committedIssues: unknown[] = [];
+  let now = 1_000;
   const dependencies: CaptureOverlayManagerDependencies = {
     prepareSelection: vi.fn().mockResolvedValue({
       displays: selectionOverrides.displays ?? [display],
@@ -117,6 +163,13 @@ function createHarness(selectionOverrides: Partial<{
       displayChangeHandler = callback;
       return () => { displayChangeHandler = null; };
     },
+    inputMonitor,
+    now: () => {
+      now += 10;
+      return now;
+    },
+    isAnnotationEnabled: vi.fn(() => true),
+    onMarkedIssueCommitted: (issue) => committedIssues.push(issue),
   };
   const manager = new CaptureOverlayManager(dependencies);
   return {
@@ -125,6 +178,8 @@ function createHarness(selectionOverrides: Partial<{
     windows,
     host,
     intervals,
+    inputMonitor,
+    committedIssues,
     emitDisplayChange: () => displayChangeHandler?.(),
   };
 }
@@ -368,25 +423,171 @@ describe('CaptureOverlayManager annotation lifecycle', () => {
     );
   });
 
-  it('starts click-through and switches atomically into draw mode', async () => {
-    const { manager, windows, host } = createHarness();
+  it('uses modifier transitions to draw without focusing the protected overlay', async () => {
+    const { manager, windows, host, inputMonitor } = createHarness();
 
-    await manager.beginAnnotation('session-1', windowTarget);
+    await manager.beginAnnotation('session-1', windowTarget, 500);
 
     expect(windows[0].setBounds).toHaveBeenCalledWith(windowTarget.bounds);
+    expect(windows[0].setFocusable).toHaveBeenCalledWith(false);
     expect(windows[0].setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true });
-    expect(manager.setAnnotationMode('draw')).toEqual({ success: true });
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
     expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
-    expect(windows[0].show).toHaveBeenCalled();
-    expect(windows[0].focus).toHaveBeenCalled();
+    expect(windows[0].showInactive).toHaveBeenCalled();
+    expect(windows[0].focus).not.toHaveBeenCalled();
     expect(host.webContents.send).toHaveBeenCalledWith(
       expect.any(String),
-      { active: true, mode: 'draw' },
+      expect.objectContaining({ active: true, mode: 'draw', inputMode: 'modifier' }),
     );
     expect(windows[0].webContents.send).toHaveBeenCalledWith(
       expect.any(String),
       { type: 'mode', sessionId: 'session-1', mode: 'draw' },
     );
+
+    inputMonitor.emit(inputSample(3, { modifierDown: false }));
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
+    expect(windows[0].focus).not.toHaveBeenCalled();
+  });
+
+  it('finishes an active stroke before requesting the marked snapshot on modifier release', async () => {
+    const { manager, windows, host, inputMonitor } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget, 500);
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
+    expect(manager.submitAnnotationEvent(windows[0].webContents.id, {
+      type: 'stroke-start',
+      sessionId: 'session-1',
+      stroke: {
+        id: 'stroke-1', tool: 'freehand', color: '#ff3b30', width: 0.008,
+        points: [{ x: 0.1, y: 0.1 }],
+      },
+    }).success).toBe(true);
+    host.webContents.send.mockClear();
+
+    inputMonitor.emit(inputSample(3, {
+      modifierDown: false,
+      cursor: { x: 550, y: 430 },
+    }));
+
+    const annotationEvents = host.webContents.send.mock.calls
+      .filter((call) => call[0].includes('annotation-event'))
+      .map((call) => call[1] as AnnotationEvent);
+    expect(annotationEvents.map((event) => event.type)).toEqual([
+      'stroke-points', 'stroke-end', 'mode', 'snapshot-request',
+    ]);
+    expect(annotationEvents[0]).toMatchObject({
+      strokeId: 'stroke-1', points: [{ x: 0.5, y: 0.5 }],
+    });
+    expect(annotationEvents[3]).toMatchObject({ revision: 1, requestedAt: 1_300 });
+  });
+
+  it('lets an ordinary click anywhere commit one issue and clears without replaying input', async () => {
+    const { manager, windows, inputMonitor, committedIssues } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget, 500);
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
+    const senderId = windows[0].webContents.id;
+    manager.submitAnnotationEvent(senderId, {
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'stroke-1', tool: 'circle', color: '#ffcc00', width: 0.007,
+        points: [{ x: 0.2, y: 0.2 }],
+      },
+    });
+    manager.submitAnnotationEvent(senderId, {
+      type: 'stroke-end', sessionId: 'session-1', strokeId: 'stroke-1',
+    });
+    inputMonitor.emit(inputSample(3, { modifierDown: false }));
+    windows[0].webContents.send.mockClear();
+
+    inputMonitor.emit(inputSample(4, {
+      primaryDown: true,
+      cursor: { x: 4_000, y: 3_000 },
+    }));
+    inputMonitor.emit(inputSample(5, {
+      primaryDown: false,
+      cursor: { x: 4_000, y: 3_000 },
+    }));
+
+    expect(committedIssues).toHaveLength(1);
+    expect(committedIssues[0]).toMatchObject({
+      id: 'marked-issue-001', strokeIds: ['stroke-1'], snapshotRevision: 1,
+    });
+    expect(windows[0].webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      { type: 'clear', sessionId: 'session-1' },
+    );
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
+    expect(windows[0].focus).not.toHaveBeenCalled();
+  });
+
+  it('keeps manual Draw as a non-focusing fallback when the monitor is unavailable', async () => {
+    const { manager, windows, host, inputMonitor } = createHarness();
+    inputMonitor.setHealth({
+      state: 'unsupported', platform: 'linux', restartCount: 0,
+      error: 'Global modifier observation is unavailable on this platform.',
+    });
+
+    await manager.beginAnnotation('session-1', windowTarget);
+
+    expect(host.webContents.send).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ active: true, inputMode: 'fallback' }),
+    );
+    expect(manager.setAnnotationMode('draw')).toEqual({ success: true });
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
+    expect(windows[0].focus).not.toHaveBeenCalled();
+  });
+
+  it('forces click-through when annotation becomes paused or the monitor fails', async () => {
+    const { manager, windows, inputMonitor, intervals, dependencies } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget);
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
+    vi.mocked(dependencies.isAnnotationEnabled).mockReturnValue(false);
+    inputMonitor.emit(inputSample(3, { modifierDown: false }));
+    inputMonitor.emit(inputSample(4, { modifierDown: true }));
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
+
+    vi.mocked(dependencies.isAnnotationEnabled).mockReturnValue(true);
+    inputMonitor.setHealth({
+      state: 'failed', platform: 'darwin', restartCount: 1, error: 'observer failed',
+    });
+    for (const callback of intervals.values()) callback();
+    expect(windows[0].setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true });
+  });
+
+  it('finishes and snapshots a stroke on pause while preserving it for the next commit', async () => {
+    const { manager, windows, host, inputMonitor, committedIssues } = createHarness();
+    await manager.beginAnnotation('session-1', windowTarget, 500);
+    inputMonitor.emit(inputSample(1));
+    inputMonitor.emit(inputSample(2, { modifierDown: true }));
+    const senderId = windows[0].webContents.id;
+    manager.submitAnnotationEvent(senderId, {
+      type: 'stroke-start', sessionId: 'session-1',
+      stroke: {
+        id: 'before-pause', tool: 'highlight', color: '#34c759', width: 0.025,
+        points: [{ x: 0.2, y: 0.3 }],
+      },
+    });
+    host.webContents.send.mockClear();
+
+    expect(manager.setAnnotationMode('interact')).toEqual({ success: true });
+
+    const sentTypes = host.webContents.send.mock.calls
+      .filter((call) => call[0].includes('annotation-event'))
+      .map((call) => (call[1] as AnnotationEvent).type);
+    expect(sentTypes).toEqual(['stroke-end', 'mode', 'snapshot-request']);
+    expect(windows[0].webContents.send).not.toHaveBeenCalledWith(
+      expect.any(String),
+      { type: 'clear', sessionId: 'session-1' },
+    );
+
+    inputMonitor.emit(inputSample(3, { modifierDown: false }));
+    inputMonitor.emit(inputSample(4, { primaryDown: true }));
+    expect(committedIssues).toHaveLength(1);
+    expect(committedIssues[0]).toMatchObject({ strokeIds: ['before-pause'] });
   });
 
   it('routes only active-session annotation events from its annotation window', async () => {

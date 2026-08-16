@@ -86,6 +86,13 @@ export function validateAnnotationEvent(value: unknown): value is AnnotationEven
     return Boolean(event.bounds && typeof event.bounds === 'object')
       && isFiniteBounds(event.bounds as CaptureBounds);
   }
+  if (event.type === 'snapshot-request') {
+    return Number.isSafeInteger(event.revision)
+      && Number(event.revision) > 0
+      && typeof event.requestedAt === 'number'
+      && Number.isFinite(event.requestedAt)
+      && event.requestedAt >= 0;
+  }
   return false;
 }
 
