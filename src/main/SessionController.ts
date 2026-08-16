@@ -412,6 +412,9 @@ export class SessionController {
    * Transitions: idle -> starting -> recording
    */
   async start(sourceId: string, sourceName?: string, captureTarget?: CaptureTarget): Promise<void> {
+    if (this.state === 'complete') {
+      this.reset();
+    }
     if (this.state !== 'idle') {
       throw new Error(`Cannot start a new session while in "${this.state}" state. Wait for the current session to finish or cancel it first.`);
     }

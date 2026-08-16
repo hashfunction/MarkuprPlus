@@ -594,6 +594,91 @@ test.describe('MarkuprX desktop application', () => {
       .toBeGreaterThan(1_000);
   });
 
+  test('keeps marked evidence isolated across back-to-back sessions', async () => {
+    test.setTimeout(120_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    const firstComment = 'First session checkout feedback.';
+    const secondComment = 'Second session navigation feedback.';
+
+    const recordOneIssue = async (
+      comment: string,
+      tool: 'Pen' | 'Circle',
+      color: string,
+    ): Promise<void> => {
+      const annotation = await selectDeterministicWindow(application!, mainWindow);
+      const input = createInputSequence(mainWindow);
+      await input.next();
+      await drawAndCommitIssue({
+        annotation,
+        mainWindow,
+        input,
+        ordinal: 1,
+        tool,
+        color,
+        comment,
+      });
+      await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+      await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+        .toBeVisible({ timeout: 60_000 });
+    };
+
+    await recordOneIssue(firstComment, 'Pen', '#ff3b30');
+    await expect.poll(async () => {
+      const entries = await readdir(harness.outputRoot, { withFileTypes: true });
+      return entries.filter((entry) => entry.isDirectory()).length;
+    }).toBe(1);
+
+    await recordOneIssue(secondComment, 'Circle', '#ffcc00');
+    await expect.poll(async () => {
+      const entries = await readdir(harness.outputRoot, { withFileTypes: true });
+      return entries.filter((entry) => entry.isDirectory()).length;
+    }, { timeout: 60_000 }).toBe(2);
+
+    const sessionDirectories = (await readdir(harness.outputRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(harness.outputRoot, entry.name));
+    const sessions = await Promise.all(sessionDirectories.map(async (sessionDir) => ({
+      sessionDir,
+      report: await readFile(join(sessionDir, 'feedback-report.md'), 'utf8'),
+      metadata: JSON.parse(
+        await readFile(join(sessionDir, 'metadata.json'), 'utf8'),
+      ) as {
+        sessionId: string;
+        screenshotCount: number;
+        markedIssues: Array<{ id: string; comment?: string; screenshotPath?: string }>;
+      },
+    })));
+
+    expect(new Set(sessions.map(({ metadata }) => metadata.sessionId)).size).toBe(2);
+    expect(sessions.filter(({ report }) => report.includes(firstComment))).toHaveLength(1);
+    expect(sessions.filter(({ report }) => report.includes(secondComment))).toHaveLength(1);
+    expect(sessions.every(({ report }) =>
+      report.includes('./screenshots/marked-issue-001.png'))).toBe(true);
+    expect(sessions.every(({ metadata }) =>
+      metadata.screenshotCount === 1 && metadata.markedIssues.length === 1)).toBe(true);
+
+    const firstSession = sessions.find(({ report }) => report.includes(firstComment));
+    const secondSession = sessions.find(({ report }) => report.includes(secondComment));
+    expect(firstSession?.report).not.toContain(secondComment);
+    expect(secondSession?.report).not.toContain(firstComment);
+    expect(firstSession?.metadata.markedIssues).toMatchObject([{
+      id: 'marked-issue-001',
+      comment: firstComment,
+      screenshotPath: 'screenshots/marked-issue-001.png',
+    }]);
+    expect(secondSession?.metadata.markedIssues).toMatchObject([{
+      id: 'marked-issue-001',
+      comment: secondComment,
+      screenshotPath: 'screenshots/marked-issue-001.png',
+    }]);
+    for (const { sessionDir } of sessions) {
+      expect((await stat(join(sessionDir, 'screenshots', 'marked-issue-001.png'))).size)
+        .toBeGreaterThan(1_000);
+    }
+  });
+
   test('recovers from modifier monitoring failure with Draw, Undo, Clear, and Done controls', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;

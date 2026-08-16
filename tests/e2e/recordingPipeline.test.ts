@@ -229,6 +229,22 @@ describe('Recording Pipeline E2E', () => {
       expect(session!.state).toBe('complete');
     });
 
+    it('should start a fresh session directly after a completed session', async () => {
+      await controller.start('screen:0:0', 'First Screen');
+      const firstSessionId = controller.getSession()!.id;
+      await controller.stop();
+      expect(controller.getState()).toBe('complete');
+
+      await controller.start('screen:1:0', 'Second Screen');
+
+      expect(controller.getState()).toBe('recording');
+      expect(controller.getSession()).toMatchObject({
+        sourceId: 'screen:1:0',
+        metadata: { sourceName: 'Second Screen' },
+      });
+      expect(controller.getSession()!.id).not.toBe(firstSessionId);
+    });
+
     it('should retain an actionable transcription failure on the completed session', async () => {
       mockRecoverTranscript.mockResolvedValueOnce({
         events: [],
