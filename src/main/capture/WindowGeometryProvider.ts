@@ -294,23 +294,27 @@ export class WindowGeometryProvider {
   }
 
   async listWindows(sources: CaptureSource[]): Promise<CapturableWindow[]> {
+    return (await this.probeWindows(sources)) ?? [];
+  }
+
+  async probeWindows(sources: CaptureSource[]): Promise<CapturableWindow[] | null> {
     if (this.platform === 'darwin') {
       const stdout = await this.run('/usr/bin/osascript', ['-l', 'JavaScript', '-e', MAC_WINDOW_LIST_JXA]);
-      return stdout === null ? [] : parseMacWindowList(stdout, sources, this.ownPid);
+      return stdout === null ? null : parseMacWindowList(stdout, sources, this.ownPid);
     }
 
     if (this.platform === 'win32') {
       const stdout = await this.run('powershell.exe', [
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_WINDOW_LIST_POWERSHELL,
       ]);
-      return stdout === null ? [] : parseWindowsWindowList(stdout, sources, this.ownPid);
+      return stdout === null ? null : parseWindowsWindowList(stdout, sources, this.ownPid);
     }
 
     if (this.platform === 'linux' && (this.env.XDG_SESSION_TYPE || '').toLowerCase() !== 'wayland') {
       const stacking = await this.run('xprop', ['-root', '_NET_CLIENT_LIST_STACKING']);
-      if (stacking === null) return [];
+      if (stacking === null) return null;
       const stdout = await this.run('wmctrl', ['-lGpx']);
-      return stdout === null ? [] : parseX11WindowList(stdout, sources, this.ownPid, stacking);
+      return stdout === null ? null : parseX11WindowList(stdout, sources, this.ownPid, stacking);
     }
 
     return [];

@@ -124,6 +124,28 @@ describe('X11 window geometry parsing', () => {
 });
 
 describe('WindowGeometryProvider', () => {
+  it('distinguishes native probe failure from a successful empty window list', async () => {
+    const failedProvider = new WindowGeometryProvider({
+      platform: 'darwin',
+      ownPid: 999,
+      execFile: vi.fn((_file, _args, _options, callback) => {
+        callback(new Error('native probe failed'), '', '');
+        return {};
+      }) as never,
+    });
+    const emptyProvider = new WindowGeometryProvider({
+      platform: 'darwin',
+      ownPid: 999,
+      execFile: vi.fn((_file, _args, _options, callback) => {
+        callback(null, '[]', '');
+        return {};
+      }) as never,
+    });
+
+    await expect(failedProvider.probeWindows(sources)).resolves.toBeNull();
+    await expect(emptyProvider.probeWindows(sources)).resolves.toEqual([]);
+  });
+
   it('returns no direct geometry when the native command times out', async () => {
     const execFile = vi.fn((_file, _args, _options, callback) => {
       callback(Object.assign(new Error('timed out'), { killed: true }), '', '');

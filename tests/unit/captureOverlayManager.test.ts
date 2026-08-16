@@ -360,6 +360,14 @@ describe('CaptureOverlayManager selection lifecycle', () => {
   });
 
   it('broadcasts reordered and newly opened windows while selection remains active', async () => {
+    const secondary: CaptureDisplay = {
+      ...display,
+      id: '2',
+      label: 'Secondary',
+      sourceId: 'screen:1:0',
+      bounds: { x: 1440, y: 0, width: 1920, height: 1080 },
+      isPrimary: false,
+    };
     const initialWindow: CapturableWindow = {
       ...capturableWindow,
       thumbnail: 'data:image/png;base64,documentation',
@@ -373,11 +381,12 @@ describe('CaptureOverlayManager selection lifecycle', () => {
       appIcon: initialWindow.appIcon,
     };
     const { manager, windows, intervals, dependencies } = createHarness({
+      displays: [display, secondary],
       windows: [initialWindow],
       windowSources: [initialSource],
     });
     const selection = manager.selectTarget();
-    await vi.waitFor(() => expect(windows).toHaveLength(1));
+    await vi.waitFor(() => expect(windows).toHaveLength(2));
     const frontWindow: CapturableWindow = {
       sourceId: 'window:330:0',
       sourceName: 'New issue',
@@ -398,21 +407,26 @@ describe('CaptureOverlayManager selection lifecycle', () => {
         { id: capturableWindow.sourceId, name: capturableWindow.sourceName, type: 'window' },
       ],
     });
-    windows[0].webContents.send.mockClear();
+    windows.forEach((window) => window.webContents.send.mockClear());
 
     await vi.waitFor(() => expect(intervals.size).toBe(1));
     Array.from(intervals.values())[0]();
 
     await vi.waitFor(() => {
       expect(dependencies.refreshSelection).toHaveBeenCalledOnce();
-      expect(windows[0].webContents.send).toHaveBeenCalledWith(
-        IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED,
-        expect.objectContaining({
-          kind: 'selection',
+      for (const window of windows) {
+        expect(window.webContents.send).toHaveBeenCalledWith(
+          IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED,
+          expect.objectContaining({
+            kind: 'selection',
+            windows: [frontWindow, initialWindow],
+            windowSources: [frontSource, initialSource],
+          }),
+        );
+        expect(manager.getOverlayState(window.webContents.id)).toMatchObject({
           windows: [frontWindow, initialWindow],
-          windowSources: [frontSource, initialSource],
-        }),
-      );
+        });
+      }
     });
 
     const refreshedTarget: CaptureTarget = {
@@ -456,6 +470,73 @@ describe('CaptureOverlayManager selection lifecycle', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(windows[0].webContents.send).not.toHaveBeenCalled();
+  });
+
+  it('retains the current window state and retries after a selection refresh fails', async () => {
+    const { manager, windows, intervals, dependencies } = createHarness();
+    const movedWindow: CapturableWindow = {
+      ...capturableWindow,
+      bounds: { x: 240, y: 160, width: 800, height: 620 },
+    };
+    vi.mocked(dependencies.refreshSelection)
+      .mockRejectedValueOnce(new Error('native probe failed'))
+      .mockResolvedValueOnce({ windows: [movedWindow], windowSources: [] });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(intervals.size).toBe(1));
+    windows[0].webContents.send.mockClear();
+    const refresh = Array.from(intervals.values())[0];
+
+    refresh();
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+    expect(windows[0].webContents.send).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => {
+      refresh();
+      expect(dependencies.refreshSelection).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(windows[0].webContents.send).toHaveBeenCalledWith(
+        IPC_CHANNELS.CAPTURE_OVERLAY_STATE_CHANGED,
+        expect.objectContaining({ windows: [movedWindow] }),
+      );
+    });
+
+    manager.cancelSelection();
+    await selection;
+    warn.mockRestore();
+  });
+
+  it('serializes confirmation refresh with selection polling', async () => {
+    const { manager, windows, intervals, dependencies } = createHarness();
+    let resolvePoll!: (value: {
+      windows: CapturableWindow[];
+      windowSources: [];
+    }) => void;
+    let resolveConfirmation!: (value: CapturableWindow) => void;
+    vi.mocked(dependencies.refreshSelection).mockImplementationOnce(() => new Promise((resolve) => {
+      resolvePoll = resolve;
+    }));
+    vi.mocked(dependencies.refreshWindow).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveConfirmation = resolve;
+    }));
+    const selection = manager.selectTarget();
+    await vi.waitFor(() => expect(intervals.size).toBe(1));
+    const refresh = Array.from(intervals.values())[0];
+    refresh();
+
+    const confirmation = manager.confirmTarget(windows[0].webContents.id, windowTarget);
+    await Promise.resolve();
+    expect(dependencies.refreshWindow).not.toHaveBeenCalled();
+
+    resolvePoll({ windows: [capturableWindow], windowSources: [] });
+    await vi.waitFor(() => expect(dependencies.refreshWindow).toHaveBeenCalledOnce());
+    refresh();
+    expect(dependencies.refreshSelection).toHaveBeenCalledOnce();
+
+    resolveConfirmation(capturableWindow);
+    await expect(confirmation).resolves.toEqual({ success: true });
+    await expect(selection).resolves.toEqual(windowTarget);
   });
 
   it('keeps selection open when the exact window disappears during confirmation', async () => {

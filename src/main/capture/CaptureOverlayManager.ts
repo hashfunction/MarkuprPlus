@@ -111,6 +111,7 @@ interface PendingSelection {
   resolve: (target: CaptureTarget | null) => void;
   refreshHandle: unknown | null;
   refreshInFlight: boolean;
+  refreshCompletion: Promise<void> | null;
 }
 
 const SELECTION_REFRESH_INTERVAL_MS = 250;
@@ -187,8 +188,10 @@ async function refreshSelectionFromElectron(): Promise<SelectionWindowSnapshot> 
   const windowSources = rawSources
     .map(toCaptureSource)
     .filter((source) => source.type === 'window' && !source.id.endsWith(':1'));
+  const windows = await windowGeometryProvider.probeWindows(windowSources);
+  if (windows === null) throw new Error('Native window geometry probe failed.');
   return {
-    windows: await windowGeometryProvider.listWindows(windowSources),
+    windows,
     windowSources,
   };
 }
@@ -244,8 +247,12 @@ async function refreshElectronWindow(target: CaptureTarget): Promise<CapturableW
     const fixture = createElectronTestCaptureFixtures(screen.getPrimaryDisplay());
     return target.sourceId === fixture.window.sourceId ? fixture.window : null;
   }
-  const selection = await refreshSelectionFromElectron();
-  return selection.windows.find((window) => window.sourceId === target.sourceId) || null;
+  try {
+    const selection = await refreshSelectionFromElectron();
+    return selection.windows.find((window) => window.sourceId === target.sourceId) || null;
+  } catch {
+    return null;
+  }
 }
 
 function defaultDependencies(): CaptureOverlayManagerDependencies {
@@ -407,6 +414,7 @@ export class CaptureOverlayManager {
       resolve: resolveSelection,
       refreshHandle: null,
       refreshInFlight: false,
+      refreshCompletion: null,
     };
     this.pendingSelection = request;
     this.selectionMode = 'window';
@@ -483,9 +491,14 @@ export class CaptureOverlayManager {
     if (!overlay || overlay.state.kind !== 'selection' || !this.pendingSelection) {
       return { success: false, error: 'Unknown capture overlay.' };
     }
+    const request = this.pendingSelection;
 
     let resolvedTarget = target;
     if (target.kind === 'window') {
+      await this.waitForSelectionRefresh(request);
+      if (this.pendingSelection !== request || this.overlays.get(senderId) !== overlay) {
+        return { success: false, error: 'Unknown capture overlay.' };
+      }
       const issued = overlay.state.windows.find((window) =>
         window.sourceId === target.sourceId
         && window.nativeWindowId === target.nativeWindowId
@@ -503,13 +516,16 @@ export class CaptureOverlayManager {
         return { success: false, error: 'The selected window is no longer available.' };
       }
       if (issued) {
-        const refreshed = await this.dependencies.refreshWindow(target);
+        const refreshed = await this.beginSelectionRefresh(
+          request,
+          () => this.dependencies.refreshWindow(target),
+        );
         if (!refreshed
           || refreshed.sourceId !== target.sourceId
           || refreshed.nativeWindowId !== target.nativeWindowId) {
           return { success: false, error: 'The selected window is no longer available.' };
         }
-        if (!this.pendingSelection || this.overlays.get(senderId) !== overlay) {
+        if (this.pendingSelection !== request || this.overlays.get(senderId) !== overlay) {
           return { success: false, error: 'Unknown capture overlay.' };
         }
         resolvedTarget = {
@@ -752,23 +768,47 @@ export class CaptureOverlayManager {
     }
   }
 
+  private beginSelectionRefresh<T>(
+    request: PendingSelection,
+    refresh: () => Promise<T>,
+  ): Promise<T> {
+    request.refreshInFlight = true;
+    let operation: Promise<T>;
+    try {
+      operation = refresh();
+    } catch (error) {
+      request.refreshInFlight = false;
+      throw error;
+    }
+    const completion = operation
+      .then(() => undefined, () => undefined)
+      .finally(() => {
+        if (request.refreshCompletion !== completion) return;
+        request.refreshInFlight = false;
+        request.refreshCompletion = null;
+      });
+    request.refreshCompletion = completion;
+    return operation;
+  }
+
+  private async waitForSelectionRefresh(request: PendingSelection): Promise<void> {
+    while (request.refreshCompletion) await request.refreshCompletion;
+  }
+
   private startSelectionPolling(request: PendingSelection): void {
     if (this.pendingSelection !== request || request.refreshHandle !== null) return;
     request.refreshHandle = this.dependencies.setInterval(() => {
       if (this.pendingSelection !== request || request.refreshInFlight) return;
-      request.refreshInFlight = true;
       let refresh: Promise<SelectionWindowSnapshot>;
       try {
-        refresh = this.dependencies.refreshSelection();
+        refresh = this.beginSelectionRefresh(request, () => this.dependencies.refreshSelection());
       } catch (error) {
-        request.refreshInFlight = false;
         console.warn('[CaptureOverlayManager] Selection refresh failed:', error);
         return;
       }
       void refresh
         .then((snapshot) => this.publishSelectionSnapshot(request, snapshot))
-        .catch((error) => console.warn('[CaptureOverlayManager] Selection refresh failed:', error))
-        .finally(() => { request.refreshInFlight = false; });
+        .catch((error) => console.warn('[CaptureOverlayManager] Selection refresh failed:', error));
     }, SELECTION_REFRESH_INTERVAL_MS);
   }
 
