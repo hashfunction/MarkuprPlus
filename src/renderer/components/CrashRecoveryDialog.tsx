@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import type { ReviewSession } from '../../shared/types';
+import { getContrastColor, useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // Types
@@ -21,6 +22,8 @@ export interface RecoverableSession {
   sourceId: string;
   sourceName: string;
   screenshotCount: number;
+  markedIssueCount: number;
+  pendingMarkedIssue: boolean;
   metadata?: {
     appVersion: string;
     platform: string;
@@ -39,8 +42,22 @@ export interface RecoverableFeedbackItem {
 
 export interface CrashRecoveryDialogProps {
   session: RecoverableSession;
-  onRecover: (session: RecoverableSession) => void;
-  onDiscard: () => void;
+  onRecover: () => void | Promise<void>;
+  onDiscard: () => void | Promise<void>;
+}
+
+export interface CrashRecoveryResult {
+  success: boolean;
+  error?: string;
+  reportPath?: string;
+  sessionDir?: string;
+  reviewSession?: ReviewSession;
+  session?: {
+    id: string;
+    startTime: number;
+    endTime?: number;
+    screenshotCount: number;
+  };
 }
 
 // ============================================================================
@@ -106,21 +123,27 @@ export function CrashRecoveryDialog({
   const formattedTime = formatTimeSince(timeSince);
   const sessionDuration = session.metadata?.sessionDurationMs ||
     (session.lastSaveTime - session.startTime);
+  const recoveryButtonBackground = isRecovering || hoveredBtn === 'recover'
+    ? colors.accent.hover
+    : colors.accent.default;
+  const recoveryButtonText = getContrastColor(recoveryButtonBackground) === 'black'
+    ? '#000000'
+    : '#ffffff';
 
   const handleRecover = useCallback(async () => {
     setIsRecovering(true);
     try {
-      onRecover(session);
+      await onRecover();
     } catch (error) {
       console.error('Recovery failed:', error);
       setIsRecovering(false);
     }
-  }, [onRecover, session]);
+  }, [onRecover]);
 
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
     try {
-      onDiscard();
+      await onDiscard();
     } catch (error) {
       console.error('Discard failed:', error);
       setIsDiscarding(false);
@@ -260,6 +283,10 @@ export function CrashRecoveryDialog({
           {[
             { label: 'Source', value: session.sourceName || 'Unknown' },
             { label: 'Feedback items', value: String(session.feedbackItems.length) },
+            { label: 'Marked issues', value: String(session.markedIssueCount) },
+            ...(session.pendingMarkedIssue
+              ? [{ label: 'Uncommitted drawing', value: 'Not included' }]
+              : []),
             { label: 'Screenshots', value: String(session.screenshotCount) },
             { label: 'Duration', value: formatDuration(sessionDuration) },
           ].map((row, i, arr) => (
@@ -419,7 +446,7 @@ export function CrashRecoveryDialog({
           </svg>
           <span>
             Discarding will permanently delete this session data.
-            Recovery will restore your feedback items for review.
+            Recovery will save your feedback and committed marked issues as a report.
           </span>
         </div>
 
@@ -476,10 +503,8 @@ export function CrashRecoveryDialog({
               cursor: isRecovering ? 'wait' : (isDiscarding ? 'not-allowed' : 'pointer'),
               opacity: (isRecovering || isDiscarding) ? 0.5 : 1,
               transition: 'all 200ms ease',
-              backgroundColor: isRecovering
-                ? colors.accent.hover
-                : (hoveredBtn === 'recover' ? colors.accent.hover : colors.accent.default),
-              color: colors.text.inverse,
+              backgroundColor: recoveryButtonBackground,
+              color: recoveryButtonText,
             }}
           >
             {isRecovering ? (
@@ -490,7 +515,7 @@ export function CrashRecoveryDialog({
             ) : (
               <>
                 Recover Session
-                <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.8 }}>(R)</span>
+                <span style={{ fontSize: 12, marginLeft: 4 }}>(R)</span>
               </>
             )}
           </button>
@@ -523,8 +548,8 @@ export function CrashRecoveryDialog({
 export interface UseCrashRecoveryReturn {
   incompleteSession: RecoverableSession | null;
   isCheckingRecovery: boolean;
-  recoverSession: () => void;
-  discardSession: () => void;
+  recoverSession: () => Promise<CrashRecoveryResult | undefined>;
+  discardSession: () => Promise<void>;
   clearRecoveryState: () => void;
 }
 
@@ -559,6 +584,8 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
                 sourceId: '',
                 sourceName: data.session.sourceName,
                 screenshotCount: data.session.screenshotCount,
+                markedIssueCount: data.session.markedIssueCount ?? 0,
+                pendingMarkedIssue: data.session.pendingMarkedIssue ?? false,
               });
             }
           }
@@ -585,6 +612,8 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
             sourceId: '',
             sourceName: result.session.sourceName,
             screenshotCount: result.session.screenshotCount,
+            markedIssueCount: result.session.markedIssueCount ?? 0,
+            pendingMarkedIssue: result.session.pendingMarkedIssue ?? false,
             metadata: result.session.metadata,
           });
         }
@@ -605,9 +634,14 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
 
   const recoverSession = async () => {
     if (incompleteSession) {
-      await window.markuprx?.crashRecovery.recover(incompleteSession.id);
+      const result = await window.markuprx?.crashRecovery.recover(incompleteSession.id);
+      if (!result?.success) {
+        throw new Error(result?.error || 'Unable to recover the session.');
+      }
       setIncompleteSession(null);
+      return result;
     }
+    return undefined;
   };
 
   const discardSession = async () => {

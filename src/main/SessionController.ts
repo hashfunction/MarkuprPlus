@@ -115,6 +115,7 @@ export interface SessionStatus {
 export interface SessionControllerEvents {
   onStateChange: (state: SessionState, session: Session | null) => void;
   onFeedbackItem: (item: FeedbackItem) => void;
+  onTranscriptBufferChange?: (events: TranscriptEvent[]) => void;
   onError: (error: Error) => void;
 }
 
@@ -1034,6 +1035,9 @@ export class SessionController {
         this.session.transcriptBuffer.length - this.MAX_TRANSCRIPT_BUFFER_EVENTS
       );
     }
+    this.events?.onTranscriptBufferChange?.(
+      structuredClone(this.session.transcriptBuffer),
+    );
 
     // Emit to renderer
     if (normalizedEvent.isFinal) {

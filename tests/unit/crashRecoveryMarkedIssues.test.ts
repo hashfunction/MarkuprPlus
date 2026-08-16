@@ -63,6 +63,13 @@ describe('CrashRecovery marked issues', () => {
   it('round-trips committed and pending marked state defensively through autosave', () => {
     manager.startTracking(session());
     const issues = [issue()];
+    const transcriptEvents = [{
+      text: 'Persist this narration.',
+      isFinal: true,
+      confidence: 0.98,
+      timestamp: 123.4,
+      tier: 'timer-only' as const,
+    }];
     const accumulator = {
       sessionId: session().id,
       issues,
@@ -74,9 +81,11 @@ describe('CrashRecovery marked issues', () => {
     manager.updateSession({
       markedIssues: issues,
       markedIssueAccumulator: accumulator,
+      transcriptEvents,
       screenshotCount: 1,
     });
     issues[0].strokeIds.push('external');
+    transcriptEvents[0].text = 'external mutation';
     vi.advanceTimersByTime(5_000);
     const recovered = manager.getIncompleteSession()!;
     recovered.markedIssues![0].strokeIds.push('read-mutation');
@@ -85,6 +94,7 @@ describe('CrashRecovery marked issues', () => {
       screenshotCount: 1,
       markedIssues: [{ id: 'marked-issue-001', strokeIds: ['one'] }],
       markedIssueAccumulator: { nextOrdinal: 2, nextRevision: 2 },
+      transcriptEvents: [{ text: 'Persist this narration.' }],
     });
   });
 });

@@ -516,6 +516,78 @@ test.describe('MarkuprX desktop application', () => {
     await cancelActiveSession(mainWindow);
   });
 
+  test('recovers committed marked evidence and narration after forced process termination', async () => {
+    test.setTimeout(90_000);
+    let launched = await launchApplication(harness);
+    application = launched.application;
+    let mainWindow = launched.mainWindow;
+    const annotation = await selectDeterministicWindow(application, mainWindow);
+    const input = createInputSequence(mainWindow);
+    await input.next();
+
+    const recoveredComment = 'The recovered checkout button needs more contrast.';
+    await drawAndCommitIssue({
+      annotation,
+      mainWindow,
+      input,
+      ordinal: 1,
+      tool: 'Circle',
+      color: '#ff3b30',
+      comment: recoveredComment,
+    });
+
+    // Leave a second drawing uncommitted to prove recovery distinguishes a
+    // completed issue from marks that were never saved by an ordinary click.
+    await input.next({ modifierDown: true });
+    await drawStroke(annotation, { x: 250, y: 260 }, { x: 470, y: 330 });
+    await input.next({ modifierDown: false });
+    await expect.poll(async () => (await diagnostics(mainWindow)).pendingMarkedIssue).toBe(true);
+
+    // Exercise the production five-second crash autosave, then kill the main
+    // process without Electron's clean-exit handlers.
+    await mainWindow.waitForTimeout(5_750);
+    const crashed = application.waitForEvent('close');
+    application.process().kill('SIGKILL');
+    await crashed;
+    application = null;
+
+    launched = await launchApplication(harness);
+    application = launched.application;
+    mainWindow = launched.mainWindow;
+    const recoveryDialog = mainWindow.getByRole('dialog', { name: 'Recover Previous Session?' });
+    await expect(recoveryDialog).toBeVisible();
+    await expect(recoveryDialog.getByText('Marked issues:')).toBeVisible();
+    await expect(recoveryDialog.getByText('1', { exact: true })).toBeVisible();
+    await expect(recoveryDialog.getByText('Uncommitted drawing:')).toBeVisible();
+    await expect(recoveryDialog.getByText('Not included', { exact: true })).toBeVisible();
+    expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
+
+    await recoveryDialog.getByRole('button', { name: /Recover Session/ }).click();
+    await expect(recoveryDialog).toBeHidden({ timeout: 30_000 });
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
+
+    const sessionDir = await findOnlySessionDirectory(harness.outputRoot);
+    const reportPath = join(sessionDir, 'feedback-report.md');
+    const report = await readFile(reportPath, 'utf8');
+    const metadata = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+      screenshotCount: number;
+      markedIssues: Array<{ id: string; comment?: string; screenshotPath?: string }>;
+    };
+    expect(report).toContain('(Recovered) Feedback Report');
+    expect(report).toContain(recoveredComment);
+    expect(report).toContain('./screenshots/marked-issue-001.png');
+    expect(report).not.toContain('MX-002');
+    expect(metadata.screenshotCount).toBe(1);
+    expect(metadata.markedIssues).toMatchObject([{
+      id: 'marked-issue-001',
+      comment: recoveredComment,
+      screenshotPath: 'screenshots/marked-issue-001.png',
+    }]);
+    expect((await stat(join(sessionDir, 'screenshots', 'marked-issue-001.png'))).size)
+      .toBeGreaterThan(1_000);
+    await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
+  });
+
   test('records three separately narrated marked issues and generates complete evidence', async () => {
     test.setTimeout(90_000);
     const launched = await launchApplication(harness);

@@ -11,6 +11,9 @@ import { join } from 'path';
 import { sessionController } from '../SessionController';
 import { hotkeyManager } from '../HotkeyManager';
 import { crashRecovery } from '../CrashRecovery';
+import { fileManager } from '../output';
+import { saveRecoveredSession } from '../recovery/RecoveredSessionWriter';
+import { getMarkedIssueArtifactStore } from './captureHandlers';
 import {
   IPC_CHANNELS,
   DEFAULT_SETTINGS,
@@ -444,11 +447,15 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     const session = crashRecovery.getIncompleteSession();
     return {
       hasIncomplete: !!session,
-      session: session,
+      session: session ? {
+        ...session,
+        markedIssueCount: session.markedIssues?.length ?? 0,
+        pendingMarkedIssue: Boolean(session.markedIssueAccumulator?.active),
+      } : null,
     };
   });
 
-  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_RECOVER, (_, sessionId: string) => {
+  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_RECOVER, async (_, sessionId: string) => {
     const session = crashRecovery.getIncompleteSession();
     if (!session || session.id !== sessionId) {
       return {
@@ -457,22 +464,44 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       };
     }
 
-    crashRecovery.discardIncompleteSession();
+    try {
+      const artifacts = getMarkedIssueArtifactStore();
+      const recovered = await saveRecoveredSession(session, {
+        saveSession: (controllerSession, document) =>
+          fileManager.saveSession(controllerSession, document),
+        promoteIssues: (id, issues, sessionDir) =>
+          artifacts.promoteIssues(id, issues, sessionDir),
+        cleanupSession: (id) => artifacts.cleanupSession(id),
+      });
+      // Only clear the recovery snapshot after every required report write succeeds.
+      crashRecovery.discardIncompleteSession();
 
-    return {
-      success: true,
-      session: {
-        id: session.id,
-        feedbackItems: session.feedbackItems,
-        startTime: session.startTime,
-        sourceName: session.sourceName,
-        screenshotCount: session.screenshotCount,
-        markedIssues: structuredClone(session.markedIssues ?? []),
-        markedIssueAccumulator: session.markedIssueAccumulator
-          ? structuredClone(session.markedIssueAccumulator)
-          : undefined,
-      },
-    };
+      return {
+        success: true,
+        session: {
+          id: recovered.session.id,
+          feedbackItems: recovered.session.feedbackItems.map((item) => ({
+            ...item,
+            hasScreenshot: Boolean(item.screenshot),
+          })),
+          startTime: recovered.session.startTime,
+          endTime: recovered.session.endTime,
+          sourceName: session.sourceName,
+          screenshotCount: recovered.session.metadata.markedIssues
+            ?.filter((issue) => Boolean(issue.screenshotPath)).length ?? 0,
+          markedIssues: structuredClone(recovered.session.metadata.markedIssues ?? []),
+        },
+        reportPath: recovered.reportPath,
+        sessionDir: recovered.sessionDir,
+        reviewSession: recovered.reviewSession,
+      };
+    } catch (error) {
+      console.error('[Recovery] Failed to save recovered session:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unable to recover session.',
+      };
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_DISCARD, () => {

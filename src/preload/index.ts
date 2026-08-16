@@ -49,6 +49,7 @@ import {
   type CaptureOverlayState,
   type CaptureTarget,
   type MarkedIssueCandidatePayload,
+  type ReviewSession,
 } from '../shared/types';
 import { ELECTRON_TEST_CHANNELS } from '../shared/electronTestHarness';
 
@@ -827,6 +828,8 @@ const markuprxApi = {
         }>;
         sourceName: string;
         screenshotCount: number;
+        markedIssueCount: number;
+        pendingMarkedIssue: boolean;
         metadata?: {
           appVersion: string;
           platform: string;
@@ -846,6 +849,9 @@ const markuprxApi = {
       success: boolean;
       session?: {
         id: string;
+        startTime: number;
+        endTime?: number;
+        screenshotCount: number;
         feedbackItems: Array<{
           id: string;
           timestamp: number;
@@ -854,6 +860,9 @@ const markuprxApi = {
           hasScreenshot: boolean;
         }>;
       };
+      reportPath?: string;
+      sessionDir?: string;
+      reviewSession?: ReviewSession;
       error?: string;
     }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.CRASH_RECOVERY_RECOVER, sessionId);
@@ -919,6 +928,8 @@ const markuprxApi = {
         }>;
         sourceName: string;
         screenshotCount: number;
+        markedIssueCount: number;
+        pendingMarkedIssue: boolean;
       };
     }>(IPC_CHANNELS.CRASH_RECOVERY_FOUND),
   },

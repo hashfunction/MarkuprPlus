@@ -41,6 +41,7 @@ import type {
   CaptureOverlayState,
   CaptureTarget,
   MarkedIssueCandidatePayload,
+  ReviewSession,
 } from '../../shared/types';
 import type { ElectronTestAPI } from '../../shared/electronTestHarness';
 
@@ -321,6 +322,8 @@ interface CrashRecoveryAPI {
       }>;
       sourceName: string;
       screenshotCount: number;
+      markedIssueCount: number;
+      pendingMarkedIssue: boolean;
       metadata?: { appVersion: string; platform: string; sessionDurationMs: number };
     } | null;
   }>;
@@ -328,6 +331,9 @@ interface CrashRecoveryAPI {
     success: boolean;
     session?: {
       id: string;
+      startTime: number;
+      endTime?: number;
+      screenshotCount: number;
       feedbackItems: Array<{
         id: string;
         timestamp: number;
@@ -336,6 +342,9 @@ interface CrashRecoveryAPI {
         hasScreenshot: boolean;
       }>;
     };
+    reportPath?: string;
+    sessionDir?: string;
+    reviewSession?: ReviewSession;
     error?: string;
   }>;
   discard: () => Promise<{ success: boolean }>;
@@ -367,6 +376,8 @@ interface CrashRecoveryAPI {
       }>;
       sourceName: string;
       screenshotCount: number;
+      markedIssueCount: number;
+      pendingMarkedIssue: boolean;
     };
   }) => void) => Unsubscribe;
 }

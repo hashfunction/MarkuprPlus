@@ -18,6 +18,7 @@ import {
   IPC_CHANNELS,
   type MarkedIssuePayload,
 } from '../shared/types';
+import type { TranscriptEvent } from './transcription/types';
 import { errorHandler } from './ErrorHandler';
 import type { MarkedIssueAccumulatorSnapshot } from './capture/MarkedIssueAccumulator';
 
@@ -35,6 +36,8 @@ export interface RecoverableSession {
   lastSaveTime: number;
   feedbackItems: RecoverableFeedbackItem[];
   transcriptionBuffer: string;
+  /** Final/interim transcript events retained for report recovery after a crash. */
+  transcriptEvents?: TranscriptEvent[];
   sourceId: string;
   sourceName: string;
   screenshotCount: number;
@@ -282,6 +285,7 @@ export class CrashRecoveryManager {
 
     this.currentSession = {
       ...session,
+      transcriptEvents: structuredClone(session.transcriptEvents ?? []),
       markedIssues: structuredClone(session.markedIssues ?? []),
       ...(session.markedIssueAccumulator
         ? { markedIssueAccumulator: structuredClone(session.markedIssueAccumulator) }
@@ -319,6 +323,9 @@ export class CrashRecoveryManager {
     this.currentSession = {
       ...this.currentSession,
       ...updates,
+      ...(updates.transcriptEvents
+        ? { transcriptEvents: structuredClone(updates.transcriptEvents) }
+        : {}),
       ...(updates.markedIssues
         ? { markedIssues: structuredClone(updates.markedIssues) }
         : {}),
@@ -428,10 +435,13 @@ export class CrashRecoveryManager {
     const incomplete = this.getIncompleteSession();
     if (incomplete && this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send(
-        IPC_CHANNELS.SESSION_STATE_CHANGED,
+        IPC_CHANNELS.CRASH_RECOVERY_FOUND,
         {
-          type: 'crash-recovery',
-          session: incomplete,
+          session: {
+            ...incomplete,
+            markedIssueCount: incomplete.markedIssues?.length ?? 0,
+            pendingMarkedIssue: Boolean(incomplete.markedIssueAccumulator?.active),
+          },
         }
       );
     }

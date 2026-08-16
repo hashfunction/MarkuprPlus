@@ -105,8 +105,8 @@ export interface RecordingContextValue {
   copyAudioPath: () => Promise<void>;
   openRecent: (session: { folder: string }) => Promise<void>;
   copyRecentPath: (session: { folder: string }) => Promise<void>;
-  recoverSession: () => void;
-  discardSession: () => void;
+  recoverSession: () => Promise<void>;
+  discardSession: () => Promise<void>;
   reviewSave: (session: ReviewSession) => Promise<void>;
   reviewClose: () => void;
 }
@@ -741,15 +741,27 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await window.markuprx.copyToClipboard(`${session.folder}/feedback-report.md`);
   }, []);
 
-  const recoverSession = useCallback(() => {
-    rawRecoverSession();
-    outputReadyRef.current = true;
-    setState('complete');
-    loadRecentSessions();
+  const recoverSession = useCallback(async () => {
+    try {
+      const result = await rawRecoverSession();
+      if (!result) return;
+      outputReadyRef.current = true;
+      setReportPath(result.reportPath || null);
+      setSessionDir(result.sessionDir || null);
+      setReviewSession(result.reviewSession || null);
+      setScreenshotCount(result.session?.screenshotCount ?? 0);
+      setErrorMessage(null);
+      setShowReviewEditor(false);
+      setState('complete');
+      await loadRecentSessions();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to recover the session.');
+      throw error;
+    }
   }, [rawRecoverSession, loadRecentSessions]);
 
-  const discardSession = useCallback(() => {
-    rawDiscardSession();
+  const discardSession = useCallback(async () => {
+    await rawDiscardSession();
   }, [rawDiscardSession]);
 
   const reviewSave = useCallback(async (_session: ReviewSession) => {

@@ -1989,6 +1989,9 @@ app.whenReady().then(async () => {
   sessionController.setEventCallbacks({
     onStateChange: handleSessionStateChange,
     onFeedbackItem: handleFeedbackItem,
+    onTranscriptBufferChange: (transcriptEvents) => {
+      crashRecovery.updateSession({ transcriptEvents });
+    },
     onError: handleSessionError,
   });
 
