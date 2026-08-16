@@ -472,6 +472,46 @@ test.describe('MarkuprX desktop application', () => {
     expect(await readdir(harness.outputRoot)).toEqual([]);
   });
 
+  test('commits one marked screenshot when modifier release and navigation click arrive together', async () => {
+    test.setTimeout(60_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    const annotation = await selectDeterministicWindow(application, mainWindow);
+    const input = createInputSequence(mainWindow);
+    await input.next();
+    await input.next({ modifierDown: true });
+    await drawStroke(annotation, { x: 210, y: 170 }, { x: 430, y: 260 });
+
+    const comment = 'The combined release click must preserve this evidence.';
+    expect(await mainWindow.evaluate(async ({ text, recordedAt }) => {
+      if (!window.markuprx.e2e) throw new Error('Electron test bridge is unavailable.');
+      return window.markuprx.e2e.injectTranscript(text, recordedAt);
+    }, { text: comment, recordedAt: Date.now() })).toEqual({ success: true });
+    await mainWindow.waitForTimeout(1_900);
+
+    // A single observer tick can contain both the modifier-up edge and the
+    // primary-down edge. Production must snapshot before the clear event.
+    await input.next({ modifierDown: false, primaryDown: true });
+    await input.next({ primaryDown: false });
+    await expect.poll(async () => (await diagnostics(mainWindow))).toMatchObject({
+      markedIssueCount: 1,
+      pendingMarkedIssue: false,
+    });
+
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect.poll(async () => {
+      const entries = await readdir(harness.outputRoot, { withFileTypes: true });
+      return entries.filter((entry) => entry.isDirectory()).length;
+    }, { timeout: 45_000 }).toBe(1);
+    const sessionDir = await findOnlySessionDirectory(harness.outputRoot);
+    const report = await readFile(join(sessionDir, 'feedback-report.md'), 'utf8');
+    expect(report).toContain(comment);
+    expect(report).toContain('./screenshots/marked-issue-001.png');
+    expect((await stat(join(sessionDir, 'screenshots', 'marked-issue-001.png'))).size)
+      .toBeGreaterThan(1_000);
+  });
+
   test('recovers from modifier monitoring failure with Draw, Undo, Clear, and Done controls', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
