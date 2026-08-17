@@ -46,7 +46,21 @@ export function PortraitSurface({
           onClick={onBack}
           aria-label={backLabel}
         >
-          <span aria-hidden="true">‹</span>
+          <svg
+            aria-hidden="true"
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+          >
+            <path
+              d="m12.5 4.5-5 5.5 5 5.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
         <div className="ff-portrait-surface__heading">
           <h1 id={titleId} ref={headingRef} tabIndex={-1}>{title}</h1>

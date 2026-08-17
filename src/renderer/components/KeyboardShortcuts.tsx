@@ -369,7 +369,7 @@ function ShortcutRow({
   return (
     <div
       className={
-        'ff-shortcut-row' +
+        'ff-shortcut-row ff-portrait-card' +
         (isEditing ? ' is-editing' : '') +
         (canStartEdit ? ' is-customizable' : '')
       }
@@ -679,7 +679,7 @@ export function KeyboardShortcuts({
       subtitle="Select a customizable shortcut to rebind it"
       contentLabel="Keyboard shortcuts list"
     >
-      <div className="ff-shortcuts">
+      <div className="ff-shortcuts ff-portrait-content">
         <div className="ff-shortcuts__search">
           <label className="sr-only" htmlFor="markuprx-shortcut-search">
             Search shortcuts

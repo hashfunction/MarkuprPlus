@@ -9,7 +9,7 @@ export const SettingsSection: React.FC<{
 }> = ({ title, description, children, onReset }) => (
   <div style={styles.section}>
     <div style={styles.sectionHeader}>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <h3 style={styles.sectionTitle}>{title}</h3>
         {description && <p style={styles.sectionDescription}>{description}</p>}
       </div>
@@ -27,6 +27,6 @@ export const SettingsSection: React.FC<{
         </button>
       )}
     </div>
-    <div style={styles.sectionContent}>{children}</div>
+    <div className="ff-portrait-card" style={styles.sectionContent}>{children}</div>
   </div>
 );

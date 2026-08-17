@@ -163,6 +163,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
   return (
     <div
       role="listitem"
+      className="ff-portrait-card"
       aria-current={isFocused ? 'true' : undefined}
       tabIndex={0}
       onClick={handleClick}
@@ -1119,7 +1120,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         }
         contentLabel="Saved sessions"
       >
-        <div style={styles.portraitBody}>
+        <div className="ff-portrait-content" style={styles.portraitBody}>
           {loadError && (
             <div role="alert" style={styles.errorBanner}>
               <span>{loadError}</span>
@@ -1232,8 +1233,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
   portraitBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
-    padding: 14,
+    gap: 'var(--ff-portrait-item-gap)',
+    padding: 'var(--ff-portrait-inline-inset)',
     minWidth: 0,
   },
 
@@ -1422,7 +1423,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
+    gap: 'var(--ff-portrait-item-gap)',
   },
 
   // Session Card
@@ -1430,9 +1431,9 @@ const styles: Record<string, ExtendedCSSProperties> = {
     display: 'grid',
     gridTemplateColumns: '28px 72px minmax(0, 1fr)',
     gap: 10,
-    padding: 12,
+    padding: 'var(--ff-portrait-card-padding)',
     border: '1px solid var(--border-subtle)',
-    borderRadius: 12,
+    borderRadius: 'var(--ff-portrait-card-radius)',
     position: 'relative',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
@@ -1537,6 +1538,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   openSessionButton: {
+    minHeight: 'var(--ff-portrait-control-height)',
     padding: '7px 12px',
     border: '1px solid var(--accent-muted)',
     borderRadius: 6,

@@ -5,7 +5,7 @@
  * primitives in ./primitives/, tabs in ./settings/.
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DonateButton } from './DonateButton';
 import { PortraitSurface } from './PortraitSurface';
 import { GeneralTab, RecordingTab, AppearanceTab, HotkeysTab, AdvancedTab, TABS } from './settings';
@@ -26,7 +26,34 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 }) => {
   const s = useSettingsPanel(isOpen, onClose, initialTab);
   const tabListRef = useRef<HTMLElement>(null);
+  const railControlRef = useRef<HTMLButtonElement>(null);
   const tabRefs = useRef<Partial<Record<SettingsTab, HTMLButtonElement | null>>>({});
+  const [railDirection, setRailDirection] = useState<'forward' | 'backward'>('forward');
+  const [railHasOverflow, setRailHasOverflow] = useState(false);
+
+  const updateRailAffordance = useCallback(() => {
+    const rail = tabListRef.current;
+    if (!rail) return;
+    const maximumScroll = rail.scrollWidth - rail.clientWidth;
+    const firstTab = tabRefs.current[TABS[0].id];
+    const startingScroll = firstTab?.offsetLeft ?? 0;
+    setRailHasOverflow(maximumScroll > 1);
+    if (rail.scrollLeft <= startingScroll + 1) setRailDirection('forward');
+    else if (rail.scrollLeft >= maximumScroll - 1) setRailDirection('backward');
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const rail = tabListRef.current;
+    if (!rail) return undefined;
+    const frame = requestAnimationFrame(updateRailAffordance);
+    const observer = new ResizeObserver(updateRailAffordance);
+    observer.observe(rail);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [isOpen, updateRailAffordance]);
 
   const handleTabKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
@@ -50,6 +77,33 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     },
     [s],
   );
+
+  const handleRailAdvance = useCallback(() => {
+    const rail = tabListRef.current;
+    const control = railControlRef.current;
+    if (!rail || !control) return;
+    const visibleLeft = rail.getBoundingClientRect().left;
+    const visibleRight = control.getBoundingClientRect().left;
+    const candidates = TABS.map((tab) => ({
+      tab,
+      button: tabRefs.current[tab.id] ?? null,
+    })).filter((candidate): candidate is {
+      tab: typeof TABS[number];
+      button: HTMLButtonElement;
+    } => candidate.button !== null);
+    const target = railDirection === 'forward'
+      ? candidates.find(({ button }) => button.getBoundingClientRect().right > visibleRight + 1)
+      : [...candidates].reverse()
+        .find(({ button }) => button.getBoundingClientRect().left < visibleLeft - 1);
+    if (!target) return;
+
+    s.setActiveTab(target.tab.id);
+    requestAnimationFrame(() => {
+      target.button.focus();
+      target.button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      requestAnimationFrame(updateRailAffordance);
+    });
+  }, [railDirection, s, updateRailAffordance]);
 
   const handleResetAll = useCallback(async () => {
     const resetSections = [
@@ -153,41 +207,60 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         ) : undefined
       }
       navigation={
-        <nav
-          ref={tabListRef}
-          role="tablist"
-          aria-label="Settings sections"
-          style={styles.sectionRail}
-          onKeyDown={handleTabKeyDown}
-        >
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              ref={(node) => {
-                tabRefs.current[tab.id] = node;
-              }}
-              id={'markuprx-settings-tab-' + tab.id}
-              type="button"
-              role="tab"
-              aria-controls="markuprx-settings-panel"
-              aria-selected={s.activeTab === tab.id}
-              tabIndex={s.activeTab === tab.id ? 0 : -1}
-              style={{
-                ...styles.railTab,
-                ...(s.activeTab === tab.id ? styles.railTabActive : {}),
-              }}
-              onClick={() => s.setActiveTab(tab.id)}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
+        <div className="ff-settings-section-navigation">
+          <nav
+            ref={tabListRef}
+            className="ff-settings-section-rail"
+            role="tablist"
+            aria-label="Settings sections"
+            style={styles.sectionRail}
+            onKeyDown={handleTabKeyDown}
+            onScroll={updateRailAffordance}
+          >
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className="ff-settings-section-tab"
+                ref={(node) => {
+                  tabRefs.current[tab.id] = node;
+                }}
+                id={'markuprx-settings-tab-' + tab.id}
+                type="button"
+                role="tab"
+                aria-controls="markuprx-settings-panel"
+                aria-selected={s.activeTab === tab.id}
+                tabIndex={s.activeTab === tab.id ? 0 : -1}
+                style={{
+                  ...styles.railTab,
+                  ...(s.activeTab === tab.id ? styles.railTabActive : {}),
+                }}
+                onClick={() => s.setActiveTab(tab.id)}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+          <button
+            ref={railControlRef}
+            className="ff-settings-section-rail__more"
+            type="button"
+            aria-label={railDirection === 'forward'
+              ? 'Show more settings sections'
+              : 'Show previous settings sections'}
+            data-direction={railDirection}
+            disabled={!railHasOverflow}
+            onClick={handleRailAdvance}
+          >
+            <span aria-hidden="true">{railDirection === 'forward' ? '›' : '‹'}</span>
+          </button>
+        </div>
       }
       contentLabel="Settings content"
     >
       <div
         id="markuprx-settings-panel"
+        className="ff-portrait-content"
         role="tabpanel"
         aria-labelledby={'markuprx-settings-tab-' + s.activeTab}
         style={styles.portraitPanel}

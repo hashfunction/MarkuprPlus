@@ -27,6 +27,7 @@ export const DirectoryPicker: React.FC<{
       <div style={styles.directoryPicker}>
         <input
           type="text"
+          aria-label={label}
           value={value}
           readOnly
           style={styles.directoryInput}

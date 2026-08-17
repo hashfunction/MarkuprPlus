@@ -1,4 +1,10 @@
 .ff-portrait-surface {
+  --ff-portrait-inline-inset: 14px;
+  --ff-portrait-card-radius: 12px;
+  --ff-portrait-card-padding: 12px;
+  --ff-portrait-item-gap: 12px;
+  --ff-portrait-control-height: 40px;
+  --ff-portrait-body-font-size: 13px;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -7,6 +13,18 @@
   height: 100%;
   overflow: hidden;
   color: var(--text-primary);
+  font-size: var(--ff-portrait-body-font-size);
+}
+
+.ff-portrait-content {
+  min-width: 0;
+  padding-right: var(--ff-portrait-inline-inset);
+  padding-left: var(--ff-portrait-inline-inset);
+}
+
+.ff-portrait-card {
+  border-radius: var(--ff-portrait-card-radius) !important;
+  padding: var(--ff-portrait-card-padding) !important;
 }
 
 .ff-portrait-surface__header {
@@ -42,13 +60,14 @@
   margin: 0;
   color: var(--text-primary);
   font-size: 18px;
-  line-height: 1.2;
+  line-height: 22px;
 }
 
 .ff-portrait-surface__subtitle {
   margin-top: 2px;
   color: var(--text-tertiary);
   font-size: 11px;
+  line-height: 16px;
 }
 
 .ff-portrait-surface__header-actions {
@@ -80,6 +99,58 @@
   flex: 0 0 auto;
   min-width: 0;
   border-top: 1px solid var(--border-default);
+}
+
+.ff-settings-section-navigation {
+  position: relative;
+  min-width: 0;
+}
+
+.ff-settings-section-rail {
+  scroll-snap-type: x mandatory;
+  padding-right: 38px !important;
+}
+
+.ff-settings-section-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.ff-settings-section-tab {
+  scroll-snap-align: start;
+}
+
+.ff-settings-section-tab:nth-child(4) {
+  margin-left: 45px;
+}
+
+.ff-settings-section-rail__more {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-primary);
+  box-shadow: -8px 0 10px var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.ff-settings-section-rail__more:hover:not(:disabled) {
+  border-color: var(--accent-muted);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+.ff-settings-section-rail__more:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .ff-review-shell {
@@ -118,9 +189,9 @@
 
 .ff-review-items {
   display: grid;
-  gap: 12px;
+  gap: var(--ff-portrait-item-gap);
   min-width: 0;
-  padding: 14px;
+  padding: var(--ff-portrait-inline-inset);
 }
 
 .ff-review-items > * {
@@ -129,7 +200,7 @@
 
 .ff-review-list {
   display: grid;
-  gap: 12px;
+  gap: var(--ff-portrait-item-gap);
   min-width: 0;
 }
 
@@ -213,7 +284,7 @@
 
 .ff-review-actions button {
   min-width: 0;
-  min-height: 36px;
+  min-height: var(--ff-portrait-control-height);
   padding: 7px 6px;
   overflow-wrap: anywhere;
   border: 1px solid var(--border-default);
@@ -330,7 +401,7 @@
   display: grid;
   gap: 18px;
   min-width: 0;
-  padding: 14px;
+  padding: var(--ff-portrait-inline-inset);
 }
 
 .ff-shortcuts .sr-only {
@@ -400,7 +471,7 @@
 
 .ff-shortcuts__rows {
   display: grid;
-  gap: 6px;
+  gap: var(--ff-portrait-item-gap);
   min-width: 0;
 }
 
@@ -416,9 +487,9 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: var(--ff-portrait-card-padding);
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--ff-portrait-card-radius);
   background: var(--surface-inset);
 }
 
@@ -560,5 +631,38 @@
   .ff-portrait-surface,
   .ff-portrait-surface * {
     scroll-behavior: auto;
+  }
+}
+
+@media (max-width: 280px) {
+  .ff-portrait-surface__header {
+    align-items: flex-start;
+  }
+
+  .ff-portrait-surface__heading h1,
+  .ff-portrait-surface__subtitle {
+    overflow-wrap: anywhere;
+  }
+
+  .ff-analysis-provider-option {
+    grid-template-columns: 18px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 9px !important;
+  }
+
+  .ff-analysis-provider-option__heading > span {
+    overflow-wrap: anywhere;
+  }
+
+  .ff-analysis-provider-option__selected {
+    grid-column: 2;
+  }
+
+  .ff-settings-section-tab {
+    flex-basis: auto !important;
+  }
+
+  .ff-settings-section-tab:nth-child(4) {
+    margin-left: 0;
   }
 }

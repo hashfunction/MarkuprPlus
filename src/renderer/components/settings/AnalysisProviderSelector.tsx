@@ -64,6 +64,7 @@ export const AnalysisProviderSelector: React.FC<{
           return (
             <button
               key={option.id}
+              className="ff-analysis-provider-option"
               type="button"
               role="radio"
               aria-checked={selected}
@@ -96,7 +97,10 @@ export const AnalysisProviderSelector: React.FC<{
                 }}
               />
               <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span
+                  className="ff-analysis-provider-option__heading"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
+                >
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{option.title}</span>
                   <span style={{ fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: 'uppercase' }}>
                     {option.connectionBadge}
@@ -123,7 +127,14 @@ export const AnalysisProviderSelector: React.FC<{
                   {describeStatus(option.id, status)}
                 </span>
               </span>
-              {selected && <span style={{ fontSize: 11, color: colors.text.link, fontWeight: 600 }}>Selected</span>}
+              {selected && (
+                <span
+                  className="ff-analysis-provider-option__selected"
+                  style={{ fontSize: 11, color: colors.text.link, fontWeight: 600 }}
+                >
+                  Selected
+                </span>
+              )}
             </button>
           );
         })}

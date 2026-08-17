@@ -212,6 +212,38 @@ async function seedPortraitSession(
   return sessionDir;
 }
 
+async function seedSessionHistory(
+  outputRoot: string,
+  count: number,
+): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    const ordinal = String(index + 1).padStart(2, '0');
+    const sessionDir = join(outputRoot, `portrait-fixture-${ordinal}`);
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      join(sessionDir, 'metadata.json'),
+      JSON.stringify({
+        sessionId: `portrait-fixture-${ordinal}`,
+        startTime: 1_700_000_000_000 + index * 60_000,
+        endTime: 1_700_000_030_000 + index * 60_000,
+        itemCount: index + 1,
+        screenshotCount: index % 4,
+        source: {
+          id: `window:portrait:${ordinal}`,
+          name: `Portrait Fixture ${ordinal}`,
+        },
+        environment: { os: 'test', version: '1' },
+      }),
+      'utf8',
+    );
+    await writeFile(
+      join(sessionDir, 'feedback-report.md'),
+      `> Portrait history fixture ${ordinal}\n`,
+      'utf8',
+    );
+  }
+}
+
 function markedIssueSection(report: string, ordinal: number): string {
   const heading = `### MX-${String(ordinal).padStart(3, '0')}`;
   const start = report.indexOf(heading);
@@ -273,6 +305,511 @@ async function expectPortraitWindow(
   expect(overflow.viewportHeight).toBe(680);
   expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
   expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
+async function expectNoHorizontalDocumentOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    bodyWidth: document.body.scrollWidth,
+  }));
+  expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+  expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
+async function expectSinglePortraitScroller(
+  page: Page,
+  surfaceName: string,
+): Promise<Locator> {
+  const surface = page.getByRole('region', { name: surfaceName, exact: true });
+  await expect(surface).toBeVisible();
+  const metrics = await surface.evaluate((element) => {
+    const scrollers = Array.from(
+      element.querySelectorAll<HTMLElement>('.ff-portrait-surface__scroller'),
+    ).filter((candidate) => {
+      const style = getComputedStyle(candidate);
+      return style.overflowY === 'auto' || style.overflowY === 'scroll';
+    });
+    return {
+      count: scrollers.length,
+      rect: scrollers[0]
+        ? (() => {
+            const box = scrollers[0].getBoundingClientRect();
+            return {
+              left: box.left,
+              top: box.top,
+              right: box.right,
+              bottom: box.bottom,
+              width: box.width,
+              height: box.height,
+            };
+          })()
+        : null,
+      nestedVerticalScrollers: scrollers[0]
+        ? Array.from(scrollers[0].querySelectorAll<HTMLElement>('*'))
+          .filter((candidate) => {
+            const style = getComputedStyle(candidate);
+            const box = candidate.getBoundingClientRect();
+            return (style.overflowY === 'auto' || style.overflowY === 'scroll')
+              && style.display !== 'none'
+              && style.visibility !== 'hidden'
+              && box.width > 0
+              && box.height > 0;
+          })
+          .map((candidate) => ({
+            tag: candidate.tagName.toLowerCase(),
+            className: candidate.className,
+            overflowY: getComputedStyle(candidate).overflowY,
+            clientHeight: candidate.clientHeight,
+            scrollHeight: candidate.scrollHeight,
+          }))
+        : [],
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      documentOverflow:
+        document.documentElement.scrollWidth > window.innerWidth
+        || document.body.scrollWidth > window.innerWidth,
+      scrollerOverflow: scrollers.some(
+        (candidate) => candidate.scrollWidth > candidate.clientWidth,
+      ),
+      overflowCandidates: scrollers[0]
+        ? Array.from(scrollers[0].querySelectorAll<HTMLElement>('*'))
+          .filter((candidate) => {
+            const candidateBox = candidate.getBoundingClientRect();
+            const scrollerBox = scrollers[0].getBoundingClientRect();
+            return candidateBox.right > scrollerBox.right + 0.5
+              || candidateBox.left < scrollerBox.left - 0.5
+              || candidate.scrollWidth > candidate.clientWidth + 0.5;
+          })
+          .slice(0, 12)
+          .map((candidate) => ({
+            tag: candidate.tagName.toLowerCase(),
+            className: candidate.className,
+            text: candidate.textContent?.trim().slice(0, 60) ?? '',
+            clientWidth: candidate.clientWidth,
+            scrollWidth: candidate.scrollWidth,
+            rect: {
+              left: candidate.getBoundingClientRect().left,
+              right: candidate.getBoundingClientRect().right,
+            },
+          }))
+        : [],
+    };
+  });
+  expect(metrics.count).toBe(1);
+  expect(metrics.nestedVerticalScrollers).toEqual([]);
+  expect(metrics.documentOverflow).toBe(false);
+  expect(metrics.scrollerOverflow, JSON.stringify(metrics.overflowCandidates, null, 2)).toBe(false);
+  expect(metrics.rect).not.toBeNull();
+  expect(metrics.rect!.width).toBeGreaterThan(0);
+  expect(metrics.rect!.height).toBeGreaterThan(0);
+  expect(metrics.rect!.left).toBeGreaterThanOrEqual(0);
+  expect(metrics.rect!.top).toBeGreaterThanOrEqual(0);
+  expect(metrics.rect!.right).toBeLessThanOrEqual(metrics.viewport.width);
+  expect(metrics.rect!.bottom).toBeLessThanOrEqual(metrics.viewport.height);
+  return surface.locator('.ff-portrait-surface__scroller');
+}
+
+async function expectActionsWithinPortrait(actions: Locator[]): Promise<void> {
+  for (const action of actions) {
+    await action.scrollIntoViewIfNeeded();
+    await expect(action).toBeVisible();
+    const box = await action.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThan(0);
+    expect(box!.height).toBeGreaterThan(0);
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(460);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(680);
+  }
+}
+
+async function setRendererTheme(
+  page: Page,
+  theme: 'light' | 'dark',
+): Promise<void> {
+  await page.evaluate(async (nextTheme) => {
+    await window.markuprx.settings.set('theme', nextTheme);
+    window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+      detail: { type: 'appearance' },
+    }));
+  }, theme);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+}
+
+async function setActiveWindowZoom(
+  application: ElectronApplication,
+  page: Page,
+  factor: number,
+): Promise<void> {
+  const pageUrl = page.url();
+  const updated = await application.evaluate(({ BrowserWindow }, options) => {
+    const window = BrowserWindow.getAllWindows()
+      .find((candidate) => candidate.webContents.getURL() === options.url);
+    if (!window) return null;
+    window.webContents.setZoomFactor(options.factor);
+    return {
+      bounds: window.getBounds(),
+      zoomFactor: window.webContents.getZoomFactor(),
+    };
+  }, { url: pageUrl, factor });
+  expect(updated).not.toBeNull();
+  expect(updated!.zoomFactor).toBe(factor);
+  await expect.poll(() => page.evaluate(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    visualWidth: window.visualViewport?.width ?? 0,
+    visualHeight: window.visualViewport?.height ?? 0,
+  }))).toEqual({
+    width: Math.round(updated!.bounds.width / factor),
+    height: Math.round(updated!.bounds.height / factor),
+    visualWidth: Math.round(updated!.bounds.width / factor),
+    visualHeight: Math.round(updated!.bounds.height / factor),
+  });
+}
+
+interface RgbColor {
+  red: number;
+  green: number;
+  blue: number;
+  alpha: number;
+}
+
+function parseCssColor(value: string): RgbColor {
+  const hex = value.trim().match(/^#([\da-f]{6})([\da-f]{2})?$/i);
+  if (hex) {
+    return {
+      red: Number.parseInt(hex[1].slice(0, 2), 16),
+      green: Number.parseInt(hex[1].slice(2, 4), 16),
+      blue: Number.parseInt(hex[1].slice(4, 6), 16),
+      alpha: hex[2] ? Number.parseInt(hex[2], 16) / 255 : 1,
+    };
+  }
+  const rgb = value.trim().match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgb) throw new Error(`Unsupported CSS color: ${value}`);
+  const channels = rgb[1].split(',').map((channel) => Number.parseFloat(channel.trim()));
+  return {
+    red: channels[0],
+    green: channels[1],
+    blue: channels[2],
+    alpha: channels[3] ?? 1,
+  };
+}
+
+function compositeColor(foreground: RgbColor, background: RgbColor): RgbColor {
+  return {
+    red: foreground.red * foreground.alpha + background.red * (1 - foreground.alpha),
+    green: foreground.green * foreground.alpha + background.green * (1 - foreground.alpha),
+    blue: foreground.blue * foreground.alpha + background.blue * (1 - foreground.alpha),
+    alpha: 1,
+  };
+}
+
+function colorContrast(first: RgbColor, second: RgbColor): number {
+  const luminance = (color: RgbColor): number => {
+    const linear = [color.red, color.green, color.blue].map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  };
+  const brighter = Math.max(luminance(first), luminance(second));
+  const darker = Math.min(luminance(first), luminance(second));
+  return (brighter + 0.05) / (darker + 0.05);
+}
+
+async function expectStablePortraitSurface(
+  page: Page,
+  surfaceName: string,
+  theme: 'light' | 'dark',
+): Promise<void> {
+  const surface = page.getByRole('region', { name: surfaceName, exact: true });
+  await expect.poll(() => surface.evaluate((element) => ({
+    theme: document.documentElement.dataset.theme,
+    opacity: getComputedStyle(element).opacity,
+    visible: element.getBoundingClientRect().width > 0
+      && element.getBoundingClientRect().height > 0,
+  }))).toEqual({ theme, opacity: '1', visible: true });
+  await expect.poll(() => surface.locator('.ff-list-item-enter').evaluateAll((elements) =>
+    elements.every((element) => getComputedStyle(element).opacity === '1'))).toBe(true);
+
+  await expect.poll(() => surface.evaluate((element) => {
+    const card = element.closest<HTMLElement>('.ff-shell__card');
+    const back = element.querySelector<HTMLElement>('.ff-portrait-surface__back');
+    const icon = back?.querySelector<SVGElement>('svg[aria-hidden="true"]');
+    const iconPath = icon?.querySelector('path');
+    const surfaceBox = element.getBoundingClientRect();
+    const backBox = back?.getBoundingClientRect();
+    const iconBox = icon?.getBoundingClientRect();
+    return {
+      cardOpacity: card ? getComputedStyle(card).opacity : null,
+      cardTransform: card ? getComputedStyle(card).transform : null,
+      surfaceBox: {
+        left: surfaceBox.left,
+        top: surfaceBox.top,
+        right: surfaceBox.right,
+        bottom: surfaceBox.bottom,
+      },
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      backBox: backBox
+        ? { left: backBox.left, top: backBox.top, right: backBox.right, bottom: backBox.bottom }
+        : null,
+      icon: icon
+        ? {
+            tag: icon.tagName.toLowerCase(),
+            pathCount: icon.querySelectorAll('path').length,
+            stroke: iconPath ? getComputedStyle(iconPath).stroke : null,
+            color: getComputedStyle(icon).color,
+            opacity: getComputedStyle(icon).opacity,
+            visibility: getComputedStyle(icon).visibility,
+            width: iconBox?.width ?? 0,
+            height: iconBox?.height ?? 0,
+          }
+        : null,
+    };
+  })).toMatchObject({
+    cardOpacity: '1',
+    cardTransform: 'none',
+    icon: {
+      tag: 'svg',
+      pathCount: 1,
+      opacity: '1',
+      visibility: 'visible',
+    },
+  });
+
+  const headerGeometry = await surface.evaluate((element) => {
+    const back = element.querySelector<HTMLElement>('.ff-portrait-surface__back')!;
+    const icon = back.querySelector<SVGElement>('svg[aria-hidden="true"]')!;
+    const iconPath = icon.querySelector('path')!;
+    const surfaceBox = element.getBoundingClientRect();
+    const backBox = back.getBoundingClientRect();
+    const iconBox = icon.getBoundingClientRect();
+    return {
+      surfaceBox: {
+        left: surfaceBox.left,
+        top: surfaceBox.top,
+        right: surfaceBox.right,
+        bottom: surfaceBox.bottom,
+      },
+      backBox: { left: backBox.left, right: backBox.right },
+      iconBox: {
+        width: iconBox.width,
+        height: iconBox.height,
+        color: getComputedStyle(icon).color,
+        stroke: getComputedStyle(iconPath).stroke,
+      },
+      palette: {
+        icon: getComputedStyle(iconPath).stroke,
+        button: getComputedStyle(back).backgroundColor,
+        header: getComputedStyle(back.parentElement!).backgroundColor,
+      },
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  });
+  expect(headerGeometry.surfaceBox.left).toBeGreaterThanOrEqual(0);
+  expect(headerGeometry.surfaceBox.right).toBeLessThanOrEqual(headerGeometry.width);
+  expect(headerGeometry.surfaceBox.top).toBeGreaterThanOrEqual(0);
+  expect(headerGeometry.surfaceBox.bottom).toBeLessThanOrEqual(headerGeometry.height);
+  expect(headerGeometry.backBox.left).toBeGreaterThanOrEqual(0);
+  expect(headerGeometry.backBox.right).toBeLessThanOrEqual(headerGeometry.width);
+  expect(headerGeometry.iconBox.width).toBeGreaterThan(0);
+  expect(headerGeometry.iconBox.height).toBeGreaterThan(0);
+  expect(headerGeometry.iconBox.color).not.toBe('rgba(0, 0, 0, 0)');
+  expect(headerGeometry.iconBox.stroke).not.toBe('none');
+  const backBackground = compositeColor(
+    parseCssColor(headerGeometry.palette.button),
+    parseCssColor(headerGeometry.palette.header),
+  );
+  const backIconContrast = colorContrast(
+    parseCssColor(headerGeometry.palette.icon),
+    backBackground,
+  );
+  expect(backIconContrast).toBeGreaterThanOrEqual(3);
+
+  const back = surface.locator('.ff-portrait-surface__back');
+  const backScreenshot = await back.screenshot({ animations: 'disabled' });
+  const { data: backPixels, info: backImage } = await sharp(backScreenshot)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const insetX = Math.floor(backImage.width * 0.22);
+  const insetY = Math.floor(backImage.height * 0.22);
+  let contrastingIconPixels = 0;
+  for (let y = insetY; y < backImage.height - insetY; y += 1) {
+    for (let x = insetX; x < backImage.width - insetX; x += 1) {
+      const offset = (y * backImage.width + x) * backImage.channels;
+      const pixel = {
+        red: backPixels[offset],
+        green: backPixels[offset + 1],
+        blue: backPixels[offset + 2],
+        alpha: backPixels[offset + 3] / 255,
+      };
+      if (colorContrast(pixel, backBackground) >= 3) contrastingIconPixels += 1;
+    }
+  }
+  expect(contrastingIconPixels).toBeGreaterThanOrEqual(8);
+  if (process.env.PORTRAIT_VISUAL_DIAGNOSTICS === '1') {
+    console.log(
+      `[portrait-back] ${surfaceName}: contrast=${backIconContrast.toFixed(2)}, `
+      + `paintedPixels=${contrastingIconPixels}`,
+    );
+  }
+
+  const palette = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    return {
+      pageBackground: root.getPropertyValue('--bg-primary').trim(),
+      shellSurface: root.getPropertyValue('--ff-surface').trim(),
+      shellText: root.getPropertyValue('--ff-text-primary').trim(),
+    };
+  });
+  const surfaceColor = compositeColor(
+    parseCssColor(palette.shellSurface),
+    parseCssColor(palette.pageBackground),
+  );
+  expect(colorContrast(parseCssColor(palette.shellText), surfaceColor))
+    .toBeGreaterThanOrEqual(4.5);
+  expect(await seriousAccessibilityViolations(page)).toEqual([]);
+}
+
+async function expectNormalizedPortraitMetrics(
+  page: Page,
+  surfaceName: string,
+  primaryAction: Locator,
+): Promise<void> {
+  const surface = page.getByRole('region', { name: surfaceName, exact: true });
+  const content = surface.locator('.ff-portrait-content');
+  const card = content.locator('.ff-portrait-card').first();
+  await expect(content).toHaveCount(1);
+  await expect(card).toBeVisible();
+  await expect(primaryAction).toBeVisible();
+
+  const metrics = await surface.evaluate((element) => {
+    const header = element.querySelector<HTMLElement>('.ff-portrait-surface__header')!;
+    const back = header.querySelector<HTMLElement>('.ff-portrait-surface__back')!;
+    const heading = header.querySelector<HTMLElement>('h1')!;
+    const scroller = element.querySelector<HTMLElement>('.ff-portrait-surface__scroller')!;
+    const contentElement = scroller.querySelector<HTMLElement>('.ff-portrait-content')!;
+    const cardElement = contentElement.querySelector<HTMLElement>('.ff-portrait-card')!;
+    const footer = element.querySelector<HTMLElement>('.ff-portrait-surface__footer');
+    const rootStyle = getComputedStyle(element);
+    const surfaceBox = element.getBoundingClientRect();
+    const headerBox = header.getBoundingClientRect();
+    const backBox = back.getBoundingClientRect();
+    const scrollerBox = scroller.getBoundingClientRect();
+    const contentBox = contentElement.getBoundingClientRect();
+    const headerStyle = getComputedStyle(header);
+    const headingStyle = getComputedStyle(heading);
+    const contentStyle = getComputedStyle(contentElement);
+    const cardStyle = getComputedStyle(cardElement);
+    const footerStyle = footer ? getComputedStyle(footer) : null;
+    return {
+      tokens: {
+        inlineInset: rootStyle.getPropertyValue('--ff-portrait-inline-inset').trim(),
+        cardRadius: rootStyle.getPropertyValue('--ff-portrait-card-radius').trim(),
+        cardPadding: rootStyle.getPropertyValue('--ff-portrait-card-padding').trim(),
+        itemGap: rootStyle.getPropertyValue('--ff-portrait-item-gap').trim(),
+        controlHeight: rootStyle.getPropertyValue('--ff-portrait-control-height').trim(),
+        bodyFontSize: rootStyle.getPropertyValue('--ff-portrait-body-font-size').trim(),
+      },
+      surface: { width: surfaceBox.width },
+      header: {
+        width: headerBox.width,
+        height: headerBox.height,
+        paddingTop: headerStyle.paddingTop,
+        paddingRight: headerStyle.paddingRight,
+        paddingBottom: headerStyle.paddingBottom,
+        paddingLeft: headerStyle.paddingLeft,
+      },
+      back: { width: backBox.width, height: backBox.height },
+      heading: { fontSize: headingStyle.fontSize, lineHeight: headingStyle.lineHeight },
+      scroller: {
+        width: scrollerBox.width,
+        overflowX: getComputedStyle(scroller).overflowX,
+        overflowY: getComputedStyle(scroller).overflowY,
+      },
+      content: {
+        width: contentBox.width,
+        leftInset: contentBox.left - surfaceBox.left,
+        rightInset: surfaceBox.right - contentBox.right,
+        paddingLeft: contentStyle.paddingLeft,
+        paddingRight: contentStyle.paddingRight,
+      },
+      card: {
+        borderRadius: cardStyle.borderRadius,
+        paddingTop: cardStyle.paddingTop,
+        paddingRight: cardStyle.paddingRight,
+        paddingBottom: cardStyle.paddingBottom,
+        paddingLeft: cardStyle.paddingLeft,
+      },
+      footer: footer
+        ? {
+            width: footer.getBoundingClientRect().width,
+            borderTopWidth: footerStyle!.borderTopWidth,
+            flexShrink: footerStyle!.flexShrink,
+          }
+        : null,
+    };
+  });
+
+  expect(metrics).toMatchObject({
+    tokens: {
+      inlineInset: '14px',
+      cardRadius: '12px',
+      cardPadding: '12px',
+      itemGap: '12px',
+      controlHeight: '40px',
+      bodyFontSize: '13px',
+    },
+    surface: { width: 438 },
+    header: {
+      width: 438,
+      height: 65,
+      paddingTop: '12px',
+      paddingRight: '14px',
+      paddingBottom: '12px',
+      paddingLeft: '14px',
+    },
+    back: { width: 36, height: 36 },
+    heading: { fontSize: '18px', lineHeight: '22px' },
+    scroller: { width: 438, overflowX: 'hidden', overflowY: 'auto' },
+    content: {
+      width: 430,
+      leftInset: 0,
+      rightInset: 8,
+      paddingLeft: '14px',
+      paddingRight: '14px',
+    },
+    card: {
+      borderRadius: '12px',
+      paddingTop: '12px',
+      paddingRight: '12px',
+      paddingBottom: '12px',
+      paddingLeft: '12px',
+    },
+  });
+  if (metrics.footer) {
+    expect(metrics.footer).toEqual({ width: 438, borderTopWidth: '1px', flexShrink: '0' });
+  }
+  const actionBox = await primaryAction.boundingBox();
+  expect(actionBox).not.toBeNull();
+  expect(actionBox!.height).toBeGreaterThanOrEqual(40);
+}
+
+async function expectPortraitScreenshot(
+  page: Page,
+  filename: string,
+  mask: Locator[] = [],
+): Promise<void> {
+  await expect(page).toHaveScreenshot(filename, {
+    animations: 'disabled',
+    caret: 'hide',
+    mask,
+  });
 }
 
 async function expectContainedDialog(page: Page, dialogName: string | RegExp): Promise<Locator> {
@@ -508,7 +1045,10 @@ test.describe('MarkuprX desktop application', () => {
     const window = launched.mainWindow;
 
     await expect(window).toHaveTitle(/MarkuprX/);
-    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    const startSession = window.getByRole('button', { name: /start session/i });
+    await expect(startSession).toBeVisible();
+    await expectPortraitWindow(application, window);
+    await expectActionsWithinPortrait([startSession]);
   });
 
   test('caps the configured recording countdown inside the portrait window', async () => {
@@ -612,6 +1152,7 @@ test.describe('MarkuprX desktop application', () => {
     await expectPortraitWindow(application, window);
     await expect(window.getByRole('dialog', { name: 'Session History' })).toHaveCount(0);
     const history = window.getByRole('region', { name: 'Session History' });
+    await expectSinglePortraitScroller(window, 'Session History');
     const search = history.getByPlaceholder('Search sessions...');
     await expect(search).toBeVisible();
     await expect(history.getByRole('button', { name: /Sort:/ })).toBeVisible();
@@ -621,6 +1162,69 @@ test.describe('MarkuprX desktop application', () => {
     await clearSearch.click();
     await expect(search).toHaveValue('');
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
+  test('scrolls a long portrait session history', async () => {
+    await seedSessionHistory(harness.outputRoot, 18);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await setRendererTheme(window, 'light');
+
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    await expectPortraitWindow(application, window);
+    const history = window.getByRole('region', { name: 'Session History' });
+    const scroller = await expectSinglePortraitScroller(window, 'Session History');
+    await expect(history.getByText('18 sessions', { exact: true })).toBeVisible();
+    await expect(history.getByRole('listitem')).toHaveCount(18);
+    expect(await scroller.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    )).toBe(true);
+    await expectStablePortraitSurface(window, 'Session History', 'light');
+    await expectNormalizedPortraitMetrics(
+      window,
+      'Session History',
+      history.getByRole('button', { name: 'Open session' }).first(),
+    );
+
+    await expectPortraitScreenshot(window, 'history-portrait.png', [
+      history.getByText(
+        /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}$/,
+      ),
+      history.getByAltText('Session thumbnail'),
+    ]);
+
+    const newestSession = history.getByRole('listitem').filter({
+      hasText: 'Portrait Fixture 18',
+    });
+    await newestSession.click();
+    await expectActionsWithinPortrait([
+      history.getByRole('button', { name: 'Export', exact: true }),
+      history.getByRole('button', { name: 'Delete', exact: true }),
+    ]);
+
+    await scroller.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    const oldestSession = history.getByRole('listitem').filter({
+      hasText: 'Portrait Fixture 01',
+    });
+    await expect(oldestSession).toBeVisible();
+    await oldestSession.click();
+    await expect(oldestSession).toHaveAttribute('aria-current', 'true');
+    const oldestOpen = oldestSession.getByRole('button', { name: 'Open session' });
+    const oldestMore = oldestSession.getByRole('button', {
+      name: 'More actions for session',
+    });
+    await expectActionsWithinPortrait([oldestOpen, oldestMore]);
+    await oldestMore.click();
+    const oldestMenu = window.getByRole('menu', { name: 'Session actions' });
+    await expect(oldestMenu).toBeVisible();
+    await expectActionsWithinPortrait([
+      oldestMenu.getByRole('menuitem', { name: 'Export' }),
+      oldestMenu.getByRole('menuitem', { name: 'Delete' }),
+    ]);
+    await expectSinglePortraitScroller(window, 'Session History');
   });
 
   test('contains history deletion, traps focus, and restores the selected session', async () => {
@@ -845,6 +1449,8 @@ test.describe('MarkuprX desktop application', () => {
     await window.keyboard.press('Tab');
     await expect(getStarted).toBeFocused();
     await expectWizardA11yInBothThemes();
+    await expectActionsWithinPortrait([skipSetup, getStarted]);
+    await expectPortraitScreenshot(window, 'onboarding-portrait.png');
 
     await getStarted.click();
     await expect(window.getByRole('heading', { name: 'Microphone Access' })).toBeVisible();
@@ -1399,18 +2005,62 @@ test.describe('MarkuprX desktop application', () => {
     await window.waitForTimeout(500);
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
 
-    for (const tabName of ['Recording', 'Appearance', 'Hotkeys', 'Advanced']) {
-      const tab = window.getByRole('tab', { name: tabName, exact: true });
-      await tab.click();
-      await expect(tab).toHaveAttribute('aria-selected', 'true');
-      expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    for (const theme of ['light', 'dark'] as const) {
+      const appearance = window.getByRole('tab', { name: 'Appearance', exact: true });
+      await appearance.click();
+      await window.getByLabel('Theme Mode').selectOption(theme);
+      await expect(window.locator('html')).toHaveAttribute('data-theme', theme);
+
+      for (const tabName of ['General', 'Recording', 'Appearance', 'Hotkeys', 'Advanced']) {
+        const tab = window.getByRole('tab', { name: tabName, exact: true });
+        await tab.click();
+        await expect(tab).toHaveAttribute('aria-selected', 'true');
+        await expectSinglePortraitScroller(window, 'Settings');
+        await expectStablePortraitSurface(window, 'Settings', theme);
+      }
     }
+
+    await setActiveWindowZoom(application, window, 2);
+    try {
+      await expectNoHorizontalDocumentOverflow(window);
+      await expectSinglePortraitScroller(window, 'Settings');
+      const advancedAtZoom = window.getByRole('tab', { name: 'Advanced', exact: true });
+      await advancedAtZoom.focus();
+      await window.keyboard.press('Home');
+      const generalAtZoom = window.getByRole('tab', { name: 'General', exact: true });
+      await expect(generalAtZoom).toBeFocused();
+      await expect(generalAtZoom).toHaveAttribute('aria-selected', 'true');
+      expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    } finally {
+      await setActiveWindowZoom(application, window, 1);
+    }
+    await expectNoHorizontalDocumentOverflow(window);
+
+    await window.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
+    expect(await window.evaluate(() => ({
+      forcedColors: matchMedia('(forced-colors: active)').matches,
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    }))).toEqual({ forcedColors: true, reducedMotion: true });
+    const general = window.getByRole('tab', { name: 'General', exact: true });
+    await general.click();
+    await general.focus();
+    await window.keyboard.press('ArrowRight');
+    const recording = window.getByRole('tab', { name: 'Recording', exact: true });
+    await expect(recording).toBeFocused();
+    await expect(recording).toHaveAttribute('aria-selected', 'true');
+    await expectNoHorizontalDocumentOverflow(window);
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    await window.emulateMedia({ reducedMotion: 'no-preference', forcedColors: 'none' });
   });
 
   test('renders Settings as the approved portrait surface', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
+    await setRendererTheme(window, 'light');
+    await window.evaluate(() => {
+      localStorage.setItem('markuprx:donate-message-index', '0');
+    });
 
     await window.getByRole('button', { name: 'Open Settings' }).click();
     await expectPortraitWindow(application, window);
@@ -1418,9 +2068,89 @@ test.describe('MarkuprX desktop application', () => {
 
     const settings = window.getByRole('region', { name: 'Settings', exact: true });
     await expect(settings).toBeVisible();
+    await expectSinglePortraitScroller(window, 'Settings');
+    await expectStablePortraitSurface(window, 'Settings', 'light');
+    await expectNormalizedPortraitMetrics(
+      window,
+      'Settings',
+      settings.getByRole('button', { name: 'Browse...' }),
+    );
     const rail = settings.getByRole('tablist', { name: 'Settings sections' });
     await expect(rail).toBeVisible();
     expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+    const railAffordance = settings.getByRole('button', {
+      name: 'Show more settings sections',
+      exact: true,
+    });
+    await expect(railAffordance).toBeVisible();
+    await expect(railAffordance).toHaveAttribute('data-direction', 'forward');
+    const railLayout = await rail.evaluate((element) => {
+      const tabs = Array.from(element.querySelectorAll<HTMLElement>('[role="tab"]'));
+      const affordance = element.parentElement!
+        .querySelector<HTMLElement>('.ff-settings-section-rail__more')!;
+      const railBox = element.getBoundingClientRect();
+      const affordanceBox = affordance.getBoundingClientRect();
+      return {
+        scrollbarDisplay: getComputedStyle(element, '::-webkit-scrollbar').display,
+        affordanceLeft: affordanceBox.left,
+        firstThree: tabs.slice(0, 3).map((tab) => {
+          const box = tab.getBoundingClientRect();
+          return { left: box.left, right: box.right };
+        }),
+        fourthLeft: tabs[3].getBoundingClientRect().left,
+        railLeft: railBox.left,
+        railRight: railBox.right,
+      };
+    });
+    expect(railLayout.scrollbarDisplay).toBe('none');
+    for (const tab of railLayout.firstThree) {
+      expect(tab.left).toBeGreaterThanOrEqual(railLayout.railLeft);
+      expect(tab.right).toBeLessThanOrEqual(railLayout.affordanceLeft);
+    }
+    expect(railLayout.fourthLeft).toBeGreaterThanOrEqual(railLayout.railRight);
+
+    await railAffordance.click();
+    const hotkeys = rail.getByRole('tab', { name: 'Hotkeys', exact: true });
+    await expect(hotkeys).toBeFocused();
+    await expect(hotkeys).toHaveAttribute('aria-selected', 'true');
+    const previousSections = settings.getByRole('button', {
+      name: 'Show previous settings sections',
+      exact: true,
+    });
+    await expect(previousSections).toHaveAttribute('data-direction', 'backward');
+    await previousSections.press('Enter');
+    const appearanceFromAffordance = rail.getByRole('tab', {
+      name: 'Appearance',
+      exact: true,
+    });
+    await expect(appearanceFromAffordance).toBeFocused();
+    await expect(appearanceFromAffordance).toHaveAttribute('aria-selected', 'true');
+
+    await settings.getByRole('button', { name: 'Back to MarkuprX', exact: true }).click();
+    await window.evaluate(() => {
+      localStorage.setItem('markuprx:donate-message-index', '0');
+    });
+    await window.getByRole('button', { name: 'Open Settings', exact: true }).click();
+    await expect(settings).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Buy Eddie a Coffee', exact: true }))
+      .toBeVisible();
+    const generalBeforeScreenshot = rail.getByRole('tab', { name: 'General', exact: true });
+    await expect(settings.getByRole('button', {
+      name: 'Show more settings sections',
+      exact: true,
+    })).toHaveAttribute('data-direction', 'forward');
+    await generalBeforeScreenshot.focus();
+    await expect(generalBeforeScreenshot).toBeFocused();
+    await expect(generalBeforeScreenshot).toHaveAttribute('aria-selected', 'true');
+    await expectStablePortraitSurface(window, 'Settings', 'light');
+
+    await expectPortraitScreenshot(window, 'settings-portrait.png', [
+      settings.getByRole('textbox', { name: 'Output Directory', exact: true }),
+    ]);
+    await expectActionsWithinPortrait([
+      settings.getByRole('button', { name: 'Back to MarkuprX', exact: true }),
+      settings.getByRole('button', { name: 'Reset All to Defaults', exact: true }),
+    ]);
 
     const general = rail.getByRole('tab', { name: 'General', exact: true });
     await general.focus();
@@ -1435,6 +2165,7 @@ test.describe('MarkuprX desktop application', () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
+    await setRendererTheme(window, 'light');
 
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
     await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
@@ -1446,7 +2177,13 @@ test.describe('MarkuprX desktop application', () => {
       .toBeVisible();
     await expect(shortcuts.getByPlaceholder('Search shortcuts...')).toBeVisible();
     await expect(shortcuts.getByRole('heading', { name: 'Recording' })).toBeVisible();
-    const scroller = window.locator('.ff-portrait-surface__scroller');
+    const scroller = await expectSinglePortraitScroller(window, 'Keyboard Shortcuts');
+    await expectStablePortraitSurface(window, 'Keyboard Shortcuts', 'light');
+    await expectNormalizedPortraitMetrics(
+      window,
+      'Keyboard Shortcuts',
+      shortcuts.getByPlaceholder('Search shortcuts...'),
+    );
     const scrollLayout = await scroller.evaluate((element) => ({
       clientHeight: element.clientHeight,
       scrollHeight: element.scrollHeight,
@@ -1455,6 +2192,14 @@ test.describe('MarkuprX desktop application', () => {
     }));
     expect(scrollLayout.scrollHeight).toBeGreaterThan(scrollLayout.clientHeight);
     expect(scrollLayout.scrollWidth).toBeLessThanOrEqual(scrollLayout.clientWidth);
+    await expectPortraitScreenshot(window, 'shortcuts-portrait.png');
+    await expectActionsWithinPortrait([
+      shortcuts.getByRole('button', { name: 'Back to MarkuprX', exact: true }),
+      shortcuts.getByRole('button', {
+        name: 'Rebind Start/Stop Recording',
+        exact: true,
+      }),
+    ]);
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
@@ -1809,6 +2554,10 @@ test.describe('MarkuprX desktop application', () => {
 
     await selectDeterministicWindow(application, window);
     await expectHudWindow(application, window, { width: 316, height: 90 });
+    expect(await window.evaluate(async () => window.markuprx.e2e?.injectTranscript(
+      'Portrait HUD completion fixture.',
+      Date.now(),
+    ))).toEqual({ success: true });
 
     await window.getByRole('button', { name: 'Stop', exact: true }).click();
     await expect.poll(async () => {
@@ -1821,6 +2570,13 @@ test.describe('MarkuprX desktop application', () => {
       return bounds?.width === 320 && bounds.height === 140;
     }).toBe(true);
     await expectHudWindow(application, window, { width: 320, height: 140 });
+    await expect.poll(async () => (await diagnostics(window)).state, {
+      timeout: 60_000,
+    }).toBe('complete');
+    await expect(window.getByRole('heading', { name: 'Report Ready' })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expectPortraitWindow(application, window);
   });
 
   test('stops Reset All after the first persistence failure', async () => {
@@ -2430,6 +3186,13 @@ test.describe('MarkuprX desktop application', () => {
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeHidden();
     await expect(mainWindow.getByRole('heading', { name: 'Recent Captures' })).toBeHidden();
     await expectPortraitWindow(application, mainWindow);
+    await expectSinglePortraitScroller(mainWindow, 'Review Editor');
+    await expectStablePortraitSurface(mainWindow, 'Review Editor', 'light');
+    await expectNormalizedPortraitMetrics(
+      mainWindow,
+      'Review Editor',
+      review.getByRole('button', { name: 'Open Folder', exact: true }),
+    );
     const feedbackRegion = review.getByRole('region', { name: 'Feedback items' });
     await expect(feedbackRegion).toBeVisible();
     const reviewLayout = await feedbackRegion.evaluate((element) => ({
@@ -2439,6 +3202,15 @@ test.describe('MarkuprX desktop application', () => {
     }));
     expect(reviewLayout.scrollWidth).toBeLessThanOrEqual(reviewLayout.clientWidth);
     expect(reviewLayout.hasVerticalScroll).toBe(true);
+    await expectPortraitScreenshot(mainWindow, 'review-portrait.png', [
+      review.getByRole('img', { name: /Screenshot \d+/ }),
+    ]);
+    await expectActionsWithinPortrait([
+      review.getByRole('button', { name: 'Open Folder', exact: true }),
+      review.getByRole('button', { name: 'Copy', exact: true }),
+      review.getByRole('button', { name: 'Save', exact: true }),
+      review.getByRole('button', { name: 'Close', exact: true }),
+    ]);
 
     const navigationDraftComment = 'Draft retained while visiting session history.';
     await review.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();

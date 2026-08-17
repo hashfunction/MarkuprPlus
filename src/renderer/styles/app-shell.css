@@ -18,6 +18,25 @@
   --ff-error: #ff3b30;
 }
 
+html[data-theme='light'] {
+  --ff-shell-bg:
+    radial-gradient(circle at 10% -18%, rgba(37, 99, 235, 0.1), transparent 46%),
+    radial-gradient(circle at 90% -16%, rgba(99, 102, 241, 0.08), transparent 44%),
+    linear-gradient(180deg, #f7f9fd 0%, #f1f5f9 60%, #eef2f7 100%);
+  --ff-surface: rgba(255, 255, 255, 0.9);
+  --ff-surface-strong: rgba(255, 255, 255, 0.97);
+  --ff-border: rgba(15, 23, 42, 0.16);
+  --ff-border-strong: rgba(15, 23, 42, 0.25);
+  --ff-text-primary: #111827;
+  --ff-text-secondary: #4b5563;
+  --ff-text-muted: #626b78;
+  --ff-live-soft: rgba(220, 38, 38, 0.14);
+  --ff-accent: #2563eb;
+  --ff-accent-soft: rgba(37, 99, 235, 0.14);
+  --ff-success: #047857;
+  --ff-error: #dc2626;
+}
+
 .ff-shell {
   width: 100%;
   height: 100%;
@@ -654,6 +673,12 @@
   .ff-shell__card {
     padding: 14px;
     max-height: calc(100vh - 20px);
+  }
+
+  .ff-shell__card.ff-shell__card--portrait {
+    height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 0;
   }
 
   .ff-shell.ff-shell--hud {

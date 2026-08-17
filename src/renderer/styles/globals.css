@@ -48,6 +48,44 @@ body.markuprx-hud-mode {
   background-color: transparent !important;
 }
 
+@media (forced-colors: active) {
+  :root {
+    --bg-primary: Canvas !important;
+    --bg-secondary: Canvas !important;
+    --bg-tertiary: Canvas !important;
+    --bg-elevated: Canvas !important;
+    --bg-overlay: Canvas !important;
+    --bg-subtle: Canvas !important;
+    --text-primary: CanvasText !important;
+    --text-secondary: CanvasText !important;
+    --text-tertiary: CanvasText !important;
+    --text-inverse: HighlightText !important;
+    --text-link: LinkText !important;
+    --border-default: CanvasText !important;
+    --border-subtle: CanvasText !important;
+    --border-strong: CanvasText !important;
+    --border-focus: Highlight !important;
+    --accent-default: Highlight !important;
+    --accent-hover: Highlight !important;
+    --accent-active: Highlight !important;
+    --accent-subtle: Canvas !important;
+    --accent-muted: Highlight !important;
+    --surface-glass: Canvas !important;
+    --surface-glass-border: CanvasText !important;
+    --surface-highlight: Canvas !important;
+    --surface-inset: Canvas !important;
+    --ff-shell-bg: Canvas !important;
+    --ff-surface: Canvas !important;
+    --ff-surface-strong: Canvas !important;
+    --ff-border: CanvasText !important;
+    --ff-border-strong: CanvasText !important;
+    --ff-text-primary: CanvasText !important;
+    --ff-text-secondary: CanvasText !important;
+    --ff-text-muted: CanvasText !important;
+    --ff-accent: Highlight !important;
+  }
+}
+
 html.markuprx-hud-mode,
 html.markuprx-hud-mode body,
 html.markuprx-hud-mode #root {

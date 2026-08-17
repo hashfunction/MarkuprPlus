@@ -31,13 +31,6 @@ vi.mock('electron', () => ({
   })),
 }));
 
-vi.mock('fs/promises', () => ({
-  mkdir: vi.fn(() => Promise.resolve()),
-  writeFile: vi.fn(() => Promise.resolve()),
-  stat: vi.fn(() => Promise.resolve({ size: 2048 })),
-  unlink: vi.fn(() => Promise.resolve()),
-}));
-
 // =============================================================================
 // Testable Export Service
 // =============================================================================

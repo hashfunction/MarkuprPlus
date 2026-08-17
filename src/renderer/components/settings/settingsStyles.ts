@@ -35,9 +35,11 @@ export const styles: Record<string, ExtendedCSSProperties> = {
 
   railTab: {
     display: 'inline-flex',
-    flex: '0 0 auto',
+    flex: '0 0 calc((100% - 12px) / 3)',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 7,
+    minWidth: 0,
     minHeight: 36,
     padding: '7px 10px',
     border: '1px solid transparent',
@@ -57,7 +59,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'grid',
     gap: 24,
     minWidth: 0,
-    padding: 14,
+    padding: 'var(--ff-portrait-inline-inset)',
   },
 
   portraitEndActions: {
@@ -74,6 +76,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 32,
+    minWidth: 0,
   },
 
   // Section
@@ -81,6 +84,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
+    minWidth: 0,
   },
 
   sectionHeader: {
@@ -88,6 +92,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
+    minWidth: 0,
   },
 
   sectionTitle: {
@@ -108,11 +113,12 @@ export const styles: Record<string, ExtendedCSSProperties> = {
   sectionContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
+    gap: 'var(--ff-portrait-item-gap)',
     backgroundColor: 'var(--bg-secondary)',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 'var(--ff-portrait-card-radius)',
+    padding: 'var(--ff-portrait-card-padding)',
     border: '1px solid var(--border-default)',
+    minWidth: 0,
   },
 
   resetSectionButton: {
@@ -195,7 +201,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
 
   // Select
   select: {
-    minWidth: 180,
+    minWidth: 0,
     flex: '1 1 190px',
     padding: '8px 12px',
     backgroundColor: 'var(--bg-tertiary)',
@@ -213,7 +219,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    minWidth: 220,
+    minWidth: 0,
     maxWidth: 320,
     width: '100%',
     flex: '1 1 190px',
@@ -262,6 +268,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   browseButton: {
+    minHeight: 'var(--ff-portrait-control-height)',
     padding: '8px 12px',
     backgroundColor: 'var(--bg-subtle)',
     border: '1px solid var(--border-default)',
@@ -276,7 +283,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
 
   // Key Recorder
   keyRecorder: {
-    minWidth: 140,
+    minWidth: 0,
     padding: '8px 12px',
     backgroundColor: 'var(--bg-tertiary)',
     border: '1px solid var(--border-default)',
@@ -455,6 +462,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
 
   // Buttons
   secondaryButton: {
+    minHeight: 'var(--ff-portrait-control-height)',
     padding: '8px 16px',
     backgroundColor: 'var(--bg-subtle)',
     border: '1px solid var(--border-default)',
@@ -544,6 +552,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   resetAllButton: {
+    minHeight: 'var(--ff-portrait-control-height)',
     padding: '8px 16px',
     backgroundColor: 'transparent',
     border: '1px solid var(--border-default)',

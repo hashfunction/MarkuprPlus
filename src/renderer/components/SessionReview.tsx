@@ -234,7 +234,7 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
       aria-label={`Feedback ${itemLabel}`}
       aria-current={isSelected ? 'true' : undefined}
       tabIndex={isTabStop ? 0 : -1}
-      className={`ff-review-item${isSelected ? ' is-selected' : ''}`}
+      className={`ff-review-item ff-portrait-card${isSelected ? ' is-selected' : ''}`}
       draggable={!isEditing && !isMenuOpen}
       onDragStart={(e) => onDragStart(e, index)}
       onDragOver={(e) => onDragOver(e, index)}
@@ -953,7 +953,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
           </div>
         )}
       >
-        <div className="ff-review-items">
+        <div className="ff-review-items ff-portrait-content">
           {draft.saveError && (
             <div className="ff-review-save-error" role="alert">
               <span>{draft.saveError}</span>
@@ -1073,8 +1073,8 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     display: 'flex',
     gap: 12,
-    padding: 16,
-    borderRadius: 12,
+    padding: 'var(--ff-portrait-card-padding)',
+    borderRadius: 'var(--ff-portrait-card-radius)',
     border: '1px solid',
     cursor: 'pointer',
     transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease',
