@@ -248,6 +248,21 @@ async function expectPortraitWindow(
   expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
 }
 
+async function clickApplicationMenuItem(
+  application: ElectronApplication,
+  menuLabel: string,
+  itemLabel: string,
+): Promise<void> {
+  await application.evaluate(({ Menu }, labels) => {
+    const menu = Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === labels.menuLabel);
+    const item = menu?.submenu?.items
+      .find((candidate) => candidate.label === labels.itemLabel);
+    if (!item) throw new Error('Application menu item not found.');
+    item.click();
+  }, { menuLabel, itemLabel });
+}
+
 async function expectHudWindow(
   application: ElectronApplication,
   page: Page,
@@ -482,6 +497,69 @@ test.describe('MarkuprX desktop application', () => {
     await expect(advanced).toBeFocused();
     await expect(advanced).toHaveAttribute('aria-selected', 'true');
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
+  test('renders Keyboard Shortcuts as a portrait surface', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+    await expectPortraitWindow(application, window);
+    await expect(window.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toHaveCount(0);
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts' });
+    await expect(shortcuts.getByPlaceholder('Search shortcuts...')).toBeVisible();
+    await expect(shortcuts.getByRole('heading', { name: 'Recording' })).toBeVisible();
+    const scroller = window.locator('.ff-portrait-surface__scroller');
+    const scrollLayout = await scroller.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(scrollLayout.scrollHeight).toBeGreaterThan(scrollLayout.clientHeight);
+    expect(scrollLayout.scrollWidth).toBeLessThanOrEqual(scrollLayout.clientWidth);
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
+  test('preserves shortcut search and rebind interactions in the portrait surface', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const homeAction = window.getByRole('button', { name: /start session/i });
+    await expect(homeAction).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts' });
+    const search = shortcuts.getByPlaceholder('Search shortcuts...');
+    await expect(search).toBeFocused();
+    await search.fill('pause');
+    await expect(shortcuts.getByText('Pause/Resume', { exact: true })).toBeVisible();
+    await shortcuts.getByRole('button', { name: 'Clear shortcut search' }).click();
+    await expect(search).toBeFocused();
+
+    const recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    expect(await recordingRow.locator('kbd').allTextContents()).toEqual([primaryKey, '⇧', 'F']);
+
+    await recordingRow.click();
+    await expect(shortcuts.getByText('Press keys...', { exact: true })).toBeVisible();
+    await window.keyboard.press('Control+Shift+S');
+    await expect(shortcuts.getByText('Conflicts with: Take Screenshot', { exact: true }))
+      .toBeVisible();
+    await shortcuts.getByRole('button', { name: 'Cancel' }).click();
+    await expect(shortcuts.getByText('Press keys...', { exact: true })).toHaveCount(0);
+
+    await recordingRow.click();
+    await window.keyboard.press('Control+Shift+J');
+    await shortcuts.getByRole('button', { name: 'Save' }).click();
+    await expect(shortcuts.getByText('Press keys...', { exact: true })).toHaveCount(0);
+
+    await window.keyboard.press('Escape');
+    await expect(homeAction).toBeVisible();
   });
 
   test('keeps recording and processing HUDs matched to their compact windows', async () => {

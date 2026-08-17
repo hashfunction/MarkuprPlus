@@ -82,6 +82,217 @@
   border-top: 1px solid var(--border-default);
 }
 
+.ff-shortcuts {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.ff-shortcuts .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ff-shortcuts__search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ff-shortcuts__search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+.ff-shortcuts__search button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+}
+
+.ff-shortcuts__search button:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.ff-shortcuts__groups {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.ff-shortcuts__group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ff-shortcuts__group h2 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ff-shortcuts__rows {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ff-shortcuts__empty {
+  padding: 28px 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.ff-shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--surface-inset);
+}
+
+.ff-shortcut-row.is-customizable {
+  cursor: pointer;
+}
+
+.ff-shortcut-row.is-customizable:hover {
+  border-color: var(--border-default);
+}
+
+.ff-shortcut-row.is-editing {
+  border-color: var(--accent-muted);
+  background: var(--accent-subtle);
+}
+
+.ff-shortcut-row:focus-within {
+  border-color: var(--accent-default);
+}
+
+.ff-shortcut-row__copy,
+.ff-shortcut-row__controls {
+  min-width: 0;
+}
+
+.ff-shortcut-row__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ff-shortcut-row__title > span:last-child:not(:first-child) {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ff-shortcut-row__copy p {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.ff-shortcut-row__copy p:has(svg) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--status-warning);
+}
+
+.ff-shortcut-row__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ff-shortcut-row__controls > div,
+.ff-shortcut-row__controls > div > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ff-shortcut-row__controls > div > div {
+  min-width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+.ff-shortcut-row__controls button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+}
+
+.ff-shortcut-row__controls button:hover {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+.ff-shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font: 12px ui-monospace, SFMono-Regular, monospace;
+}
+
+@media (max-width: 340px) {
+  .ff-shortcut-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ff-shortcut-row__controls {
+    justify-content: flex-start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ff-portrait-surface,
   .ff-portrait-surface * {

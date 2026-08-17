@@ -6,12 +6,13 @@
  * - Real-time search/filter functionality
  * - Platform-aware display (Cmd on macOS, Ctrl on Windows)
  * - Click-to-rebind with conflict detection (for customizable shortcuts)
- * - Accessible modal with keyboard navigation
+ * - Accessible portrait surface with keyboard navigation
  *
  * Design: Follows macOS keyboard shortcut panel conventions
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { PortraitSurface } from './PortraitSurface';
 
 // ============================================================================
 // Types
@@ -40,41 +41,6 @@ interface KeyboardShortcutsProps {
 // ============================================================================
 
 const CATEGORY_ORDER: ShortcutCategory[] = ['Recording', 'Navigation', 'Editing', 'Annotation', 'Window'];
-
-const CATEGORY_ICONS: Record<ShortcutCategory, React.ReactNode> = {
-  Recording: (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="8" cy="8" r="2.5" fill="currentColor" />
-    </svg>
-  ),
-  Navigation: (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M5 5l3-3 3 3M5 11l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  Editing: (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M11.5 2.5l2 2M2 14l1-4L12.5 .5l2 2L5 12l-4 1 1 1z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  Annotation: (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M2 11l3-8 3 8M3.5 8h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 6v6M10 10h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
-  Window: (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M2 6h12" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="4" cy="4.5" r="0.5" fill="currentColor" />
-      <circle cx="6" cy="4.5" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="4.5" r="0.5" fill="currentColor" />
-    </svg>
-  ),
-};
 
 const DEFAULT_SHORTCUTS: Shortcut[] = [
   // Recording
@@ -337,19 +303,8 @@ function formatKeys(keys: string, isMac: boolean): string[] {
  * Individual key badge component
  */
 function KeyBadge({ keyText }: { keyText: string }) {
-  const isSymbol = keyText.length === 1 && /[\u2300-\u23FF\u2190-\u21FF]/.test(keyText);
-
   return (
-    <kbd
-      className={`
-        inline-flex items-center justify-center
-        min-w-[24px] h-6 px-1.5
-        bg-gray-800 border border-gray-600 rounded
-        font-mono text-xs text-gray-200
-        shadow-[0_1px_0_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]
-        ${isSymbol ? 'text-sm' : ''}
-      `}
-    >
+    <kbd className="ff-shortcut-key">
       {keyText}
     </kbd>
   );
@@ -383,19 +338,15 @@ function ShortcutRow({
 
   return (
     <div
-      className={`
-        flex items-center justify-between py-2.5 px-3 rounded-lg
-        transition-colors duration-150
-        ${isEditing
-          ? 'bg-blue-500/20 ring-1 ring-blue-500/50'
-          : 'hover:bg-gray-800/50'
-        }
-        ${shortcut.customizable ? 'cursor-pointer' : ''}
-      `}
+      className={
+        'ff-shortcut-row' +
+        (isEditing ? ' is-editing' : '') +
+        (shortcut.customizable ? ' is-customizable' : '')
+      }
       onClick={shortcut.customizable && !isEditing ? onStartEdit : undefined}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+      <div className="ff-shortcut-row__copy">
+        <div className="ff-shortcut-row__title">
           <span className="text-white text-sm font-medium">{shortcut.label}</span>
           {shortcut.customizable && !isEditing && (
             <span className="text-[10px] text-gray-500 uppercase tracking-wider">
@@ -416,7 +367,7 @@ function ShortcutRow({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 ml-3">
+      <div className="ff-shortcut-row__controls">
         {isEditing ? (
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded border border-gray-600 min-w-[80px]">
@@ -633,108 +584,59 @@ export function KeyboardShortcuts({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shortcuts-title"
+    <PortraitSurface
+      title="Keyboard Shortcuts"
+      titleId="shortcuts-title"
+      backLabel="Back to MarkuprX"
+      onBack={onClose}
+      subtitle="Select a customizable shortcut to rebind it"
+      contentLabel="Keyboard shortcuts"
     >
-      <div
-        className="
-          bg-gray-900 border border-gray-700 rounded-2xl
-          w-full max-w-2xl mx-4
-          max-h-[80vh] overflow-hidden
-          flex flex-col
-          shadow-2xl shadow-black/50
-          animate-in fade-in zoom-in-95 duration-200
-        "
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-          <h2 id="shortcuts-title" className="text-lg font-semibold text-white">
-            Keyboard Shortcuts
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M4 4l10 10M14 4L4 14"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="px-6 py-3 border-b border-gray-800">
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 16 16"
+      <div className="ff-shortcuts">
+        <div className="ff-shortcuts__search">
+          <label className="sr-only" htmlFor="markuprx-shortcut-search">
+            Search shortcuts
+          </label>
+          <input
+            id="markuprx-shortcut-search"
+            ref={searchInputRef}
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search shortcuts..."
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                searchInputRef.current?.focus();
+              }}
+              aria-label="Clear shortcut search"
             >
-              <path
-                d="M7 12A5 5 0 107 2a5 5 0 000 10zM14 14l-3.5-3.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search shortcuts..."
-              className="
-                w-full bg-gray-800 text-white text-sm
-                pl-10 pr-4 py-2 rounded-lg
-                border border-gray-700
-                focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50
-                focus:outline-none
-                placeholder:text-gray-500
-                transition-colors
-              "
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
-          </div>
+              Clear
+            </button>
+          )}
         </div>
-
-        {/* Shortcuts List */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <div className="ff-shortcuts__groups">
           {filteredShortcuts.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-400">No shortcuts match &ldquo;{search}&rdquo;</p>
-            </div>
+            <p className="ff-shortcuts__empty" role="status">
+              No shortcuts match &ldquo;{search}&rdquo;
+            </p>
           ) : (
-            CATEGORY_ORDER.map(category => {
+            CATEGORY_ORDER.map((category) => {
               const categoryShortcuts = groupedShortcuts[category];
               if (categoryShortcuts.length === 0) return null;
-
+              const headingId = 'markuprx-shortcuts-' + category.toLowerCase();
               return (
-                <div key={category}>
-                  <h3 className="flex items-center gap-2 text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-                    <span className="text-gray-500">{CATEGORY_ICONS[category]}</span>
-                    {category}
-                  </h3>
-                  <div className="space-y-0.5">
-                    {categoryShortcuts.map(shortcut => (
+                <section
+                  key={category}
+                  className="ff-shortcuts__group"
+                  aria-labelledby={headingId}
+                >
+                  <h2 id={headingId}>{category}</h2>
+                  <div className="ff-shortcuts__rows">
+                    {categoryShortcuts.map((shortcut) => (
                       <ShortcutRow
                         key={shortcut.id}
                         shortcut={shortcut}
@@ -748,34 +650,13 @@ export function KeyboardShortcuts({
                       />
                     ))}
                   </div>
-                </div>
+                </section>
               );
             })
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-gray-800 bg-gray-900/50">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>
-              Press{' '}
-              <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-300 border border-gray-700">
-                {isMac ? '\u2318' : 'Ctrl'}+/
-              </kbd>{' '}
-              anytime to show this panel
-            </span>
-            <span className="flex items-center gap-1">
-              {filteredShortcuts.filter(s => s.customizable).length > 0 && (
-                <>
-                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500/50"></span>
-                  Click customizable shortcuts to rebind
-                </>
-              )}
-            </span>
-          </div>
-        </div>
       </div>
-    </div>
+    </PortraitSurface>
   );
 }
 
