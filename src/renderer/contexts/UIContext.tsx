@@ -8,6 +8,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { AnalysisProviderStatus, AppSettings, SessionState } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
+import { getPopoverSizeForView } from '../../shared/popoverLayout';
 import { getAnalysisProviderViewState, type AnalysisProviderViewState } from '../components/settings/analysisProviderViewState';
 import { useRecording } from './RecordingContext';
 import { useProcessing } from './ProcessingContext';
@@ -75,17 +76,9 @@ function mapPopoverState(state: SessionState): 'idle' | 'recording' | 'processin
   return 'idle';
 }
 
-function mapOverlaySize(view: AppView): { width: number; height: number } {
-  switch (view) {
-    case 'settings':
-      return { width: 920, height: 760 };
-    case 'history':
-      return { width: 920, height: 760 };
-    case 'shortcuts':
-      return { width: 720, height: 720 };
-    default:
-      return { width: 0, height: 0 };
-  }
+async function resizeForView(view: Exclude<AppView, 'main'>): Promise<void> {
+  const size = getPopoverSizeForView(view);
+  await window.markuprx.popover.resize(size.width, size.height);
 }
 
 // ============================================================================
@@ -200,8 +193,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   useEffect(() => {
     if (!window.markuprx?.popover) return;
     if (currentView !== 'main') {
-      const { width, height } = mapOverlaySize(currentView);
-      window.markuprx.popover.resize(width, height).catch(() => {});
+      void resizeForView(currentView).catch(() => {});
       return;
     }
 

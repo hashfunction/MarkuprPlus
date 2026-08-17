@@ -12,20 +12,13 @@
 import { BrowserWindow, screen, Tray, app } from 'electron';
 import { join } from 'path';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import { POPOVER_SIZES, type PopoverState } from '../../shared/popoverLayout';
 
 /**
  * Popover sizes for different application states
  */
-export const POPOVER_SIZES = {
-  idle: { width: 460, height: 680 },
-  recording: { width: 316, height: 90 },
-  processing: { width: 320, height: 140 },
-  complete: { width: 460, height: 720 },
-  settings: { width: 400, height: 520 },
-  error: { width: 440, height: 620 },
-} as const;
-
-export type PopoverState = keyof typeof POPOVER_SIZES;
+export { POPOVER_SIZES };
+export type { PopoverState };
 
 export interface PopoverConfig {
   width: number;
