@@ -403,6 +403,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         await window.markuprx.settings.set(key as keyof AppSettings, value);
       }
       setSaveStatus('saved');
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -410,6 +411,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('error');
       setSaveError(message);
       console.error('Failed to save setting:', error);
+      return false;
     }
   }, []);
 
@@ -430,6 +432,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         await window.markuprx.settings.set(key as keyof AppSettings, value);
       }
       setSaveStatus('saved');
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -437,6 +440,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('error');
       setSaveError(message);
       console.error('Failed to save setting:', error);
+      return false;
     }
   }, []);
 
@@ -456,6 +460,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         detail: { type: 'appearance' },
       }));
       setSaveStatus('saved');
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -463,6 +468,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('error');
       setSaveError(message);
       console.error('Failed to save setting:', error);
+      return false;
     }
   }, []);
 
@@ -476,6 +482,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       // @ts-expect-error - update may be named updateConfig in type definition
       await (window.markuprx.hotkeys.update ?? window.markuprx.hotkeys.updateConfig)?.(defaults);
       setSaveStatus('saved');
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -483,6 +490,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('error');
       setSaveError(message);
       console.error('Failed to save setting:', error);
+      return false;
     }
   }, []);
 
@@ -503,6 +511,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
       await refreshAnalysisProviders(true);
       setSaveStatus('saved');
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -510,6 +519,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('error');
       setSaveError(message);
       console.error('Failed to save setting:', error);
+      return false;
     }
   }, [refreshAnalysisProviders]);
 

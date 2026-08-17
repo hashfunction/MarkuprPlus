@@ -52,11 +52,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   );
 
   const handleResetAll = useCallback(async () => {
-    await s.resetGeneralSection();
-    await s.resetRecordingSection();
-    await s.resetAppearanceSection();
-    await s.resetHotkeysSection();
-    await s.resetAdvancedSection();
+    const resetSections = [
+      s.resetGeneralSection,
+      s.resetRecordingSection,
+      s.resetAppearanceSection,
+      s.resetHotkeysSection,
+      s.resetAdvancedSection,
+    ];
+    for (const resetSection of resetSections) {
+      if (!await resetSection()) return;
+    }
   }, [
     s,
   ]);

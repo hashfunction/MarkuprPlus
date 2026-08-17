@@ -146,6 +146,9 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_SET,
     (_, key: keyof AppSettings, value: unknown): AppSettings => {
+      if (process.env.MARKUPRX_E2E === '1' && process.env.MARKUPRX_E2E_FAIL_SETTINGS_KEY === key) {
+        throw new Error(`Injected settings save failure for ${key}.`);
+      }
       const updates = { [key]: value } as Partial<AppSettings>;
       return getSettingsManager()?.update(updates) ?? { ...DEFAULT_SETTINGS, ...updates };
     }

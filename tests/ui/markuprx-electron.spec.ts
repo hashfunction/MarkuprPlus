@@ -57,7 +57,11 @@ async function selectDeterministicWindow(
   const selector = await selectorPromise;
   await expect(selector.getByRole('main', { name: 'Choose what MarkuprX should record' }))
     .toBeVisible();
-  await expect(selector.getByRole('button', { name: /Window/ }))
+  const windowMode = selector.getByRole('button', { name: /Window/ });
+  if (await windowMode.getAttribute('aria-pressed') !== 'true') {
+    await windowMode.click();
+  }
+  await expect(windowMode)
     .toHaveAttribute('aria-pressed', 'true');
 
   const annotationPromise = application.waitForEvent('window');
@@ -242,6 +246,33 @@ async function expectPortraitWindow(
   expect(overflow.viewportHeight).toBe(680);
   expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
   expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
+async function expectHudWindow(
+  application: ElectronApplication,
+  page: Page,
+  size: { width: number; height: number },
+): Promise<void> {
+  const pageUrl = page.url();
+  const bounds = await application.evaluate(({ BrowserWindow }, url) => {
+    const window = BrowserWindow.getAllWindows()
+      .find((candidate) => candidate.webContents.getURL() === url);
+    return window?.getBounds() ?? null;
+  }, pageUrl);
+  expect(bounds).toMatchObject(size);
+
+  const layout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    cardHeight: document.querySelector<HTMLElement>('.ff-shell__card')?.offsetHeight,
+    documentHeight: document.documentElement.scrollHeight,
+    bodyHeight: document.body.scrollHeight,
+  }));
+  expect(layout.viewportWidth).toBe(size.width);
+  expect(layout.viewportHeight).toBe(size.height);
+  expect(layout.cardHeight).toBe(size.height);
+  expect(layout.documentHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
 }
 
 test.describe('MarkuprX desktop application', () => {
@@ -431,6 +462,45 @@ test.describe('MarkuprX desktop application', () => {
     await expect(advanced).toBeFocused();
     await expect(advanced).toHaveAttribute('aria-selected', 'true');
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
+  test('keeps recording and processing HUDs matched to their compact windows', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ processingDelayMs: 500 });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await selectDeterministicWindow(application, window);
+    await expectHudWindow(application, window, { width: 316, height: 90 });
+
+    await window.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect.poll(async () => {
+      const pageUrl = window.url();
+      const bounds = await application!.evaluate(({ BrowserWindow }, url) => {
+        const candidate = BrowserWindow.getAllWindows()
+          .find((current) => current.webContents.getURL() === url);
+        return candidate?.getBounds() ?? null;
+      }, pageUrl);
+      return bounds?.width === 320 && bounds.height === 140;
+    }).toBe(true);
+    await expectHudWindow(application, window, { width: 320, height: 140 });
+  });
+
+  test('stops Reset All after the first persistence failure', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ failSettingsKey: 'outputDirectory' });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.evaluate(() => window.markuprx.settings.set('theme', 'dark'));
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await expect(window.getByRole('region', { name: 'Settings', exact: true })).toBeVisible();
+    await window.getByRole('button', { name: 'Reset All to Defaults', exact: true }).click();
+
+    await expect(window.getByText('Unable to save', { exact: true })).toBeVisible();
+    await expect.poll(() => window.evaluate(() => window.markuprx.settings.get('theme'))).toBe('dark');
   });
 
   test('applies custom appearance settings immediately and restores them from app settings', async () => {

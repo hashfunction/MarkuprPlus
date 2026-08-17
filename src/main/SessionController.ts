@@ -575,6 +575,12 @@ export class SessionController {
       this.session.state = 'processing';
     }
 
+    const e2eProcessingDelayMs = Number(process.env.MARKUPRX_E2E_PROCESSING_DELAY_MS || 0);
+    if (process.env.MARKUPRX_E2E === '1' && Number.isFinite(e2eProcessingDelayMs)
+      && e2eProcessingDelayMs > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, e2eProcessingDelayMs));
+    }
+
     // NOTE: The full PostProcessor pipeline (transcribe -> analyze -> extract frames)
     // is NOT run here because recordingPath and audioPath are not yet available on
     // session.metadata at this point. Those paths are set later in stopSession()
