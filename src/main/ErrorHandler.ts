@@ -11,6 +11,7 @@
 import { app, dialog, shell, BrowserWindow, Notification } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 import { IPC_CHANNELS } from '../shared/types';
 
 // ============================================================================
@@ -129,7 +130,7 @@ class ErrorHandler {
     const messages = {
       microphone: {
         title: 'Microphone Access Required',
-        message: 'MarkuprX needs microphone access to capture your voice feedback.',
+        message: `${PUBLIC_BRAND_NAME} needs microphone access to capture your voice feedback.`,
         detail:
           `Click "Open Settings" to grant microphone permission in ${settingsName}.` +
           '\n\nAfter enabling, you may need to restart the app.',
@@ -138,7 +139,7 @@ class ErrorHandler {
       },
       screen: {
         title: 'Screen Recording Required',
-        message: 'MarkuprX needs screen recording permission to capture screenshots.',
+        message: `${PUBLIC_BRAND_NAME} needs screen recording permission to capture screenshots.`,
         detail:
           `Click "Open Settings" to grant screen recording permission in ${settingsName}.` +
           '\n\nYou will need to restart the app after enabling.',
@@ -210,7 +211,7 @@ class ErrorHandler {
       title: 'API Key Required',
       message: 'Your OpenAI API key is missing or invalid.',
       detail:
-        'MarkuprX uses OpenAI for post-session narration transcription. ' +
+        `${PUBLIC_BRAND_NAME} uses OpenAI for post-session narration transcription. ` +
         'Please enter a valid API key in Settings.\n\n' +
         'Create a key at platform.openai.com/api-keys',
       buttons: ['Open Settings', 'OK'],
@@ -474,7 +475,7 @@ class ErrorHandler {
     // Also show system notification if supported
     if (Notification.isSupported()) {
       new Notification({
-        title: `MarkuprX: ${title}`,
+        title: `${PUBLIC_BRAND_NAME}: ${title}`,
         body: message,
         silent: true,
       }).show();

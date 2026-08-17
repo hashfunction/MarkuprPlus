@@ -3,6 +3,7 @@ import type {
   AnalysisProviderStatus,
   ModelAnalysisProvider,
 } from '../../../shared/types';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 
 export type ModelControlMode = 'none' | 'default-or-custom' | 'discovered-only';
 
@@ -43,7 +44,7 @@ export const PROVIDER_OPTIONS: AnalysisProviderOption[] = [
   {
     id: 'anthropic-api',
     title: 'Anthropic API',
-    description: 'Use an Anthropic API key stored securely by MarkuprX.',
+    description: `Use an Anthropic API key stored securely by ${PUBLIC_BRAND_NAME}.`,
     connectionBadge: 'Cloud',
   },
   {

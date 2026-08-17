@@ -16,6 +16,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import { Skeleton, SkeletonText } from './Skeleton';
 import { PortraitSurface } from './PortraitSurface';
 import {
@@ -1111,7 +1112,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
       <PortraitSurface
         title="Session History"
         titleId="markuprx-history-title"
-        backLabel="Back to MarkuprX"
+        backLabel={`Back to ${PUBLIC_BRAND_NAME}`}
         onBack={onClose}
         subtitle={
           !isLoading

@@ -4,6 +4,7 @@ import type {
   AnalysisProviderStatus,
   ModelAnalysisProvider,
 } from '../../../shared/types';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 
 export interface AnalysisProviderViewState {
   ready: boolean;
@@ -40,7 +41,7 @@ export function getAnalysisProviderViewState(
     return {
       ready: true,
       title: 'Local Rules ready',
-      detail: "Reports will use MarkuprX's built-in local rules.",
+      detail: `Reports will use ${PUBLIC_BRAND_NAME}'s built-in local rules.`,
     };
   }
 

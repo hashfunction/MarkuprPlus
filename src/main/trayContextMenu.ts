@@ -1,10 +1,14 @@
 import type { MenuItemConstructorOptions } from 'electron';
+import {
+  PUBLIC_BRAND_NAME,
+  PUBLIC_CONTACT_URL,
+  PUBLIC_WEBSITE_URL,
+} from '../shared/publicBrand';
 import type { TrayState } from '../shared/types';
 
 export const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
-export const HELP_URL = 'https://markuprplus.com';
-export const CONTACT_URL =
-  'https://github.com/hashfunction/MarkuprPlus/issues/new';
+export const HELP_URL = PUBLIC_WEBSITE_URL;
+export const CONTACT_URL = PUBLIC_CONTACT_URL;
 
 type ExternalDestination = 'donate' | 'help' | 'contact';
 
@@ -78,10 +82,12 @@ export function buildTrayContextMenuTemplate({
       click: externalAction('contact', CONTACT_URL, actions),
     },
     { type: 'separator' },
-    { label: 'About MarkuprPlus', role: 'about' },
+    { label: `About ${PUBLIC_BRAND_NAME}`, role: 'about' },
     { type: 'separator' },
     {
-      label: platform === 'darwin' ? 'Quit MarkuprPlus' : 'Exit MarkuprPlus',
+      label: platform === 'darwin'
+        ? `Quit ${PUBLIC_BRAND_NAME}`
+        : `Exit ${PUBLIC_BRAND_NAME}`,
       accelerator: 'CmdOrCtrl+Q',
       click: actions.quit,
     },

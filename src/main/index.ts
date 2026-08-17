@@ -29,6 +29,7 @@ import {
 import * as fs from 'fs/promises';
 import { join, dirname, basename, extname } from 'path';
 import { fileURLToPath } from 'url';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 
 // Hide dock icon on macOS for pure menu bar experience
 // IMPORTANT: Must be called before app.whenReady()
@@ -312,7 +313,7 @@ async function loadRendererIntoWindow(window: BrowserWindow, label: string): Pro
     `data:text/html;charset=utf-8,${encodeURIComponent(`
       <html>
         <body style="margin:0;padding:20px;background:#121212;color:#f5f5f5;font-family:-apple-system,system-ui,sans-serif;">
-          <h2 style="margin:0 0 12px 0;">MarkuprX failed to load</h2>
+          <h2 style="margin:0 0 12px 0;">${PUBLIC_BRAND_NAME} failed to load</h2>
           <p style="margin:0 0 8px 0;">Dev renderer did not become reachable at ${DEV_RENDERER_URL}.</p>
           <p style="margin:0;color:#b3b3b3;">${finalMessage}</p>
         </body>
@@ -451,7 +452,7 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
   if (state === 'recording' && sessionController.isSessionPaused()) {
-    trayManager.setTooltip(`MarkuprPlus - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+    trayManager.setTooltip(`${PUBLIC_BRAND_NAME} - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   }
 
   const keepVisibleOnBlur =
@@ -559,7 +560,7 @@ function handleSessionError(error: Error): void {
 
   // Update tray to error state
   trayManager.setState('error');
-  trayManager.setTooltip(`MarkuprPlus - Error: ${error.message}`);
+  trayManager.setTooltip(`${PUBLIC_BRAND_NAME} - Error: ${error.message}`);
 
   // Notify renderer
   safeSendToRenderer(IPC_CHANNELS.SESSION_ERROR, {
@@ -799,7 +800,7 @@ function pauseSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is already paused.' };
   }
 
-  trayManager.setTooltip(`MarkuprPlus - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+  trayManager.setTooltip(`${PUBLIC_BRAND_NAME} - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   return { success: true };
 }
 
@@ -813,7 +814,7 @@ function resumeSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is not paused.' };
   }
 
-  trayManager.setTooltip(`MarkuprPlus - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
+  trayManager.setTooltip(`${PUBLIC_BRAND_NAME} - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
   return { success: true };
 }
 
@@ -2110,7 +2111,7 @@ process.on('uncaughtException', (error) => {
 
   console.error('[Main] Uncaught exception:', error);
   try {
-    showErrorNotification('MarkuprX Error', error.message);
+    showErrorNotification(`${PUBLIC_BRAND_NAME} Error`, error.message);
   } catch {
     // Ignore notification errors
   }

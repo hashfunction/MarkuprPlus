@@ -14,6 +14,7 @@
 
 import { BrowserWindow, app, nativeImage } from 'electron';
 import { join } from 'path';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 export interface RecentSession {
   id: string;
@@ -131,7 +132,7 @@ export class WindowsTaskbar {
         {
           type: 'task',
           title: 'Open Settings',
-          description: 'Configure MarkuprX settings',
+          description: `Configure ${PUBLIC_BRAND_NAME} settings`,
           program: process.execPath,
           args: '--settings',
           iconPath: process.execPath,

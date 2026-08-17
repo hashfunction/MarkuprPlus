@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import type {
   CapturePoint,
   CaptureSelectionOverlayState,
@@ -141,7 +142,7 @@ export function SelectionOverlay({ overlayState }: SelectionOverlayProps): React
 
   return (
     <main
-      aria-label="Choose what MarkuprX should record"
+      aria-label={`Choose what ${PUBLIC_BRAND_NAME} should record`}
       onPointerMove={(event) => act({ type: 'pointer-move', point: toGlobalPoint(event, overlayState) })}
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest('[data-selector-control]')) return;

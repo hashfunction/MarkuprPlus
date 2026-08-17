@@ -33,6 +33,7 @@ import {
   LEGACY_KEYTAR_SERVICES,
 } from '../migration/LegacyBrandMigration';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -392,7 +393,7 @@ export class SettingsManager implements ISettingsManager {
 
   private setFallbackApiKey(service: string, key: string): void {
     if (!this.canUseEncryptedFallback()) {
-      throw new Error('Secure storage is unavailable. API keys cannot be saved until the app is fully initialized. Try restarting MarkuprX.');
+      throw new Error(`Secure storage is unavailable. API keys cannot be saved until the app is fully initialized. Try restarting ${PUBLIC_BRAND_NAME}.`);
     }
 
     const encrypted = safeStorage.encryptString(key).toString('base64');
@@ -551,7 +552,7 @@ export class SettingsManager implements ISettingsManager {
         } catch (insecureError) {
           throw new Error(
             `Unable to store API key for ${service}. All storage methods failed. ` +
-            `Try restarting MarkuprX or check filesystem permissions. ` +
+            `Try restarting ${PUBLIC_BRAND_NAME} or check filesystem permissions. ` +
             `(${insecureError instanceof Error ? insecureError.message : String(insecureError)})`
           );
         }

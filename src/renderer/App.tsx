@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 import type { HotkeyConfig, ReviewSession, SessionState } from '../shared/types';
 import {
   CrashRecoveryDialog,
@@ -390,7 +391,7 @@ const App: React.FC = () => {
               error={recording.errorMessage}
             />
             <div>
-              <p className="ff-shell__eyebrow">MarkuprX</p>
+              <p className="ff-shell__eyebrow">{PUBLIC_BRAND_NAME}</p>
               <h1 className="ff-shell__title">{ui.statusCopy.title}</h1>
             </div>
           </div>

@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import { DonateButton } from './DonateButton';
 import { PortraitSurface } from './PortraitSurface';
 import { GeneralTab, RecordingTab, AppearanceTab, HotkeysTab, AdvancedTab, TABS } from './settings';
@@ -207,7 +208,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <PortraitSurface
       title="Settings"
       titleId="markuprx-settings-title"
-      backLabel="Back to MarkuprX"
+      backLabel={`Back to ${PUBLIC_BRAND_NAME}`}
       onBack={onClose}
       subtitle={
         <span
@@ -221,7 +222,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               ? 'Saved'
               : s.saveStatus === 'error'
                 ? 'Unable to save'
-                : 'MarkuprX ' + (s.appVersion ? 'v' + s.appVersion : '')}
+                : `${PUBLIC_BRAND_NAME} ${s.appVersion ? `v${s.appVersion}` : ''}`}
         </span>
       }
       headerActions={

@@ -49,6 +49,31 @@ async function launchApplication(
   return { application, mainWindow };
 }
 
+async function expectNoLegacyBrandInVisibleCopy(page: Page): Promise<void> {
+  const publicCopy = await page.evaluate(() => {
+    const attributes = [
+      'aria-label',
+      'aria-description',
+      'title',
+      'alt',
+      'placeholder',
+    ];
+    const accessibilityCopy = Array.from(document.querySelectorAll<HTMLElement>('*'))
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        return element.getClientRects().length > 0
+          && style.display !== 'none'
+          && style.visibility !== 'hidden';
+      })
+      .flatMap((element) => attributes
+        .map((attribute) => element.getAttribute(attribute))
+        .filter((value): value is string => Boolean(value)));
+    return [document.title, document.body.innerText, ...accessibilityCopy].join('\n');
+  });
+
+  expect(publicCopy).not.toContain('MarkuprX');
+}
+
 async function selectDeterministicWindow(
   application: ElectronApplication,
   mainWindow: Page,
@@ -56,7 +81,7 @@ async function selectDeterministicWindow(
   const selectorPromise = application.waitForEvent('window');
   await mainWindow.getByRole('button', { name: /start session/i }).click();
   const selector = await selectorPromise;
-  await expect(selector.getByRole('main', { name: 'Choose what MarkuprX should record' }))
+  await expect(selector.getByRole('main', { name: 'Choose what MarkuprPlus should record' }))
     .toBeVisible();
   const windowMode = selector.getByRole('button', { name: /Window/ });
   if (await windowMode.getAttribute('aria-pressed') !== 'true') {
@@ -1052,7 +1077,7 @@ async function expectHudWindow(
   expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
 }
 
-test.describe('MarkuprX desktop application', () => {
+test.describe('MarkuprPlus desktop application', () => {
   let application: ElectronApplication | null = null;
   let harness: ElectronHarnessEnvironment;
 
@@ -1091,16 +1116,76 @@ test.describe('MarkuprX desktop application', () => {
     await harness.cleanup();
   });
 
-  test('launches MarkuprX and shows the idle capture action', async () => {
+  test('launches MarkuprPlus and shows the idle capture action', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
 
-    await expect(window).toHaveTitle(/MarkuprX/);
+    await expect(window).toHaveTitle(/MarkuprPlus/);
     const startSession = window.getByRole('button', { name: /start session/i });
     await expect(startSession).toBeVisible();
     await expectPortraitWindow(application, window);
     await expectActionsWithinPortrait([startSession]);
+  });
+
+  test('presents MarkuprPlus as the public desktop brand', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByText('MarkuprPlus', { exact: true }).first()).toBeVisible();
+    await expect(window).toHaveTitle('MarkuprPlus');
+    expect(await application.evaluate(({ app }) => app.getName())).toBe('MarkuprPlus');
+    await expectNoLegacyBrandInVisibleCopy(window);
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await expect(window.getByText(/MarkuprPlus v/)).toBeVisible();
+    const settingsBack = window.getByRole('button', { name: 'Back to MarkuprPlus' });
+    await expect(settingsBack).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await settingsBack.click();
+
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    const historyBack = window.getByRole('button', { name: 'Back to MarkuprPlus' });
+    await expect(historyBack).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await historyBack.click();
+
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+    const shortcuts = window.getByRole('region', {
+      name: 'Keyboard Shortcuts',
+      exact: true,
+    });
+    await expect(shortcuts).toBeVisible();
+    await expect(shortcuts.getByText('Exit MarkuprPlus', { exact: true })).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+  });
+
+  test('presents MarkuprPlus as the public desktop brand throughout onboarding', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ showOnboarding: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    const wizard = await expectContainedDialog(window, 'Setup wizard');
+
+    await expect(window.getByRole('heading', { name: 'Welcome to MarkuprPlus' })).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await wizard.getByRole('button', { name: 'Get Started' }).click();
+    await expect(window.getByRole('heading', { name: 'Microphone Access' })).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await wizard.getByRole('button', { name: 'Continue' }).click();
+    await expect(window.getByRole('heading', { name: 'Screen Recording' })).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await wizard.getByRole('button', { name: 'Continue' }).click();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await wizard.getByRole('button', { name: /Skip for now/ }).click();
+    await expectNoLegacyBrandInVisibleCopy(window);
+    await wizard.getByRole('button', {
+      name: /Skip — configure report generation later/,
+    }).click();
+    await expect(window.getByRole('heading', { name: /You're All Set!/ })).toBeVisible();
+    await expectNoLegacyBrandInVisibleCopy(window);
   });
 
   test('caps the configured recording countdown inside the portrait window', async () => {
@@ -1114,7 +1199,7 @@ test.describe('MarkuprX desktop application', () => {
     });
     await countdownSetting.selectOption('5');
     await expect(countdownSetting).toHaveValue('5');
-    await window.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await window.getByRole('button', { name: 'Back to MarkuprPlus' }).click();
     const startAction = window.getByRole('button', { name: /start session/i });
     await expect(startAction).toBeEnabled();
     await startAction.click();
@@ -1454,7 +1539,7 @@ test.describe('MarkuprX desktop application', () => {
     }, trustedUrl);
     expect(guardedState).toEqual({
       url: trustedUrl,
-      title: 'MarkuprX',
+      title: 'MarkuprPlus',
       hasStartAction: true,
     });
   });
@@ -1488,7 +1573,7 @@ test.describe('MarkuprX desktop application', () => {
       }
     };
     await expectWizardRegions('Get Started');
-    const welcomeHeading = window.getByRole('heading', { name: 'Welcome to MarkuprX' });
+    const welcomeHeading = window.getByRole('heading', { name: 'Welcome to MarkuprPlus' });
     await expect(welcomeHeading).toBeVisible();
     await expect.poll(() => welcomeHeading.evaluate((element) =>
       getComputedStyle(element.parentElement!).opacity)).toBe('1');
@@ -2220,7 +2305,7 @@ test.describe('MarkuprX desktop application', () => {
     await expect(advancedFromAffordance).toBeFocused();
     await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
 
-    await settings.getByRole('button', { name: 'Back to MarkuprX', exact: true }).click();
+    await settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }).click();
     await window.evaluate(() => {
       localStorage.setItem('markuprx:donate-message-index', '0');
     });
@@ -2242,7 +2327,7 @@ test.describe('MarkuprX desktop application', () => {
       settings.getByRole('textbox', { name: 'Output Directory', exact: true }),
     ]);
     await expectActionsWithinPortrait([
-      settings.getByRole('button', { name: 'Back to MarkuprX', exact: true }),
+      settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }),
       settings.getByRole('button', { name: 'Reset All to Defaults', exact: true }),
     ]);
 
@@ -2289,7 +2374,7 @@ test.describe('MarkuprX desktop application', () => {
     expect(scrollLayout.scrollWidth).toBeLessThanOrEqual(scrollLayout.clientWidth);
     await expectPortraitScreenshot(window, 'shortcuts-portrait.png');
     await expectActionsWithinPortrait([
-      shortcuts.getByRole('button', { name: 'Back to MarkuprX', exact: true }),
+      shortcuts.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }),
       shortcuts.getByRole('button', {
         name: 'Rebind Start/Stop Recording',
         exact: true,
@@ -2770,7 +2855,7 @@ test.describe('MarkuprX desktop application', () => {
     const selectorPromise = application.waitForEvent('window');
     await mainWindow.getByRole('button', { name: /start session/i }).click();
     const selector = await selectorPromise;
-    await expect(selector.getByRole('main', { name: 'Choose what MarkuprX should record' }))
+    await expect(selector.getByRole('main', { name: 'Choose what MarkuprPlus should record' }))
       .toBeVisible();
 
     await selector.keyboard.press('r');
@@ -3270,7 +3355,7 @@ test.describe('MarkuprX desktop application', () => {
     await mainWindow.getByLabel('Theme Mode').selectOption('light');
     await expect.poll(() => mainWindow.evaluate(() =>
       document.documentElement.getAttribute('data-theme'))).toBe('light');
-    await mainWindow.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await mainWindow.getByRole('button', { name: 'Back to MarkuprPlus' }).click();
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
 
     // Exercise the completed-session editor against the already-saved report.
@@ -3332,7 +3417,7 @@ test.describe('MarkuprX desktop application', () => {
     await expect(mainWindow.locator('.ff-portrait-surface')).toHaveCount(1);
     await expect(mainWindow.getByRole('region', { name: 'Keyboard Shortcuts', exact: true }))
       .toHaveCount(0);
-    await historyFromReview.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await historyFromReview.getByRole('button', { name: 'Back to MarkuprPlus' }).click();
     await expect(review).toBeVisible();
     await expect(mainWindow.locator('.ff-portrait-surface')).toHaveCount(1);
     await expect(mainWindow.getByText(navigationDraftComment, { exact: true })).toBeVisible();
@@ -3785,7 +3870,7 @@ test.describe('MarkuprX desktop application', () => {
     await actionMenu.getByRole('menuitem', { name: 'Export' }).click();
     await expect(actionError).toContainText('Export folder unavailable for test.');
 
-    await mainWindow.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await mainWindow.getByRole('button', { name: 'Back to MarkuprPlus' }).click();
     await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
     await rm(sessionDir, { recursive: true, force: true });
     await mainWindow.locator('p').filter({ hasText: newerComment }).first().dblclick();

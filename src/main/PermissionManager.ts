@@ -9,6 +9,7 @@
  */
 
 import { systemPreferences, dialog, shell, BrowserWindow, app } from 'electron';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 import { errorHandler } from './ErrorHandler';
 
 // ============================================================================
@@ -44,19 +45,19 @@ const PERMISSION_DESCRIPTIONS: Record<PermissionType, {
 }> = {
   microphone: {
     title: 'Microphone Access',
-    description: 'MarkuprX needs microphone access to capture your voice feedback and transcribe it in real-time.',
+    description: `${PUBLIC_BRAND_NAME} needs microphone access to capture your voice feedback and transcribe it in real-time.`,
     required: true,
     systemPrefsPane: 'Privacy_Microphone',
   },
   screen: {
     title: 'Screen Recording',
-    description: 'MarkuprX needs screen recording permission to capture screenshots when you pause speaking.',
+    description: `${PUBLIC_BRAND_NAME} needs screen recording permission to capture screenshots when you pause speaking.`,
     required: true,
     systemPrefsPane: 'Privacy_ScreenCapture',
   },
   accessibility: {
     title: 'Accessibility',
-    description: 'MarkuprX uses accessibility features for global hotkeys. This is optional but recommended.',
+    description: `${PUBLIC_BRAND_NAME} uses accessibility features for global hotkeys. This is optional but recommended.`,
     required: false,
     systemPrefsPane: 'Privacy_Accessibility',
   },
@@ -314,9 +315,9 @@ class PermissionManager {
         `${config.description}\n\n` +
         'To enable this permission:\n' +
         `1. Click "${settingsLabel}"\n` +
-        '2. Find MarkuprX in the list\n' +
+        `2. Find ${PUBLIC_BRAND_NAME} in the list\n` +
         '3. Toggle it ON\n' +
-        '4. You may need to restart MarkuprX',
+        `4. You may need to restart ${PUBLIC_BRAND_NAME}`,
     };
 
     const { response } = this.mainWindow
@@ -347,9 +348,9 @@ class PermissionManager {
       defaultId: 0,
       cancelId: 2,
       title: 'Permissions Needed',
-      message: 'MarkuprX needs your permission',
+      message: `${PUBLIC_BRAND_NAME} needs your permission`,
       detail:
-        'To work properly, MarkuprX needs access to:\n' +
+        `To work properly, ${PUBLIC_BRAND_NAME} needs access to:\n` +
         `${missingDescriptions}\n\n` +
         'Would you like to set up permissions now?',
     };

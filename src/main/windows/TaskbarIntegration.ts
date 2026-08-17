@@ -13,6 +13,7 @@
 import { app, BrowserWindow, nativeImage, Notification, shell } from 'electron';
 import * as path from 'path';
 import electronLog from 'electron-log';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 const log = electronLog.default ?? electronLog;
 
 // Types for Windows taskbar integration
@@ -105,7 +106,7 @@ export class TaskbarIntegration {
             {
               type: 'task',
               title: 'Open Settings',
-              description: 'Configure MarkuprX settings',
+              description: `Configure ${PUBLIC_BRAND_NAME} settings`,
               program: process.execPath,
               args: '--settings',
               iconPath: process.execPath,
@@ -378,7 +379,7 @@ export class TaskbarIntegration {
   public notifyRecordingStarted(): void {
     this.showNotification({
       title: 'Recording Started',
-      body: 'MarkuprX is now capturing your feedback',
+      body: `${PUBLIC_BRAND_NAME} is now capturing your feedback`,
       silent: true,
       urgency: 'low'
     });

@@ -9,6 +9,7 @@ import type {
   CaptureDisplay,
   CaptureSource,
 } from '../../shared/types';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 export { ELECTRON_TEST_CHANNELS } from '../../shared/electronTestHarness';
 
 export function isElectronTestHarnessAllowed(options: {
@@ -62,9 +63,9 @@ export function createElectronTestCaptureFixtures(displayLike: ElectronTestDispl
   return {
     display: {
       id: String(displayLike.id),
-      label: displayLike.label || 'MarkuprX Test Display',
+      label: displayLike.label || `${PUBLIC_BRAND_NAME} Test Display`,
       sourceId: 'screen:e2e:0',
-      sourceName: 'MarkuprX Test Display',
+      sourceName: `${PUBLIC_BRAND_NAME} Test Display`,
       bounds,
       scaleFactor: displayLike.scaleFactor,
       isPrimary: true,
@@ -73,7 +74,7 @@ export function createElectronTestCaptureFixtures(displayLike: ElectronTestDispl
       sourceId,
       sourceName,
       nativeWindowId: 'e2e',
-      appName: 'MarkuprX Test Fixture',
+      appName: `${PUBLIC_BRAND_NAME} Test Fixture`,
       bounds: windowBounds,
       ownerPid: process.pid,
     },

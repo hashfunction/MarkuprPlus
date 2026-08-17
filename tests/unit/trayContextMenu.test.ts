@@ -7,6 +7,10 @@ import {
   type TrayMenuActions,
 } from '../../src/main/trayContextMenu';
 import type { TrayState } from '../../src/shared/types';
+import {
+  PUBLIC_CONTACT_URL,
+  PUBLIC_WEBSITE_URL,
+} from '../../src/shared/publicBrand';
 
 function createActions(
   overrides: Partial<TrayMenuActions> = {},
@@ -128,10 +132,8 @@ describe('tray context menu', () => {
   });
 
   it('uses the exact approved public destinations', () => {
-    expect(HELP_URL).toBe('https://markuprplus.com');
-    expect(CONTACT_URL).toBe(
-      'https://github.com/hashfunction/MarkuprPlus/issues/new',
-    );
+    expect(HELP_URL).toBe(PUBLIC_WEBSITE_URL);
+    expect(CONTACT_URL).toBe(PUBLIC_CONTACT_URL);
     expect(DONATE_URL).toBe('https://ko-fi.com/eddiesanjuan');
   });
 

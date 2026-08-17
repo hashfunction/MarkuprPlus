@@ -105,13 +105,15 @@ describe('Electron test harness guard', () => {
 
     expect(fixtures.display).toMatchObject({
       id: '42',
+      label: 'Test Display',
       sourceId: 'screen:e2e:0',
+      sourceName: 'MarkuprPlus Test Display',
       bounds: { x: -1200, y: 40, width: 1200, height: 800 },
       isPrimary: true,
     });
     expect(fixtures.window).toMatchObject({
       sourceId: 'window:e2e:0',
-      appName: 'MarkuprX Test Fixture',
+      appName: 'MarkuprPlus Test Fixture',
     });
     expect(fixtures.window.bounds.x).toBeGreaterThanOrEqual(fixtures.display.bounds.x);
     expect(fixtures.window.bounds.y).toBeGreaterThanOrEqual(fixtures.display.bounds.y);

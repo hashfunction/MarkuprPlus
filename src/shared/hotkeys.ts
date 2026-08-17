@@ -1,3 +1,5 @@
+import { PUBLIC_BRAND_NAME } from './publicBrand';
+
 /**
  * Platform-aware hotkey definitions for MarkuprX
  *
@@ -103,7 +105,7 @@ export const HOTKEYS: HotkeyDefinition[] = [
   {
     id: 'quit',
     label: 'Quit',
-    description: 'Quit MarkuprX',
+    description: `Exit ${PUBLIC_BRAND_NAME}`,
     macAccelerator: 'Command+Q',
     winLinuxAccelerator: 'Alt+F4',
   },

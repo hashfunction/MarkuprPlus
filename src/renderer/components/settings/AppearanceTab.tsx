@@ -1,4 +1,5 @@
 import React from 'react';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 import type { AppSettings } from '../../../shared/types';
 import { darkTheme, lightTheme } from '../../styles/theme';
 import { getContrastColor, useTheme } from '../../hooks/useTheme';
@@ -18,7 +19,7 @@ export const AppearanceTab: React.FC<{
   <div style={styles.tabContent}>
     <SettingsSection
       title="Theme"
-      description="Choose how MarkuprX looks"
+      description={`Choose how ${PUBLIC_BRAND_NAME} looks`}
       onReset={onResetSection}
     >
       <DropdownSetting

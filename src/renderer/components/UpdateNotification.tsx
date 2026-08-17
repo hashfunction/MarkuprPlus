@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { CSSProperties } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import type { UpdateStatusPayload, UpdateStatusType } from '../../shared/types';
 
 interface UpdateState {
@@ -316,7 +317,7 @@ export function UpdateNotification(): React.ReactElement | null {
             </div>
           </div>
           <p style={{ fontSize: 13, color: 'rgba(239, 244, 255, 0.92)', marginBottom: 12 }}>
-            Restart MarkuprX to apply the update. Your work will be saved.
+            Restart {PUBLIC_BRAND_NAME} to apply the update. Your work will be saved.
           </p>
           <button onClick={handleInstall} style={{ ...primaryButtonStyle, background: '#ffffff', color: '#047857' }}>
             Restart Now

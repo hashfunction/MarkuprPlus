@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import {
   isTopmostContainedDialog,
   useContainedDialogFocus,
@@ -360,7 +361,7 @@ const WelcomeStep: React.FC<{ onNext: () => void; onSkip: () => void }> = ({
       </div>
 
       {/* Title */}
-      <h1 style={styles.title}>Welcome to MarkuprX</h1>
+      <h1 style={styles.title}>Welcome to {PUBLIC_BRAND_NAME}</h1>
 
       {/* Tagline */}
       <p style={styles.tagline}>
@@ -484,7 +485,7 @@ const MicrophoneStep: React.FC<{
 
       {/* Explanation */}
       <p style={styles.stepDescription}>
-        MarkuprX needs microphone access to transcribe your voice narration as you
+        {PUBLIC_BRAND_NAME} needs microphone access to transcribe your voice narration as you
         walk through your feedback. Your audio is processed locally and securely.
       </p>
 
@@ -512,7 +513,7 @@ const MicrophoneStep: React.FC<{
           </div>
           <ol style={styles.instructionList}>
             <li>Click &quot;Open System Settings&quot; below</li>
-            <li>Find &quot;MarkuprX&quot; in the list</li>
+            <li>Find &quot;{PUBLIC_BRAND_NAME}&quot; in the list</li>
             <li>Toggle the switch ON</li>
             <li>Click &quot;Check Again&quot; to verify</li>
           </ol>
@@ -667,9 +668,9 @@ const ScreenRecordingStep: React.FC<{
 
       {/* Explanation */}
       <p style={styles.stepDescription}>
-        MarkuprX records the selected screen or window and saves each marked area with
+        {PUBLIC_BRAND_NAME} records the selected screen or window and saves each marked area with
         the narration that explains it. Grant Screen Recording permission to enable video,
-        screenshots, and live markup. Because MarkuprX uses a new app identity, an upgrade
+        screenshots, and live markup. Because {PUBLIC_BRAND_NAME} uses a new app identity, an upgrade
         may ask you to grant Screen Recording, Microphone, and Accessibility permissions again.
       </p>
 
@@ -689,12 +690,12 @@ const ScreenRecordingStep: React.FC<{
           </div>
           <ol style={styles.instructionList}>
             <li>Click &quot;Open System Settings&quot; below</li>
-            <li>Find &quot;MarkuprX&quot; in the list</li>
+            <li>Find &quot;{PUBLIC_BRAND_NAME}&quot; in the list</li>
             <li>Toggle the switch ON</li>
             <li>Click &quot;Check Again&quot; to verify</li>
           </ol>
           <p style={styles.instructionNote}>
-            Note: You may need to restart MarkuprX after enabling.
+            Note: You may need to restart {PUBLIC_BRAND_NAME} after enabling.
           </p>
         </div>
       )}
@@ -755,7 +756,7 @@ const ScreenRecordingStep: React.FC<{
               strokeLinecap="round"
             />
           </svg>
-          <span>Screen recording enabled! MarkuprX can now capture screenshots.</span>
+          <span>Screen recording enabled! {PUBLIC_BRAND_NAME} can now capture screenshots.</span>
         </div>
       )}
 
@@ -1058,7 +1059,7 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
         {/* Summary */}
         <p style={styles.stepDescription}>
-          MarkuprX is ready. Press <kbd style={styles.kbd}>{recordShortcut}</kbd> to start,
+          {PUBLIC_BRAND_NAME} is ready. Press <kbd style={styles.kbd}>{recordShortcut}</kbd> to start,
           then speak naturally. Hold <kbd style={styles.kbd}>{annotationModifier}</kbd> and
           drag to mark the current screen. Release the key, then click normally to save and
           clear that issue while the click still reaches the app underneath. Repeat for as
@@ -1457,7 +1458,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             title="OpenAI API Key"
             helpText={
               <>
-                MarkuprX uses OpenAI for post-session narration transcription. Create an API key at{' '}
+                {PUBLIC_BRAND_NAME} uses OpenAI for post-session narration transcription. Create an API key at{' '}
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
@@ -1541,7 +1542,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
         {/* ARIA live region for step announcements */}
         <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
-          {currentStep === 'welcome' && 'Welcome to MarkuprX setup'}
+          {currentStep === 'welcome' && `Welcome to ${PUBLIC_BRAND_NAME} setup`}
           {currentStep === 'microphone' && 'Step 1 of 4: Microphone access'}
           {currentStep === 'screen' && 'Step 2 of 4: Screen recording'}
           {currentStep === 'openai' && 'Step 3 of 4: OpenAI API key'}

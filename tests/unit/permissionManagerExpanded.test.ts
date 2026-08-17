@@ -103,6 +103,9 @@ describeOrSkip('PermissionManager (expanded)', () => {
       const result = await manager.requestPermission('microphone');
 
       expect(dialog.showMessageBox).toHaveBeenCalled();
+      const options = vi.mocked(dialog.showMessageBox).mock.calls[0][0] as Electron.MessageBoxOptions;
+      expect(`${options.message}\n${options.detail}`).toContain('MarkuprPlus');
+      expect(`${options.message}\n${options.detail}`).not.toContain('MarkuprX');
       expect(result).toBe(false);
     });
   });
@@ -176,6 +179,8 @@ describeOrSkip('PermissionManager (expanded)', () => {
       const options = vi.mocked(dialog.showMessageBox).mock.calls[0][0] as Electron.MessageBoxOptions;
       expect(options.detail).toContain('Microphone Access');
       expect(options.detail).toContain('Screen Recording');
+      expect(`${options.message}\n${options.detail}`).toContain('MarkuprPlus');
+      expect(`${options.message}\n${options.detail}`).not.toContain('MarkuprX');
     });
 
     it('opens system preferences when user clicks "Set Up Permissions"', async () => {

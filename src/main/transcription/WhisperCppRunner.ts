@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'path';
 import { promisify } from 'util';
 import { tmpdir } from 'os';
 import { encodeFloat32Pcm16Wav } from '../audio/audioUtils';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import type { WhisperTranscriptResult } from './types';
 
 const execFileAsync = promisify(execFile);
@@ -107,11 +108,11 @@ async function ensureWhisperCppBinary(directory: string): Promise<string> {
   }
 
   if (directory.includes('app.asar.unpacked')) {
-    throw new Error('The packaged Whisper runtime is missing. Reinstall MarkuprX and try again.');
+    throw new Error(`The packaged Whisper runtime is missing. Reinstall ${PUBLIC_BRAND_NAME} and try again.`);
   }
 
   if (!existsSync(join(directory, 'Makefile'))) {
-    throw new Error('The local Whisper runtime is missing. Reinstall MarkuprX dependencies and try again.');
+    throw new Error(`The local Whisper runtime is missing. Reinstall ${PUBLIC_BRAND_NAME} dependencies and try again.`);
   }
 
   try {

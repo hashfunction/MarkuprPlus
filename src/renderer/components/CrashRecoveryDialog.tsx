@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import type { ReviewSession } from '../../shared/types';
 import {
   isTopmostContainedDialog,
@@ -271,7 +272,7 @@ export function CrashRecoveryDialog({
             fontSize: 14,
           }}
         >
-          MarkuprX found an incomplete session from{' '}
+          {PUBLIC_BRAND_NAME} found an incomplete session from{' '}
           <span style={{ color: colors.text.primary, fontWeight: 500 }}>{formattedTime} ago</span>.
         </p>
 

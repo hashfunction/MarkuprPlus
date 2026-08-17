@@ -15,6 +15,7 @@ import { fileManager } from '../output';
 import { saveRecoveredSession } from '../recovery/RecoveredSessionWriter';
 import { getMarkedIssueArtifactStore } from './captureHandlers';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import {
   IPC_CHANNELS,
   DEFAULT_SETTINGS,
@@ -220,8 +221,8 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
     const mainWindow = getMainWindow();
     const options: Electron.SaveDialogOptions = {
-      title: 'Export MarkuprX Settings',
-      defaultPath: join(app.getPath('documents'), 'MarkuprX-settings.json'),
+      title: `Export ${PUBLIC_BRAND_NAME} Settings`,
+      defaultPath: join(app.getPath('documents'), `${PUBLIC_BRAND_NAME}-settings.json`),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
     const result = mainWindow
@@ -245,7 +246,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
       const mainWindow = getMainWindow();
       const options: Electron.OpenDialogOptions = {
-        title: 'Import MarkuprX Settings',
+        title: `Import ${PUBLIC_BRAND_NAME} Settings`,
         properties: ['openFile'],
         filters: [{ name: 'JSON', extensions: ['json'] }],
       };

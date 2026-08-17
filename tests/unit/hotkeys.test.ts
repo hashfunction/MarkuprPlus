@@ -54,6 +54,13 @@ describe('hotkeys helpers', () => {
     expect(getHotkeyById('does-not-exist')).toBeUndefined();
   });
 
+  it('uses the same public exit copy as the Keyboard Shortcuts surface', () => {
+    expect(getHotkeyById('quit')).toMatchObject({
+      label: 'Quit',
+      description: 'Exit MarkuprPlus',
+    });
+  });
+
   it('normalizes generic accelerators for macOS', () => {
     stubPlatform('darwin');
     expect(normalizeAccelerator('CommandOrControl+Shift+S')).toBe('Command+Shift+S');

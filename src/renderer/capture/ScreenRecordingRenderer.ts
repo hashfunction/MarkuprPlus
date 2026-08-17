@@ -6,6 +6,7 @@
  */
 
 import type { AnnotationEvent, CaptureTarget } from '../../shared/types';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import RecordingCompositor from './RecordingCompositor';
 
 interface TargetStartOptions {
@@ -175,7 +176,7 @@ export class ScreenRecordingRenderer {
         context.fillRect(0, 0, canvas.width, 14);
         context.fillStyle = '#f8fafc';
         context.font = '700 42px system-ui';
-        context.fillText('MarkuprX UI test source', 54, 90);
+        context.fillText(`${PUBLIC_BRAND_NAME} UI test source`, 54, 90);
         context.fillStyle = '#94a3b8';
         context.font = '24px system-ui';
         context.fillText('Deterministic motion and annotation evidence', 54, 132);

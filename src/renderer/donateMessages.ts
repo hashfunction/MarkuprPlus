@@ -1,3 +1,5 @@
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
+
 /**
  * MarkuprX Donate Button Messages
  *
@@ -10,8 +12,8 @@
  */
 export const DONATE_MESSAGES = [
   'Buy Eddie a Coffee',
-  'Support MarkuprX',
-  'Keep MarkuprX Evolving',
+  `Support ${PUBLIC_BRAND_NAME}`,
+  `Keep ${PUBLIC_BRAND_NAME} Evolving`,
   'Help Fund New Features',
   'Sponsor Ongoing Development',
 ] as const;

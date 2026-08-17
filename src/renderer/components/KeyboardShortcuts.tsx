@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import { PortraitSurface } from './PortraitSurface';
 
 // ============================================================================
@@ -229,7 +230,7 @@ const DEFAULT_SHORTCUTS: Shortcut[] = [
   {
     id: 'quit-app',
     label: 'Quit',
-    description: 'Exit MarkuprX',
+    description: `Exit ${PUBLIC_BRAND_NAME}`,
     keys: 'CmdOrCtrl+Q',
     category: 'Window',
     customizable: false,
@@ -674,7 +675,7 @@ export function KeyboardShortcuts({
     <PortraitSurface
       title="Keyboard Shortcuts"
       titleId="shortcuts-title"
-      backLabel="Back to MarkuprX"
+      backLabel={`Back to ${PUBLIC_BRAND_NAME}`}
       onBack={onClose}
       subtitle="Select a customizable shortcut to rebind it"
       contentLabel="Keyboard shortcuts list"

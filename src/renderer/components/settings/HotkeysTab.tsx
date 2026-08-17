@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 import type { AppSettings, HotkeyConfig } from '../../../shared/types';
 import { SettingsSection, KeyRecorder } from '../primitives';
 import { HotkeyHint } from '../HotkeyHint';
@@ -32,7 +33,7 @@ export const HotkeysTab: React.FC<{
     <div style={styles.tabContent}>
       <SettingsSection
         title="Keyboard Shortcuts"
-        description="Customize global hotkeys for MarkuprX"
+        description={`Customize global hotkeys for ${PUBLIC_BRAND_NAME}`}
         onReset={onResetSection}
       >
         <KeyRecorder

@@ -1,6 +1,7 @@
 import { shell, type WebContents } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { protectRendererNavigation } from '../../src/main/security/NavigationGuard';
+import { PUBLIC_WEBSITE_URL } from '../../src/shared/publicBrand';
 
 function webContentsFixture() {
   const listeners = new Map<string, (event: { preventDefault(): void }) => void>();
@@ -45,14 +46,14 @@ describe('protectRendererNavigation', () => {
     const fixture = webContentsFixture();
     protectRendererNavigation(fixture.webContents);
 
-    expect(fixture.open('https://markuprx.com/help')).toEqual({ action: 'deny' });
+    expect(fixture.open(`${PUBLIC_WEBSITE_URL}/help`)).toEqual({ action: 'deny' });
     expect(fixture.open('http://localhost:3000/docs')).toEqual({ action: 'deny' });
     expect(fixture.open('file:///private/tmp/report.html')).toEqual({ action: 'deny' });
     expect(fixture.open('javascript:alert(1)')).toEqual({ action: 'deny' });
     expect(fixture.open('not a url')).toEqual({ action: 'deny' });
 
     expect(shell.openExternal).toHaveBeenCalledTimes(2);
-    expect(shell.openExternal).toHaveBeenNthCalledWith(1, 'https://markuprx.com/help');
+    expect(shell.openExternal).toHaveBeenNthCalledWith(1, `${PUBLIC_WEBSITE_URL}/help`);
     expect(shell.openExternal).toHaveBeenNthCalledWith(2, 'http://localhost:3000/docs');
   });
 });

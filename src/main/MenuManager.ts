@@ -13,6 +13,7 @@
  */
 
 import { Menu, app, shell, BrowserWindow, MenuItemConstructorOptions } from 'electron';
+import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../shared/publicBrand';
 import { sessionController } from './SessionController';
 import { getSettingsManager } from './settings/SettingsManager';
 
@@ -46,6 +47,25 @@ export type MenuAction =
  * Callback for menu actions
  */
 type MenuActionCallback = (action: MenuAction, data?: unknown) => void;
+
+function reportWebsiteLaunchFailure(error: unknown): void {
+  try {
+    console.error(
+      `[MenuManager] Failed to open the ${PUBLIC_BRAND_NAME} website:`,
+      error,
+    );
+  } catch {
+    // A logging failure must not destabilize the native menu handler.
+  }
+}
+
+function openPublicWebsite(): void {
+  try {
+    void shell.openExternal(PUBLIC_WEBSITE_URL).catch(reportWebsiteLaunchFailure);
+  } catch (error: unknown) {
+    reportWebsiteLaunchFailure(error);
+  }
+}
 
 // =============================================================================
 // MenuManager Class
@@ -314,8 +334,8 @@ export class MenuManager {
           },
           { type: 'separator' },
           {
-            label: 'MarkuprX Website',
-            click: () => shell.openExternal('https://markuprx.com'),
+            label: `${PUBLIC_BRAND_NAME} Website`,
+            click: openPublicWebsite,
           },
           { type: 'separator' },
           {

@@ -13,6 +13,7 @@
 
 import { Tray, Menu, nativeImage, app, NativeImage, shell } from 'electron';
 import { join } from 'path';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 import type { TrayState } from '../shared/types';
 import { formatHotkeyForDisplay } from '../shared/hotkeys';
 import { buildTrayContextMenuTemplate } from './trayContextMenu';
@@ -38,11 +39,11 @@ export interface ITrayManager {
 function buildStateTooltips(): Record<TrayState, string> {
   const toggleKey = formatHotkeyForDisplay('toggleRecording');
   return {
-    idle: `MarkuprPlus - Ready (${toggleKey})`,
-    recording: `MarkuprPlus - Recording... (${toggleKey} to stop)`,
-    processing: 'MarkuprPlus - Processing...',
-    complete: 'MarkuprPlus - Feedback captured!',
-    error: 'MarkuprPlus - Error (click for details)',
+    idle: `${PUBLIC_BRAND_NAME} - Ready (${toggleKey})`,
+    recording: `${PUBLIC_BRAND_NAME} - Recording... (${toggleKey} to stop)`,
+    processing: `${PUBLIC_BRAND_NAME} - Processing...`,
+    complete: `${PUBLIC_BRAND_NAME} - Feedback captured!`,
+    error: `${PUBLIC_BRAND_NAME} - Error (click for details)`,
   };
 }
 
@@ -466,7 +467,7 @@ class TrayManagerImpl implements ITrayManager {
       console.warn('[TrayManager] Not initialized');
       return;
     }
-    this.tray.setToolTip(text.replace(/\bMarkuprX\b/g, 'MarkuprPlus'));
+    this.tray.setToolTip(text.replace(/\bMarkuprX\b/g, PUBLIC_BRAND_NAME));
   }
 
   /**

@@ -1,4 +1,5 @@
 import React from 'react';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 import type { AppSettings } from '../../../shared/types';
 import { SettingsSection, ToggleSetting, DirectoryPicker } from '../primitives';
 import { styles } from './settingsStyles';
@@ -25,7 +26,7 @@ export const GeneralTab: React.FC<{
     <SettingsSection title="Startup">
       <ToggleSetting
         label="Launch at Login"
-        description="Start MarkuprX automatically when you log in"
+        description={`Start ${PUBLIC_BRAND_NAME} automatically when you log in`}
         value={settings.launchAtLogin}
         onChange={(value) => onSettingChange('launchAtLogin', value)}
       />

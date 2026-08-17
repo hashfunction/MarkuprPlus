@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import { useTheme } from '../hooks/useTheme';
 import type {
   TranscriptionTier as SharedTranscriptionTier,
@@ -205,7 +206,7 @@ export const TranscriptionTierSelector: React.FC<TranscriptionTierSelectorProps>
       <div style={styles.header}>
         <h3 style={styles.title}>Transcription Service</h3>
         <p style={styles.subtitle}>
-          Choose how MarkuprX transcribes your voice. Local options work without an internet connection.
+          Choose how {PUBLIC_BRAND_NAME} transcribes your voice. Local options work without an internet connection.
         </p>
       </div>
 

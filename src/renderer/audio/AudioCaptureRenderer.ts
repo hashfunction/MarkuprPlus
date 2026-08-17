@@ -7,6 +7,7 @@
  */
 
 import pcmCaptureProcessorUrl from './PcmCaptureProcessor.worklet.js?url';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 interface CaptureConfig {
   deviceId: string | null;
@@ -54,7 +55,7 @@ class AudioCaptureRenderer {
   private setupIPCListeners(): void {
     const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
+      console.error(`[AudioCaptureRenderer] ${PUBLIC_BRAND_NAME} audio API not available`);
       return;
     }
 
@@ -275,7 +276,7 @@ class AudioCaptureRenderer {
 
     const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
+      console.error(`[AudioCaptureRenderer] ${PUBLIC_BRAND_NAME} audio API not available`);
       return;
     }
 
@@ -296,7 +297,7 @@ class AudioCaptureRenderer {
 
     const api = window.markuprx;
     if (!api?.audio) {
-      console.error('[AudioCaptureRenderer] MarkuprX audio API not available');
+      console.error(`[AudioCaptureRenderer] ${PUBLIC_BRAND_NAME} audio API not available`);
       return;
     }
 
