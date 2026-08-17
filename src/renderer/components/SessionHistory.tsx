@@ -17,6 +17,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Skeleton, SkeletonText } from './Skeleton';
+import { PortraitSurface } from './PortraitSurface';
 import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
@@ -98,9 +99,8 @@ interface SessionCardProps {
   onSelect: (shift: boolean, ctrl: boolean) => void;
   onOpen: () => void;
   onDelete: () => void;
-  onExport: () => void;
-  onOpenFolder: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
+  onMoreActions: (anchor: DOMRect) => void;
+  onContextMenu: (event: React.MouseEvent) => void;
 }
 
 const SessionCard: React.FC<SessionCardProps> = ({
@@ -110,11 +110,9 @@ const SessionCard: React.FC<SessionCardProps> = ({
   onSelect,
   onOpen,
   onDelete,
-  onExport,
-  onOpenFolder,
+  onMoreActions,
   onContextMenu,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
   const { colors } = useTheme();
   const duration = session.endTime - session.startTime;
 
@@ -155,14 +153,10 @@ const SessionCard: React.FC<SessionCardProps> = ({
       onDoubleClick={handleDoubleClick}
       onContextMenu={onContextMenu}
       onKeyDown={handleKeyDown}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       style={{
         ...styles.sessionCard,
         backgroundColor: isSelected
           ? colors.accent.subtle
-          : isHovered
-          ? colors.bg.subtle
           : colors.surface.inset,
         borderColor: isSelected
           ? colors.accent.muted
@@ -255,63 +249,30 @@ const SessionCard: React.FC<SessionCardProps> = ({
         )}
       </div>
 
-      {/* Actions (on hover) */}
-      {isHovered && (
-        <div style={styles.actionButtons}>
-          <button
-            style={styles.actionButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}
-            title="Open Session"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </button>
-          <button
-            style={styles.actionButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFolder();
-            }}
-            title="Open Folder"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-            </svg>
-          </button>
-          <button
-            style={styles.actionButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onExport();
-            }}
-            title="Export"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
-          <button
-            style={{ ...styles.actionButton, color: colors.status.error }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            title="Delete"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <div style={styles.cardActions}>
+        <button
+          type="button"
+          style={styles.openSessionButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+          aria-label="Open session"
+        >
+          Open
+        </button>
+        <button
+          type="button"
+          style={styles.moreActionsButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            onMoreActions(event.currentTarget.getBoundingClientRect());
+          }}
+          aria-label="More actions for session"
+        >
+          <span aria-hidden="true">•••</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -486,18 +447,26 @@ const ContextMenu: React.FC<{
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    if (state.visible) {
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    }
+  }, [state.visible]);
+
   if (!state.visible) return null;
 
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label="Session actions"
       style={{
         ...styles.contextMenu,
         top: state.y,
         left: state.x,
       }}
     >
-      <button style={styles.contextMenuItem} onClick={onOpen}>
+      <button type="button" role="menuitem" style={styles.contextMenuItem} onClick={onOpen}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
           <polyline points="15 3 21 3 21 9" />
@@ -505,14 +474,14 @@ const ContextMenu: React.FC<{
         </svg>
         Open
       </button>
-      <button style={styles.contextMenuItem} onClick={onOpenFolder}>
+      <button type="button" role="menuitem" style={styles.contextMenuItem} onClick={onOpenFolder}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
         </svg>
         Open Folder
       </button>
       <div style={styles.contextMenuDivider} />
-      <button style={styles.contextMenuItem} onClick={onExport}>
+      <button type="button" role="menuitem" style={styles.contextMenuItem} onClick={onExport}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
@@ -520,7 +489,7 @@ const ContextMenu: React.FC<{
         </svg>
         Export
       </button>
-      <button style={styles.contextMenuItem} onClick={onSelectAll}>
+      <button type="button" role="menuitem" style={styles.contextMenuItem} onClick={onSelectAll}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
           <path d="M9 9h6v6H9z" />
@@ -528,7 +497,7 @@ const ContextMenu: React.FC<{
         Select All
       </button>
       <div style={styles.contextMenuDivider} />
-      <button style={{ ...styles.contextMenuItem, color: 'var(--status-error)' }} onClick={onDelete}>
+      <button type="button" role="menuitem" style={{ ...styles.contextMenuItem, color: 'var(--status-error)' }} onClick={onDelete}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
         </svg>
@@ -552,7 +521,13 @@ const DeleteConfirmDialog: React.FC<{
   return (
     <div style={styles.dialogOverlay}>
       <div style={styles.dialogBackdrop} onClick={onCancel} />
-      <div style={styles.dialog}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="markuprx-history-delete-title"
+        aria-describedby="markuprx-history-delete-message"
+        style={styles.dialog}
+      >
         <div style={styles.dialogIcon}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--status-error)" strokeWidth="1.5">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -560,10 +535,10 @@ const DeleteConfirmDialog: React.FC<{
             <line x1="14" y1="11" x2="14" y2="17" />
           </svg>
         </div>
-        <h3 style={styles.dialogTitle}>
+        <h3 id="markuprx-history-delete-title" style={styles.dialogTitle}>
           Delete {count} session{count > 1 ? 's' : ''}?
         </h3>
-        <p style={styles.dialogMessage}>
+        <p id="markuprx-history-delete-message" style={styles.dialogMessage}>
           This will permanently delete the session{count > 1 ? 's' : ''} and all associated screenshots. This action
           cannot be undone.
         </p>
@@ -654,6 +629,8 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -665,38 +642,34 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     sessionIds: string[];
   }>({ isOpen: false, sessionIds: [] });
 
-  const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Load sessions on mount/open
+  const loadSessions = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      if (!window.markuprx?.output?.listSessions) {
+        throw new Error('Session history is unavailable.');
+      }
+      setSessions(await window.markuprx.output.listSessions());
+    } catch (error) {
+      setSessions([]);
+      setLoadError(
+        error instanceof Error ? error.message : 'Unable to load session history.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Load sessions on mount/open.
   useEffect(() => {
     if (!isOpen) return;
 
-    async function loadSessions() {
-      setIsLoading(true);
-      try {
-        // Call the IPC API to list sessions
-        // The API is typed in electron.d.ts as window.markuprx.output.listSessions()
-        if (window.markuprx?.output?.listSessions) {
-          const list = await window.markuprx.output.listSessions();
-          setSessions(list);
-        } else {
-          // Fallback for development/testing without full IPC wiring
-          console.warn('[SessionHistory] listSessions API not available');
-          setSessions([]);
-        }
-      } catch (error) {
-        console.error('Failed to load sessions:', error);
-        setSessions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadSessions();
+    void loadSessions();
     setSelected(new Set());
     setFocusedIndex(-1);
-  }, [isOpen]);
+  }, [isOpen, loadSessions]);
 
   // Filter and sort sessions
   const filteredSessions = useMemo(() => {
@@ -807,6 +780,13 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         }
         if (result.failed.length > 0) {
           console.warn('Some sessions failed to delete:', result.failed);
+          setActionError(
+            `Unable to delete ${result.failed.length} session${result.failed.length === 1 ? '' : 's'}.`,
+          );
+        } else if (result.success) {
+          setActionError(null);
+        } else {
+          setActionError('Unable to delete sessions.');
         }
       } else {
         // Fallback: just remove from local state
@@ -816,9 +796,11 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
           sessionIds.forEach((id) => newSet.delete(id));
           return newSet;
         });
+        setActionError(null);
       }
     } catch (error) {
       console.error('Failed to delete sessions:', error);
+      setActionError('Unable to delete sessions.');
     }
 
     setDeleteConfirm({ isOpen: false, sessionIds: [] });
@@ -833,22 +815,30 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
           console.log('Sessions exported to:', result.path);
           // Optionally open the folder containing the export
           await window.markuprx.output.openFolder(result.path);
+          setActionError(null);
         } else if (result.error) {
           console.error('Export failed:', result.error);
+          setActionError(result.error);
+        } else {
+          setActionError('Unable to export sessions.');
         }
       } else {
         console.warn('[SessionHistory] exportSessions API not available');
+        setActionError('Session export is unavailable.');
       }
     } catch (error) {
       console.error('Failed to export sessions:', error);
+      setActionError('Unable to export sessions.');
     }
   }, []);
 
   const handleOpenFolder = useCallback(async (session: SessionMetadata) => {
     try {
       await window.markuprx.output.openFolder(session.folder);
+      setActionError(null);
     } catch (error) {
       console.error('Failed to open folder:', error);
+      setActionError('Unable to open the session folder.');
     }
   }, []);
 
@@ -860,15 +850,28 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     setSelected(new Set());
   }, []);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
-    e.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      sessionId,
-    });
-  }, []);
+  const openSessionMenu = useCallback(
+    (sessionId: string, x: number, y: number) => {
+      const margin = 8;
+      const menuWidth = 220;
+      const menuHeight = 230;
+      setContextMenu({
+        visible: true,
+        sessionId,
+        x: Math.max(margin, Math.min(x, window.innerWidth - menuWidth - margin)),
+        y: Math.max(margin, Math.min(y, window.innerHeight - menuHeight - margin)),
+      });
+    },
+    [],
+  );
+
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent, sessionId: string) => {
+      event.preventDefault();
+      openSessionMenu(sessionId, event.clientX, event.clientY);
+    },
+    [openSessionMenu],
+  );
 
   // Keyboard navigation
   useEffect(() => {
@@ -942,8 +945,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay}>
-      {/* dialogEnter keyframe provided by animations.css; scrollbar styles below */}
+    <>
       <style>
         {`
           .markuprx-history-scrollbar::-webkit-scrollbar {
@@ -966,84 +968,54 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         `}
       </style>
 
-      <div style={styles.backdrop} onClick={onClose} />
-
-      <div
-        ref={containerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="markuprx-session-history-title"
-        style={styles.panel}
-        className="ff-dialog-enter"
+      <PortraitSurface
+        title="Session History"
+        titleId="markuprx-history-title"
+        backLabel="Back to MarkuprX"
+        onBack={onClose}
+        subtitle={
+          !isLoading
+            ? filteredSessions.length + ' session' + (filteredSessions.length === 1 ? '' : 's')
+            : 'Loading sessions'
+        }
+        contentLabel="Saved sessions"
       >
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.headerLeft}>
-            <h2 id="markuprx-session-history-title" style={styles.headerTitle}>Session History</h2>
-            {!isLoading && (
-              <span style={styles.sessionCount}>
-                {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
+        <div style={styles.portraitBody}>
+          {loadError && (
+            <div role="alert" style={styles.errorBanner}>
+              <span>{loadError}</span>
+              <button type="button" onClick={() => void loadSessions()}>Retry</button>
+            </div>
+          )}
+          {actionError && (
+            <div role="alert" style={styles.errorBanner}>
+              <span>{actionError}</span>
+              <button type="button" onClick={() => setActionError(null)}>Dismiss</button>
+            </div>
+          )}
           <SearchInput value={search} onChange={setSearch} />
-          <button style={styles.closeButton} onClick={onClose} aria-label="Close">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Toolbar */}
-        <div style={styles.toolbar}>
-          <div style={styles.toolbarLeft}>
+          <div style={styles.portraitToolbar}>
             <SortDropdown
               sortBy={sortBy}
               direction={sortDirection}
               onSortChange={setSortBy}
-              onDirectionToggle={() => setSortDirection((d) => (d === 'desc' ? 'asc' : 'desc'))}
+              onDirectionToggle={() => setSortDirection((value) => (value === 'desc' ? 'asc' : 'desc'))}
             />
             {selected.size > 0 && (
-              <span style={styles.selectedCount}>
-                {selected.size} selected
-                <button style={styles.deselectButton} onClick={handleDeselectAll}>
-                  Clear
-                </button>
-              </span>
+              <div style={styles.selectionActions}>
+                <span style={styles.selectedCount}>{selected.size} selected</span>
+                <button type="button" style={styles.deselectButton} onClick={handleDeselectAll}>Clear</button>
+                <button type="button" style={styles.bulkButton} onClick={() => void handleExportSessions(Array.from(selected))}>Export</button>
+                <button type="button" style={{ ...styles.bulkButton, ...styles.deleteButton }} onClick={() => handleDeleteSessions(Array.from(selected))}>Delete</button>
+              </div>
             )}
           </div>
-          <div style={styles.toolbarRight}>
-            {selected.size > 0 && (
-              <>
-                <button
-                  style={styles.bulkButton}
-                  onClick={() => handleExportSessions(Array.from(selected))}
-                  title="Export selected"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Export
-                </button>
-                <button
-                  style={{ ...styles.bulkButton, ...styles.deleteButton }}
-                  onClick={() => handleDeleteSessions(Array.from(selected))}
-                  title="Delete selected"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                  </svg>
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div ref={listRef} style={styles.content} className="markuprx-history-scrollbar" role="list">
+          <div
+            ref={listRef}
+            style={styles.content}
+            className="markuprx-history-scrollbar"
+            role={isLoading || filteredSessions.length === 0 ? undefined : 'list'}
+          >
           {isLoading ? (
             <LoadingState />
           ) : filteredSessions.length === 0 ? (
@@ -1058,29 +1030,15 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
                 onSelect={(shift, ctrl) => handleSelectSession(session.id, shift, ctrl)}
                 onOpen={() => handleOpenSession(session)}
                 onDelete={() => handleDeleteSessions([session.id])}
-                onExport={() => handleExportSessions([session.id])}
-                onOpenFolder={() => handleOpenFolder(session)}
-                onContextMenu={(e) => handleContextMenu(e, session.id)}
+                onMoreActions={(anchor) => openSessionMenu(session.id, anchor.right - 220, anchor.bottom + 6)}
+                onContextMenu={(event) => handleContextMenu(event, session.id)}
               />
             ))
           )}
         </div>
 
-        {/* Footer */}
-        <div style={styles.footer}>
-          <div style={styles.footerLeft}>
-            <span style={styles.footerHint}>
-              <kbd style={styles.kbd}>Arrow</kbd> Navigate
-              <kbd style={styles.kbd}>Space</kbd> Select
-              <kbd style={styles.kbd}>Enter</kbd> Open
-              <kbd style={styles.kbd}>Del</kbd> Delete
-            </span>
-          </div>
-          <button style={styles.closeFooterButton} onClick={onClose}>
-            Close
-          </button>
         </div>
-      </div>
+      </PortraitSurface>
 
       {/* Context Menu */}
       <ContextMenu
@@ -1117,7 +1075,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirm({ isOpen: false, sessionIds: [] })}
       />
-    </div>
+    </>
   );
 }
 
@@ -1130,87 +1088,31 @@ type ExtendedCSSProperties = React.CSSProperties & {
 };
 
 const styles: Record<string, ExtendedCSSProperties> = {
-  // Overlay & Panel
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    padding: 24,
-  },
-
-  backdrop: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'var(--bg-overlay)',
-    backdropFilter: 'blur(4px)',
-  },
-
-  panel: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: 900,
-    maxHeight: '90vh',
-    backgroundColor: 'var(--surface-glass)',
-    borderRadius: 16,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-default)',
+  portraitBody: {
     display: 'flex',
     flexDirection: 'column',
-    overflow: 'hidden',
-  },
-
-  // Header
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    padding: '20px 24px',
-    borderBottom: '1px solid var(--border-default)',
-    WebkitAppRegion: 'drag',
-  },
-
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'baseline',
     gap: 12,
-    WebkitAppRegion: 'no-drag',
+    padding: 14,
+    minWidth: 0,
   },
 
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--text-primary)',
-    margin: 0,
-  },
-
-  sessionCount: {
-    fontSize: 13,
-    color: 'var(--text-tertiary)',
-    fontWeight: 400,
-  },
-
-  closeButton: {
-    width: 32,
-    height: 32,
+  errorBanner: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: 'none',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: 10,
+    border: '1px solid var(--status-error)',
     borderRadius: 8,
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    WebkitAppRegion: 'no-drag',
-    marginLeft: 8,
+    backgroundColor: 'var(--status-error-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
   },
 
   // Search
   searchContainer: {
-    flex: 1,
-    maxWidth: 280,
+    width: '100%',
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
@@ -1250,25 +1152,19 @@ const styles: Record<string, ExtendedCSSProperties> = {
     cursor: 'pointer',
   },
 
-  // Toolbar
-  toolbar: {
+  portraitToolbar: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 24px',
-    borderBottom: '1px solid var(--border-subtle)',
-    backgroundColor: 'var(--surface-glass)',
+    gap: 8,
   },
 
-  toolbarLeft: {
+  selectionActions: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 16,
-  },
-
-  toolbarRight: {
-    display: 'flex',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 8,
   },
 
@@ -1382,9 +1278,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Content
   content: {
-    flex: 1,
-    padding: 16,
-    overflowY: 'auto',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
@@ -1392,12 +1286,13 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Session Card
   sessionCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
+    display: 'grid',
+    gridTemplateColumns: '28px 72px minmax(0, 1fr)',
+    gap: 10,
     padding: 12,
-    borderRadius: 10,
-    border: '1px solid',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 12,
+    position: 'relative',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
     outline: 'none',
@@ -1416,7 +1311,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   thumbnail: {
-    width: 80,
+    width: 72,
     height: 56,
     borderRadius: 6,
     overflow: 'hidden',
@@ -1450,17 +1345,17 @@ const styles: Record<string, ExtendedCSSProperties> = {
   sessionHeader: {
     display: 'flex',
     alignItems: 'center',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 8,
   },
 
   sessionName: {
+    minWidth: 0,
     fontSize: 14,
     fontWeight: 500,
     color: 'var(--text-primary)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    overflowWrap: 'anywhere',
   },
 
   sessionDate: {
@@ -1473,6 +1368,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   sessionMeta: {
     display: 'flex',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 12,
   },
 
@@ -1489,27 +1385,30 @@ const styles: Record<string, ExtendedCSSProperties> = {
     fontSize: 12,
     color: 'var(--text-tertiary)',
     lineHeight: 1.4,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    overflowWrap: 'anywhere',
   },
 
-  actionButtons: {
+  cardActions: {
+    gridColumn: '2 / -1',
     display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    marginLeft: 8,
-    flexShrink: 0,
+    justifyContent: 'flex-end',
+    gap: 8,
   },
 
-  actionButton: {
+  openSessionButton: {
+    padding: '7px 12px',
+    border: '1px solid var(--accent-muted)',
+    borderRadius: 6,
+    backgroundColor: 'var(--accent-subtle)',
+    color: 'var(--text-link)',
+    cursor: 'pointer',
+  },
+
+  moreActionsButton: {
     width: 32,
     height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: 'var(--surface-inset)',
-    border: 'none',
+    border: '1px solid var(--border-strong)',
     borderRadius: 6,
     color: 'var(--text-secondary)',
     cursor: 'pointer',
@@ -1519,7 +1418,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
   // Context Menu
   contextMenu: {
     position: 'fixed',
-    minWidth: 160,
+    boxSizing: 'border-box',
+    width: 220,
     backgroundColor: 'var(--bg-elevated)',
     border: '1px solid var(--border-strong)',
     borderRadius: 8,

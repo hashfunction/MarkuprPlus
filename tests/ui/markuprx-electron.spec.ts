@@ -343,6 +343,20 @@ test.describe('MarkuprX desktop application', () => {
     await expect(window.getByRole('button', { name: 'Check for Updates' })).toHaveCount(0);
   });
 
+  test('renders Session History as a scrollable portrait surface', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    await expectPortraitWindow(application, window);
+    await expect(window.getByRole('dialog', { name: 'Session History' })).toHaveCount(0);
+    const history = window.getByRole('region', { name: 'Session History' });
+    await expect(history.getByPlaceholder('Search sessions...')).toBeVisible();
+    await expect(history.getByRole('button', { name: /Sort:/ })).toBeVisible();
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
   test('blocks renderer-initiated navigation away from the trusted application page', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -1116,14 +1130,32 @@ test.describe('MarkuprX desktop application', () => {
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Open Session History' }).click();
-    const historyDialog = mainWindow.getByRole('dialog', { name: 'Session History' });
-    await expect(historyDialog).toBeVisible();
-    await expect(historyDialog.getByText('1 session', { exact: true })).toBeVisible();
-    const historyRow = historyDialog.getByRole('listitem').filter({
+    const history = mainWindow.getByRole('region', { name: 'Session History' });
+    await expect(history).toBeVisible();
+    await expect(history.getByText('1 session', { exact: true })).toBeVisible();
+    const historyRow = history.getByRole('listitem').filter({
       hasText: `${metadata.itemCount} items`,
     });
     await expect(historyRow).toBeVisible();
     await expect(historyRow.getByText(String(metadata.screenshotCount), { exact: true })).toBeVisible();
+    await expect(historyRow.getByRole('button', { name: 'Open session' })).toBeVisible();
+    await historyRow.getByRole('button', { name: 'More actions for session' }).click();
+    const actionMenu = mainWindow.getByRole('menu', { name: 'Session actions' });
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open Folder' })).toBeVisible();
+    await expect(actionMenu.getByRole('menuitem', { name: 'Export' })).toBeVisible();
+    await expect(actionMenu.getByRole('menuitem', { name: 'Delete' })).toBeVisible();
+    const menuBox = await actionMenu.boundingBox();
+    expect(menuBox).not.toBeNull();
+    expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(460);
+    expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(680);
+    await history.getByRole('button', { name: /Sort:/ }).click();
+    await expect(actionMenu).toBeHidden();
+    await historyRow.focus();
+    await mainWindow.keyboard.press('Delete');
+    const deleteConfirmation = mainWindow.getByRole('dialog', { name: /Delete 1 session/ });
+    await expect(deleteConfirmation).toBeVisible();
+    await deleteConfirmation.getByRole('button', { name: 'Cancel' }).click();
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
   });
 });
