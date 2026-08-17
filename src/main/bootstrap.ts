@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { app } from 'electron';
 import { isElectronTestHarnessAllowed } from './e2e/ElectronTestHarness';
+import { configureRuntimeBrand } from './runtimeBrand';
 
 const testHarnessAllowed = isElectronTestHarnessAllowed({
   requested: process.env.MARKUPRX_E2E === '1',
@@ -27,5 +28,7 @@ if (testHarnessAllowed) {
   app.setPath('logs', logsDir);
   app.setPath('temp', tempDir);
 }
+
+configureRuntimeBrand(app, !testHarnessAllowed);
 
 await import('./index');

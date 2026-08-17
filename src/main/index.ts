@@ -36,9 +36,6 @@ if (process.platform === 'darwin') {
   app.dock.hide();
 }
 
-// Ensure runtime app identity uses the shipped product name.
-app.setName('MarkuprX');
-
 // ESM compatibility - __dirname doesn't exist in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
