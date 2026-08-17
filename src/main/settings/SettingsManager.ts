@@ -104,6 +104,9 @@ export class SecureStorageUnavailableError extends Error {
   }
 }
 
+class KeychainStateUnavailableError extends Error {}
+class KeychainFallbackAllowedError extends Error {}
+
 function electronTestHarnessAllowed(): boolean {
   return isElectronTestHarnessAllowed({
     requested: process.env.MARKUPRX_E2E === '1',
@@ -481,11 +484,13 @@ export class SettingsManager implements ISettingsManager {
     } catch {
       // Do not overwrite an entry that cannot be read and therefore cannot be
       // restored if verification fails.
-      throw new SecureStorageUnavailableError();
+      throw new KeychainStateUnavailableError();
     }
 
+    let writeCompleted = false;
     try {
       await keytar.setPassword(KEYTAR_SERVICE, service, key);
+      writeCompleted = true;
       if (await keytar.getPassword(KEYTAR_SERVICE, service) !== key) {
         throw new SecureStorageUnavailableError();
       }
@@ -493,9 +498,14 @@ export class SettingsManager implements ISettingsManager {
       try {
         if (previous === null) await keytar.deletePassword(KEYTAR_SERVICE, service);
         else await keytar.setPassword(KEYTAR_SERVICE, service, previous);
+        if (await keytar.getPassword(KEYTAR_SERVICE, service) !== previous) {
+          throw new SecureStorageUnavailableError();
+        }
       } catch {
         // Never introduce another storage format when keychain rollback fails.
+        throw new SecureStorageUnavailableError();
       }
+      if (!writeCompleted && previous === null) throw new KeychainFallbackAllowedError();
       throw new SecureStorageUnavailableError();
     }
   }
@@ -508,7 +518,13 @@ export class SettingsManager implements ISettingsManager {
       try {
         await this.setKeychainApiKeyVerified(service, key);
         return 'keychain';
-      } catch {
+      } catch (error) {
+        if (error instanceof KeychainStateUnavailableError) {
+          throw new SecureStorageUnavailableError();
+        }
+        if (!(error instanceof KeychainFallbackAllowedError)) {
+          throw error;
+        }
         console.warn(`[SettingsManager] Keychain write unavailable for ${service}; trying protected fallback.`);
       }
     }

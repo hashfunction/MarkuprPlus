@@ -1,4 +1,13 @@
-import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -49,6 +58,10 @@ describe('MarkedIssueArtifactStore', () => {
     expect(sessionFiles).toEqual(['candidate-2.png']);
     expect(new Uint8Array(await readFile(join(root, 'staging', SESSION_ID, 'candidate-2.png'))))
       .toEqual(new Uint8Array([...PNG, 5]));
+    expect((await stat(join(root, 'staging'))).mode & 0o777).toBe(0o700);
+    expect((await stat(join(root, 'staging', SESSION_ID))).mode & 0o777).toBe(0o700);
+    expect((await stat(join(root, 'staging', SESSION_ID, 'candidate-2.png'))).mode & 0o777)
+      .toBe(0o600);
     expect(sessionFiles.some((name) => name.endsWith('.part'))).toBe(false);
   });
 
@@ -184,5 +197,52 @@ describe('MarkedIssueArtifactStore', () => {
 
     expect(await readdir(staging)).toEqual([SESSION_ID]);
     expect(await readdir(join(staging, SESSION_ID))).toEqual(['candidate-1.png']);
+  });
+
+  it('rejects a staging-root symlink without reading or deleting its target', async () => {
+    const root = await temporaryRoot();
+    const external = join(root, 'external');
+    const staging = join(root, 'staging');
+    await mkdir(external);
+    await writeFile(join(external, 'keep.txt'), 'keep');
+    await symlink(external, staging, 'dir');
+    const store = new MarkedIssueArtifactStore(staging);
+
+    await expect(store.cleanupStaleSessions()).rejects.toThrow(/staging root/i);
+    await expect(store.stageCandidate(SESSION_ID, 1, PNG)).rejects.toThrow(/staging root/i);
+
+    await expect(readFile(join(external, 'keep.txt'), 'utf8')).resolves.toBe('keep');
+    expect((await lstat(staging)).isSymbolicLink()).toBe(true);
+  });
+
+  it('rejects session directories containing symlinks and preserves unrelated entries', async () => {
+    const root = await temporaryRoot();
+    const staging = join(root, 'staging');
+    const sessionDir = join(staging, SESSION_ID);
+    const external = join(root, 'external');
+    await mkdir(sessionDir, { recursive: true });
+    await mkdir(external);
+    await writeFile(join(external, 'keep.txt'), 'keep');
+    await symlink(join(external, 'keep.txt'), join(sessionDir, 'candidate-1.png'));
+    await mkdir(join(staging, 'unrelated-cache'));
+    await writeFile(join(staging, 'README.txt'), 'unrelated');
+    const store = new MarkedIssueArtifactStore(staging);
+
+    await expect(store.cleanupStaleSessions()).rejects.toThrow(/symbolic link/i);
+
+    expect((await lstat(join(sessionDir, 'candidate-1.png'))).isSymbolicLink()).toBe(true);
+    await expect(readFile(join(external, 'keep.txt'), 'utf8')).resolves.toBe('keep');
+    await expect(stat(join(staging, 'unrelated-cache'))).resolves.toBeDefined();
+    await expect(readFile(join(staging, 'README.txt'), 'utf8')).resolves.toBe('unrelated');
+  });
+
+  it('rejects a non-directory staging root', async () => {
+    const root = await temporaryRoot();
+    const staging = join(root, 'staging');
+    await writeFile(staging, 'not a directory');
+    const store = new MarkedIssueArtifactStore(staging);
+
+    await expect(store.cleanupStaleSessions()).rejects.toThrow(/staging root/i);
+    await expect(readFile(staging, 'utf8')).resolves.toBe('not a directory');
   });
 });

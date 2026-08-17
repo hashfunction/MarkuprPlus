@@ -12,9 +12,14 @@ import { sessionController } from '../SessionController';
 import { hotkeyManager } from '../HotkeyManager';
 import { crashRecovery } from '../CrashRecovery';
 import { fileManager } from '../output';
+import { audioCapture } from '../audio';
 import { saveRecoveredSession } from '../recovery/RecoveredSessionWriter';
-import { getMarkedIssueArtifactStore } from './captureHandlers';
+import {
+  clearScreenRecordingArtifacts,
+  getMarkedIssueArtifactStore,
+} from './captureHandlers';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
+import { clearLegacyCaptureArtifacts } from '../security/PrivateCaptureStorage';
 import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import {
   IPC_CHANNELS,
@@ -30,7 +35,9 @@ import {
 import {
   isPublicSettingKey,
   isValidPublicSettingValue,
+  parseHotkeyConfigPatch,
   parsePublicSettingsPatch,
+  parseSettingsImport,
   projectPublicSettings,
 } from '../../shared/publicSettings';
 import type { IpcContext, SessionActions } from './types';
@@ -340,14 +347,41 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       }
 
       try {
-        crashRecovery.discardIncompleteSession();
+        await crashRecovery.clearCrashLogs();
       } catch {
         addFailure({ kind: 'recovery' });
       }
+      let captureArtifactsCleared = true;
       try {
-        crashRecovery.clearCrashLogs();
+        await audioCapture.clearRecoveryBuffers();
       } catch {
+        captureArtifactsCleared = false;
         addFailure({ kind: 'recovery' });
+      }
+      try {
+        await getMarkedIssueArtifactStore().cleanupStaleSessions([]);
+      } catch {
+        captureArtifactsCleared = false;
+        addFailure({ kind: 'recovery' });
+      }
+      try {
+        await clearScreenRecordingArtifacts();
+      } catch {
+        captureArtifactsCleared = false;
+        addFailure({ kind: 'recovery' });
+      }
+      try {
+        await clearLegacyCaptureArtifacts();
+      } catch {
+        captureArtifactsCleared = false;
+        addFailure({ kind: 'recovery' });
+      }
+      if (captureArtifactsCleared) {
+        try {
+          crashRecovery.discardIncompleteSession();
+        } catch {
+          addFailure({ kind: 'recovery' });
+        }
       }
       try {
         sessionController.reset();
@@ -450,7 +484,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         return null;
       }
 
-      const sanitized = parsePublicSettingsPatch(parsed);
+      const sanitized = parseSettingsImport(parsed);
       return projectPublicSettings(settingsManager.update(sanitized));
     } catch {
       console.error('[Main] Settings import was rejected.');
@@ -612,12 +646,19 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
   ipcMain.handle(
     IPC_CHANNELS.HOTKEY_UPDATE,
-    (_, newConfig: Partial<HotkeyConfig>) => {
+    (_, newConfig: unknown) => {
+      let validatedConfig: Partial<HotkeyConfig>;
+      try {
+        validatedConfig = parseHotkeyConfigPatch(newConfig);
+      } catch {
+        throw new Error('Invalid hotkey configuration.');
+      }
       const previousConfig = hotkeyManager.getConfig();
-      const results = hotkeyManager.updateConfig(newConfig);
-      const updatedConfig = hotkeyManager.getConfig();
+      let results: ReturnType<typeof hotkeyManager.updateConfig> = [];
 
       try {
+        results = hotkeyManager.updateConfig(validatedConfig);
+        const updatedConfig = hotkeyManager.getConfig();
         if (shouldInjectHotkeyPersistenceFailure()) {
           throw new Error('Injected hotkey persistence failure after registration');
         }
@@ -655,7 +696,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         );
       }
 
-      return { config: updatedConfig, results };
+      return { config: hotkeyManager.getConfig(), results };
     }
   );
 
@@ -675,16 +716,21 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     };
   });
 
-  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_RECOVER, async (_, sessionId: string) => {
-    const session = crashRecovery.getIncompleteSession();
-    if (!session || session.id !== sessionId) {
-      return {
-        success: false,
-        error: 'Session not found or ID mismatch',
-      };
-    }
+  const recoveriesInFlight = new Map<string, Promise<unknown>>();
+  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_RECOVER, (_, sessionId: string) => {
+    const existing = recoveriesInFlight.get(sessionId);
+    if (existing) return existing;
 
-    try {
+    const recover = async () => {
+      const session = crashRecovery.getIncompleteSession();
+      if (!session || session.id !== sessionId) {
+        return {
+          success: false,
+          error: 'Session not found or ID mismatch',
+        };
+      }
+
+      try {
       const artifacts = getMarkedIssueArtifactStore();
       const recovered = await saveRecoveredSession(session, {
         saveSession: (controllerSession, document) =>
@@ -715,13 +761,24 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         sessionDir: recovered.sessionDir,
         reviewSession: recovered.reviewSession,
       };
-    } catch (error) {
-      console.error('[Recovery] Failed to save recovered session:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unable to recover session.',
-      };
-    }
+      } catch (error) {
+        console.error('[Recovery] Failed to save recovered session:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unable to recover session.',
+        };
+      }
+    };
+
+    const operation = recover();
+    recoveriesInFlight.set(sessionId, operation);
+    const clearRecovery = () => {
+      if (recoveriesInFlight.get(sessionId) === operation) {
+        recoveriesInFlight.delete(sessionId);
+      }
+    };
+    void operation.then(clearRecovery, clearRecovery);
+    return operation;
   });
 
   ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_DISCARD, () => {
@@ -736,8 +793,8 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     return crashRecovery.getCrashLogs(sanitizedLimit);
   });
 
-  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_CLEAR_LOGS, () => {
-    crashRecovery.clearCrashLogs();
+  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_CLEAR_LOGS, async () => {
+    await crashRecovery.clearCrashLogs();
     return { success: true };
   });
 

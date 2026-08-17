@@ -88,6 +88,40 @@ describe('hotkey settings IPC transaction', () => {
     expect(registered.has(REQUESTED_TOGGLE)).toBe(false);
   });
 
+  it('rejects malformed renderer payloads before changing the live shortcut', () => {
+    const update = vi.fn((updates: Partial<AppSettings>) => ({
+      ...DEFAULT_SETTINGS,
+      ...updates,
+    }));
+    registerSettingsHandlers(context(update), {} as SessionActions);
+    const handler = registeredHandler(IPC_CHANNELS.HOTKEY_UPDATE);
+
+    expect(() => handler({}, { toggleRecording: {} }))
+      .toThrow('Invalid hotkey configuration.');
+
+    expect(update).not.toHaveBeenCalled();
+    expect(hotkeyManager.getConfig()).toEqual(PRIOR_CONFIG);
+    expect(registered.has(PRIOR_CONFIG.toggleRecording)).toBe(true);
+  });
+
+  it('rejects blank and multiline accelerators before changing native state', () => {
+    const update = vi.fn((updates: Partial<AppSettings>) => ({
+      ...DEFAULT_SETTINGS,
+      ...updates,
+    }));
+    registerSettingsHandlers(context(update), {} as SessionActions);
+    const handler = registeredHandler(IPC_CHANNELS.HOTKEY_UPDATE);
+
+    for (const accelerator of ['   ', 'CommandOrControl+Shift+F\nDelete']) {
+      expect(() => handler({}, { toggleRecording: accelerator }))
+        .toThrow('Invalid hotkey configuration.');
+    }
+
+    expect(update).not.toHaveBeenCalled();
+    expect(hotkeyManager.getConfig()).toEqual(PRIOR_CONFIG);
+    expect(registered.has(PRIOR_CONFIG.toggleRecording)).toBe(true);
+  });
+
   it('surfaces a rollback failure instead of claiming live and persisted state agree', () => {
     const update = vi.fn(() => {
       [PRIOR_CONFIG.toggleRecording, ...TOGGLE_FALLBACKS]

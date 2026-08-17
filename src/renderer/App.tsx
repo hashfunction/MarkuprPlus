@@ -467,7 +467,7 @@ const App: React.FC = () => {
           <span>{formatDuration(recording.duration)}</span>
           <span>{recording.screenshotCount} shots marked</span>
           <span className={recording.hasTranscriptionCapability ? 'is-ready' : 'is-optional'}>
-            {recording.hasTranscriptionCapability ? 'Transcript Ready' : 'Add OpenAI Key'}
+            {recording.hasTranscriptionCapability ? 'Transcript Ready' : 'Set up transcription'}
           </span>
           {recording.lastCapture && (
             <span title={new Date(recording.lastCapture.timestamp).toLocaleString()}>

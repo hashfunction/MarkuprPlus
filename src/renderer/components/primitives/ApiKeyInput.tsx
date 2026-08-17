@@ -92,7 +92,7 @@ export const ApiKeyInput: React.FC<{
       </button>
     </div>
     {apiKey.error && <span style={styles.apiKeyError}>{apiKey.error}</span>}
-    {apiKey.valid && <span style={styles.apiKeySuccess}>API key verified and saved securely.</span>}
+    {apiKey.valid && <span style={styles.apiKeySuccess}>API key verified.</span>}
   </div>
   );
 };

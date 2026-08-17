@@ -298,7 +298,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           title: 'Ready To Capture',
           detail:
             recording.hasTranscriptionCapability === false
-              ? 'Recording works now. Add an OpenAI API key or repair the managed local transcription model for automatic narration transcription.'
+              ? 'Recording works now. Repair the managed local transcription model, or add an OpenAI API key as an optional cloud fallback.'
               : 'Press Cmd+Shift+F to start a fresh feedback pass.',
         };
     }

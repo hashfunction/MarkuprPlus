@@ -1342,6 +1342,8 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(window).toHaveTitle(/MarkuprPlus/);
     const startSession = window.getByRole('button', { name: /start session/i });
     await expect(startSession).toBeVisible();
+    await expect(window.getByText('Set up transcription', { exact: true })).toBeVisible();
+    await expect(window.getByText('Add OpenAI Key', { exact: true })).toHaveCount(0);
     await expectPortraitWindow(application, window);
     await expectActionsWithinPortrait([startSession]);
   });
@@ -2492,7 +2494,8 @@ test.describe('MarkuprPlus desktop application', () => {
     await window.getByRole('button', { name: 'Test Connection', exact: true }).first().click();
     await expect(openAiInput).toHaveValue('********');
     await expect(openAiInput).toHaveAttribute('type', 'password');
-    await expect(window.getByText('API key verified and saved securely.').first()).toBeVisible();
+    await expect(window.getByText('API key verified.', { exact: true }).first()).toBeVisible();
+    await expect(window.getByText(/saved securely/i)).toHaveCount(0);
     await expect(window.evaluate(() => window.markuprx.settings.getApiKey('openai')))
       .resolves.toBeNull();
     const clear = window.getByRole('button', { name: 'Clear All Data', exact: true });
@@ -2528,6 +2531,100 @@ test.describe('MarkuprPlus desktop application', () => {
     expect(await window.locator('body').innerText()).not.toContain(harness.outputRoot);
     expect(harness.logs.join('\n')).not.toContain(secretCanary);
     expect(harness.logs.join('\n')).not.toContain(enteredKeyCanary);
+  });
+
+  test('keeps Clear All Data partial until crash, audio, and staged-image artifacts are gone', async () => {
+    const logsRoot = join(harness.userDataDir, 'logs');
+    const captureRoot = join(harness.userDataDir, 'capture-recovery');
+    const crashLogPath = join(logsRoot, 'crash-logs.json');
+    const audioRoot = join(captureRoot, 'audio');
+    const rawAudioPath = join(audioRoot, 'audio-001.raw');
+    const externalAudioTarget = join(dirname(harness.outputRoot), 'external-audio-canary');
+    const audioLink = join(audioRoot, 'audio-002.raw');
+    const audioBlocker = join(audioRoot, 'audio-zzz.raw');
+    const stagedSession = join(
+      captureRoot,
+      'marked-issues',
+      '123e4567-e89b-42d3-a456-426614174000',
+    );
+    const recordingPath = join(
+      captureRoot,
+      'recordings',
+      '223e4567-e89b-42d3-a456-426614174000.webm',
+    );
+    const legacyAudioPath = join(
+      harness.userDataDir,
+      'temp',
+      'markuprx-audio',
+      'audio-2026-08-17.raw',
+    );
+    const legacyRecordingPath = join(
+      harness.userDataDir,
+      'temp',
+      'markuprx-recordings',
+      '323e4567-e89b-42d3-a456-426614174000.webm',
+    );
+    const legacyMarkedSession = join(
+      harness.userDataDir,
+      'temp',
+      'markuprx-marked-issues',
+      '423e4567-e89b-42d3-a456-426614174000',
+    );
+    await Promise.all([
+      mkdir(crashLogPath, { recursive: true }),
+      mkdir(audioRoot, { recursive: true }),
+      mkdir(externalAudioTarget, { recursive: true }),
+      mkdir(audioBlocker, { recursive: true }),
+      mkdir(dirname(recordingPath), { recursive: true }),
+      mkdir(dirname(legacyAudioPath), { recursive: true }),
+      mkdir(dirname(legacyRecordingPath), { recursive: true }),
+      mkdir(legacyMarkedSession, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(rawAudioPath, 'private raw narration'),
+      writeFile(join(externalAudioTarget, 'keep.txt'), 'external audio canary'),
+      writeFile(recordingPath, 'private staged recording'),
+      writeFile(legacyAudioPath, 'legacy raw narration'),
+      writeFile(legacyRecordingPath, 'legacy staged recording'),
+      writeFile(join(legacyMarkedSession, 'candidate-1.png'), 'legacy staged screenshot'),
+    ]);
+    await symlink(externalAudioTarget, audioLink);
+
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Advanced', exact: true }).click();
+    await mkdir(stagedSession, { recursive: true });
+    await writeFile(join(stagedSession, 'candidate-1.png'), 'private staged screenshot');
+
+    await window.getByRole('button', { name: 'Clear All Data', exact: true }).click();
+    await window.getByRole('button', { name: 'Click to confirm deletion', exact: true }).click();
+    await expect(window.getByRole('alert').filter({
+      hasText: 'Clear All Data is incomplete.',
+    })).toBeVisible();
+    expect(await pathExists(crashLogPath)).toBe(true);
+    expect(await pathExists(audioBlocker)).toBe(true);
+    expect(await pathExists(rawAudioPath)).toBe(false);
+    expect(await pathExists(audioLink)).toBe(false);
+    expect(await pathExists(stagedSession)).toBe(false);
+    expect(await pathExists(recordingPath)).toBe(false);
+    expect(await pathExists(legacyAudioPath)).toBe(false);
+    expect(await pathExists(legacyRecordingPath)).toBe(false);
+    expect(await pathExists(legacyMarkedSession)).toBe(false);
+    await expect(readFile(join(externalAudioTarget, 'keep.txt'), 'utf8'))
+      .resolves.toBe('external audio canary');
+
+    await Promise.all([
+      rm(crashLogPath, { recursive: true, force: true }),
+      rm(audioBlocker, { recursive: true, force: true }),
+    ]);
+    await window.getByRole('button', { name: 'Clear All Data', exact: true }).click();
+    await window.getByRole('button', { name: 'Click to confirm deletion', exact: true }).click();
+    await expect(window.getByRole('alert')).toHaveCount(0);
+    expect(await pathExists(crashLogPath)).toBe(false);
+    expect(await pathExists(audioBlocker)).toBe(false);
+    expect(await pathExists(stagedSession)).toBe(false);
   });
 
   test('keeps local-success transcription off the OpenAI network with a saved key', async () => {
@@ -2857,6 +2954,42 @@ test.describe('MarkuprPlus desktop application', () => {
     expect(await recordingRow.locator('kbd').allTextContents()).toEqual([primaryKey, '⇧', 'F']);
   });
 
+  test('rejects malformed hotkey IPC without disabling the live shortcut', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ initializeHotkeys: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    const accelerator = 'CommandOrControl+Shift+F';
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    expect(await application.evaluate(({ globalShortcut }, value) => (
+      globalShortcut.isRegistered(value)
+    ), accelerator)).toBe(true);
+
+    const rejected = await window.evaluate(async () => {
+      try {
+        await window.markuprx.hotkeys.updateConfig({
+          toggleRecording: {} as unknown as string,
+        });
+        return false;
+      } catch {
+        return true;
+      }
+    });
+
+    expect(rejected).toBe(true);
+    expect(await window.evaluate(() => window.markuprx.hotkeys.getConfig()))
+      .toEqual({
+        toggleRecording: accelerator,
+        manualScreenshot: 'CommandOrControl+Shift+S',
+        pauseResume: 'CommandOrControl+Shift+P',
+      });
+    expect(await application.evaluate(({ globalShortcut }, value) => (
+      globalShortcut.isRegistered(value)
+    ), accelerator)).toBe(true);
+  });
+
   test('registers and persists a shortcut rebind from the app surface', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -3167,9 +3300,33 @@ test.describe('MarkuprPlus desktop application', () => {
     await expectPortraitWindow(application, window);
   });
 
+  test('resets General settings without blanking the valid output directory', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.evaluate(async () => {
+      await window.markuprx.settings.set('launchAtLogin', true);
+    });
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    const outputDirectory = settings.getByLabel('Output Directory', { exact: true });
+    await expect(outputDirectory).toHaveValue(harness.outputRoot);
+    await settings.getByTitle('Reset section to defaults').click();
+
+    await expect(outputDirectory).toHaveValue(harness.outputRoot);
+    await expect.poll(() => window.evaluate(async () => ({
+      outputDirectory: await window.markuprx.settings.get('outputDirectory'),
+      launchAtLogin: await window.markuprx.settings.get('launchAtLogin'),
+    }))).toEqual({
+      outputDirectory: harness.outputRoot,
+      launchAtLogin: false,
+    });
+  });
+
   test('stops Reset All after the first persistence failure', async () => {
     await harness.cleanup();
-    harness = await createElectronHarnessEnvironment({ failSettingsKey: 'outputDirectory' });
+    harness = await createElectronHarnessEnvironment({ failSettingsKey: 'launchAtLogin' });
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -3628,6 +3785,65 @@ test.describe('MarkuprPlus desktop application', () => {
     expect((await stat(join(sessionDir, 'screenshots', 'marked-issue-001.png'))).size)
       .toBeGreaterThan(1_000);
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
+  });
+
+  test('deduplicates concurrent recovery of the same crash snapshot', async () => {
+    const sessionId = '123e4567-e89b-42d3-a456-426614174111';
+    const startTime = new Date('2026-08-17T12:34:56.000Z').getTime();
+    await writeFile(join(harness.userDataDir, 'markuprx-crash-recovery.json'), JSON.stringify({
+      activeSession: {
+        id: sessionId,
+        startTime,
+        lastSaveTime: startTime + 5_000,
+        feedbackItems: [{
+          id: 'recovered-feedback',
+          timestamp: startTime + 1_000,
+          text: 'Concurrent recovery must produce one owned report.',
+          confidence: 0.95,
+          hasScreenshot: false,
+        }],
+        transcriptionBuffer: 'Concurrent recovery must produce one owned report.',
+        sourceId: 'screen:recovery-race',
+        sourceName: 'Recovery Race',
+        screenshotCount: 0,
+        metadata: {
+          appVersion: '3.0.0',
+          platform: process.platform,
+          sessionDurationMs: 5_000,
+        },
+      },
+      crashLogs: [],
+      settings: {
+        enableAutoSave: true,
+        autoSaveIntervalMs: 5_000,
+        enableCrashReporting: false,
+        maxCrashLogs: 50,
+      },
+      lastCleanExit: false,
+      lastExitTimestamp: startTime + 5_000,
+    }));
+
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await expectContainedDialog(window, 'Recover Previous Session?');
+
+    const results = await window.evaluate((id) => Promise.all([
+      window.markuprx.crashRecovery.recover(id),
+      window.markuprx.crashRecovery.recover(id),
+    ]), sessionId);
+
+    expect(results).toHaveLength(2);
+    expect(results.every((result) => result.success)).toBe(true);
+    expect(new Set(results.map((result) => result.sessionDir)).size).toBe(1);
+    const sessionDirectory = results[0].sessionDir!;
+    expect(JSON.parse(await readFile(
+      join(sessionDirectory, '.markuprx-session.json'),
+      'utf8',
+    ))).toEqual({ version: 1, sessionId });
+    const savedDirectories = (await readdir(harness.outputRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory());
+    expect(savedDirectories).toHaveLength(1);
   });
 
   test('records three separately narrated marked issues and generates complete evidence @public-screenshot', async () => {

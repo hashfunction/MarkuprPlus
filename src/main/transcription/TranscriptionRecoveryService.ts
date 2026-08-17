@@ -376,27 +376,26 @@ export async function recoverTranscript(
 
     if (localModelAvailable) {
       try {
-        if (audioData.capturedAudioBuffer.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) {
+        const byteLength = audioData.capturedAudioBuffer.byteLength;
+        const bytesPerSample = Float32Array.BYTES_PER_ELEMENT;
+        if (byteLength % bytesPerSample !== 0) {
           localAttempt = {
             events: [],
             outcome: 'provider-error',
             error: 'captured PCM audio was malformed',
+          };
+        } else if (byteLength > MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC * 16000 * bytesPerSample) {
+          localAttempt = {
+            events: [],
+            outcome: 'provider-error',
+            error: `session is too long for local recovery (${Math.round(byteLength / bytesPerSample / 16000)}s)`,
           };
         } else {
           // Copy into an aligned buffer. Node Buffer slices can otherwise have
           // a byteOffset that is invalid for a Float32Array view.
           const alignedBytes = Uint8Array.from(audioData.capturedAudioBuffer);
           const audioSamples = new Float32Array(alignedBytes.buffer);
-          const audioDurationSec = audioSamples.length / 16000;
-          if (audioDurationSec <= MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC) {
-            localAttempt = await dependencies.recoverWithWhisper(audioSamples, sessionStartSec, 3);
-          } else {
-            localAttempt = {
-              events: [],
-              outcome: 'provider-error',
-              error: `session is too long for local recovery (${Math.round(audioDurationSec)}s)`,
-            };
-          }
+          localAttempt = await dependencies.recoverWithWhisper(audioSamples, sessionStartSec, 3);
         }
       } catch {
         localAttempt = {

@@ -5,7 +5,7 @@
  * persisted screen recording (start/chunk/stop), and audio device management.
  */
 
-import { ipcMain, desktopCapturer, app } from 'electron';
+import { ipcMain, desktopCapturer } from 'electron';
 import * as fs from 'fs/promises';
 import { join } from 'path';
 import { sessionController } from '../SessionController';
@@ -26,9 +26,14 @@ import type { IpcContext } from './types';
 import { probeCaptureContext } from '../capture/CaptureContextProbe';
 import { captureOverlayManager } from '../capture/CaptureOverlayManager';
 import { MarkedIssueArtifactStore } from '../capture/MarkedIssueArtifactStore';
+import {
+  ensurePrivateCaptureArea,
+  privateCaptureAreaPath,
+} from '../security/PrivateCaptureStorage';
+import { randomUUID } from 'node:crypto';
 
 const markedIssueArtifactStore = new MarkedIssueArtifactStore(
-  join(app.getPath('temp'), 'markuprx-marked-issues'),
+  privateCaptureAreaPath('marked-issues'),
 );
 
 export function getMarkedIssueArtifactStore(): MarkedIssueArtifactStore {
@@ -171,6 +176,32 @@ export function getActiveScreenRecordings(): Map<string, RecordingArtifact> {
 
 export function getFinalizedScreenRecordings(): Map<string, FinalizedRecordingArtifact> {
   return finalizedScreenRecordings;
+}
+
+const RECORDING_ARTIFACT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?\.(?:mov|mp4|webm)$/iu;
+
+/** Remove every app-owned temporary screen recording and surface any failure. */
+export async function clearScreenRecordingArtifacts(): Promise<void> {
+  const pendingWrites = [...activeScreenRecordings.values()].map((recording) => recording.writeChain);
+  const writeResults = await Promise.allSettled(pendingWrites);
+  const writeFailures = writeResults.filter((result) => result.status === 'rejected');
+  if (writeFailures.length > 0) {
+    throw new Error('A screen recording write is still incomplete.');
+  }
+
+  const recordingsDir = await ensurePrivateCaptureArea('recordings');
+  const entries = await fs.readdir(recordingsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!RECORDING_ARTIFACT_PATTERN.test(entry.name)) continue;
+    const candidate = join(recordingsDir, entry.name);
+    const stats = await fs.lstat(candidate);
+    if (!stats.isFile() && !stats.isSymbolicLink()) {
+      throw new Error('Screen recording artifact is not removable.');
+    }
+    await fs.unlink(candidate);
+  }
+  activeScreenRecordings.clear();
+  finalizedScreenRecordings.clear();
 }
 
 // =============================================================================
@@ -336,11 +367,10 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
         }
 
         const extension = extensionFromMimeType(mimeType);
-        const recordingsDir = join(app.getPath('temp'), 'markuprx-recordings');
-        await fs.mkdir(recordingsDir, { recursive: true });
+        const recordingsDir = await ensurePrivateCaptureArea('recordings');
 
-        const tempPath = join(recordingsDir, `${sessionId}${extension}`);
-        await fs.writeFile(tempPath, Buffer.alloc(0));
+        const tempPath = join(recordingsDir, `${sessionId}-${randomUUID()}${extension}`);
+        await fs.writeFile(tempPath, Buffer.alloc(0), { flag: 'wx', mode: 0o600 });
 
         activeScreenRecordings.set(sessionId, {
           tempPath,

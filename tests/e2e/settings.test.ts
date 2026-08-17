@@ -393,15 +393,34 @@ describe('Settings E2E', () => {
       expect(JSON.stringify(settings.getAll())).not.toContain('test-key-material');
     });
 
-    it('does not overwrite an unreadable keychain entry before using protected fallback', async () => {
+    it('fails closed when the current keychain state is unreadable and preserves the old key', async () => {
+      const currentLocation = `${CURRENT_KEYTAR_SERVICE}:openai`;
+      mockKeychain.set(currentLocation, 'old-key-material');
       vi.mocked(keytar.getPassword).mockRejectedValue(new Error('keychain read unavailable'));
 
-      await settings.setApiKey('openai', 'test-key-material');
+      await expect(settings.setApiKey('openai', 'new-key-material'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
 
       expect(keytar.setPassword).not.toHaveBeenCalled();
-      expect(storeRefs.secure?._data.get('openai')).toBe(
-        Buffer.from('encrypted:test-key-material').toString('base64'),
-      );
+      expect(storeRefs.secure?._data.has('openai')).toBe(false);
+
+      vi.mocked(keytar.getPassword).mockImplementation((service: string, account: string) => (
+        Promise.resolve(mockKeychain.get(`${service}:${account}`) || null)
+      ));
+      await expect(settings.getApiKey('openai')).resolves.toBe('old-key-material');
+      expect(mockKeychain.get(currentLocation)).toBe('old-key-material');
+    });
+
+    it('does not create a fallback when replacing an existing keychain entry fails', async () => {
+      const currentLocation = `${CURRENT_KEYTAR_SERVICE}:openai`;
+      mockKeychain.set(currentLocation, 'old-key-material');
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error('keychain write unavailable'));
+
+      await expect(settings.setApiKey('openai', 'new-key-material'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+
+      expect(storeRefs.secure?._data.has('openai')).toBe(false);
+      expect(mockKeychain.get(currentLocation)).toBe('old-key-material');
     });
 
     it('fails closed when keychain and protected safeStorage are unavailable', async () => {

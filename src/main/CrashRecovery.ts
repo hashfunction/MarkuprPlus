@@ -620,11 +620,13 @@ export class CrashRecoveryManager {
   /**
    * Clear crash logs
    */
-  clearCrashLogs(): void {
+  async clearCrashLogs(): Promise<void> {
+    try {
+      await fs.unlink(this.crashLogPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
     getCrashRecoveryStore().set('crashLogs', []);
-    fs.unlink(this.crashLogPath).catch(() => {
-      // Ignore if file doesn't exist
-    });
   }
 
   // ==========================================================================

@@ -395,40 +395,34 @@ export class FileManager {
       .slice(0, 30) || 'feedback';
 
     const baseDirName = `${projectName}-${dateStr}-${timeStr}`;
-    let sessionDir = path.join(this.outputDirectory, baseDirName);
+    const sentinel: SessionOwnershipSentinel = { version: 1, sessionId: session.id };
+    for (let counter = 0; counter < 10_000; counter++) {
+      const suffix = counter === 0 ? '' : `-${counter}`;
+      const sessionDir = path.join(this.outputDirectory, `${baseDirName}${suffix}`);
+      try {
+        // A non-recursive mkdir is the exclusive ownership claim. Never clean
+        // a directory that this call did not create.
+        await fs.mkdir(sessionDir, { recursive: false, mode: 0o700 });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') continue;
+        throw error;
+      }
 
-    // Handle conflicts by appending counter
-    let counter = 1;
-    while (await this.directoryExists(sessionDir)) {
-      sessionDir = path.join(this.outputDirectory, `${baseDirName}-${counter}`);
-      counter++;
+      try {
+        await fs.writeFile(
+          path.join(sessionDir, SESSION_OWNERSHIP_SENTINEL),
+          JSON.stringify(sentinel),
+          { encoding: 'utf8', flag: 'wx', mode: 0o600 },
+        );
+        return sessionDir;
+      } catch (error) {
+        // rmdir succeeds only while the exclusively-created directory remains
+        // empty. If anything else appeared, leave it intact for inspection.
+        await fs.rmdir(sessionDir).catch(() => undefined);
+        throw error;
+      }
     }
-
-    await fs.mkdir(sessionDir, { recursive: true });
-    try {
-      const sentinel: SessionOwnershipSentinel = { version: 1, sessionId: session.id };
-      await fs.writeFile(
-        path.join(sessionDir, SESSION_OWNERSHIP_SENTINEL),
-        JSON.stringify(sentinel),
-        { encoding: 'utf8', flag: 'wx', mode: 0o600 },
-      );
-    } catch (error) {
-      await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => undefined);
-      throw error;
-    }
-    return sessionDir;
-  }
-
-  /**
-   * Check if a directory exists
-   */
-  private async directoryExists(dir: string): Promise<boolean> {
-    try {
-      await fs.access(dir);
-      return true;
-    } catch {
-      return false;
-    }
+    throw new Error('Unable to allocate a unique session directory.');
   }
 
   /**

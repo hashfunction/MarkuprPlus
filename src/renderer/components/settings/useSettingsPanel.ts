@@ -383,7 +383,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const resetGeneralSection = useCallback(async () => {
     const defaults = {
-      outputDirectory: DEFAULT_SETTINGS.outputDirectory,
       launchAtLogin: DEFAULT_SETTINGS.launchAtLogin,
       checkForUpdates: DEFAULT_SETTINGS.checkForUpdates,
     };

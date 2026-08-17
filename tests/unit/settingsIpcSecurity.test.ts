@@ -4,8 +4,12 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dialog, ipcMain } from 'electron';
 import { registerSettingsHandlers } from '../../src/main/ipc/settingsHandlers';
-import { registerCaptureHandlers } from '../../src/main/ipc/captureHandlers';
+import {
+  getMarkedIssueArtifactStore,
+  registerCaptureHandlers,
+} from '../../src/main/ipc/captureHandlers';
 import { fileManager } from '../../src/main/output';
+import { audioCapture } from '../../src/main/audio';
 import { sessionController } from '../../src/main/SessionController';
 import { crashRecovery } from '../../src/main/CrashRecovery';
 import type { IpcContext, SessionActions } from '../../src/main/ipc/types';
@@ -17,12 +21,21 @@ import {
 import {
   PUBLIC_SETTING_KEYS,
   parsePublicSettingsPatch,
+  parseSettingsImport,
   projectPublicSettings,
 } from '../../src/shared/publicSettings';
 import { isApplicationDataClearInProgress } from '../../src/main/settings/clearApplicationData';
 
 const temporaryRoots: string[] = [];
 const SECRET_CANARY = 'SECRET-CANARY-MUST-NOT-CROSS-IPC';
+
+function lazyRejectedPromise(message: string): Promise<void> {
+  return {
+    then: (_resolve: (value: void) => unknown, reject: (reason: Error) => unknown) => {
+      reject(new Error(message));
+    },
+  } as unknown as Promise<void>;
+}
 
 function registeredHandler(channel: string): (...args: unknown[]) => unknown {
   const registration = vi.mocked(ipcMain.handle).mock.calls.find(([name]) => name === channel);
@@ -125,6 +138,22 @@ describe('public settings contract', () => {
     })).toThrow('Invalid settings payload.');
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
+
+  it('accepts a complete pre-hardening export while dropping only known internal fields', () => {
+    const outputDirectory = join(tmpdir(), 'markuprplus-legacy-export-output');
+    const imported = parseSettingsImport({
+      ...DEFAULT_SETTINGS,
+      outputDirectory,
+      _version: 3,
+      __plaintext_fallback__: { openai: SECRET_CANARY },
+      openaiApiKey: SECRET_CANARY,
+      anthropicApiKey: SECRET_CANARY,
+      deepgramApiKey: SECRET_CANARY,
+    });
+
+    expect(imported).toEqual({ ...DEFAULT_SETTINGS, outputDirectory });
+    expect(JSON.stringify(imported)).not.toContain(SECRET_CANARY);
+  });
 });
 
 describe('settings IPC security boundary', () => {
@@ -211,10 +240,25 @@ describe('settings IPC security boundary', () => {
     expect(invalidResult).toBeNull();
     expect(manager.update).not.toHaveBeenCalled();
 
-    await writeFile(importPath, JSON.stringify({ theme: 'light', imageQuality: 72 }));
+    await writeFile(importPath, JSON.stringify({
+      _version: 2,
+      theme: 'light',
+      imageQuality: 72,
+      __plaintext_fallback__: { openai: SECRET_CANARY },
+      deepgramApiKey: SECRET_CANARY,
+    }));
     const validResult = await registeredHandler(IPC_CHANNELS.SETTINGS_IMPORT)({});
     expect(manager.update).toHaveBeenCalledWith({ theme: 'light', imageQuality: 72 });
     expect(JSON.stringify(validResult)).not.toContain(SECRET_CANARY);
+
+    manager.update.mockClear();
+    await writeFile(importPath, JSON.stringify({
+      _version: 3,
+      theme: 'light',
+      arbitraryInternalRecord: { value: SECRET_CANARY },
+    }));
+    expect(await registeredHandler(IPC_CHANNELS.SETTINGS_IMPORT)({})).toBeNull();
+    expect(manager.update).not.toHaveBeenCalled();
 
     await registeredHandler(IPC_CHANNELS.SETTINGS_EXPORT)({});
     const exported = await readFile(exportPath, 'utf8');
@@ -281,6 +325,83 @@ describe('settings IPC security boundary', () => {
     });
     expect(JSON.stringify((result as { failures: unknown }).failures)).not.toContain(root);
     expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+  });
+
+  it('waits for crash-log deletion before reporting Clear All Data complete', async () => {
+    const manager = makeManager({ outputDirectory: join(tmpdir(), 'markuprplus-clear-wait') });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion').mockResolvedValue([]);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    let finishCrashLogDeletion: (() => void) | undefined;
+    const crashLogDeletion = new Promise<void>((resolve) => {
+      finishCrashLogDeletion = resolve;
+    });
+    vi.spyOn(crashRecovery, 'clearCrashLogs')
+      .mockImplementation(() => crashLogDeletion as never);
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    let settled = false;
+    const clear = registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({}) as Promise<unknown>;
+    void clear.finally(() => { settled = true; });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    finishCrashLogDeletion?.();
+    await expect(clear).resolves.toMatchObject({ success: true, failures: [] });
+  });
+
+  it('reports crash-log deletion failure and retries it through the direct handler', async () => {
+    const manager = makeManager({ outputDirectory: join(tmpdir(), 'markuprplus-clear-logs') });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion').mockResolvedValue([]);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    const rejectedDeletion = lazyRejectedPromise('crash log path is not removable');
+    const clearLogs = vi.spyOn(crashRecovery, 'clearCrashLogs')
+      .mockImplementationOnce(() => rejectedDeletion as never)
+      .mockImplementation(() => Promise.resolve() as never);
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    const clearResult = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+    expect(clearResult).toMatchObject({
+      success: false,
+      failures: [{ kind: 'recovery' }],
+    });
+    await expect(registeredHandler(IPC_CHANNELS.CRASH_RECOVERY_CLEAR_LOGS)({}))
+      .resolves.toEqual({ success: true });
+    expect(clearLogs).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports raw-audio and staged-image cleanup failures instead of claiming all data was cleared', async () => {
+    const manager = makeManager({ outputDirectory: join(tmpdir(), 'markuprplus-clear-audio') });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion').mockResolvedValue([]);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    vi.spyOn(crashRecovery, 'clearCrashLogs').mockImplementation(() => Promise.resolve() as never);
+    const rejectedCleanup = lazyRejectedPromise('raw audio could not be removed');
+    const clearAudio = vi.spyOn(audioCapture, 'clearRecoveryBuffers')
+      .mockImplementationOnce(() => rejectedCleanup)
+      .mockResolvedValue(undefined);
+    const rejectedStagingCleanup = lazyRejectedPromise('staged image could not be removed');
+    const clearStaging = vi.spyOn(getMarkedIssueArtifactStore(), 'cleanupStaleSessions')
+      .mockImplementationOnce(() => rejectedStagingCleanup)
+      .mockResolvedValue(undefined);
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    const first = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+    expect(first).toMatchObject({
+      success: false,
+      failures: [{ kind: 'recovery' }],
+    });
+
+    const second = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+    expect(second).toMatchObject({ success: true, failures: [] });
+    expect(clearAudio).toHaveBeenCalledTimes(2);
+    expect(clearStaging).toHaveBeenCalledTimes(2);
+    expect(clearStaging).toHaveBeenCalledWith([]);
   });
 
   it('does not mutate data while a session is active', async () => {

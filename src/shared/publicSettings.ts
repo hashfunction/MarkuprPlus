@@ -22,6 +22,12 @@ function isBoolean(value: unknown): value is boolean {
   return typeof value === 'boolean';
 }
 
+function isHotkeyAccelerator(value: unknown): value is string {
+  return isBoundedString(value, 200, false)
+    && value.trim().length > 0
+    && !/[\r\n]/u.test(value);
+}
+
 function isAbsoluteOutputDirectory(value: unknown): value is string {
   if (!isBoundedString(value, 4096, false)) return false;
   return value.startsWith('/')
@@ -34,7 +40,28 @@ function isHotkeys(value: unknown): value is PublicSettings['hotkeys'] {
   const record = value as Record<string, unknown>;
   const expected = ['manualScreenshot', 'pauseResume', 'toggleRecording'];
   if (Object.keys(record).sort().join('|') !== expected.join('|')) return false;
-  return expected.every((key) => isBoundedString(record[key], 200, false));
+  return expected.every((key) => isHotkeyAccelerator(record[key]));
+}
+
+const HOTKEY_KEYS = Object.freeze([
+  'manualScreenshot',
+  'pauseResume',
+  'toggleRecording',
+] as const);
+
+/** Validate the renderer-facing partial hotkey update before native mutation. */
+export function parseHotkeyConfigPatch(value: unknown): Partial<PublicSettings['hotkeys']> {
+  if (!isPlainRecord(value)) throw new InvalidSettingsPayloadError('Invalid hotkey configuration.');
+
+  const parsed: Partial<PublicSettings['hotkeys']> = Object.create(null);
+  for (const key of Object.keys(value)) {
+    if (!(HOTKEY_KEYS as readonly string[]).includes(key)
+      || !isHotkeyAccelerator(value[key])) {
+      throw new InvalidSettingsPayloadError('Invalid hotkey configuration.');
+    }
+    (parsed as Record<string, unknown>)[key] = value[key];
+  }
+  return parsed;
 }
 
 /**
@@ -125,6 +152,38 @@ export function parsePublicSettingsPatch(value: unknown): Partial<PublicSettings
     (parsed as Record<string, unknown>)[key] = structuredClone(candidate);
   }
   return parsed;
+}
+
+const LEGACY_EXPORT_METADATA_KEYS = new Set(['_version']);
+const LEGACY_EXPORT_SECRET_KEYS = new Set([
+  '__plaintext_fallback__',
+  'anthropicApiKey',
+  'deepgramApiKey',
+  'openaiApiKey',
+]);
+
+/**
+ * Import current settings plus the narrowly identified metadata/secret fields
+ * emitted by pre-hardening exports. Legacy-only fields are dropped without
+ * ever copying their values; every other unknown field remains an error.
+ */
+export function parseSettingsImport(value: unknown): Partial<PublicSettings> {
+  if (!isPlainRecord(value)) throw new InvalidSettingsPayloadError();
+
+  const publicValues: Record<string, unknown> = Object.create(null);
+  for (const key of Object.keys(value)) {
+    if (LEGACY_EXPORT_SECRET_KEYS.has(key)) continue;
+    if (LEGACY_EXPORT_METADATA_KEYS.has(key)) {
+      const version = value[key];
+      if (!Number.isSafeInteger(version) || Number(version) < 1 || Number(version) > 100) {
+        throw new InvalidSettingsPayloadError();
+      }
+      continue;
+    }
+    if (!isPublicSettingKey(key)) throw new InvalidSettingsPayloadError();
+    publicValues[key] = value[key];
+  }
+  return parsePublicSettingsPatch(publicValues);
 }
 
 /**

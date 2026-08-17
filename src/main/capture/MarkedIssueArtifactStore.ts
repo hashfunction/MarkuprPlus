@@ -1,17 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import {
   copyFile,
+  chmod,
+  lstat,
   mkdir,
   readdir,
   rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   MAX_MARKED_SCREENSHOT_BYTES,
   type MarkedIssuePayload,
 } from '../../shared/types';
+import {
+  ensurePrivateDirectory,
+  removePrivateDirectoryTree,
+} from '../security/PrivateCaptureStorage';
 
 const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -71,6 +77,27 @@ export class MarkedIssueArtifactStore {
 
   constructor(private readonly stagingRoot: string) {}
 
+  private async ensureStagingRoot(): Promise<string> {
+    await ensurePrivateDirectory(dirname(this.stagingRoot), 'Capture recovery root');
+    return ensurePrivateDirectory(this.stagingRoot, 'Marked screenshot staging root');
+  }
+
+  private async ensureSessionDirectory(sessionId: string): Promise<string> {
+    const root = await this.ensureStagingRoot();
+    const sessionDir = join(root, sessionId);
+    try {
+      await mkdir(sessionDir, { recursive: false, mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    const stats = await lstat(sessionDir);
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error('Marked screenshot session is not a private directory.');
+    }
+    await chmod(sessionDir, 0o700);
+    return sessionDir;
+  }
+
   async stageCandidate(
     sessionId: string,
     revision: number,
@@ -82,12 +109,11 @@ export class MarkedIssueArtifactStore {
     const ownedBytes = Buffer.from(bytes);
 
     return this.enqueue(sessionId, async () => {
-      const sessionDir = this.stagingSessionDir(sessionId);
-      await mkdir(sessionDir, { recursive: true });
+      const sessionDir = await this.ensureSessionDirectory(sessionId);
       const destinationPath = join(sessionDir, `candidate-${revision}.png`);
       const partPath = join(sessionDir, `candidate-${revision}-${randomUUID()}.png.part`);
       try {
-        await writeFile(partPath, ownedBytes, { flag: 'wx' });
+        await writeFile(partPath, ownedBytes, { flag: 'wx', mode: 0o600 });
         await replaceByRename(partPath, destinationPath);
       } catch (error) {
         await rm(partPath, { force: true });
@@ -137,12 +163,14 @@ export class MarkedIssueArtifactStore {
     }
 
     return this.enqueue(sessionId, async () => {
+      const stagingRoot = await this.ensureStagingRoot();
       const screenshotsDir = join(sessionDir, 'screenshots');
       await mkdir(screenshotsDir, { recursive: true });
 
       for (const issue of promoted) {
         const sourcePath = join(
-          this.stagingSessionDir(sessionId),
+          stagingRoot,
+          sessionId,
           `candidate-${issue.snapshotRevision}.png`,
         );
         const filename = `marked-issue-${String(issue.ordinal).padStart(3, '0')}.png`;
@@ -150,6 +178,10 @@ export class MarkedIssueArtifactStore {
         const destinationPath = join(screenshotsDir, filename);
         const partPath = join(screenshotsDir, `${filename}-${randomUUID()}.part`);
         try {
+          const sourceStats = await lstat(sourcePath);
+          if (sourceStats.isSymbolicLink() || !sourceStats.isFile()) {
+            throw new Error('Marked screenshot candidate is not a regular file.');
+          }
           await copyFile(sourcePath, partPath);
           await replaceByRename(partPath, destinationPath);
           issue.screenshotPath = relativePath;
@@ -165,7 +197,11 @@ export class MarkedIssueArtifactStore {
         }
       }
 
-      await rm(this.stagingSessionDir(sessionId), { recursive: true, force: true });
+      await removePrivateDirectoryTree(
+        stagingRoot,
+        join(stagingRoot, sessionId),
+        'Marked screenshot session',
+      );
       this.committedRevisions.delete(sessionId);
       return promoted;
     });
@@ -174,7 +210,12 @@ export class MarkedIssueArtifactStore {
   async cleanupSession(sessionId: string): Promise<void> {
     validateSessionId(sessionId);
     await this.enqueue(sessionId, async () => {
-      await rm(this.stagingSessionDir(sessionId), { recursive: true, force: true });
+      const root = await this.ensureStagingRoot();
+      await removePrivateDirectoryTree(
+        root,
+        join(root, sessionId),
+        'Marked screenshot session',
+      );
       this.committedRevisions.delete(sessionId);
     });
   }
@@ -183,17 +224,17 @@ export class MarkedIssueArtifactStore {
     preserveSessionIds.forEach(validateSessionId);
     const preserved = new Set(preserveSessionIds);
     await Promise.allSettled([...this.sessionChains.values()]);
-    await mkdir(this.stagingRoot, { recursive: true });
-    const entries = await readdir(this.stagingRoot);
-    await Promise.all(entries.map(async (name) => {
-      if (preserved.has(name)) return;
-      await rm(join(this.stagingRoot, name), { recursive: true, force: true });
-      this.committedRevisions.delete(name);
-    }));
-  }
-
-  private stagingSessionDir(sessionId: string): string {
-    return join(this.stagingRoot, sessionId);
+    const root = await this.ensureStagingRoot();
+    const entries = await readdir(root, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!SESSION_ID_PATTERN.test(entry.name) || preserved.has(entry.name)) continue;
+      await removePrivateDirectoryTree(
+        root,
+        join(root, entry.name),
+        'Marked screenshot session',
+      );
+      this.committedRevisions.delete(entry.name);
+    }
   }
 
   private enqueue<T>(sessionId: string, task: () => Promise<T>): Promise<T> {

@@ -318,4 +318,64 @@ describe('recoverTranscript outcomes', () => {
     expect(getOpenAIApiKey).not.toHaveBeenCalled();
     expect(result.failure?.code).toBe('whisper-failed');
   });
+
+  it('rejects malformed PCM before copying it into a typed sample buffer', async () => {
+    const copy = vi.spyOn(Uint8Array, 'from');
+    const recoverWithWhisper = vi.fn(async () => success([]));
+    try {
+      const result = await recoverTranscript(
+        sessionStartSec,
+        { capturedAudioAsset: null, capturedAudioBuffer: Buffer.alloc(3, 1) },
+        dependencies({
+          isLocalModelAvailable: () => true,
+          recoverWithWhisper,
+        }),
+      );
+
+      expect(result.failure).toEqual({
+        code: 'whisper-failed',
+        message: 'Local Whisper transcription failed: captured PCM audio was malformed',
+      });
+      expect(copy).not.toHaveBeenCalled();
+      expect(recoverWithWhisper).not.toHaveBeenCalled();
+    } finally {
+      copy.mockRestore();
+    }
+  });
+
+  it('rejects PCM beyond eight minutes before allocating a duplicate buffer', async () => {
+    const oversizedPcm = Buffer.alloc(30_720_004, 1);
+    const originalFrom = Uint8Array.from;
+    let copyAttempted = false;
+    Object.defineProperty(Uint8Array, 'from', {
+      configurable: true,
+      value: () => {
+        copyAttempted = true;
+        throw new Error('duplicate allocation attempted');
+      },
+    });
+    const recoverWithWhisper = vi.fn(async () => success([]));
+    try {
+      const result = await recoverTranscript(
+        sessionStartSec,
+        { capturedAudioAsset: null, capturedAudioBuffer: oversizedPcm },
+        dependencies({
+          isLocalModelAvailable: () => true,
+          recoverWithWhisper,
+        }),
+      );
+
+      expect(result.failure).toEqual({
+        code: 'whisper-failed',
+        message: 'Local Whisper transcription failed: session is too long for local recovery (480s)',
+      });
+      expect(copyAttempted).toBe(false);
+      expect(recoverWithWhisper).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Uint8Array, 'from', {
+        configurable: true,
+        value: originalFrom,
+      });
+    }
+  });
 });

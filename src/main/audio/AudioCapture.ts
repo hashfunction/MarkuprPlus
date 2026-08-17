@@ -14,14 +14,18 @@
 
 import { ipcMain, systemPreferences, BrowserWindow } from 'electron';
 import { EventEmitter } from 'events';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { lstat, mkdir, readdir, stat, unlink, writeFile } from 'fs/promises';
+import { randomUUID } from 'node:crypto';
 import { join, dirname } from 'path';
 import { app } from 'electron';
 import { errorHandler } from '../ErrorHandler';
 import { IPC_CHANNELS } from '../../shared/types';
 import { extensionFromMimeType, encodeFloat32Wav } from './audioUtils';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
+import {
+  ensurePrivateCaptureArea,
+  privateCaptureAreaPath,
+} from '../security/PrivateCaptureStorage';
 
 // ============================================================================
 // Types and Interfaces
@@ -136,6 +140,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   private bufferStartTime: number = 0;
   private recoveryChunks: Buffer[] = [];
   private recoveryInterval: NodeJS.Timeout | null = null;
+  private recoveryWriteChain: Promise<void> = Promise.resolve();
 
   // Full-session audio capture (used for post-session transcription + retry workflows)
   // Memory cap prevents unbounded growth during long sessions. At 16kHz mono
@@ -156,7 +161,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   constructor(config: Partial<AudioCaptureConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.recoveryBufferPath = join(app.getPath('temp'), 'markuprx-audio');
+    this.recoveryBufferPath = privateCaptureAreaPath('audio');
     this.setupIPCHandlers();
   }
 
@@ -323,6 +328,11 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
       });
       throw windowError;
     }
+
+    // Claim the private recovery root before the renderer begins capture. A
+    // preplanted alias or non-directory must fail the whole start operation,
+    // not become an unhandled background rejection after recording begins.
+    this.recoveryBufferPath = await ensurePrivateCaptureArea('audio');
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -795,19 +805,18 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Start the recovery buffer system
    * Writes audio to temp files for network failure recovery
    */
-  private async startRecoveryBuffer(): Promise<void> {
-    // Ensure recovery directory exists
-    if (!existsSync(this.recoveryBufferPath)) {
-      await mkdir(this.recoveryBufferPath, { recursive: true });
-    }
-
+  private startRecoveryBuffer(): void {
     this.bufferStartTime = Date.now();
     this.recoveryChunks = [];
     this.currentBufferFile = this.generateBufferFilename();
 
     // Rotate buffer every recoveryBufferMinutes
     this.recoveryInterval = setInterval(
-      () => this.rotateRecoveryBuffer(),
+      () => {
+        void this.rotateRecoveryBuffer().catch((error) => {
+          console.error('[AudioCapture] Failed to rotate recovery buffer:', error);
+        });
+      },
       this.config.recoveryBufferMinutes * 60 * 1000
     );
 
@@ -825,7 +834,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
 
     // Write remaining chunks
     if (this.recoveryChunks.length > 0) {
-      this.writeRecoveryBuffer().catch((err) => {
+      this.queueRecoveryBufferWrite().catch((err) => {
         console.error('[AudioCapture] Failed to write final recovery buffer:', err);
       });
     }
@@ -838,7 +847,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Rotate the recovery buffer - write current and start new
    */
   private async rotateRecoveryBuffer(): Promise<void> {
-    await this.writeRecoveryBuffer();
+    await this.queueRecoveryBufferWrite();
 
     // Clean up old buffer files (keep last 2)
     await this.cleanOldBuffers();
@@ -852,20 +861,22 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   /**
    * Write current recovery buffer to disk
    */
-  private async writeRecoveryBuffer(): Promise<void> {
+  private queueRecoveryBufferWrite(): Promise<void> {
     if (this.recoveryChunks.length === 0 || !this.currentBufferFile) {
-      return;
+      return this.recoveryWriteChain;
     }
 
-    try {
-      const combined = Buffer.concat(this.recoveryChunks);
-      await writeFile(this.currentBufferFile, combined);
+    const combined = Buffer.concat(this.recoveryChunks);
+    const destination = this.currentBufferFile;
+    const operation = this.recoveryWriteChain.then(async () => {
+      await ensurePrivateCaptureArea('audio');
+      await writeFile(destination, combined, { flag: 'wx', mode: 0o600 });
       console.log(
-        `[AudioCapture] Recovery buffer written: ${this.currentBufferFile} (${combined.length} bytes)`
+        `[AudioCapture] Recovery buffer written: ${destination} (${combined.length} bytes)`
       );
-    } catch (error) {
-      console.error('[AudioCapture] Failed to write recovery buffer:', error);
-    }
+    });
+    this.recoveryWriteChain = operation.catch(() => undefined);
+    return operation;
   }
 
   /**
@@ -873,7 +884,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    */
   private generateBufferFilename(): string {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    return join(this.recoveryBufferPath, `audio-${timestamp}.raw`);
+    return join(this.recoveryBufferPath, `audio-${timestamp}-${randomUUID()}.raw`);
   }
 
   /**
@@ -881,14 +892,17 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    */
   private async cleanOldBuffers(): Promise<void> {
     try {
-      const { readdir, stat } = await import('fs/promises');
-      const files = await readdir(this.recoveryBufferPath);
+      const root = await ensurePrivateCaptureArea('audio');
+      const files = await readdir(root, { withFileTypes: true });
 
       const bufferFiles = await Promise.all(
         files
-          .filter((f) => f.startsWith('audio-') && f.endsWith('.raw'))
-          .map(async (f) => {
-            const path = join(this.recoveryBufferPath, f);
+          .filter((entry) => entry.name.startsWith('audio-') && entry.name.endsWith('.raw'))
+          .map(async (entry) => {
+            if (entry.isSymbolicLink() || !entry.isFile()) {
+              throw new Error('Audio recovery entry is not a regular file.');
+            }
+            const path = join(root, entry.name);
             const stats = await stat(path);
             return { path, mtime: stats.mtime.getTime() };
           })
@@ -916,13 +930,18 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
     const cutoff = Date.now() - lastMinutes * 60 * 1000;
 
     try {
-      const { readdir, stat, readFile } = await import('fs/promises');
-      const files = await readdir(this.recoveryBufferPath);
+      const { readFile } = await import('fs/promises');
+      const root = await ensurePrivateCaptureArea('audio');
+      const files = await readdir(root, { withFileTypes: true });
 
-      for (const file of files) {
+      for (const entry of files) {
+        const file = entry.name;
         if (!file.startsWith('audio-') || !file.endsWith('.raw')) continue;
+        if (entry.isSymbolicLink() || !entry.isFile()) {
+          throw new Error('Audio recovery entry is not a regular file.');
+        }
 
-        const path = join(this.recoveryBufferPath, file);
+        const path = join(root, file);
         const stats = await stat(path);
 
         if (stats.mtime.getTime() > cutoff) {
@@ -948,21 +967,21 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Clear all recovery buffers
    */
   async clearRecoveryBuffers(): Promise<void> {
-    try {
-      const { readdir } = await import('fs/promises');
-      const files = await readdir(this.recoveryBufferPath);
-
-      for (const file of files) {
-        if (file.startsWith('audio-') && file.endsWith('.raw')) {
-          await unlink(join(this.recoveryBufferPath, file));
-        }
+    await this.recoveryWriteChain;
+    const root = await ensurePrivateCaptureArea('audio');
+    const files = await readdir(root, { withFileTypes: true });
+    for (const entry of files) {
+      if (!entry.name.startsWith('audio-') || !entry.name.endsWith('.raw')) continue;
+      const candidate = join(root, entry.name);
+      const stats = await lstat(candidate);
+      if (!stats.isFile() && !stats.isSymbolicLink()) {
+        throw new Error('Audio recovery entry is not removable.');
       }
-
-      this.recoveryChunks = [];
-      console.log('[AudioCapture] Recovery buffers cleared');
-    } catch (error) {
-      console.error('[AudioCapture] Failed to clear recovery buffers:', error);
+      await unlink(candidate);
     }
+    this.recoveryChunks = [];
+    this.currentBufferFile = null;
+    console.log('[AudioCapture] Recovery buffers cleared');
   }
 
   /**
