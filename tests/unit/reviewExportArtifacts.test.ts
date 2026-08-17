@@ -21,18 +21,20 @@ import type { Session } from '../../src/main/output/MarkdownGenerator';
 import { prepareReviewExportDestination } from '../../src/main/output/ReviewExportRequest';
 import type { ReviewExportFormat, ReviewSession } from '../../src/shared/types';
 
+vi.unmock('sharp');
+
 const fixtureRoots: string[] = [];
 const PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
 );
 const JPEG_BYTES = Buffer.from(
-  'ffd8ffe000104a46494600010100000100010000ffc00011080001000103011100021100031100ffd9',
-  'hex',
+  '/9j/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJ+AHQj/2Q==',
+  'base64',
 );
 const WEBP_BYTES = Buffer.from(
-  '524946461600000057454250565038580a00000000000000000000000000',
-  'hex',
+  'UklGRjAAAABXRUJQVlA4ICQAAABwAQCdASoCAAIAAUAmJYwCdAFAAAD++xnLAkrVm6cszhXnwAA=',
+  'base64',
 );
 
 async function fixtureRoot(): Promise<string> {
@@ -351,6 +353,37 @@ describe('real review export artifacts', () => {
       await expect(access(temporaryDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
     },
   );
+
+  it('destroys its hidden PDF window when navigation-guard setup fails', async () => {
+    const outputRoot = await fixtureRoot();
+    const outputPath = await destination(outputRoot, 'pdf', false, 'pdf-guard-setup');
+    const destroy = vi.fn();
+    const pdfWindow = {
+      loadFile: vi.fn(),
+      destroy,
+      webContents: {
+        on: vi.fn(),
+        setWindowOpenHandler: vi.fn(() => {
+          throw new Error('navigation guard setup failed');
+        }),
+        printToPDF: vi.fn(),
+      },
+    };
+    vi.mocked(BrowserWindow).mockImplementationOnce(() => pdfWindow as never);
+
+    const result = await new ExportService().export(evidenceSession() as Session, {
+      format: 'pdf',
+      outputPath,
+      includeImages: false,
+      theme: 'light',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringMatching(/navigation guard setup failed/i),
+    });
+    expect(destroy).toHaveBeenCalledOnce();
+  });
 
   it('attempts PDF directory removal and aggregates destroy plus removal failures', async () => {
     const destroyError = new Error('destroy teardown failed');

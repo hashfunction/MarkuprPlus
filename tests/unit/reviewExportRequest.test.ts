@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   realpath,
+  rename,
   rm,
   stat,
   symlink,
@@ -13,7 +14,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createReviewExportDestination,
   prepareReviewExportDestination,
@@ -23,6 +24,46 @@ import {
 } from '../../src/main/output/ReviewExportRequest';
 import { sanitizeReviewSession } from '../../src/main/output/SavedReviewUpdater';
 import type { ReviewSession } from '../../src/shared/types';
+
+vi.unmock('sharp');
+
+const fileRaceHooks = vi.hoisted(() => ({
+  beforeOpen: undefined as undefined | ((filePath: string) => Promise<void>),
+  afterOpenedStat: undefined as undefined | ((filePath: string) => Promise<void>),
+}));
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    open: async (filePath: string, flags: number) => {
+      const beforeOpen = fileRaceHooks.beforeOpen;
+      fileRaceHooks.beforeOpen = undefined;
+      if (beforeOpen) await beforeOpen(String(filePath));
+      const handle = await actual.open(filePath, flags);
+      return new Proxy(handle, {
+        get(target, property) {
+          if (property === 'stat') {
+            return async () => {
+              const stats = await target.stat();
+              const afterOpenedStat = fileRaceHooks.afterOpenedStat;
+              fileRaceHooks.afterOpenedStat = undefined;
+              if (afterOpenedStat) await afterOpenedStat(String(filePath));
+              return stats;
+            };
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+    },
+  };
+});
+
+afterEach(() => {
+  fileRaceHooks.beforeOpen = undefined;
+  fileRaceHooks.afterOpenedStat = undefined;
+});
 
 function reviewSession(): ReviewSession {
   return {
@@ -88,15 +129,18 @@ const imageFixtures = [
     mimeType: 'image/jpeg',
     extension: 'jpg',
     bytes: Buffer.from(
-      'ffd8ffe000104a46494600010100000100010000ffc00011080001000103011100021100031100ffd9',
-      'hex',
+      '/9j/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJ+AHQj/2Q==',
+      'base64',
     ),
   },
   {
     label: 'WebP',
     mimeType: 'image/webp',
     extension: 'webp',
-    bytes: Buffer.from('524946461600000057454250565038580a00000000000000000000000000', 'hex'),
+    bytes: Buffer.from(
+      'UklGRjAAAABXRUJQVlA4ICQAAABwAQCdASoCAAIAAUAmJYwCdAFAAAD++xnLAkrVm6cszhXnwAA=',
+      'base64',
+    ),
   },
 ] as const;
 
@@ -622,6 +666,45 @@ describe('review export request security', () => {
     })).rejects.toThrow(/malformed|truncated|container|terminal|image data/i);
   });
 
+  it.each([
+    {
+      label: 'PNG with invalid CRCs and empty image data',
+      bytes: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAAAAAAAAAAAElEQVQAAAAAAAAAAElFTkQAAAAA',
+        'base64',
+      ),
+    },
+    {
+      label: 'JPEG with a dimension header but no decodable scan data',
+      bytes: Buffer.from(
+        '/9j/wAARCAABAAEDAREAAhEAAxEA/9oADAMBAAIRAxEAPwAAESL/2Q==',
+        'base64',
+      ),
+    },
+    {
+      label: 'WebP with only an extended header and no image payload',
+      bytes: Buffer.from(
+        'UklGRhYAAABXRUJQVlA4WAoAAAAAAAAAAAAAAAAA',
+        'base64',
+      ),
+    },
+  ])('rejects structurally plausible but non-decodable $label', async ({ bytes }) => {
+    const mainOwnedSession = reviewSession();
+    mainOwnedSession.feedbackItems[0].screenshots[0] = {
+      ...mainOwnedSession.feedbackItems[0].screenshots[0],
+      imagePath: '',
+      base64: bytes.toString('base64'),
+    };
+
+    await expect(trustedReviewExportSession(reviewSession(), {
+      mainOwnedSession,
+      sessionDirectory: null,
+      outputRoot: '/not-read-for-base64',
+      format: 'html',
+      includeImages: true,
+    })).rejects.toThrow(/corrupt|decode|invalid|malformed|image data/i);
+  });
+
   it('rejects oversized encoded image data before invoking the base64 decoder', async () => {
     const oversizedBase64 = 'A'.repeat(16 * 1024 * 1024 + 4);
     const mainOwnedSession = reviewSession();
@@ -651,6 +734,35 @@ describe('review export request security', () => {
     }
   });
 
+  it('rejects an oversized data URL before copying or lowercasing its payload', async () => {
+    const oversizedDataUrl = `DATA:image/png;base64,${'A'.repeat(16 * 1024 * 1024 + 4)}`;
+    const mainOwnedSession = reviewSession();
+    mainOwnedSession.feedbackItems[0].screenshots[0] = {
+      ...mainOwnedSession.feedbackItems[0].screenshots[0],
+      imagePath: '',
+      base64: oversizedDataUrl,
+    };
+    const originalToLowerCase = String.prototype.toLowerCase;
+    const toLowerCase = vi.spyOn(String.prototype, 'toLowerCase').mockImplementation(function () {
+      if (this.length > 128) {
+        throw new Error('whole untrusted image value lowercased before size validation');
+      }
+      return originalToLowerCase.call(this);
+    });
+
+    try {
+      await expect(trustedReviewExportSession(reviewSession(), {
+        mainOwnedSession,
+        sessionDirectory: null,
+        outputRoot: '/not-read-for-base64',
+        format: 'html',
+        includeImages: true,
+      })).rejects.toThrow(/size limit/i);
+    } finally {
+      toLowerCase.mockRestore();
+    }
+  });
+
   it('hydrates an absolute main-owned image only when it remains inside the saved session', async () => {
     const fixtureRoot = await mkdtemp(join(tmpdir(), 'markuprplus-export-images-'));
     const outputRoot = join(fixtureRoot, 'output');
@@ -673,6 +785,67 @@ describe('review export request security', () => {
 
       expect(hydrated.feedbackItems[0].screenshots[0].base64)
         .toBe(imageFixtures[0].bytes.toString('base64'));
+    } finally {
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a saved evidence file replaced between pathname validation and open', async () => {
+    const fixtureRoot = await mkdtemp(join(tmpdir(), 'markuprplus-export-race-'));
+    const outputRoot = join(fixtureRoot, 'output');
+    const sessionDirectory = join(outputRoot, 'saved-session');
+    const imagePath = join(sessionDirectory, 'screenshots', 'evidence.png');
+    try {
+      await mkdir(dirname(imagePath), { recursive: true });
+      await writeFile(imagePath, imageFixtures[0].bytes);
+      const mainOwnedSession = reviewSession();
+      mainOwnedSession.feedbackItems[0].screenshots[0].imagePath = 'screenshots/evidence.png';
+      mainOwnedSession.feedbackItems[0].screenshots[0].base64 = undefined;
+      const canonicalImagePath = await realpath(imagePath);
+      fileRaceHooks.beforeOpen = async (openedPath) => {
+        expect(openedPath).toBe(canonicalImagePath);
+        await rename(imagePath, `${imagePath}.original`);
+        // Keep size and content identical so only pathname-to-handle identity
+        // validation can detect the newly created inode.
+        await writeFile(imagePath, imageFixtures[0].bytes);
+      };
+
+      await expect(trustedReviewExportSession(reviewSession(), {
+        mainOwnedSession,
+        sessionDirectory,
+        outputRoot,
+        format: 'html',
+        includeImages: true,
+      })).rejects.toThrow(/changed|replaced|identity/i);
+    } finally {
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a saved evidence file that grows after the opened-file size check', async () => {
+    const fixtureRoot = await mkdtemp(join(tmpdir(), 'markuprplus-export-race-'));
+    const outputRoot = join(fixtureRoot, 'output');
+    const sessionDirectory = join(outputRoot, 'saved-session');
+    const imagePath = join(sessionDirectory, 'screenshots', 'evidence.png');
+    try {
+      await mkdir(dirname(imagePath), { recursive: true });
+      await writeFile(imagePath, imageFixtures[0].bytes);
+      const mainOwnedSession = reviewSession();
+      mainOwnedSession.feedbackItems[0].screenshots[0].imagePath = 'screenshots/evidence.png';
+      mainOwnedSession.feedbackItems[0].screenshots[0].base64 = undefined;
+      const canonicalImagePath = await realpath(imagePath);
+      fileRaceHooks.afterOpenedStat = async (openedPath) => {
+        expect(openedPath).toBe(canonicalImagePath);
+        await writeFile(imagePath, imageFixtures[1].bytes);
+      };
+
+      await expect(trustedReviewExportSession(reviewSession(), {
+        mainOwnedSession,
+        sessionDirectory,
+        outputRoot,
+        format: 'html',
+        includeImages: true,
+      })).rejects.toThrow(/changed|grew|size/i);
     } finally {
       await rm(fixtureRoot, { recursive: true, force: true });
     }

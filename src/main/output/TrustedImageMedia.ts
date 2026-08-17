@@ -1,4 +1,10 @@
+import { createRequire } from 'node:module';
 import type { ScreenshotMimeType } from '../../shared/types';
+
+// Electron 28 embeds a Node runtime that cannot parse sharp 0.35's ESM import
+// attributes. Loading the package's supported CommonJS export keeps the same
+// native decoder available in both Electron and current standalone Node.
+const sharp = createRequire(import.meta.url)('sharp') as typeof import('sharp').default;
 
 export const MAX_TRUSTED_IMAGE_BYTES = 12 * 1024 * 1024;
 export const MAX_TRUSTED_IMAGE_DIMENSION = 16_384;
@@ -21,6 +27,12 @@ const MIME_EXTENSIONS: Record<ScreenshotMimeType, TrustedImageMedia['extension']
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
 };
+const SHARP_FORMAT_MIME_TYPES = new Map<string, ScreenshotMimeType>([
+  ['png', 'image/png'],
+  ['jpeg', 'image/jpeg'],
+  ['webp', 'image/webp'],
+]);
+const MAX_DATA_URL_HEADER_LENGTH = 64;
 
 function hasBytes(bytes: Buffer, offset: number, signature: readonly number[]): boolean {
   return signature.every((value, index) => bytes[offset + index] === value);
@@ -175,10 +187,10 @@ function validateDimensions(
   }
 }
 
-export function inspectTrustedImageBytes(
+export async function inspectTrustedImageBytes(
   bytes: Buffer,
   screenshotId: string,
-): TrustedImageMedia {
+): Promise<TrustedImageMedia> {
   let mimeType: ScreenshotMimeType;
   let dimensions: { width: number; height: number } | null;
   if (hasBytes(bytes, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
@@ -202,6 +214,37 @@ export function inspectTrustedImageBytes(
     throw new Error(`Requested screenshot ${screenshotId} has malformed ${mimeType} image data.`);
   }
   validateDimensions(screenshotId, dimensions);
+
+  try {
+    const decoderOptions = {
+      failOn: 'warning' as const,
+      limitInputPixels: MAX_TRUSTED_IMAGE_PIXELS,
+    };
+    const metadata = await sharp(bytes, decoderOptions).metadata();
+    const decodedMimeType = metadata.format
+      ? SHARP_FORMAT_MIME_TYPES.get(metadata.format)
+      : undefined;
+    if (
+      decodedMimeType !== mimeType
+      || metadata.width !== dimensions.width
+      || metadata.height !== dimensions.height
+    ) {
+      throw new Error('decoded image metadata did not match its validated container');
+    }
+    validateDimensions(screenshotId, {
+      width: metadata.width,
+      height: metadata.height,
+    });
+    // Metadata parsing alone accepts some corrupt containers. Force libvips to
+    // decode and re-encode the bounded image before trusting its source bytes.
+    await sharp(bytes, decoderOptions).toBuffer();
+  } catch (error) {
+    throw new Error(
+      `Requested screenshot ${screenshotId} has corrupt or non-decodable ${mimeType} image data.`,
+      { cause: error },
+    );
+  }
+
   return {
     mimeType,
     extension: MIME_EXTENSIONS[mimeType],
@@ -209,16 +252,22 @@ export function inspectTrustedImageBytes(
   };
 }
 
-export function decodeTrustedImageBase64(
+export async function decodeTrustedImageBase64(
   value: string,
   screenshotId: string,
   maximumBytes = MAX_TRUSTED_IMAGE_BYTES,
   expectedMimeType?: ScreenshotMimeType,
-): DecodedTrustedImage {
+): Promise<DecodedTrustedImage> {
+  const maximumEncodedLength = Math.ceil(maximumBytes / 3) * 4;
+  if (value.length > maximumEncodedLength + MAX_DATA_URL_HEADER_LENGTH + 1) {
+    throw new Error(`Requested screenshot ${screenshotId} exceeds the export size limit.`);
+  }
+
   let declaredMimeType: string | undefined;
   let encoded = value;
-  if (value.toLowerCase().startsWith('data:')) {
-    const separator = value.indexOf(',');
+  if (value.slice(0, 5).toLowerCase() === 'data:') {
+    const boundedHeader = value.slice(0, MAX_DATA_URL_HEADER_LENGTH + 1);
+    const separator = boundedHeader.indexOf(',');
     const header = separator >= 0 ? value.slice(5, separator).toLowerCase() : '';
     if (separator < 0 || !header.endsWith(';base64')) {
       throw new Error(`Requested screenshot ${screenshotId} has invalid main-owned image data.`);
@@ -229,10 +278,12 @@ export function decodeTrustedImageBase64(
         `Requested screenshot ${screenshotId} must declare PNG, JPEG, or WebP image data.`,
       );
     }
+    if (value.length - separator - 1 > maximumEncodedLength) {
+      throw new Error(`Requested screenshot ${screenshotId} exceeds the export size limit.`);
+    }
     encoded = value.slice(separator + 1);
   }
 
-  const maximumEncodedLength = Math.ceil(maximumBytes / 3) * 4;
   if (encoded.length > maximumEncodedLength) {
     throw new Error(`Requested screenshot ${screenshotId} exceeds the export size limit.`);
   }
@@ -252,7 +303,7 @@ export function decodeTrustedImageBase64(
     );
   }
 
-  const media = inspectTrustedImageBytes(bytes, screenshotId);
+  const media = await inspectTrustedImageBytes(bytes, screenshotId);
   const declaredOrExpectedMime = declaredMimeType ?? expectedMimeType;
   if (declaredOrExpectedMime && declaredOrExpectedMime !== media.mimeType) {
     throw new Error(

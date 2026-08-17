@@ -47,6 +47,41 @@ export interface TrustedReviewExportContext {
   includeImages: boolean;
 }
 
+async function readStableOpenedImage(
+  imageHandle: Awaited<ReturnType<typeof open>>,
+  expectedSize: number,
+  screenshotId: string,
+): Promise<Buffer> {
+  if (!Number.isSafeInteger(expectedSize) || expectedSize < 0) {
+    throw new Error(`Requested screenshot ${screenshotId} has an invalid file size.`);
+  }
+  const bytes = Buffer.alloc(expectedSize);
+  let offset = 0;
+  while (offset < expectedSize) {
+    const { bytesRead } = await imageHandle.read(
+      bytes,
+      offset,
+      expectedSize - offset,
+      offset,
+    );
+    if (bytesRead === 0) {
+      throw new Error(`Requested screenshot ${screenshotId} changed while it was being read.`);
+    }
+    offset += bytesRead;
+  }
+  const extraByte = Buffer.alloc(1);
+  const { bytesRead: extraBytesRead } = await imageHandle.read(
+    extraByte,
+    0,
+    1,
+    expectedSize,
+  );
+  if (extraBytesRead !== 0) {
+    throw new Error(`Requested screenshot ${screenshotId} grew while it was being read.`);
+  }
+  return bytes;
+}
+
 function replaceControlCharacters(value: string): string {
   return Array.from(value, (character) => {
     const codePoint = character.codePointAt(0) ?? 0;
@@ -207,13 +242,28 @@ export async function trustedReviewExportSession(
         if (openedStats.size > MAX_TRUSTED_IMAGE_BYTES) {
           throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
         }
-        bytes = await imageHandle.readFile();
+        if (
+          imageStats.dev !== openedStats.dev
+          || imageStats.ino !== openedStats.ino
+          || imageStats.size !== openedStats.size
+        ) {
+          throw new Error(`Requested screenshot ${screenshot.id} was replaced or changed before it was opened.`);
+        }
+        bytes = await readStableOpenedImage(imageHandle, openedStats.size, screenshot.id);
+        const finalStats = await imageHandle.stat();
+        if (
+          openedStats.dev !== finalStats.dev
+          || openedStats.ino !== finalStats.ino
+          || openedStats.size !== finalStats.size
+        ) {
+          throw new Error(`Requested screenshot ${screenshot.id} changed while it was being read.`);
+        }
       } finally {
         await imageHandle.close();
       }
-      media = inspectTrustedImageBytes(bytes, screenshot.id);
+      media = await inspectTrustedImageBytes(bytes, screenshot.id);
     } else if (trusted.base64) {
-      const decoded = decodeTrustedImageBase64(trusted.base64, screenshot.id);
+      const decoded = await decodeTrustedImageBase64(trusted.base64, screenshot.id);
       bytes = decoded.bytes;
       media = decoded.media;
     } else {

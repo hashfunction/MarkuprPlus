@@ -171,32 +171,32 @@ function markdownScreenshotFilename(
   return `fb-${itemNumber}${suffix}.${screenshotExtension(mimeType)}`;
 }
 
-function validateExportScreenshotMedia(session: Session): Session {
-  return {
-    ...session,
-    feedbackItems: session.feedbackItems.map((item) => ({
-      ...item,
-      screenshots: item.screenshots.map((screenshot) => {
-        if (!screenshot.base64) {
-          throw new Error(`Screenshot ${screenshot.id} is unavailable for export.`);
-        }
-        const { bytes, media } = decodeTrustedImageBase64(
-          screenshot.base64,
-          screenshot.id,
-          undefined,
-          screenshot.mimeType,
-        );
-        return {
-          ...screenshot,
-          imagePath: '',
-          base64: bytes.toString('base64'),
-          mimeType: media.mimeType,
-          width: media.width,
-          height: media.height,
-        };
-      }),
-    })),
-  };
+async function validateExportScreenshotMedia(session: Session): Promise<Session> {
+  const feedbackItems: FeedbackItem[] = [];
+  for (const item of session.feedbackItems) {
+    const screenshots: FeedbackItem['screenshots'] = [];
+    for (const screenshot of item.screenshots) {
+      if (!screenshot.base64) {
+        throw new Error(`Screenshot ${screenshot.id} is unavailable for export.`);
+      }
+      const { bytes, media } = await decodeTrustedImageBase64(
+        screenshot.base64,
+        screenshot.id,
+        undefined,
+        screenshot.mimeType,
+      );
+      screenshots.push({
+        ...screenshot,
+        imagePath: '',
+        base64: bytes.toString('base64'),
+        mimeType: media.mimeType,
+        width: media.width,
+        height: media.height,
+      });
+    }
+    feedbackItems.push({ ...item, screenshots });
+  }
+  return { ...session, feedbackItems };
 }
 
 async function writeMarkdownAssets(
@@ -255,7 +255,7 @@ async function writeMarkdownAssets(
       if (!isContainedPath(canonicalAssetsDirectory, assetPath)) {
         throw new Error('Unable to create a contained Markdown screenshot asset.');
       }
-      const { bytes } = decodeTrustedImageBase64(
+      const { bytes } = await decodeTrustedImageBase64(
         screenshot.base64,
         screenshot.id,
         undefined,
@@ -387,7 +387,7 @@ class ExportServiceImpl {
 
     // Generate HTML content
     const exportSession = includeImages
-      ? validateExportScreenshotMedia(session)
+      ? await validateExportScreenshotMedia(session)
       : stripExportScreenshots(session);
     const htmlContent = generateHtmlDocument(
       exportSession, {
@@ -409,13 +409,13 @@ class ExportServiceImpl {
         offscreen: true,
       },
     });
-    protectRendererNavigation(pdfWindow.webContents);
 
     let temporaryDirectory = '';
     let result: ExportResult | undefined;
     let primaryError: unknown;
     let primaryFailed = false;
     try {
+      protectRendererNavigation(pdfWindow.webContents);
       // Use an exclusive private namespace so another local process cannot
       // pre-create or redirect Chromium's staging document.
       temporaryDirectory = await fs.mkdtemp(path.join(tmpdir(), 'markuprplus-pdf-export-'));
@@ -494,7 +494,7 @@ class ExportServiceImpl {
     const { outputPath, projectName, includeImages = true, theme = 'dark' } = options;
 
     const exportSession = includeImages
-      ? validateExportScreenshotMedia(session)
+      ? await validateExportScreenshotMedia(session)
       : stripExportScreenshots(session);
     const htmlContent = generateHtmlDocument(
       exportSession, {
@@ -576,7 +576,7 @@ class ExportServiceImpl {
             .map((item) => item.id),
     );
     const exportSession = includeImages
-      ? validateExportScreenshotMedia(session)
+      ? await validateExportScreenshotMedia(session)
       : stripExportScreenshots(session);
 
     const document = markdownGenerator.generateFullDocument(exportSession, {
