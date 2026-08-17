@@ -153,7 +153,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const renderTabContent = useMemo(() => {
     switch (s.activeTab) {
       case 'general':
-        return <GeneralTab settings={s.settings} onSettingChange={s.handleSettingChange} onResetSection={s.resetGeneralSection} />;
+        return <GeneralTab settings={s.settings} onSettingChange={s.handleSettingChange} />;
       case 'recording':
         return <RecordingTab settings={s.settings} audioDevices={s.audioDevices} onSettingChange={s.handleSettingChange} onResetSection={s.resetRecordingSection} />;
       case 'appearance':
@@ -202,7 +202,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,
     s.handleAnthropicApiKeyChange, s.handleToggleAnthropicApiKeyVisibility, s.handleTestAnthropicApiKey,
     s.handleClearAllData, s.handleExportSettings, s.handleImportSettings,
-    s.resetGeneralSection, s.resetRecordingSection, s.resetAppearanceSection, s.resetHotkeysSection, s.resetAdvancedSection,
+    s.resetRecordingSection, s.resetAppearanceSection, s.resetHotkeysSection, s.resetAdvancedSection,
   ]);
 
   if (!isOpen) return null;

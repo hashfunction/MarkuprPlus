@@ -253,13 +253,6 @@ export class MenuManager {
         label: 'View',
         submenu: [
           {
-            label: 'Toggle Transcription Preview',
-            accelerator: 'CmdOrCtrl+T',
-            type: 'checkbox',
-            checked: this.getSetting('showTranscriptionPreview'),
-            click: () => this.toggleSetting('showTranscriptionPreview'),
-          },
-          {
             label: 'Toggle Audio Waveform',
             type: 'checkbox',
             checked: this.getSetting('showAudioWaveform'),
@@ -416,7 +409,6 @@ export class MenuManager {
     } catch {
       // Return sensible defaults if settings not available
       const defaults: Record<string, unknown> = {
-        showTranscriptionPreview: true,
         showAudioWaveform: true,
         theme: 'system',
       };
@@ -445,7 +437,7 @@ export class MenuManager {
    * Toggle a boolean setting
    */
   private toggleSetting(
-    key: 'showTranscriptionPreview' | 'showAudioWaveform'
+    key: 'showAudioWaveform'
   ): void {
     const current = this.getSetting(key);
     this.setSetting(key, !current);

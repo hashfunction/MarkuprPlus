@@ -77,6 +77,21 @@ describe('native application menu public brand', () => {
       .toHaveBeenCalledWith('https://markuprplus.com');
   });
 
+  it('offers only View toggles that change the current renderer', () => {
+    const manager = new MenuManager();
+    manager.initialize({
+      isDestroyed: () => false,
+      webContents: { send: vi.fn() },
+    } as never);
+    const viewMenu = nativeMenuState.template.find((item) => item.label === 'View');
+    const labels = (viewMenu?.submenu as MenuItemConstructorOptions[])
+      .map((item) => item.label)
+      .filter(Boolean);
+
+    expect(labels).toContain('Toggle Audio Waveform');
+    expect(labels).not.toContain('Toggle Transcription Preview');
+  });
+
   it.each([
     ['a rejected launch promise', () => Promise.reject(new Error('no browser'))],
     ['a synchronous shell failure', () => { throw new Error('shell unavailable'); }],

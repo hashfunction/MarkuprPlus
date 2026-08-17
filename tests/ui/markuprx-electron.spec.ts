@@ -2861,6 +2861,38 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(aiSetup).toBeFocused();
   });
 
+  test('shows only settings and View controls backed by current behavior', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const viewLabels = await application.evaluate(({ Menu }) => (
+      Menu.getApplicationMenu()?.items
+        .find((item) => item.label === 'View')
+        ?.submenu?.items.map((item) => item.label).filter(Boolean) ?? []
+    ));
+    expect(viewLabels).toContain('Toggle Audio Waveform');
+    expect(viewLabels).not.toContain('Toggle Transcription Preview');
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await expect(settings.getByText('Output Directory', { exact: true })).toBeVisible();
+    await expect(settings.getByText('Launch at Login', { exact: true })).toHaveCount(0);
+
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+    await expect(settings.getByText('Show Audio Waveform', { exact: true })).toBeVisible();
+    await expect(settings.getByText('Show Recording HUD', { exact: true })).toHaveCount(0);
+    await expect(settings.getByText('Pause Threshold', { exact: true })).toHaveCount(0);
+    await expect(settings.getByText('Minimum Time Between Captures', { exact: true }))
+      .toHaveCount(0);
+
+    await settings.getByRole('tab', { name: 'Advanced', exact: true }).click();
+    await expect(settings.getByText('Settings Management', { exact: true })).toBeVisible();
+    await expect(settings.getByText('Debug Mode', { exact: true })).toHaveCount(0);
+    await expect(settings.getByText('Keep Audio Backups', { exact: true })).toHaveCount(0);
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
   test('renders Settings as the approved portrait surface @public-screenshot', async () => {
     pinPublicScreenshotEnvironment(harness);
     const launched = await launchApplication(harness);
@@ -3537,7 +3569,7 @@ test.describe('MarkuprPlus desktop application', () => {
     await expectPortraitWindow(application, window);
   });
 
-  test('resets General settings without blanking the valid output directory', async () => {
+  test('resets retained compatibility settings without blanking the valid output directory', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -3549,7 +3581,7 @@ test.describe('MarkuprPlus desktop application', () => {
     const settings = window.getByRole('region', { name: 'Settings', exact: true });
     const outputDirectory = settings.getByLabel('Output Directory', { exact: true });
     await expect(outputDirectory).toHaveValue(harness.outputRoot);
-    await settings.getByTitle('Reset section to defaults').click();
+    await settings.getByRole('button', { name: 'Reset All to Defaults', exact: true }).click();
 
     await expect(outputDirectory).toHaveValue(harness.outputRoot);
     await expect.poll(() => window.evaluate(async () => ({

@@ -86,7 +86,7 @@ Portrait surfaces are 460 × 680 with one primary scroller. HUD sizes are intent
 
 ## Debugging
 
-Enable Debug Mode in Settings for additional local diagnostics. Prefer a minimal focused regression before editing. Record the exact failure, isolate the first incorrect boundary, and keep cleanup deterministic so test/app child processes do not leak into later runs.
+Use the local Electron/main-process logs for diagnostics. Prefer a minimal focused regression before editing. Record the exact failure, isolate the first incorrect boundary, and keep cleanup deterministic so test/app child processes do not leak into later runs.
 
 ## Packaging
 

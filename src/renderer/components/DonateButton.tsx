@@ -13,7 +13,6 @@ import {
   getCurrentDonateMessage,
   incrementDonateMessageIndex,
 } from '../donateMessages';
-import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // Types
@@ -44,7 +43,6 @@ export const DonateButton: React.FC<DonateButtonProps> = ({
   style: styleProp,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const { colors } = useTheme();
 
   // Track if we've already incremented this session
   const hasIncrementedRef = useRef(false);
@@ -74,9 +72,9 @@ export const DonateButton: React.FC<DonateButtonProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         ...styles.button,
-        color: isHovered ? colors.accent.default : colors.text.secondary,
-        borderColor: isHovered ? colors.border.focus : colors.border.default,
-        backgroundColor: isHovered ? colors.accent.subtle : colors.bg.subtle,
+        color: isHovered ? 'var(--accent-default)' : 'var(--text-secondary)',
+        borderColor: isHovered ? 'var(--border-focus)' : 'var(--border-default)',
+        backgroundColor: isHovered ? 'var(--accent-subtle)' : 'var(--bg-subtle)',
         ...styleProp,
       }}
       className={className}

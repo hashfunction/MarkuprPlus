@@ -6,7 +6,7 @@ import type {
   WhisperModelCheckResult,
 } from '../../../shared/types';
 import { useTheme } from '../../hooks/useTheme';
-import { SettingsSection, ToggleSetting, ApiKeyInput, DangerButton } from '../primitives';
+import { SettingsSection, ApiKeyInput, DangerButton } from '../primitives';
 import type { ApiKeyState } from '../primitives';
 import { styles } from './settingsStyles';
 import { AnalysisProviderSelector } from './AnalysisProviderSelector';
@@ -188,21 +188,6 @@ export const AdvancedTab: React.FC<{
       />
       </SettingsSection>
     )}
-
-    <SettingsSection title="Debug & Backup">
-      <ToggleSetting
-        label="Debug Mode"
-        description="Enable verbose logging for troubleshooting"
-        value={settings.debugMode}
-        onChange={(value) => onSettingChange('debugMode', value)}
-      />
-      <ToggleSetting
-        label="Keep Audio Backups"
-        description="Save audio recordings alongside transcriptions"
-        value={settings.keepAudioBackups}
-        onChange={(value) => onSettingChange('keepAudioBackups', value)}
-      />
-    </SettingsSection>
 
     <SettingsSection title="Settings Management">
       <div style={styles.settingRow}>

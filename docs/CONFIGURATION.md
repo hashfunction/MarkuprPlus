@@ -10,10 +10,6 @@ New sessions default to `~/Documents/markuprx`. The lower-case directory is reta
 
 A completed session can contain its recording, audio, transcript, metadata, screenshots, and generated report. Keep enough disk space for recordings and any downloaded Whisper models.
 
-### Launch at login
-
-Disabled by default. Enabling it registers the packaged app with the operating system. Development builds may not behave like an installed application.
-
 ### Updates
 
 The `checkForUpdates` setting and update IPC surface exist, but the current application does not initialize a published update feed and packaging has no release publisher configured. Treat updates as manual source updates until a signed release channel is announced.
@@ -21,7 +17,6 @@ The `checkForUpdates` setting and update IPC surface exist, but the current appl
 ## Recording
 
 - **Countdown:** `0` by default; `3` or `5` seconds are available.
-- **Transcription preview:** retained setting; current capture performs post-session transcription rather than promising live transcription.
 - **Audio waveform:** controls the recording feedback visualization.
 - **Audio device:** uses the selected input or system default.
 
@@ -35,7 +30,7 @@ Pause/resume temporarily stops and restarts capture components. It is not a prom
 - Manual screenshot hotkey: `CmdOrCtrl+Shift+S` by default.
 - Annotation tools: freehand, circle, and highlight.
 
-The retained pause-threshold and minimum-capture-interval fields are accepted for compatibility, but the current session controller does not perform automatic silence-triggered screenshots. Use manual cues or commit an annotated issue.
+The current session controller does not perform automatic silence-triggered screenshots. Use manual cues or commit an annotated issue.
 
 ## Transcription
 
@@ -89,9 +84,9 @@ Settings validates global accelerators and reports conflicts. Reset restores the
 
 ## Diagnostics and retention
 
-- Debug mode increases local diagnostic output.
-- Keep audio backups is off by default.
-- Clear All Data is destructive and asks for confirmation; back up needed sessions first.
+Session audio and recordings are saved alongside completed reports for transcription and agent handoff. Clear All Data is destructive and asks for confirmation; back up needed sessions first.
+
+Older settings files can contain `launchAtLogin`, `showTranscriptionPreview`, `pauseThreshold`, `minTimeBetweenCaptures`, `debugMode`, and `keepAudioBackups`. These keys remain accepted for import/storage compatibility, but they are not presented as active controls because the current runtime does not implement the behavior those names previously promised.
 
 MarkuprPlus does not add telemetry. Provider requests and delivery integrations are separate, explicit data flows.
 
