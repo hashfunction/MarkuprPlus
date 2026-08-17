@@ -18,6 +18,23 @@ export function isElectronTestHarnessAllowed(options: {
   return options.requested && !options.isPackaged;
 }
 
+export function getElectronTestReviewSaveDelay(options: {
+  requested: boolean;
+  isPackaged: boolean;
+  value: string | undefined;
+}): number {
+  if (!isElectronTestHarnessAllowed(options)) {
+    return 0;
+  }
+
+  const parsed = Number(options.value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+
+  return Math.min(2_000, Math.floor(parsed));
+}
+
 export interface ElectronTestDisplayLike {
   id: string | number;
   label?: string;

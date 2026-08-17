@@ -1439,6 +1439,8 @@ test.describe('MarkuprX desktop application', () => {
 
   test('records three separately narrated marked issues and generates complete evidence', async () => {
     test.setTimeout(90_000);
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ reviewSaveDelayMs: 500 });
     const launched = await launchApplication(harness);
     application = launched.application;
     const mainWindow = launched.mainWindow;
@@ -1589,6 +1591,24 @@ test.describe('MarkuprX desktop application', () => {
     expect(reviewLayout.scrollWidth).toBeLessThanOrEqual(reviewLayout.clientWidth);
     expect(reviewLayout.hasVerticalScroll).toBe(true);
 
+    const navigationDraftComment = 'Draft retained while visiting session history.';
+    await review.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
+    let draftEditor = mainWindow.getByPlaceholder('Enter feedback text...');
+    await draftEditor.fill(navigationDraftComment);
+    await draftEditor.press('Enter');
+    await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
+
+    const classifiedDraftCard = review.getByRole('listitem').nth(0);
+    await classifiedDraftCard.getByRole('button', { name: 'UX Issue', exact: true }).click();
+    await classifiedDraftCard.getByRole('button', { name: 'Bug', exact: true }).click();
+    await classifiedDraftCard.getByRole('button', { name: 'Medium', exact: true }).click();
+    await classifiedDraftCard.getByRole('button', { name: 'High', exact: true }).click();
+
+    const inlineDraftComment = 'Inline draft retained across native navigation.';
+    await review.locator('p').filter({ hasText: cases[1].comment }).first().dblclick();
+    draftEditor = mainWindow.getByPlaceholder('Enter feedback text...');
+    await draftEditor.fill(inlineDraftComment);
+
     await clickApplicationMenuItem(application, 'File', 'Session History');
     const historyFromReview = mainWindow.getByRole('region', { name: 'Session History' });
     await expect(historyFromReview).toBeVisible();
@@ -1599,8 +1619,18 @@ test.describe('MarkuprX desktop application', () => {
     await historyFromReview.getByRole('button', { name: 'Back to MarkuprX' }).click();
     await expect(review).toBeVisible();
     await expect(mainWindow.locator('.ff-portrait-surface')).toHaveCount(1);
+    await expect(mainWindow.getByText(navigationDraftComment, { exact: true })).toBeVisible();
+    await expect(review.getByRole('listitem').nth(0)
+      .getByRole('button', { name: 'Bug', exact: true })).toBeVisible();
+    await expect(review.getByRole('listitem').nth(0)
+      .getByRole('button', { name: 'High', exact: true })).toBeVisible();
+    const restoredInlineEditor = mainWindow.getByPlaceholder('Enter feedback text...');
+    await expect(restoredInlineEditor).toHaveValue(inlineDraftComment);
+    await restoredInlineEditor.press('Escape');
+    await expect(mainWindow.getByText(cases[1].comment, { exact: true })).toBeVisible();
+    await expect(mainWindow.getByText(inlineDraftComment, { exact: true })).toBeHidden();
 
-    const lightContrast = await measureReviewContrast(review, cases[0].comment);
+    const lightContrast = await measureReviewContrast(review, navigationDraftComment);
     expect(lightContrast.shellOpaque).toBe(true);
     expect(lightContrast.shellMatchesTheme).toBe(true);
     expect(lightContrast.bodyContrast).toBeGreaterThanOrEqual(4.5);
@@ -1620,6 +1650,12 @@ test.describe('MarkuprX desktop application', () => {
       return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
     });
     expect(focusAppearance).toEqual({ outlineStyle: 'solid', outlineWidth: '2px' });
+    await mainWindow.keyboard.press('ArrowDown');
+    await expect(feedbackItems.nth(1)).toHaveAttribute('aria-current', 'true');
+    await expect(feedbackItems.nth(1)).toBeFocused();
+    await mainWindow.keyboard.press('ArrowUp');
+    await expect(feedbackItems.nth(0)).toHaveAttribute('aria-current', 'true');
+    await expect(feedbackItems.nth(0)).toBeFocused();
 
     const firstMore = firstFeedback.getByRole('button', {
       name: 'More actions for feedback FB-001',
@@ -1654,7 +1690,7 @@ test.describe('MarkuprX desktop application', () => {
     feedbackMenu = firstFeedback.getByRole('menu', { name: 'Feedback actions for FB-001' });
     await feedbackMenu.getByRole('menuitem', { name: 'Move Down' }).click();
     await expect(feedbackItems.nth(0)).toContainText(cases[1].comment);
-    await expect(feedbackItems.nth(1)).toContainText(cases[0].comment);
+    await expect(feedbackItems.nth(1)).toContainText(navigationDraftComment);
     await expect(feedbackItems.nth(1)).toHaveAttribute('aria-current', 'true');
 
     const movedMore = feedbackItems.nth(1).getByRole('button', {
@@ -1665,7 +1701,7 @@ test.describe('MarkuprX desktop application', () => {
       .getByRole('menu', { name: 'Feedback actions for FB-002' })
       .getByRole('menuitem', { name: 'Move Up' })
       .click();
-    await expect(feedbackItems.nth(0)).toContainText(cases[0].comment);
+    await expect(feedbackItems.nth(0)).toContainText(navigationDraftComment);
     await expect(feedbackItems.nth(0)).toHaveAttribute('aria-current', 'true');
 
     await feedbackItems.nth(0)
@@ -1677,7 +1713,7 @@ test.describe('MarkuprX desktop application', () => {
       .click();
     await expect(mainWindow.getByPlaceholder('Enter feedback text...')).toBeFocused();
     await mainWindow.keyboard.press('Escape');
-    await expect(mainWindow.getByText(cases[0].comment, { exact: true })).toBeVisible();
+    await expect(mainWindow.getByText(navigationDraftComment, { exact: true })).toBeVisible();
 
     const thirdFeedback = feedbackItems.nth(2);
     await thirdFeedback
@@ -1714,7 +1750,8 @@ test.describe('MarkuprX desktop application', () => {
     await expect(review.getByLabel('Markdown report preview')).toBeVisible();
     await previewButton.click();
 
-    await review.locator('button[title="Click to view full size"]').first().click();
+    const invokingThumbnail = review.locator('button[title="Click to view full size"]').first();
+    await invokingThumbnail.click();
     const lightbox = mainWindow.getByRole('dialog', { name: 'Screenshot preview' });
     await expect(lightbox).toBeVisible();
     const lightboxBox = await lightbox.boundingBox();
@@ -1723,48 +1760,148 @@ test.describe('MarkuprX desktop application', () => {
     expect(lightboxBox!.y).toBeGreaterThanOrEqual(12);
     expect(lightboxBox!.x + lightboxBox!.width).toBeLessThanOrEqual(448);
     expect(lightboxBox!.y + lightboxBox!.height).toBeLessThanOrEqual(668);
-    await expect(lightbox.getByRole('button', { name: 'Close screenshot preview' })).toBeFocused();
+    const lightboxClose = lightbox.getByRole('button', { name: 'Close screenshot preview' });
+    await expect(lightboxClose).toBeFocused();
+    await mainWindow.keyboard.press('Tab');
+    await expect(lightboxClose).toBeFocused();
+    await mainWindow.keyboard.press('Shift+Tab');
+    await expect(lightboxClose).toBeFocused();
+    expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
     await mainWindow.keyboard.press('Escape');
     await expect(lightbox).toBeHidden();
+    await expect(invokingThumbnail).toBeFocused();
     await expect.poll(() => review.locator('.ff-list-item-enter').last().evaluate((element) =>
       getComputedStyle(element).opacity)).toBe('1');
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
-    await mainWindow.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
+    await mainWindow.locator('p').filter({ hasText: navigationDraftComment }).first().dblclick();
     const editor = mainWindow.getByPlaceholder('Enter feedback text...');
     const editedComment = 'Edited review: the primary action fails contrast requirements.';
     await editor.fill(editedComment);
     await editor.press('Enter');
     await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
-    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    const reviewSaveButton = mainWindow.getByRole('button', { name: 'Save', exact: true });
+    await reviewSaveButton.click();
+    await mainWindow.waitForTimeout(150);
+    await expect(mainWindow.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled();
+
+    const newerComment = 'Newer draft created while snapshot A is saving.';
+    await mainWindow.locator('p').filter({ hasText: editedComment }).first().dblclick();
+    const newerEditor = mainWindow.getByPlaceholder('Enter feedback text...');
+    await newerEditor.fill(newerComment);
+    await newerEditor.press('Enter');
+    await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
+    await expect(reviewSaveButton).toBeEnabled();
+    await reviewSaveButton.click();
     await expect.poll(async () => {
       const updated = await readFile(reportPath, 'utf8');
-      return updated.includes(editedComment);
+      return updated.includes(newerComment);
     }).toBe(true);
+    await expect(reviewSaveButton).toBeDisabled();
 
     const updatedReport = await readFile(reportPath, 'utf8');
     const updatedMetadata = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
       itemCount: number;
       screenshotCount: number;
-      reviewFeedbackItems: Array<{ transcription: string }>;
+      reviewFeedbackItems: Array<{
+        transcription: string;
+        category?: string;
+        severity?: string;
+      }>;
       markedIssues: Array<{ comment?: string; screenshotPath?: string }>;
     };
     expect(occurrences(updatedReport, cases[0].comment)).toBe(0);
-    expect(updatedReport).toContain(editedComment);
+    expect(updatedReport).toContain(newerComment);
     expect(updatedReport).toContain('./session-recording.webm');
     expect(updatedReport).toContain('./session-audio.wav');
     for (const [index, issue] of cases.entries()) {
-      expect(updatedReport).toContain(index === 0 ? editedComment : issue.comment);
+      expect(updatedReport).toContain(index === 0 ? newerComment : issue.comment);
       expect(updatedReport).toContain(
         `./screenshots/marked-issue-${String(index + 1).padStart(3, '0')}.png`,
       );
     }
-    expect(updatedMetadata.reviewFeedbackItems[0].transcription).toBe(editedComment);
+    expect(updatedMetadata.reviewFeedbackItems[0].transcription).toBe(newerComment);
+    expect(updatedMetadata.reviewFeedbackItems[0]).toMatchObject({
+      category: 'Bug',
+      severity: 'High',
+    });
     expect(updatedMetadata.markedIssues).toHaveLength(3);
-    expect(updatedMetadata.markedIssues[0].comment).toBe(editedComment);
+    expect(updatedMetadata.markedIssues[0].comment).toBe(newerComment);
     expect(updatedMetadata.screenshotCount).toBe(3);
     expect(updatedMetadata.itemCount).toBe(metadata.itemCount);
+
+    // Native drag completion must use the same identity-based move path as the
+    // overflow menu. Start from a clean save so this also proves drag marks the
+    // draft dirty without shifting selection to a different feedback item.
+    let draggedFeedback = feedbackItems.filter({ hasText: newerComment });
+    await draggedFeedback.focus();
+    await draggedFeedback.dragTo(feedbackItems.nth(1));
+    draggedFeedback = feedbackItems.filter({ hasText: newerComment });
+    await expect(draggedFeedback).toHaveAttribute('aria-current', 'true');
+    await expect(draggedFeedback).toHaveCount(1);
+    expect(await feedbackItems.allTextContents()).toEqual(expect.arrayContaining([
+      expect.stringContaining(newerComment),
+      expect.stringContaining(cases[1].comment),
+      expect.stringContaining(cases[2].comment),
+    ]));
+    await expect(feedbackItems.nth(1)).toContainText(newerComment);
+    await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
+    await expect(reviewSaveButton).toBeEnabled();
+
+    await draggedFeedback.dragTo(feedbackItems.nth(0));
+    draggedFeedback = feedbackItems.filter({ hasText: newerComment });
+    await expect(feedbackItems.nth(0)).toContainText(newerComment);
+    await expect(draggedFeedback).toHaveAttribute('aria-current', 'true');
+    await reviewSaveButton.click();
+    await expect.poll(async () => {
+      const saved = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+        reviewFeedbackItems?: Array<{ id: string }>;
+      };
+      return saved.reviewFeedbackItems?.map((item) => item.id) ?? [];
+    }).toEqual(['marked-issue-001', 'marked-issue-002', 'marked-issue-003']);
+    await expect(reviewSaveButton).toBeDisabled();
+
+    // Undo is itself a new draft mutation, even when the deletion has already
+    // been persisted. Verify both saves on disk so App's retained draft cannot
+    // make this sequence pass from renderer state alone.
+    const persistedDeleteTarget = feedbackItems.nth(2);
+    await persistedDeleteTarget
+      .getByRole('button', { name: 'More actions for feedback FB-003' })
+      .click();
+    await persistedDeleteTarget
+      .getByRole('menu', { name: 'Feedback actions for FB-003' })
+      .getByRole('menuitem', { name: 'Delete' })
+      .click();
+    await expect(feedbackItems).toHaveCount(2);
+    await expect(reviewSaveButton).toBeEnabled();
+    await reviewSaveButton.click();
+    await expect.poll(async () => {
+      const saved = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+        reviewFeedbackItems?: Array<{ id: string }>;
+      };
+      return saved.reviewFeedbackItems?.map((item) => item.id) ?? [];
+    }).toEqual(['marked-issue-001', 'marked-issue-002']);
+    await expect(reviewSaveButton).toBeDisabled();
+
+    await mainWindow.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(feedbackItems).toHaveCount(3);
+    await expect(feedbackItems.nth(2)).toContainText(cases[2].comment);
+    await expect(mainWindow.getByText('Unsaved changes', { exact: true })).toBeVisible();
+    await expect(reviewSaveButton).toBeEnabled();
+    await reviewSaveButton.click();
+    await expect.poll(async () => {
+      const saved = JSON.parse(await readFile(join(sessionDir, 'metadata.json'), 'utf8')) as {
+        reviewFeedbackItems?: Array<{ id: string }>;
+      };
+      return saved.reviewFeedbackItems?.map((item) => item.id) ?? [];
+    }).toEqual(['marked-issue-001', 'marked-issue-002', 'marked-issue-003']);
+    await expect(reviewSaveButton).toBeDisabled();
+
     await mainWindow.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
+    await expect(mainWindow.getByRole('region', { name: 'Review Editor' }).getByRole('listitem'))
+      .toHaveCount(3);
+    await mainWindow.getByRole('button', { name: 'Close', exact: true }).click();
 
     await mainWindow.getByRole('button', { name: 'Open Session History' }).click();
     const history = mainWindow.getByRole('region', { name: 'Session History' });
@@ -1847,13 +1984,15 @@ test.describe('MarkuprX desktop application', () => {
     await mainWindow.getByRole('button', { name: 'Back to MarkuprX' }).click();
     await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
     await rm(sessionDir, { recursive: true, force: true });
-    await mainWindow.locator('p').filter({ hasText: editedComment }).first().dblclick();
+    await mainWindow.locator('p').filter({ hasText: newerComment }).first().dblclick();
     const failedEditor = mainWindow.getByPlaceholder('Enter feedback text...');
     const unsavedComment = 'This edit must remain visible after save fails.';
     await failedEditor.fill(unsavedComment);
     await failedEditor.press('Enter');
     await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(mainWindow.getByRole('alert')).toContainText(/save|folder/i);
+    const failedSaveAlert = mainWindow.getByRole('alert');
+    await expect(failedSaveAlert).toContainText(/save|folder/i);
+    await expect(failedSaveAlert.getByRole('button', { name: 'Retry save' })).toBeEnabled();
     await expect(mainWindow.getByText(unsavedComment, { exact: true })).toBeVisible();
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
   });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createElectronTestCaptureFixtures,
   ElectronTestInputMonitor,
+  getElectronTestReviewSaveDelay,
   isElectronTestHarnessAllowed,
 } from '../../src/main/e2e/ElectronTestHarness';
 
@@ -10,6 +11,34 @@ describe('Electron test harness guard', () => {
     expect(isElectronTestHarnessAllowed({ requested: true, isPackaged: false })).toBe(true);
     expect(isElectronTestHarnessAllowed({ requested: false, isPackaged: false })).toBe(false);
     expect(isElectronTestHarnessAllowed({ requested: true, isPackaged: true })).toBe(false);
+  });
+
+  it('allows a bounded review-save delay only in the unpackaged test harness', () => {
+    expect(getElectronTestReviewSaveDelay({
+      requested: true,
+      isPackaged: false,
+      value: '500',
+    })).toBe(500);
+    expect(getElectronTestReviewSaveDelay({
+      requested: true,
+      isPackaged: true,
+      value: '500',
+    })).toBe(0);
+    expect(getElectronTestReviewSaveDelay({
+      requested: false,
+      isPackaged: false,
+      value: '500',
+    })).toBe(0);
+    expect(getElectronTestReviewSaveDelay({
+      requested: true,
+      isPackaged: false,
+      value: 'not-a-number',
+    })).toBe(0);
+    expect(getElectronTestReviewSaveDelay({
+      requested: true,
+      isPackaged: false,
+      value: '999999',
+    })).toBe(2_000);
   });
 
   it('delivers only validated, increasing input samples while running', async () => {

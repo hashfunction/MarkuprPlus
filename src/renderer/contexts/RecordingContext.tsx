@@ -19,6 +19,7 @@ import { cleanupFailedRecordingStart } from '../capture/recordingFailureCleanup'
 import { disableAnnotationDrawing } from '../capture/annotationPauseSafety';
 import { stopRecordingWithMarkedIssue } from '../capture/recordingStopSequencing';
 import { useCrashRecovery } from '../components';
+import { reconcileSavedReviewSession } from '../reviewDraftState';
 import { getOutputReadyStatus } from './outputReadyState';
 
 // ============================================================================
@@ -773,14 +774,15 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!result.success) {
         throw new Error(result.error || 'Unable to save review changes.');
       }
-      setReviewSession(updatedSession);
-      setErrorMessage(null);
+      setReviewSession((current) => reconcileSavedReviewSession(current, updatedSession));
       await loadRecentSessions();
     } catch (error) {
       const message = error instanceof Error
         ? error.message
         : 'Unable to save review changes.';
-      setErrorMessage(message);
+      // Review-save errors belong to App's session-keyed draft boundary. Keep
+      // rethrowing so that boundary can expose a retry without publishing a
+      // stale error into a newer recording session.
       throw error instanceof Error ? error : new Error(message);
     }
   }, [sessionDir, loadRecentSessions]);

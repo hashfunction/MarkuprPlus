@@ -15,12 +15,16 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type {
-  ReviewSession as Session,
   ReviewFeedbackItem as FeedbackItem,
   ReviewFeedbackCategory as FeedbackCategory,
   ReviewFeedbackSeverity as FeedbackSeverity,
 } from '../../shared/types';
 import { getContrastColor, useTheme } from '../hooks/useTheme';
+import {
+  isReviewDraftDirty,
+  type ReviewDraftAction,
+  type ReviewDraftState,
+} from '../reviewDraftState';
 import { PortraitSurface } from './PortraitSurface';
 
 // ============================================================================
@@ -28,17 +32,12 @@ import { PortraitSurface } from './PortraitSurface';
 // ============================================================================
 
 interface SessionReviewProps {
-  session: Session;
-  onSave: (session: Session) => Promise<void> | void;
+  draft: ReviewDraftState;
+  onDraftAction: (action: ReviewDraftAction) => void;
+  onSave: (session: ReviewDraftState['session'], sessionKey: string, revision: number) => Promise<void>;
   onCopy: () => void;
   onOpenFolder: () => void;
   onClose: () => void;
-}
-
-interface DeletedItem {
-  item: FeedbackItem;
-  index: number;
-  timeoutId: NodeJS.Timeout;
 }
 
 // ============================================================================
@@ -67,12 +66,15 @@ interface FeedbackItemCardProps {
   isEditing: boolean;
   isDragging: boolean;
   isMenuOpen: boolean;
+  isTabStop: boolean;
+  editText: string;
   dragOverIndex: number | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onSelect: () => void;
   onStartEdit: () => void;
-  onSaveEdit: (newText: string) => void;
+  onEditTextChange: (newText: string) => void;
+  onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
   onCategoryChange: (category: FeedbackCategory) => void;
@@ -80,11 +82,12 @@ interface FeedbackItemCardProps {
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
-  onThumbnailClick: (imagePath: string) => void;
+  onThumbnailClick: (imagePath: string, trigger: HTMLButtonElement) => void;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  cardRef: (element: HTMLDivElement | null) => void;
 }
 
 const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
@@ -94,11 +97,14 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
   isEditing,
   isDragging,
   isMenuOpen,
+  isTabStop,
+  editText,
   dragOverIndex,
   canMoveUp,
   canMoveDown,
   onSelect,
   onStartEdit,
+  onEditTextChange,
   onSaveEdit,
   onCancelEdit,
   onDelete,
@@ -112,8 +118,8 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
   onCloseMenu,
   onMoveUp,
   onMoveDown,
+  cardRef,
 }) => {
-  const [editText, setEditText] = useState(item.transcription);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showSeverityDropdown, setShowSeverityDropdown] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
@@ -130,11 +136,27 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
     General: colors.text.tertiary,
   }), [colors]);
 
+  const CATEGORY_BACKGROUNDS = useMemo((): Record<FeedbackCategory, string> => ({
+    Bug: colors.status.errorSubtle,
+    'UX Issue': colors.status.warningSubtle,
+    Suggestion: colors.accent.subtle,
+    Performance: colors.status.successSubtle,
+    Question: colors.status.infoSubtle,
+    General: colors.bg.tertiary,
+  }), [colors]);
+
   const SEVERITY_COLORS = useMemo((): Record<FeedbackSeverity, string> => ({
     Critical: colors.status.error,
     High: colors.status.warning,
     Medium: colors.status.warning,
     Low: colors.status.success,
+  }), [colors]);
+
+  const SEVERITY_BACKGROUNDS = useMemo((): Record<FeedbackSeverity, string> => ({
+    Critical: colors.status.errorSubtle,
+    High: colors.status.warningSubtle,
+    Medium: colors.status.warningSubtle,
+    Low: colors.status.successSubtle,
   }), [colors]);
 
   useEffect(() => {
@@ -143,10 +165,6 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
       editInputRef.current.select();
     }
   }, [isEditing]);
-
-  useEffect(() => {
-    setEditText(item.transcription);
-  }, [item.transcription]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -158,10 +176,10 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSaveEdit(editText);
+      onSaveEdit();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       onCancelEdit();
-      setEditText(item.transcription);
     }
   };
 
@@ -204,10 +222,11 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
 
   return (
     <div
+      ref={cardRef}
       role="listitem"
       aria-label={`Feedback ${itemLabel}`}
       aria-current={isSelected ? 'true' : undefined}
-      tabIndex={0}
+      tabIndex={isTabStop ? 0 : -1}
       className={`ff-review-item${isSelected ? ' is-selected' : ''}`}
       draggable={!isEditing && !isMenuOpen}
       onDragStart={(e) => onDragStart(e, index)}
@@ -263,9 +282,9 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
               }}
               style={{
                 ...styles.tag,
-                backgroundColor: `${CATEGORY_COLORS[category]}20`,
-                color: CATEGORY_COLORS[category],
-                borderColor: `${CATEGORY_COLORS[category]}40`,
+                backgroundColor: CATEGORY_BACKGROUNDS[category],
+                color: colors.text.primary,
+                borderColor: CATEGORY_COLORS[category],
               }}
             >
               {category}
@@ -311,9 +330,9 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
               }}
               style={{
                 ...styles.tag,
-                backgroundColor: `${SEVERITY_COLORS[severity]}20`,
-                color: SEVERITY_COLORS[severity],
-                borderColor: `${SEVERITY_COLORS[severity]}40`,
+                backgroundColor: SEVERITY_BACKGROUNDS[severity],
+                color: colors.text.primary,
+                borderColor: SEVERITY_COLORS[severity],
               }}
             >
               {severity}
@@ -430,9 +449,8 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
           <textarea
             ref={editInputRef}
             value={editText}
-            onChange={(e) => setEditText(e.target.value)}
+            onChange={(e) => onEditTextChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={() => onSaveEdit(editText)}
             style={styles.editTextarea}
             placeholder="Enter feedback text..."
           />
@@ -448,7 +466,7 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
                 key={screenshot.id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onThumbnailClick(screenshot.imagePath);
+                  onThumbnailClick(screenshot.imagePath, e.currentTarget);
                 }}
                 style={styles.thumbnail}
                 title="Click to view full size"
@@ -481,7 +499,7 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
  * MarkdownPreview - Live preview of the generated output
  */
 interface MarkdownPreviewProps {
-  session: Session;
+  session: ReviewDraftState['session'];
   projectName?: string;
 }
 
@@ -576,25 +594,54 @@ const DeleteUndoToast: React.FC<DeleteUndoToastProps> = ({ itemId, onUndo, progr
  */
 interface ImageLightboxProps {
   imagePath: string;
+  returnFocus: HTMLButtonElement;
   onClose: () => void;
 }
 
-const ImageLightbox: React.FC<ImageLightboxProps> = ({ imagePath, onClose }) => {
+const ImageLightbox: React.FC<ImageLightboxProps> = ({ imagePath, returnFocus, onClose }) => {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     closeButtonRef.current?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
         onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), '
+          + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ) ?? [])].filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        e.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const activeIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      const shouldWrapBackward = e.shiftKey && activeIndex <= 0;
+      const shouldWrapForward = !e.shiftKey && activeIndex === focusable.length - 1;
+      if (activeIndex < 0 || shouldWrapBackward || shouldWrapForward) {
+        e.preventDefault();
+        const target = shouldWrapBackward ? focusable[focusable.length - 1] : focusable[0];
+        target.focus();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (returnFocus.isConnected) returnFocus.focus();
+    };
+  }, [onClose, returnFocus]);
 
   return (
     <div
+      ref={dialogRef}
       className="ff-contained-lightbox ff-dialog-enter"
       style={styles.lightboxOverlay}
       role="dialog"
@@ -641,74 +688,74 @@ function formatDuration(ms: number): string {
 // ============================================================================
 
 const SessionReview: React.FC<SessionReviewProps> = ({
-  session,
+  draft,
+  onDraftAction,
   onSave,
   onCopy,
   onOpenFolder,
   onClose,
 }) => {
   const { colors } = useTheme();
-  // State
-  const [items, setItems] = useState<FeedbackItem[]>(session.feedbackItems);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([]);
+  const { session } = draft;
+  const items = session.feedbackItems;
+  const selectedIndex = draft.selectedItemId === null
+    ? null
+    : items.findIndex((item) => item.id === draft.selectedItemId);
+  const editingIndex = draft.editing === null
+    ? null
+    : items.findIndex((item) => item.id === draft.editing?.itemId);
+  const hasChanges = isReviewDraftDirty(draft);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [openMenuItemId, setOpenMenuItemId] = useState<string | null>(null);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [undoProgress, setUndoProgress] = useState(100);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{
+    imagePath: string;
+    returnFocus: HTMLButtonElement;
+  } | null>(null);
+  const [undoNow, setUndoNow] = useState(Date.now());
   const [showPreview, setShowPreview] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
 
-  // Sync items back to session
-  const currentSession = useMemo(
-    (): Session => ({
-      ...session,
-      feedbackItems: items,
-    }),
-    [session, items]
-  );
+  const handleOpenLightbox = useCallback((
+    imagePath: string,
+    returnFocus: HTMLButtonElement,
+  ) => {
+    setLightbox({ imagePath, returnFocus });
+  }, []);
+
+  const handleCloseLightbox = useCallback(() => {
+    setLightbox(null);
+  }, []);
 
   // Undo progress timer
   useEffect(() => {
-    if (deletedItems.length === 0) {
-      setUndoProgress(100);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setUndoProgress((prev) => Math.max(0, prev - 2));
-    }, UNDO_DURATION_MS / 50);
+    if (draft.deletedItems.length === 0) return;
+    const updateUndoState = () => {
+      const now = Date.now();
+      setUndoNow(now);
+      for (const deleted of draft.deletedItems) {
+        if (deleted.expiresAt <= now) {
+          onDraftAction({ type: 'expire-delete', itemId: deleted.item.id });
+        }
+      }
+    };
+    updateUndoState();
+    const interval = setInterval(updateUndoState, UNDO_DURATION_MS / 50);
 
     return () => clearInterval(interval);
-  }, [deletedItems]);
+  }, [draft.deletedItems, onDraftAction]);
 
   // Handlers
-  const handleDelete = useCallback(
-    (index: number) => {
-      const itemToDelete = items[index];
-      const timeoutId = setTimeout(() => {
-        setDeletedItems((prev) => prev.filter((d) => d.item.id !== itemToDelete.id));
-      }, UNDO_DURATION_MS);
-
-      setDeletedItems((prev) => [...prev, { item: itemToDelete, index, timeoutId }]);
-      setItems((prev) => prev.filter((_, i) => i !== index));
-      setHasChanges(true);
-      setUndoProgress(100);
-      setOpenMenuItemId(null);
-
-      if (selectedIndex === index) {
-        setSelectedIndex(null);
-      } else if (selectedIndex !== null && selectedIndex > index) {
-        setSelectedIndex(selectedIndex - 1);
-      }
-    },
-    [items, selectedIndex]
-  );
+  const handleDelete = useCallback((itemId: string) => {
+    onDraftAction({
+      type: 'delete-item',
+      itemId,
+      expiresAt: Date.now() + UNDO_DURATION_MS,
+    });
+    setOpenMenuItemId(null);
+  }, [onDraftAction]);
 
   // Handle keyboard navigation (must be after handleDelete is defined)
   useEffect(() => {
@@ -725,116 +772,68 @@ const SessionReview: React.FC<SessionReviewProps> = ({
       switch (e.key) {
         case 'ArrowUp':
           e.preventDefault();
-          setSelectedIndex((prev) =>
-            prev === null ? items.length - 1 : Math.max(0, prev - 1)
-          );
+          if (items.length > 0) {
+            const nextIndex = selectedIndex === null
+              ? items.length - 1
+              : Math.max(0, selectedIndex - 1);
+            const nextItem = items[nextIndex];
+            onDraftAction({ type: 'select-item', itemId: nextItem.id });
+            cardRefs.current.get(nextItem.id)?.focus();
+          }
           break;
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedIndex((prev) =>
-            prev === null ? 0 : Math.min(items.length - 1, prev + 1)
-          );
+          if (items.length > 0) {
+            const nextIndex = selectedIndex === null
+              ? 0
+              : Math.min(items.length - 1, selectedIndex + 1);
+            const nextItem = items[nextIndex];
+            onDraftAction({ type: 'select-item', itemId: nextItem.id });
+            cardRefs.current.get(nextItem.id)?.focus();
+          }
           break;
         case 'Delete':
         case 'Backspace':
           if (selectedIndex !== null && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
-            handleDelete(selectedIndex);
+            handleDelete(items[selectedIndex].id);
           }
           break;
         case 'Enter':
           if (selectedIndex !== null) {
             e.preventDefault();
-            setEditingIndex(selectedIndex);
+            onDraftAction({ type: 'start-edit', itemId: items[selectedIndex].id });
           }
           break;
         case 'Escape':
-          setSelectedIndex(null);
-          setEditingIndex(null);
+          onDraftAction({ type: 'select-item', itemId: null });
+          onDraftAction({ type: 'cancel-edit' });
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items.length, selectedIndex, editingIndex, openMenuItemId, handleDelete]);
-
-  const handleUndo = useCallback(
-    (deletedItem: DeletedItem) => {
-      clearTimeout(deletedItem.timeoutId);
-      setDeletedItems((prev) => prev.filter((d) => d.item.id !== deletedItem.item.id));
-      setItems((prev) => {
-        const newItems = [...prev];
-        newItems.splice(deletedItem.index, 0, deletedItem.item);
-        return newItems;
-      });
-    },
-    []
-  );
-
-  const handleSaveEdit = useCallback(
-    (index: number, newText: string) => {
-      setItems((prev) =>
-        prev.map((item, i) =>
-          i === index ? { ...item, transcription: newText } : item
-        )
-      );
-      setEditingIndex(null);
-      setHasChanges(true);
-    },
-    []
-  );
+  }, [items, selectedIndex, editingIndex, openMenuItemId, handleDelete, onDraftAction]);
 
   const handleCategoryChange = useCallback(
-    (index: number, category: FeedbackCategory) => {
-      setItems((prev) =>
-        prev.map((item, i) => (i === index ? { ...item, category } : item))
-      );
-      setHasChanges(true);
+    (itemId: string, category: FeedbackCategory) => {
+      onDraftAction({ type: 'update-item', itemId, changes: { category } });
     },
-    []
+    [onDraftAction]
   );
 
   const handleSeverityChange = useCallback(
-    (index: number, severity: FeedbackSeverity) => {
-      setItems((prev) =>
-        prev.map((item, i) => (i === index ? { ...item, severity } : item))
-      );
-      setHasChanges(true);
+    (itemId: string, severity: FeedbackSeverity) => {
+      onDraftAction({ type: 'update-item', itemId, changes: { severity } });
     },
-    []
+    [onDraftAction]
   );
 
-  const handleMove = useCallback((fromIndex: number, toIndex: number) => {
-    if (
-      fromIndex === toIndex ||
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= items.length ||
-      toIndex >= items.length
-    ) {
-      return;
-    }
-
-    setItems((previous) => {
-      const next = [...previous];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-    setSelectedIndex((previous) => {
-      if (previous === fromIndex) return toIndex;
-      if (fromIndex < toIndex && previous !== null && previous > fromIndex && previous <= toIndex) {
-        return previous - 1;
-      }
-      if (toIndex < fromIndex && previous !== null && previous >= toIndex && previous < fromIndex) {
-        return previous + 1;
-      }
-      return previous;
-    });
-    setHasChanges(true);
+  const handleMove = useCallback((itemId: string, toIndex: number) => {
+    onDraftAction({ type: 'move-item', itemId, toIndex });
     setOpenMenuItemId(null);
-  }, [items.length]);
+  }, [onDraftAction]);
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -854,27 +853,16 @@ const SessionReview: React.FC<SessionReviewProps> = ({
 
   const handleDragEnd = useCallback(() => {
     if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
-      setItems((prev) => {
-        const newItems = [...prev];
-        const [draggedItem] = newItems.splice(dragIndex, 1);
-        newItems.splice(dragOverIndex, 0, draggedItem);
-        return newItems;
-      });
-      setHasChanges(true);
+      handleMove(items[dragIndex].id, dragOverIndex);
     }
     setDragIndex(null);
     setDragOverIndex(null);
-  }, [dragIndex, dragOverIndex]);
+  }, [dragIndex, dragOverIndex, handleMove, items]);
 
-  const handleSave = useCallback(async () => {
-    try {
-      await onSave(currentSession);
-      setHasChanges(false);
-      setSaveError(null);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Unable to save review.');
-    }
-  }, [currentSession, onSave]);
+  const handleSave = useCallback(() => {
+    if (!hasChanges || draft.savingRevision !== null || draft.editing !== null) return;
+    void onSave(draft.session, draft.sessionKey, draft.revision);
+  }, [draft, hasChanges, onSave]);
 
   return (
     <div ref={containerRef} className="ff-review-shell">
@@ -903,24 +891,27 @@ const SessionReview: React.FC<SessionReviewProps> = ({
             <button type="button" onClick={onCopy}>Copy</button>
             <button
               type="button"
+              disabled={!hasChanges || draft.savingRevision !== null || draft.editing !== null}
+              aria-busy={draft.savingRevision !== null}
+              title={draft.editing ? 'Finish or cancel the active edit before saving' : undefined}
               style={{
                 backgroundColor: colors.accent.default,
                 borderColor: colors.accent.default,
                 color: getContrastColor(colors.accent.default),
               }}
-              onClick={() => { void handleSave(); }}
+              onClick={handleSave}
             >
-              Save
+              {draft.savingRevision !== null ? 'Saving…' : 'Save'}
             </button>
             <button type="button" onClick={onClose}>Close</button>
           </div>
         )}
       >
         <div className="ff-review-items">
-          {saveError && (
+          {draft.saveError && (
             <div className="ff-review-save-error" role="alert">
-              <span>{saveError}</span>
-              <button type="button" onClick={() => { void handleSave(); }}>
+              <span>{draft.saveError}</span>
+              <button type="button" disabled={draft.savingRevision !== null} onClick={handleSave}>
                 Retry save
               </button>
             </div>
@@ -950,26 +941,35 @@ const SessionReview: React.FC<SessionReviewProps> = ({
                     isEditing={editingIndex === index}
                     isDragging={dragIndex === index}
                     isMenuOpen={openMenuItemId === item.id}
+                    isTabStop={selectedIndex === index || (selectedIndex === null && index === 0)}
+                    editText={draft.editing?.itemId === item.id
+                      ? draft.editing.text
+                      : item.transcription}
                     dragOverIndex={dragOverIndex}
                     canMoveUp={index > 0}
                     canMoveDown={index < items.length - 1}
-                    onSelect={() => setSelectedIndex(index)}
-                    onStartEdit={() => setEditingIndex(index)}
-                    onSaveEdit={(newText) => handleSaveEdit(index, newText)}
-                    onCancelEdit={() => setEditingIndex(null)}
-                    onDelete={() => handleDelete(index)}
-                    onCategoryChange={(cat) => handleCategoryChange(index, cat)}
-                    onSeverityChange={(sev) => handleSeverityChange(index, sev)}
+                    onSelect={() => onDraftAction({ type: 'select-item', itemId: item.id })}
+                    onStartEdit={() => onDraftAction({ type: 'start-edit', itemId: item.id })}
+                    onEditTextChange={(text) => onDraftAction({ type: 'update-edit', text })}
+                    onSaveEdit={() => onDraftAction({ type: 'commit-edit' })}
+                    onCancelEdit={() => onDraftAction({ type: 'cancel-edit' })}
+                    onDelete={() => handleDelete(item.id)}
+                    onCategoryChange={(cat) => handleCategoryChange(item.id, cat)}
+                    onSeverityChange={(sev) => handleSeverityChange(item.id, sev)}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
-                    onThumbnailClick={setLightboxImage}
+                    onThumbnailClick={handleOpenLightbox}
                     onToggleMenu={() => setOpenMenuItemId((current) => (
                       current === item.id ? null : item.id
                     ))}
                     onCloseMenu={() => setOpenMenuItemId(null)}
-                    onMoveUp={() => handleMove(index, index - 1)}
-                    onMoveDown={() => handleMove(index, index + 1)}
+                    onMoveUp={() => handleMove(item.id, index - 1)}
+                    onMoveDown={() => handleMove(item.id, index + 1)}
+                    cardRef={(element) => {
+                      if (element) cardRefs.current.set(item.id, element);
+                      else cardRefs.current.delete(item.id);
+                    }}
                   />
                 </div>
               ))}
@@ -986,26 +986,33 @@ const SessionReview: React.FC<SessionReviewProps> = ({
 
         {showPreview && (
           <div id="markuprx-review-preview" className="ff-review-preview">
-            <MarkdownPreview session={currentSession} projectName={session.metadata?.sourceName} />
+            <MarkdownPreview session={session} projectName={session.metadata?.sourceName} />
           </div>
         )}
       </PortraitSurface>
 
-      {deletedItems.length > 0 && (
+      {draft.deletedItems.length > 0 && (
         <div style={styles.toastContainer} className="ff-toast-enter">
-          {deletedItems.map((deleted) => (
+          {draft.deletedItems.map((deleted) => (
             <DeleteUndoToast
               key={deleted.item.id}
               itemId={`FB-${(deleted.index + 1).toString().padStart(3, '0')}`}
-              onUndo={() => handleUndo(deleted)}
-              progress={undoProgress}
+              onUndo={() => onDraftAction({ type: 'undo-delete', itemId: deleted.item.id })}
+              progress={Math.max(
+                0,
+                Math.min(100, ((deleted.expiresAt - undoNow) / UNDO_DURATION_MS) * 100),
+              )}
             />
           ))}
         </div>
       )}
 
-      {lightboxImage && (
-        <ImageLightbox imagePath={lightboxImage} onClose={() => setLightboxImage(null)} />
+      {lightbox && (
+        <ImageLightbox
+          imagePath={lightbox.imagePath}
+          returnFocus={lightbox.returnFocus}
+          onClose={handleCloseLightbox}
+        />
       )}
     </div>
   );

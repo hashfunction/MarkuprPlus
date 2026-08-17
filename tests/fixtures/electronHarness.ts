@@ -16,6 +16,7 @@ export async function createElectronHarnessEnvironment(options: {
   initializeHotkeys?: boolean;
   failHotkeyPersistenceAfterRegistration?: boolean;
   processingDelayMs?: number;
+  reviewSaveDelayMs?: number;
 } = {}): Promise<ElectronHarnessEnvironment> {
   const root = await mkdtemp(join(tmpdir(), 'markuprx-electron-ui-'));
   const outputRoot = join(root, 'output');
@@ -45,6 +46,7 @@ export async function createElectronHarnessEnvironment(options: {
       MARKUPRX_E2E_FAIL_HOTKEY_PERSISTENCE_AFTER_REGISTRATION:
         options.failHotkeyPersistenceAfterRegistration ? '1' : '0',
       MARKUPRX_E2E_PROCESSING_DELAY_MS: String(options.processingDelayMs ?? 0),
+      MARKUPRX_E2E_REVIEW_SAVE_DELAY_MS: String(options.reviewSaveDelayMs ?? 0),
     },
     logs,
     outputRoot,

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import type { HotkeyConfig, SessionState } from '../shared/types';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { HotkeyConfig, ReviewSession, SessionState } from '../shared/types';
 import {
   CrashRecoveryDialog,
   Onboarding,
@@ -16,6 +16,12 @@ import {
 import { SessionHistory } from './components/SessionHistory';
 import { ToggleRecordingHint, ManualScreenshotHint, PauseResumeHint } from './components/HotkeyHint';
 import StatusIndicator from './components/StatusIndicator';
+import {
+  createReviewDraft,
+  reviewDraftReducer,
+  type ReviewDraftAction,
+  type ReviewDraftState,
+} from './reviewDraftState';
 import {
   useRecording,
   useProcessing,
@@ -117,6 +123,38 @@ const App: React.FC = () => {
   const processing = useProcessing();
   const ui = useUI();
   const applyHotkeyConfig = ui.applyHotkeyConfig;
+  const reviewSave = recording.reviewSave;
+  const [reviewDraft, setReviewDraft] = useState<ReviewDraftState | null>(() => (
+    recording.reviewSession ? createReviewDraft(recording.reviewSession) : null
+  ));
+
+  useEffect(() => {
+    setReviewDraft((current) => {
+      if (!recording.reviewSession) return null;
+      return current
+        ? reviewDraftReducer(current, { type: 'sync-session', session: recording.reviewSession })
+        : createReviewDraft(recording.reviewSession);
+    });
+  }, [recording.reviewSession]);
+
+  const updateReviewDraft = useCallback((action: ReviewDraftAction) => {
+    setReviewDraft((current) => current ? reviewDraftReducer(current, action) : current);
+  }, []);
+
+  const handleReviewSave = useCallback(async (
+    session: ReviewSession,
+    sessionKey: string,
+    revision: number,
+  ) => {
+    updateReviewDraft({ type: 'save-started', sessionKey, revision });
+    try {
+      await reviewSave(session);
+      updateReviewDraft({ type: 'save-succeeded', sessionKey, revision });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save review.';
+      updateReviewDraft({ type: 'save-failed', sessionKey, revision, message });
+    }
+  }, [reviewSave, updateReviewDraft]);
 
   // ---------------------------------------------------------------------------
   // HUD mode body class
@@ -282,10 +320,11 @@ const App: React.FC = () => {
           />
         )}
 
-        {showReviewSurface && recording.reviewSession && (
+        {showReviewSurface && reviewDraft && (
           <SessionReview
-            session={recording.reviewSession}
-            onSave={recording.reviewSave}
+            draft={reviewDraft}
+            onDraftAction={updateReviewDraft}
+            onSave={handleReviewSave}
             onCopy={recording.copyReportPath}
             onOpenFolder={recording.openReportFolder}
             onClose={recording.reviewClose}

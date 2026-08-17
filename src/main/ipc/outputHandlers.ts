@@ -5,7 +5,7 @@
  * save, clipboard, session history, export, and deletion.
  */
 
-import { ipcMain, shell } from 'electron';
+import { app, ipcMain, shell } from 'electron';
 import * as fs from 'fs/promises';
 import { join, basename, resolve } from 'path';
 import { sessionController } from '../SessionController';
@@ -16,6 +16,7 @@ import {
   generateDocumentForFileManager,
 } from '../output';
 import { updateSavedReviewSession } from '../output/SavedReviewUpdater';
+import { getElectronTestReviewSaveDelay } from '../e2e/ElectronTestHarness';
 import { processSession as aiProcessSession } from '../ai';
 import {
   IPC_CHANNELS,
@@ -50,6 +51,20 @@ interface SessionHistoryItem {
   firstThumbnail?: string;
   folder: string;
   transcriptionPreview?: string;
+}
+
+async function waitForElectronTestReviewSaveDelay(): Promise<void> {
+  const delayMs = getElectronTestReviewSaveDelay({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+    value: process.env.MARKUPRX_E2E_REVIEW_SAVE_DELAY_MS,
+  });
+
+  if (delayMs > 0) {
+    await new Promise<void>((resolveDelay) => {
+      setTimeout(resolveDelay, delayMs);
+    });
+  }
 }
 
 function extractPreviewFromMarkdown(content: string): string | undefined {
@@ -163,6 +178,7 @@ export function registerOutputHandlers(ctx: IpcContext): void {
         if (!reviewSession || typeof savedSessionDir !== 'string') {
           return { success: false, error: 'A review session and saved report folder are required.' };
         }
+        await waitForElectronTestReviewSaveDelay();
         return await updateSavedReviewSession(
           reviewSession,
           savedSessionDir,
