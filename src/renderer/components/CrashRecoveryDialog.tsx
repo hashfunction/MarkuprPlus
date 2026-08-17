@@ -7,6 +7,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ReviewSession } from '../../shared/types';
+import {
+  isTopmostContainedDialog,
+  useContainedDialogFocus,
+} from '../hooks/useContainedDialogFocus';
 import { getContrastColor, useTheme } from '../hooks/useTheme';
 
 // ============================================================================
@@ -118,6 +122,7 @@ export function CrashRecoveryDialog({
   const [showDetails, setShowDetails] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState<'recover' | 'discard' | null>(null);
   const { colors } = useTheme();
+  const dialogRef = useContainedDialogFocus<HTMLDivElement>(true);
 
   const timeSince = Date.now() - session.lastSaveTime;
   const formattedTime = formatTimeSince(timeSince);
@@ -153,6 +158,7 @@ export function CrashRecoveryDialog({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!dialogRef.current || !isTopmostContainedDialog(dialogRef.current)) return;
       if (isRecovering || isDiscarding) return;
 
       if (e.key === 'Enter' || e.key === 'r' || e.key === 'R') {
@@ -166,7 +172,7 @@ export function CrashRecoveryDialog({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRecovering, isDiscarding, handleRecover, handleDiscard]);
+  }, [isRecovering, isDiscarding, handleRecover, handleDiscard, dialogRef]);
 
   const spinnerSvg = (
     <svg style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} fill="none" viewBox="0 0 24 24">
@@ -187,37 +193,34 @@ export function CrashRecoveryDialog({
   );
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
+    <div className="ff-contained-dialog-layer" style={{
       backgroundColor: colors.bg.overlay,
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
       zIndex: 50,
-      padding: 12,
-      overflowY: 'auto',
     }}>
       {/* spin keyframe provided by animations.css */}
 
       {/* Dialog Container */}
       <div
+        ref={dialogRef}
+        className="ff-contained-dialog"
         style={{
           backgroundColor: colors.bg.secondary,
-          border: `1px solid ${colors.border.default}`,
-          borderRadius: 16,
-          padding: 24,
-          maxWidth: 448,
+          maxWidth: 436,
           width: '100%',
-          maxHeight: 'calc(100vh - 24px)',
-          overflowY: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          maxHeight: '100%',
+          minWidth: 0,
+          minHeight: 0,
         }}
         role="dialog"
+        aria-modal="true"
         aria-labelledby="recovery-title"
         aria-describedby="recovery-description"
+        tabIndex={-1}
       >
+        <div
+          className="ff-contained-dialog__body"
+          style={{ minWidth: 0, padding: 24, overflowWrap: 'anywhere' }}
+        >
         {/* Icon */}
         <div style={{
           width: 64,
@@ -292,7 +295,10 @@ export function CrashRecoveryDialog({
           ].map((row, i, arr) => (
             <div key={row.label} style={{
               display: 'flex',
+              flexWrap: 'wrap',
               justifyContent: 'space-between',
+              gap: 8,
+              minWidth: 0,
               fontSize: 14,
               marginBottom: i < arr.length - 1 ? 8 : 0,
             }}>
@@ -300,11 +306,10 @@ export function CrashRecoveryDialog({
               <span style={{
                 color: colors.text.primary,
                 fontWeight: 500,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                marginLeft: 8,
+                minWidth: 0,
                 maxWidth: 200,
+                overflowWrap: 'anywhere',
+                textAlign: 'right',
               }}>
                 {row.value}
               </span>
@@ -373,10 +378,18 @@ export function CrashRecoveryDialog({
                 { label: 'Platform', value: session.metadata.platform },
               ] : []),
             ].map((row) => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div key={row.label} style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                gap: 8,
+                minWidth: 0,
+              }}>
                 <span style={{ color: colors.text.tertiary }}>{row.label}:</span>
                 <span style={{
                   color: colors.text.secondary,
+                  minWidth: 0,
+                  overflowWrap: 'anywhere',
                   ...(row.mono ? { fontFamily: "'SF Mono', Menlo, Monaco, monospace" } : {}),
                 }}>
                   {row.value}
@@ -396,9 +409,8 @@ export function CrashRecoveryDialog({
                   {session.feedbackItems.slice(0, 3).map((item, index) => (
                     <li key={item.id || index} style={{
                       color: colors.text.secondary,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                      overflowWrap: 'anywhere',
                     }}>
                       {item.hasScreenshot && (
                         <span style={{ color: colors.text.link, marginRight: 4 }} title="Has screenshot">
@@ -450,8 +462,25 @@ export function CrashRecoveryDialog({
           </span>
         </div>
 
+          {/* Keyboard hint */}
+          <p style={{ textAlign: 'center', fontSize: 12, color: colors.text.tertiary, marginTop: 16 }}>
+            Press <kbd style={{
+              padding: '2px 6px',
+              backgroundColor: colors.bg.tertiary,
+              borderRadius: 4,
+              color: colors.text.secondary,
+            }}>Enter</kbd> to recover or{' '}
+            <kbd style={{
+              padding: '2px 6px',
+              backgroundColor: colors.bg.tertiary,
+              borderRadius: 4,
+              color: colors.text.secondary,
+            }}>Esc</kbd> to discard
+          </p>
+        </div>
+
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="ff-contained-dialog__actions" style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={handleDiscard}
             disabled={isRecovering || isDiscarding}
@@ -521,21 +550,6 @@ export function CrashRecoveryDialog({
           </button>
         </div>
 
-        {/* Keyboard hint */}
-        <p style={{ textAlign: 'center', fontSize: 12, color: colors.text.tertiary, marginTop: 16 }}>
-          Press <kbd style={{
-            padding: '2px 6px',
-            backgroundColor: colors.bg.tertiary,
-            borderRadius: 4,
-            color: colors.text.secondary,
-          }}>Enter</kbd> to recover or{' '}
-          <kbd style={{
-            padding: '2px 6px',
-            backgroundColor: colors.bg.tertiary,
-            borderRadius: 4,
-            color: colors.text.secondary,
-          }}>Esc</kbd> to discard
-        </p>
       </div>
     </div>
   );

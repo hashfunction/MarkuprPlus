@@ -14,7 +14,11 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { ReviewSession as Session } from '../../shared/types';
-import { useTheme } from '../hooks/useTheme';
+import {
+  isTopmostContainedDialog,
+  useContainedDialogFocus,
+} from '../hooks/useContainedDialogFocus';
+import { getContrastColor, useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // Types
@@ -155,11 +159,12 @@ const FormatCard: React.FC<FormatCardProps> = ({ data, isSelected, onSelect }) =
   const { colors } = useTheme();
   return (
     <button
+      type="button"
       onClick={onSelect}
       style={{
         ...styles.formatCard,
-        borderColor: isSelected ? `${colors.accent.default}b3` : 'rgba(51, 65, 85, 0.5)',
-        backgroundColor: isSelected ? `${colors.accent.default}1a` : 'rgba(31, 41, 55, 0.5)',
+        borderColor: isSelected ? colors.accent.default : colors.border.default,
+        backgroundColor: isSelected ? colors.accent.subtle : colors.bg.tertiary,
         boxShadow: isSelected ? `0 0 0 2px ${colors.accent.default}4d` : 'none',
       }}
     >
@@ -179,7 +184,12 @@ const FormatCard: React.FC<FormatCardProps> = ({ data, isSelected, onSelect }) =
         </div>
       </div>
       {isSelected && (
-        <div style={styles.selectedBadge}>
+        <div
+          style={{
+            ...styles.selectedBadge,
+            color: getContrastColor(colors.accent.default),
+          }}
+        >
           <CheckIcon />
         </div>
       )}
@@ -270,7 +280,13 @@ Export to see the full PDF.`;
         <span style={styles.previewTitle}>Preview</span>
         <span style={styles.previewFormat}>{format.toUpperCase()}</span>
       </div>
-      <pre style={styles.previewContent}>{preview}</pre>
+      <pre
+        style={styles.previewContent}
+        tabIndex={0}
+        aria-label={`${format.toUpperCase()} export preview`}
+      >
+        {preview}
+      </pre>
     </div>
   );
 };
@@ -295,6 +311,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const dialogRef = useContainedDialogFocus<HTMLDivElement>(isOpen);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -307,13 +324,19 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isExporting) {
+      if (
+        e.key === 'Escape'
+        && isOpen
+        && !isExporting
+        && dialogRef.current
+        && isTopmostContainedDialog(dialogRef.current)
+      ) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isExporting, onClose]);
+  }, [isOpen, isExporting, onClose, dialogRef]);
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -342,23 +365,35 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const showImagesOption = format !== 'json';
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
+    <div className="ff-contained-dialog-layer" style={styles.overlay} onClick={onClose}>
       {/* dialogEnter, spin, successPop keyframes provided by animations.css */}
 
       <div
+        ref={dialogRef}
+        className="ff-contained-dialog"
         style={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="markuprx-export-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>Export Feedback</h2>
-          <button onClick={onClose} style={styles.closeButton} disabled={isExporting}>
+          <h2 id="markuprx-export-title" style={styles.title}>Export Feedback</h2>
+          <button
+            type="button"
+            aria-label="Close export dialog"
+            onClick={onClose}
+            style={styles.closeButton}
+            disabled={isExporting}
+          >
             <CloseIcon />
           </button>
         </div>
 
         {/* Content */}
-        <div style={styles.content}>
+        <div className="ff-contained-dialog__body" style={styles.content}>
           {/* Left: Format Selection */}
           <div style={styles.leftPane}>
             <div style={styles.sectionTitle}>Choose Format</div>
@@ -379,8 +414,11 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
               {/* Project Name */}
               <div style={styles.optionRow}>
-                <label style={styles.optionLabel}>Project Name</label>
+                <label htmlFor="markuprx-export-project-name" style={styles.optionLabel}>
+                  Project Name
+                </label>
                 <input
+                  id="markuprx-export-project-name"
                   type="text"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
@@ -394,6 +432,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                 <div style={styles.optionRow}>
                   <label style={styles.optionLabel}>Include Images</label>
                   <button
+                    type="button"
+                    aria-label="Include images"
+                    aria-pressed={includeImages}
                     onClick={() => setIncludeImages(!includeImages)}
                     style={{
                       ...styles.toggleButton,
@@ -418,6 +459,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                   <label style={styles.optionLabel}>Theme</label>
                   <div style={styles.themeToggle}>
                     <button
+                      type="button"
                       onClick={() => setTheme('dark')}
                       style={{
                         ...styles.themeButton,
@@ -428,6 +470,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                       Dark
                     </button>
                     <button
+                      type="button"
                       onClick={() => setTheme('light')}
                       style={{
                         ...styles.themeButton,
@@ -450,7 +493,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         </div>
 
         {/* Footer */}
-        <div style={styles.footer}>
+        <div className="ff-contained-dialog__actions" style={styles.footer}>
           <div style={styles.footerInfo}>
             <span style={styles.footerItemCount}>
               {session.feedbackItems.length} items
@@ -462,14 +505,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           </div>
 
           <div style={styles.footerActions}>
-            <button onClick={onClose} style={styles.cancelButton} disabled={isExporting}>
+            <button type="button" onClick={onClose} style={styles.cancelButton} disabled={isExporting}>
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleExport}
               style={{
                 ...styles.exportButton,
                 opacity: isExporting ? 0.7 : 1,
+                color: getContrastColor(colors.accent.default),
               }}
               disabled={isExporting}
             >
@@ -506,27 +551,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
 const styles: Record<string, React.CSSProperties> = {
   overlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     zIndex: 1000,
-    backdropFilter: 'blur(4px)',
   },
 
   dialog: {
-    width: '90%',
-    maxWidth: 900,
-    maxHeight: '85vh',
-    backgroundColor: 'var(--bg-primary)',
-    borderRadius: 16,
-    border: '1px solid rgba(51, 65, 85, 0.5)',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
+    width: '100%',
+    maxWidth: 436,
+    maxHeight: '100%',
+    minWidth: 0,
+    minHeight: 0,
+    backgroundColor: 'var(--bg-elevated)',
     animation: 'dialogEnter 0.2s ease-out',
   },
 
@@ -536,13 +570,14 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '16px 20px',
+    minWidth: 0,
     borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
   },
 
   title: {
     fontSize: 18,
     fontWeight: 600,
-    color: 'var(--text-inverse)',
+    color: 'var(--text-primary)',
     margin: 0,
   },
 
@@ -564,21 +599,27 @@ const styles: Record<string, React.CSSProperties> = {
   // Content
   content: {
     display: 'flex',
+    flexDirection: 'column',
     flex: 1,
-    overflow: 'hidden',
+    minWidth: 0,
+    minHeight: 0,
+    overflowX: 'hidden',
+    overflowY: 'auto',
   },
 
   leftPane: {
-    width: '55%',
-    padding: 20,
-    overflowY: 'auto',
-    borderRight: '1px solid rgba(51, 65, 85, 0.5)',
+    width: '100%',
+    minWidth: 0,
+    padding: 16,
   },
 
   rightPane: {
-    width: '45%',
-    padding: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    width: '100%',
+    minWidth: 0,
+    minHeight: 180,
+    maxHeight: 240,
+    padding: 16,
+    backgroundColor: 'var(--surface-inset)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -596,7 +637,7 @@ const styles: Record<string, React.CSSProperties> = {
   // Format Grid
   formatGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
+    gridTemplateColumns: 'minmax(0, 1fr)',
     gap: 12,
     marginBottom: 24,
   },
@@ -641,7 +682,7 @@ const styles: Record<string, React.CSSProperties> = {
   formatName: {
     fontSize: 14,
     fontWeight: 600,
-    color: 'var(--text-inverse)',
+    color: 'var(--text-primary)',
   },
 
   formatExtension: {
@@ -667,7 +708,7 @@ const styles: Record<string, React.CSSProperties> = {
   featureTag: {
     fontSize: 10,
     color: 'var(--text-tertiary)',
-    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    backgroundColor: 'var(--surface-inset)',
     padding: '2px 6px',
     borderRadius: 4,
   },
@@ -693,6 +734,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   optionRow: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 0',
@@ -706,10 +748,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   textInput: {
-    width: 200,
+    flex: '1 1 210px',
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
     padding: '8px 12px',
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-    border: '1px solid rgba(51, 65, 85, 0.5)',
+    backgroundColor: 'var(--surface-inset)',
+    border: '1px solid var(--border-default)',
     borderRadius: 8,
     color: 'var(--text-primary)',
     fontSize: 13,
@@ -739,7 +784,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   themeToggle: {
     display: 'flex',
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
+    backgroundColor: 'var(--surface-inset)',
     borderRadius: 8,
     padding: 2,
   },
@@ -759,9 +804,9 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'rgba(31, 41, 55, 0.3)',
+    backgroundColor: 'var(--bg-tertiary)',
     borderRadius: 12,
-    border: '1px solid rgba(51, 65, 85, 0.5)',
+    border: '1px solid var(--border-default)',
     overflow: 'hidden',
   },
 
@@ -770,7 +815,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 14px',
-    borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
+    borderBottom: '1px solid var(--border-default)',
   },
 
   previewTitle: {
@@ -784,8 +829,8 @@ const styles: Record<string, React.CSSProperties> = {
   previewFormat: {
     fontSize: 10,
     fontWeight: 600,
-    color: 'var(--text-link)',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    color: 'var(--text-primary)',
+    backgroundColor: 'var(--accent-subtle)',
     padding: '2px 8px',
     borderRadius: 4,
   },
@@ -807,15 +852,18 @@ const styles: Record<string, React.CSSProperties> = {
   // Footer
   footer: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '14px 20px',
-    borderTop: '1px solid rgba(51, 65, 85, 0.5)',
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    padding: 12,
+    borderTop: '1px solid var(--border-default)',
+    backgroundColor: 'var(--surface-glass)',
   },
 
   footerInfo: {
     display: 'flex',
+    flex: '1 1 150px',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
     fontSize: 12,
@@ -836,6 +884,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   footerActions: {
     display: 'flex',
+    flex: '1 1 auto',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 10,
   },

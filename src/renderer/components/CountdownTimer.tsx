@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { hasActiveContainedDialog } from '../hooks/useContainedDialogFocus';
 import { useTheme } from '../hooks/useTheme';
 import { useReducedMotion } from '../hooks/useAnimation';
 
@@ -193,6 +194,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   // Keyboard support (Escape or Space to skip)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
+      if (hasActiveContainedDialog()) return;
       if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
         handleSkip();
@@ -325,6 +327,12 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
           .countdown-number-exiting {
             animation: countdown-number-exit 0.25s ease-out forwards;
           }
+
+          .ff-countdown-skip:focus-visible {
+            outline: 2px solid ${theme.numberColor};
+            outline-offset: 4px;
+            border-radius: 6px;
+          }
         `}
       </style>
 
@@ -340,19 +348,25 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 99999,
+          zIndex: 100,
           animation: isExiting
             ? 'countdown-overlay-exit 0.3s ease-out forwards'
             : 'countdown-overlay-enter 0.3s ease-out forwards',
         }}
       >
         <div
+          className="ff-countdown-content"
           style={{
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: 24,
+            maxWidth: 'calc(100% - 24px)',
+            maxHeight: 'calc(100% - 24px)',
+            minWidth: 0,
+            overflow: 'auto',
+            boxSizing: 'border-box',
           }}
         >
           {/* Screen reader announcement */}
@@ -443,6 +457,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
           {/* Skip instructions */}
           {phase === 'counting' && (
             <button
+              className="ff-countdown-skip"
               onClick={handleSkip}
               style={{
                 marginTop: 32,
@@ -454,7 +469,6 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
                 cursor: 'pointer',
                 transition: 'color 0.2s ease',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                outline: 'none',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = theme.skipTextHover;

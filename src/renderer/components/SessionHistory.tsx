@@ -18,6 +18,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Skeleton, SkeletonText } from './Skeleton';
 import { PortraitSurface } from './PortraitSurface';
+import {
+  hasActiveContainedDialog,
+  isTopmostContainedDialog,
+  useContainedDialogFocus,
+} from '../hooks/useContainedDialogFocus';
 import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
@@ -556,37 +561,60 @@ const DeleteConfirmDialog: React.FC<{
   onConfirm: () => void;
   onCancel: () => void;
 }> = ({ isOpen, count, onConfirm, onCancel }) => {
+  const dialogRef = useContainedDialogFocus<HTMLDivElement>(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape'
+        && dialogRef.current
+        && isTopmostContainedDialog(dialogRef.current)
+      ) {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onCancel, dialogRef]);
+
   if (!isOpen) return null;
 
   return (
-    <div style={styles.dialogOverlay}>
+    <div className="ff-contained-dialog-layer" style={styles.dialogOverlay}>
       <div style={styles.dialogBackdrop} onClick={onCancel} />
       <div
+        ref={dialogRef}
+        className="ff-contained-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="markuprx-history-delete-title"
+        aria-labelledby="markuprx-delete-sessions-title"
         aria-describedby="markuprx-history-delete-message"
+        tabIndex={-1}
         style={styles.dialog}
       >
-        <div style={styles.dialogIcon}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--status-error)" strokeWidth="1.5">
-            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+        <div className="ff-contained-dialog__body" style={styles.dialogBody}>
+          <div style={styles.dialogIcon}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--status-error)" strokeWidth="1.5">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </div>
+          <h3 id="markuprx-delete-sessions-title" style={styles.dialogTitle}>
+            Delete {count} session{count > 1 ? 's' : ''}?
+          </h3>
+          <p id="markuprx-history-delete-message" style={styles.dialogMessage}>
+            This will permanently delete the session{count > 1 ? 's' : ''} and all associated screenshots. This action
+            cannot be undone.
+          </p>
         </div>
-        <h3 id="markuprx-history-delete-title" style={styles.dialogTitle}>
-          Delete {count} session{count > 1 ? 's' : ''}?
-        </h3>
-        <p id="markuprx-history-delete-message" style={styles.dialogMessage}>
-          This will permanently delete the session{count > 1 ? 's' : ''} and all associated screenshots. This action
-          cannot be undone.
-        </p>
-        <div style={styles.dialogButtons}>
-          <button style={styles.dialogCancelButton} onClick={onCancel}>
+        <div className="ff-contained-dialog__actions" style={styles.dialogButtons}>
+          <button type="button" style={styles.dialogCancelButton} onClick={onCancel}>
             Cancel
           </button>
-          <button style={styles.dialogDeleteButton} onClick={onConfirm}>
+          <button type="button" style={styles.dialogDeleteButton} onClick={onConfirm}>
             Delete
           </button>
         </div>
@@ -940,10 +968,9 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     const handleKeyDown = (e: KeyboardEvent) => {
       // Close on Escape
       if (e.key === 'Escape') {
+        if (hasActiveContainedDialog()) return;
         if (contextMenu.visible) {
           setContextMenu((prev) => ({ ...prev, visible: false }));
-        } else if (deleteConfirm.isOpen) {
-          setDeleteConfirm({ isOpen: false, sessionIds: [] });
         } else {
           onClose();
         }
@@ -1514,11 +1541,6 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Delete Dialog
   dialogOverlay: {
-    position: 'fixed',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     zIndex: 300,
   },
 
@@ -1529,13 +1551,16 @@ const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   dialog: {
-    position: 'relative',
-    width: 320,
-    backgroundColor: 'var(--bg-elevated)',
-    borderRadius: 12,
-    padding: 24,
+    width: 'min(100%, 320px)',
+    maxWidth: '100%',
+    minWidth: 0,
     textAlign: 'center',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+  },
+
+  dialogBody: {
+    minWidth: 0,
+    padding: 24,
+    overflowWrap: 'anywhere',
   },
 
   dialogIcon: {
@@ -1561,10 +1586,13 @@ const styles: Record<string, ExtendedCSSProperties> = {
     color: 'var(--text-secondary)',
     margin: '0 0 20px',
     lineHeight: 1.5,
+    minWidth: 0,
+    overflowWrap: 'anywhere',
   },
 
   dialogButtons: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: 8,
   },
 

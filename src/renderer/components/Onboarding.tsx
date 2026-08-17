@@ -13,6 +13,10 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  isTopmostContainedDialog,
+  useContainedDialogFocus,
+} from '../hooks/useContainedDialogFocus';
 import { getContrastColor, useTheme } from '../hooks/useTheme';
 
 // ============================================================================
@@ -313,14 +317,16 @@ const WelcomeStep: React.FC<{ onNext: () => void; onSkip: () => void }> = ({
   }, []);
 
   return (
-    <div
-      style={{
-        ...styles.stepContent,
-        opacity: mounted ? 1 : 0,
-        transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-        transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
-    >
+    <>
+      <div
+        className="ff-contained-dialog__body"
+        style={{
+          ...styles.stepContent,
+          opacity: mounted ? 1 : 0,
+          transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
       {/* Animated Logo */}
       <div
         style={{
@@ -378,31 +384,32 @@ const WelcomeStep: React.FC<{ onNext: () => void; onSkip: () => void }> = ({
         </div>
       </div>
 
-      {/* Get Started Button */}
-      <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
-        Get Started
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          style={{ marginLeft: 8 }}
-        >
-          <path
-            d="M7.5 15l5-5-5-5"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      </div>
 
-      {/* Skip Option */}
-      <button style={styles.skipButton} onClick={onSkip}>
-        Skip setup, configure later
-      </button>
-    </div>
+      <div className="ff-contained-dialog__actions" style={styles.stepActions}>
+        <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
+          Get Started
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            style={{ marginLeft: 8 }}
+          >
+            <path
+              d="M7.5 15l5-5-5-5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <button style={styles.skipButton} onClick={onSkip}>
+          Skip setup, configure later
+        </button>
+      </div>
+    </>
   );
 };
 
@@ -426,7 +433,8 @@ const MicrophoneStep: React.FC<{
   };
 
   return (
-    <div style={styles.stepContent}>
+    <>
+      <div className="ff-contained-dialog__body" style={styles.stepContent}>
       {/* Illustration */}
       <div style={styles.illustrationContainer}>
         <div
@@ -558,6 +566,10 @@ const MicrophoneStep: React.FC<{
         </div>
       )}
 
+      </div>
+
+      <div className="ff-contained-dialog__actions" style={styles.stepActions}>
+
       {/* Continue Button */}
       {status === 'granted' && (
         <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
@@ -584,7 +596,8 @@ const MicrophoneStep: React.FC<{
       <button style={styles.backButton} onClick={onBack}>
         Back
       </button>
-    </div>
+      </div>
+    </>
   );
 };
 
@@ -608,7 +621,8 @@ const ScreenRecordingStep: React.FC<{
   };
 
   return (
-    <div style={styles.stepContent}>
+    <>
+      <div className="ff-contained-dialog__body" style={styles.stepContent}>
       {/* Illustration */}
       <div style={styles.illustrationContainer}>
         <div
@@ -745,6 +759,10 @@ const ScreenRecordingStep: React.FC<{
         </div>
       )}
 
+      </div>
+
+      <div className="ff-contained-dialog__actions" style={styles.stepActions}>
+
       {/* Continue Button */}
       {status === 'granted' && (
         <button style={accessiblePrimaryButton(colors.accent.default)} onClick={onNext}>
@@ -771,7 +789,8 @@ const ScreenRecordingStep: React.FC<{
       <button style={styles.backButton} onClick={onBack}>
         Back
       </button>
-    </div>
+      </div>
+    </>
   );
 };
 
@@ -807,7 +826,8 @@ const ApiKeyStep: React.FC<{
   }, []);
 
   return (
-    <div style={styles.stepContent}>
+    <>
+      <div className="ff-contained-dialog__body" style={styles.stepContent}>
       {/* Illustration */}
       <div style={styles.illustrationContainer}>
         <div
@@ -926,6 +946,10 @@ const ApiKeyStep: React.FC<{
         </div>
       )}
 
+      </div>
+
+      <div className="ff-contained-dialog__actions" style={styles.stepActions}>
+
       {/* Continue Button */}
       <button
         style={{
@@ -963,7 +987,8 @@ const ApiKeyStep: React.FC<{
       <button style={styles.backButton} onClick={onBack}>
         Back
       </button>
-    </div>
+      </div>
+    </>
   );
 };
 
@@ -992,6 +1017,7 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
       <ConfettiCanvas active={showConfetti} />
 
       <div
+        className="ff-contained-dialog__body"
         style={{
           ...styles.stepContent,
           opacity: mounted ? 1 : 0,
@@ -1075,6 +1101,10 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             <span>Each issue keeps its matching narration and screenshot</span>
           </div>
         </div>
+
+      </div>
+
+      <div className="ff-contained-dialog__actions" style={styles.stepActions}>
 
         {/* Start Button */}
         <button
@@ -1169,6 +1199,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
     error: null,
   });
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
+  const dialogRef = useContainedDialogFocus<HTMLDivElement>(true);
 
   // Navigate to next step
   const goToStep = useCallback((step: OnboardingStep, direction: 'left' | 'right' = 'left') => {
@@ -1179,6 +1210,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
   // Keyboard navigation: Enter/Right = next, Escape/Left = back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!dialogRef.current || !isTopmostContainedDialog(dialogRef.current)) return;
       // Don't intercept when typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -1202,7 +1234,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentStep, permissions, openAiApiKey.valid, anthropicApiKey.valid, goToStep, onComplete]);
+  }, [currentStep, permissions, openAiApiKey.valid, anthropicApiKey.valid, goToStep, onComplete, dialogRef]);
 
   // Check initial permission status on mount
   useEffect(() => {
@@ -1476,10 +1508,18 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
   };
 
   return (
-    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="Setup wizard">
+    <div className="ff-contained-dialog-layer" style={styles.overlay}>
       <div style={styles.backdrop} />
 
-      <div style={styles.modal}>
+      <div
+        ref={dialogRef}
+        className="ff-contained-dialog"
+        style={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Setup wizard"
+        tabIndex={-1}
+      >
         {/* Progress Dots */}
         {currentStep !== 'welcome' && currentStep !== 'success' && (
           <ProgressDots currentStep={currentStep} />
@@ -1498,6 +1538,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
         {/* Step Content with Animation */}
         <div
           key={currentStep}
+          className="ff-onboarding-step"
           style={{
             ...styles.stepWrapper,
             animation: `pageSlideIn${slideDirection === 'left' ? 'Left' : 'Right'} 0.4s ease-out`,
@@ -1522,11 +1563,6 @@ type ExtendedCSSProperties = React.CSSProperties & {
 
 const styles: Record<string, ExtendedCSSProperties> = {
   overlay: {
-    position: 'fixed',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     zIndex: 50,
   },
 
@@ -1539,26 +1575,44 @@ const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   modal: {
-    position: 'relative',
     width: '100%',
-    maxWidth: 480,
-    margin: 24,
+    maxWidth: 436,
+    maxHeight: '100%',
+    minWidth: 0,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
     backgroundColor: 'var(--bg-elevated)',
-    borderRadius: 24,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle)',
     overflow: 'hidden',
     WebkitAppRegion: 'no-drag',
   },
 
   stepWrapper: {
-    padding: '48px 40px',
+    display: 'flex',
+    flex: '1 1 auto',
+    flexDirection: 'column',
+    minWidth: 0,
+    minHeight: 0,
+    overflow: 'hidden',
+    overflowWrap: 'anywhere',
   },
 
   stepContent: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    minWidth: 0,
+    minHeight: 0,
+    padding: '32px 24px',
     textAlign: 'center',
+  },
+
+  stepActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
+    padding: '12px 24px 16px',
+    backgroundColor: 'var(--bg-elevated)',
   },
 
   // Logo
@@ -1738,6 +1792,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   // Inputs
   inputGroup: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: 8,
     width: '100%',
     maxWidth: 360,
@@ -1746,6 +1801,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   input: {
     flex: 1,
+    minWidth: 0,
     padding: '12px 16px',
     backgroundColor: 'var(--surface-inset)',
     border: '1px solid var(--border-default)',
@@ -1786,6 +1842,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
     fontSize: 13,
     color: 'var(--status-warning)',
     textAlign: 'left',
+    minWidth: 0,
+    overflowWrap: 'anywhere',
   },
 
   successBox: {
@@ -1802,6 +1860,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
     fontSize: 13,
     color: 'var(--status-success)',
     textAlign: 'left',
+    minWidth: 0,
+    overflowWrap: 'anywhere',
   },
 
   errorBox: {
@@ -1818,6 +1878,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
     fontSize: 13,
     color: 'var(--status-error)',
     textAlign: 'left',
+    minWidth: 0,
+    overflowWrap: 'anywhere',
   },
 
   // Instruction box for permission setup

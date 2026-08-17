@@ -7,7 +7,7 @@ import {
   type Page,
 } from '@playwright/test';
 import axe from 'axe-core';
-import { readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 import {
@@ -186,6 +186,32 @@ async function findOnlySessionDirectory(outputRoot: string): Promise<string> {
   return join(outputRoot, directories[0].name);
 }
 
+async function seedPortraitSession(
+  outputRoot: string,
+  options: { id: string; sourceName: string },
+): Promise<string> {
+  const sessionDir = join(outputRoot, options.id);
+  await mkdir(sessionDir, { recursive: true });
+  await writeFile(join(sessionDir, 'metadata.json'), JSON.stringify({
+    sessionId: options.id,
+    startTime: 1_700_000_000_000,
+    endTime: 1_700_000_030_000,
+    itemCount: 3,
+    screenshotCount: 2,
+    source: {
+      id: `window:${options.id}`,
+      name: options.sourceName,
+    },
+    environment: { os: 'test', version: '1' },
+  }), 'utf8');
+  await writeFile(
+    join(sessionDir, 'feedback-report.md'),
+    `# ${options.sourceName}\n\n> Portrait delete confirmation fixture.\n`,
+    'utf8',
+  );
+  return sessionDir;
+}
+
 function markedIssueSection(report: string, ordinal: number): string {
   const heading = `### MX-${String(ordinal).padStart(3, '0')}`;
   const start = report.indexOf(heading);
@@ -247,6 +273,41 @@ async function expectPortraitWindow(
   expect(overflow.viewportHeight).toBe(680);
   expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
   expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
+async function expectContainedDialog(page: Page, dialogName: string | RegExp): Promise<Locator> {
+  const dialog = page.getByRole('dialog', { name: dialogName });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveClass(/\bff-contained-dialog\b/);
+  await expect(dialog.locator('[role="dialog"]')).toHaveCount(0);
+
+  const layout = await dialog.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const layer = element.parentElement;
+    return {
+      box: {
+        left: box.left,
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+      },
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      layerClass: layer?.className ?? '',
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(layout.box.left).toBeGreaterThanOrEqual(12);
+  expect(layout.box.top).toBeGreaterThanOrEqual(12);
+  expect(layout.box.right).toBeLessThanOrEqual(448);
+  expect(layout.box.bottom).toBeLessThanOrEqual(668);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+  expect(layout.layerClass).toContain('ff-contained-dialog-layer');
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  return dialog;
 }
 
 async function measureReviewContrast(
@@ -450,6 +511,67 @@ test.describe('MarkuprX desktop application', () => {
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
   });
 
+  test('caps the configured recording countdown inside the portrait window', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Recording', exact: true }).click();
+    const countdownSetting = window.getByRole('combobox', {
+      name: 'Countdown Before Recording',
+    });
+    await countdownSetting.selectOption('5');
+    await expect(countdownSetting).toHaveValue('5');
+    await window.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    const startAction = window.getByRole('button', { name: /start session/i });
+    await expect(startAction).toBeEnabled();
+    await startAction.click();
+
+    const skipAction = window.getByRole('button', { name: /Press Esc or Space to skip/ });
+    await expect(skipAction).toBeVisible({ timeout: 1_000 });
+    const countdownContent = skipAction.locator('..');
+    await expect(countdownContent).toHaveClass(/\bff-countdown-content\b/, { timeout: 500 });
+    await expectPortraitWindow(application, window);
+
+    const layout = await countdownContent.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        overflowY: getComputedStyle(element).overflowY,
+      };
+    });
+    expect(layout.box.left).toBeGreaterThanOrEqual(12);
+    expect(layout.box.top).toBeGreaterThanOrEqual(12);
+    expect(layout.box.right).toBeLessThanOrEqual(448);
+    expect(layout.box.bottom).toBeLessThanOrEqual(668);
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+    expect(['auto', 'scroll']).toContain(layout.overflowY);
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const exportDialog = await expectContainedDialog(window, 'Export Feedback');
+    const closeExport = exportDialog.getByRole('button', { name: 'Close export dialog' });
+    await expect(closeExport).toBeFocused();
+    expect(await closeExport.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return Boolean(hit && button.contains(hit));
+    })).toBe(true);
+    await window.keyboard.press('Space');
+    await expect(exportDialog).toBeHidden();
+    await window.waitForTimeout(250);
+    await expect(countdownContent).toBeVisible();
+
+    await window.keyboard.press('Escape');
+    await expect(countdownContent).toBeHidden();
+    await expect(startAction).toBeVisible();
+    await expect(startAction).toBeFocused();
+  });
+
   test('does not expose an unconfigured repository update channel', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -490,6 +612,57 @@ test.describe('MarkuprX desktop application', () => {
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
+  test('contains history deletion, traps focus, and restores the selected session', async () => {
+    const sourceName = `Delete-${'unbroken-session-name-'.repeat(24)}`;
+    await seedPortraitSession(harness.outputRoot, {
+      id: 'portrait-delete-session',
+      sourceName,
+    });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    await expectPortraitWindow(application, window);
+    const history = window.getByRole('region', { name: 'Session History' });
+    const session = history.getByRole('listitem').filter({ hasText: sourceName });
+    await expect(session).toBeVisible();
+    await session.click();
+    await session.focus();
+    await window.keyboard.press('Delete');
+
+    let confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    const cancel = confirmation.getByRole('button', { name: 'Cancel' });
+    const deleteAction = confirmation.getByRole('button', { name: 'Delete', exact: true });
+    await expect(cancel).toBeFocused();
+    await window.getByPlaceholder('Search sessions...').focus();
+    await expect(cancel).toBeFocused();
+    await cancel.focus();
+    await window.keyboard.press('Shift+Tab');
+    await expect(deleteAction).toBeFocused();
+    await window.keyboard.press('Tab');
+    await expect(cancel).toBeFocused();
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const stackedExport = await expectContainedDialog(window, 'Export Feedback');
+    await expect(stackedExport.getByRole('button', { name: 'Close export dialog' })).toBeFocused();
+    await window.keyboard.press('Escape');
+    await expect(stackedExport).toBeHidden();
+    await expect(confirmation).toBeVisible();
+    await expect(cancel).toBeFocused();
+
+    await window.keyboard.press('Escape');
+    await expect(confirmation).toBeHidden();
+    await expect(session).toBeFocused();
+
+    await window.keyboard.press('Delete');
+    confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(session).toHaveCount(0);
+  });
+
   test('blocks renderer-initiated navigation away from the trusted application page', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -528,23 +701,43 @@ test.describe('MarkuprX desktop application', () => {
     application = launched.application;
     let window = launched.mainWindow;
 
-    const wizard = window.getByRole('dialog', { name: 'Setup wizard' });
-    await expect(wizard).toBeVisible();
+    await expectPortraitWindow(application, window);
+    const wizard = await expectContainedDialog(window, 'Setup wizard');
+    const expectWizardRegions = async (actionName: string | RegExp): Promise<void> => {
+      await expect(wizard.locator('.ff-contained-dialog__body')).toHaveCount(1);
+      const actions = wizard.locator('.ff-contained-dialog__actions');
+      await expect(actions).toHaveCount(1);
+      await expect(actions.getByRole('button', { name: actionName })).toBeVisible();
+    };
+    await expectWizardRegions('Get Started');
     const welcomeHeading = window.getByRole('heading', { name: 'Welcome to MarkuprX' });
     await expect(welcomeHeading).toBeVisible();
     await expect.poll(() => welcomeHeading.evaluate((element) =>
       getComputedStyle(element.parentElement!).opacity)).toBe('1');
+    const getStarted = wizard.getByRole('button', { name: 'Get Started' });
+    const skipSetup = wizard.getByRole('button', { name: 'Skip setup' });
+    await expect(getStarted).toBeFocused();
+    await getStarted.focus();
+    await window.keyboard.press('Shift+Tab');
+    await expect(skipSetup).toBeFocused();
+    await window.keyboard.press('Tab');
+    await expect(getStarted).toBeFocused();
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
 
-    await window.getByRole('button', { name: 'Get Started' }).click();
+    await getStarted.click();
     await expect(window.getByRole('heading', { name: 'Microphone Access' })).toBeVisible();
+    await expectWizardRegions('Continue');
     await window.getByRole('button', { name: 'Continue' }).click();
     await expect(window.getByRole('heading', { name: 'Screen Recording' })).toBeVisible();
+    await expectWizardRegions('Continue');
     await window.getByRole('button', { name: 'Continue' }).click();
+    await expectWizardRegions(/Skip for now/);
     await window.getByRole('button', { name: /Skip for now/ }).click();
+    await expectWizardRegions(/Skip — configure report generation later/);
     await window.getByRole('button', { name: /Skip — configure report generation later/ }).click();
 
     await expect(window.getByRole('heading', { name: /You're All Set!/ })).toBeVisible();
+    await expectWizardRegions('Start Your First Recording');
     await expect(window.getByText(/Hold Command \(⌘\) and drag to mark the current screen/))
       .toBeVisible();
     await expect(window.getByText(/click normally to save and clear that issue/)).toBeVisible();
@@ -564,6 +757,118 @@ test.describe('MarkuprX desktop application', () => {
     window = launched.mainWindow;
     await expect(window.getByRole('dialog', { name: 'Setup wizard' })).toBeHidden();
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+  });
+
+  test('keeps focus in only the topmost contained dialog when transient dialogs stack', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ showOnboarding: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const wizard = await expectContainedDialog(window, 'Setup wizard');
+    const getStarted = wizard.getByRole('button', { name: 'Get Started' });
+    await expect(getStarted).toBeFocused();
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const exportDialog = await expectContainedDialog(window, 'Export Feedback');
+    const closeExport = exportDialog.getByRole('button', { name: 'Close export dialog' });
+    await expect(closeExport).toBeFocused();
+
+    await getStarted.focus();
+    await expect(closeExport).toBeFocused();
+    await window.keyboard.press('Escape');
+    await expect(exportDialog).toBeHidden();
+    await expect(getStarted).toBeFocused();
+
+    const startAction = window.getByRole('button', { name: /start session/i });
+    await startAction.focus();
+    await expect(getStarted).toBeFocused();
+  });
+
+  test('contains Export inside the portrait window and restores focus on close', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    const startAction = window.getByRole('button', { name: /start session/i });
+    await startAction.focus();
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    await expectPortraitWindow(application, window);
+    const exportDialog = await expectContainedDialog(window, 'Export Feedback');
+    const closeButton = exportDialog.getByRole('button', { name: 'Close export dialog' });
+    const exportButton = exportDialog.getByRole('button', { name: /Export as/ });
+    await expect(closeButton).toBeFocused();
+    await expect(exportButton).toBeVisible();
+
+    const projectName = exportDialog.getByRole('textbox', { name: 'Project Name' });
+    await startAction.focus();
+    await expect(closeButton).toBeFocused();
+    await projectName.focus();
+    await projectName.evaluate((element) => element.setAttribute('disabled', ''));
+    await expect(closeButton).toBeFocused();
+    await projectName.evaluate((element) => element.removeAttribute('disabled'));
+    await projectName.focus();
+    await projectName.evaluate((element) => {
+      (element as HTMLElement).style.visibility = 'hidden';
+    });
+    await expect(closeButton).toBeFocused();
+    await exportDialog.locator('#markuprx-export-project-name').evaluate((element) => {
+      (element as HTMLElement).style.visibility = '';
+    });
+    await projectName.fill(`portrait-${'unbroken-export-name-'.repeat(32)}`);
+    expect(await exportDialog.evaluate((element) => element.scrollWidth <= element.clientWidth))
+      .toBe(true);
+
+    await exportDialog.evaluate((element) => {
+      const displayNoneContainer = document.createElement('div');
+      displayNoneContainer.dataset.dialogDecoy = 'true';
+      displayNoneContainer.style.display = 'none';
+      const displayNone = document.createElement('button');
+      displayNone.type = 'button';
+      displayNone.textContent = 'Display none focus decoy';
+      displayNoneContainer.append(displayNone);
+
+      const inertContainer = document.createElement('div');
+      inertContainer.dataset.dialogDecoy = 'true';
+      inertContainer.setAttribute('inert', '');
+      const inert = document.createElement('button');
+      inert.type = 'button';
+      inert.textContent = 'Inert focus decoy';
+      inertContainer.append(inert);
+
+      const ariaHiddenContainer = document.createElement('div');
+      ariaHiddenContainer.dataset.dialogDecoy = 'true';
+      ariaHiddenContainer.setAttribute('aria-hidden', 'true');
+      const ariaHidden = document.createElement('button');
+      ariaHidden.type = 'button';
+      ariaHidden.textContent = 'ARIA hidden focus decoy';
+      ariaHiddenContainer.append(ariaHidden);
+
+      const dynamic = document.createElement('button');
+      dynamic.type = 'button';
+      dynamic.dataset.dialogDynamicControl = 'true';
+      dynamic.textContent = 'Dynamic final action';
+
+      element.append(displayNoneContainer, inertContainer, ariaHiddenContainer, dynamic);
+    });
+    const dynamicAction = exportDialog.locator('[data-dialog-dynamic-control="true"]');
+    await dynamicAction.focus();
+    await window.keyboard.press('Tab');
+    await expect(closeButton).toBeFocused();
+    await dynamicAction.evaluate((element) => element.remove());
+    await closeButton.focus();
+    await window.keyboard.press('Shift+Tab');
+    await expect(exportButton).toBeFocused();
+    await exportDialog.evaluate((element) => {
+      element.querySelectorAll('[data-dialog-decoy="true"]')
+        .forEach((decoy) => decoy.remove());
+    });
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+
+    await window.keyboard.press('Escape');
+    await expect(exportDialog).toBeHidden();
+    await expect(startAction).toBeFocused();
   });
 
   test('has no serious accessibility violations on the home and settings surfaces', async () => {
@@ -1386,7 +1691,7 @@ test.describe('MarkuprX desktop application', () => {
     const input = createInputSequence(mainWindow);
     await input.next();
 
-    const recoveredComment = 'The recovered checkout button needs more contrast.';
+    const recoveredComment = `The recovered checkout button needs more contrast. ${'unbroken-recovery-note-'.repeat(18)}`;
     await drawAndCommitIssue({
       annotation,
       mainWindow,
@@ -1415,8 +1720,18 @@ test.describe('MarkuprX desktop application', () => {
     launched = await launchApplication(harness);
     application = launched.application;
     mainWindow = launched.mainWindow;
-    const recoveryDialog = mainWindow.getByRole('dialog', { name: 'Recover Previous Session?' });
-    await expect(recoveryDialog).toBeVisible();
+    await expectPortraitWindow(application, mainWindow);
+    const recoveryDialog = await expectContainedDialog(mainWindow, 'Recover Previous Session?');
+    const showDetails = recoveryDialog.getByRole('button', { name: 'Show details' });
+    const recoverAction = recoveryDialog.getByRole('button', { name: /Recover Session/ });
+    await expect(showDetails).toBeFocused();
+    await showDetails.focus();
+    await mainWindow.keyboard.press('Shift+Tab');
+    await expect(recoverAction).toBeFocused();
+    await mainWindow.keyboard.press('Tab');
+    await expect(showDetails).toBeFocused();
+    await showDetails.click();
+    await expectContainedDialog(mainWindow, 'Recover Previous Session?');
     await expect(recoveryDialog.getByText('Marked issues:')).toBeVisible();
     await expect(recoveryDialog.getByText('1', { exact: true })).toBeVisible();
     await expect(recoveryDialog.getByText('Uncommitted drawing:')).toBeVisible();
