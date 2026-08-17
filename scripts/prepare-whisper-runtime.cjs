@@ -64,6 +64,28 @@ function whisperBuildConfiguration(platform, arch) {
 function nativeBinaryArchitectures(binary) {
   if (!Buffer.isBuffer(binary) || binary.length < 8) return [];
 
+  const fatMagic = binary.readUInt32BE(0);
+  const isFat32 = fatMagic === 0xcafebabe || fatMagic === 0xbebafeca;
+  const isFat64 = fatMagic === 0xcafebabf || fatMagic === 0xbfbafeca;
+  if (isFat32 || isFat64) {
+    const littleEndian = fatMagic === 0xbebafeca || fatMagic === 0xbfbafeca;
+    const readUInt32 = (offset) => littleEndian
+      ? binary.readUInt32LE(offset)
+      : binary.readUInt32BE(offset);
+    const architectureCount = readUInt32(4);
+    const entrySize = isFat64 ? 32 : 20;
+    if (architectureCount > 64 || 8 + architectureCount * entrySize > binary.length) return [];
+    const architectures = [];
+    for (let index = 0; index < architectureCount; index += 1) {
+      const cpuType = readUInt32(8 + index * entrySize);
+      if (cpuType === 0x01000007) architectures.push('x64');
+      else if (cpuType === 0x0100000c) architectures.push('arm64');
+      else if (cpuType === 7) architectures.push('ia32');
+      else if (cpuType === 12) architectures.push('arm');
+    }
+    return [...new Set(architectures)];
+  }
+
   const magic = binary.readUInt32LE(0);
   if (magic === 0xfeedface || magic === 0xfeedfacf) {
     const cpuType = binary.readUInt32LE(4);

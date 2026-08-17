@@ -35,6 +35,11 @@ let listeners: Map<string, TrayListener[]>;
 let templates: MenuItemConstructorOptions[][];
 let builtMenus: object[];
 let managers: ITrayManager[];
+let nativeIcon: {
+  isEmpty: ReturnType<typeof vi.fn>;
+  resize: ReturnType<typeof vi.fn>;
+  setTemplateImage: ReturnType<typeof vi.fn>;
+};
 
 function createManager(platform: NodeJS.Platform): ITrayManager {
   const manager = createTrayManager(platform);
@@ -78,13 +83,13 @@ describe('TrayManager native integration', () => {
     };
     vi.mocked(Tray).mockImplementation(() => tray as never);
 
-    const icon = {
+    nativeIcon = {
       isEmpty: vi.fn(() => false),
       resize: vi.fn(),
       setTemplateImage: vi.fn(),
     };
-    icon.resize.mockReturnValue(icon);
-    vi.mocked(nativeImage.createFromPath).mockReturnValue(icon as never);
+    nativeIcon.resize.mockReturnValue(nativeIcon);
+    vi.mocked(nativeImage.createFromPath).mockReturnValue(nativeIcon as never);
 
     vi.mocked(Menu.buildFromTemplate).mockImplementation((template) => {
       templates.push(template);
@@ -97,6 +102,7 @@ describe('TrayManager native integration', () => {
 
   afterEach(() => {
     managers.forEach((manager) => manager.destroy());
+    vi.useRealTimers();
   });
 
   it('uses separate macOS click events so right-click opens only the menu', () => {
@@ -251,5 +257,20 @@ describe('TrayManager native integration', () => {
       );
     });
     consoleError.mockRestore();
+  });
+
+  it('marks every loaded macOS processing frame as a Template image', async () => {
+    vi.useFakeTimers();
+    const manager = createManager('darwin');
+    manager.initialize();
+    manager.setState('processing');
+    nativeIcon.setTemplateImage.mockClear();
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(nativeImage.createFromPath).toHaveBeenLastCalledWith(
+      expect.stringContaining('tray-processing-1Template.png'),
+    );
+    expect(nativeIcon.setTemplateImage).toHaveBeenCalledWith(true);
   });
 });

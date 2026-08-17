@@ -34,14 +34,8 @@
   </g>
 
   <!-- Accent glow orbs -->
-  <circle cx="165" cy="180" r="120" fill="url(#dmgAccent)" filter="url(#dmgGlow)" opacity="0.4"/>
-  <circle cx="495" cy="180" r="120" fill="url(#dmgAccent)" filter="url(#dmgGlow)" opacity="0.4"/>
-
-  <!-- App icon placeholder area (left side) -->
-  <g transform="translate(105, 110)">
-    <rect width="120" height="120" rx="27" fill="#6366F1" opacity="0.2" stroke="#6366F1" stroke-width="2" stroke-dasharray="8 4"/>
-    <text x="60" y="150" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#94A3B8">MarkuprPlus</text>
-  </g>
+  <circle cx="180" cy="170" r="120" fill="url(#dmgAccent)" filter="url(#dmgGlow)" opacity="0.4"/>
+  <circle cx="480" cy="170" r="120" fill="url(#dmgAccent)" filter="url(#dmgGlow)" opacity="0.4"/>
 
   <!-- Arrow indicating drag direction -->
   <g transform="translate(280, 155)">
@@ -50,14 +44,6 @@
     <!-- Arrow head -->
     <polygon points="100,25 130,25 115,5" fill="white" opacity="0.4"/>
     <polygon points="100,25 130,25 115,45" fill="white" opacity="0.4"/>
-  </g>
-
-  <!-- Applications folder placeholder (right side) -->
-  <g transform="translate(435, 110)">
-    <rect width="120" height="120" rx="27" fill="#64748B" opacity="0.2" stroke="#64748B" stroke-width="2" stroke-dasharray="8 4"/>
-    <!-- Folder icon hint -->
-    <path d="M45 50 L45 90 L95 90 L95 55 L70 55 L65 50 Z" fill="#64748B" opacity="0.3"/>
-    <text x="60" y="150" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#94A3B8">Applications</text>
   </g>
 
   <!-- Install instruction text -->

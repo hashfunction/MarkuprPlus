@@ -8,7 +8,9 @@
 
 ## Layout
 
-The DMG window displays a drag-to-install interface:
+The DMG window displays a drag-to-install interface. Finder supplies the app
+and Applications icons and their labels; the background deliberately does not
+draw duplicate placeholders or labels beneath them.
 
 ```
 +----------------------------------------------------------+
@@ -35,6 +37,7 @@ The DMG window displays a drag-to-install interface:
 2. **Colors**: Match MarkuprPlus brand (indigo/purple accent)
 3. **Style**: Clean, minimal, professional
 4. **Contrast**: Ensure icons are visible against background
+5. **Alignment**: Background glows are centered at Finder's exact item coordinates
 
 ## Regenerating the Background
 

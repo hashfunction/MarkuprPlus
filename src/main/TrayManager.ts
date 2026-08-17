@@ -138,6 +138,7 @@ class TrayManagerImpl implements ITrayManager {
   private createIconCanvas(state: TrayState, size: number): string {
     const center = size / 2;
     const radius = size / 2 - 2;
+    const isTemplate = this.platform === 'darwin';
 
     let svg: string;
 
@@ -173,7 +174,14 @@ class TrayManagerImpl implements ITrayManager {
 
       case 'complete':
         // Green circle with checkmark (success state)
-        svg = `
+        svg = isTemplate ? `
+          <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="${center}" cy="${center}" r="${radius}"
+                    fill="none" stroke="black" stroke-width="2"/>
+            <path d="M${center - 4} ${center}l3 3 5-5" stroke="black" stroke-width="2"
+                  fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        ` : `
           <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <circle cx="${center}" cy="${center}" r="${radius}" fill="#10B981"/>
             <path d="M${center - 4} ${center}l3 3 5-5" stroke="white" stroke-width="2"
@@ -184,12 +192,19 @@ class TrayManagerImpl implements ITrayManager {
 
       case 'error':
         // Warning triangle (error state)
-        svg = `
+        svg = isTemplate ? `
+          <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="${center},4 ${size - 4},${size - 4} 4,${size - 4}"
+                     fill="none" stroke="black" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M${center} 11V19" stroke="black" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="${center}" cy="23" r="1.25" fill="black"/>
+          </svg>
+        ` : `
           <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <polygon points="${center},4 ${size - 4},${size - 4} 4,${size - 4}"
                      fill="#FF9500" stroke="#FF9500" stroke-width="1"/>
-            <text x="${center}" y="${size - 8}" text-anchor="middle"
-                  fill="white" font-size="16" font-weight="bold">!</text>
+            <path d="M${center} 11V19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="${center}" cy="23" r="1.25" fill="white"/>
           </svg>
         `;
         break;
@@ -414,6 +429,9 @@ class TrayManagerImpl implements ITrayManager {
       const icon = nativeImage.createFromPath(iconPath);
       if (!icon.isEmpty()) {
         const resized = icon.resize({ width: 16, height: 16 });
+        if (this.platform === 'darwin') {
+          resized.setTemplateImage(true);
+        }
         this.iconCache.set(cacheKey, resized);
         return resized;
       }

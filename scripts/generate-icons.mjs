@@ -185,54 +185,6 @@ async function generateTrayIcons() {
     await svgToPng(svgPath, template2xPath, TRAY_SIZES.retina);
   }
 
-  // Generate processing animation frames
-  await generateProcessingFrames();
-}
-
-/**
- * Generate processing animation frames
- */
-async function generateProcessingFrames() {
-  console.log('\n=== Generating Processing Animation Frames ===');
-
-  const baseSvgPath = path.join(SVG_SOURCE_DIR, 'tray-icon-processing.svg');
-
-  if (!fs.existsSync(baseSvgPath)) {
-    throw new Error('Required processing icon source is missing: tray-icon-processing.svg');
-  }
-
-  const baseSvg = fs.readFileSync(baseSvgPath, 'utf8');
-
-  const dashPattern = 'stroke-dasharray="7 5"';
-  if (!baseSvg.includes(dashPattern)) {
-    throw new Error('Processing icon is missing the required spinner dash pattern');
-  }
-
-  // Generate 4 frames by advancing the spinner dash pattern.
-  for (let frame = 0; frame < 4; frame++) {
-    const dashOffset = frame * 3;
-    const frameSvg = baseSvg.replace(
-      dashPattern,
-      `${dashPattern} stroke-dashoffset="${dashOffset}"`,
-    );
-
-    const tempSvgPath = path.join(SVG_SOURCE_DIR, `tray-processing-frame-${frame}.svg`);
-    fs.writeFileSync(tempSvgPath, frameSvg);
-
-    // Generate PNGs
-    const normalPath = path.join(ASSETS_DIR, `tray-processing-${frame}.png`);
-    const templatePath = path.join(ASSETS_DIR, `tray-processing-${frame}Template.png`);
-    const retina2xPath = path.join(ASSETS_DIR, `tray-processing-${frame}@2x.png`);
-    const template2xPath = path.join(ASSETS_DIR, `tray-processing-${frame}Template@2x.png`);
-
-    await svgToPng(tempSvgPath, normalPath, TRAY_SIZES.normal);
-    await svgToPng(tempSvgPath, templatePath, TRAY_SIZES.normal);
-    await svgToPng(tempSvgPath, retina2xPath, TRAY_SIZES.retina);
-    await svgToPng(tempSvgPath, template2xPath, TRAY_SIZES.retina);
-
-    // Cleanup temp SVG
-    fs.unlinkSync(tempSvgPath);
-  }
 }
 
 /**
@@ -333,7 +285,7 @@ async function main() {
     console.log('  build/icon-*.png         - Windows icon sizes');
     console.log('  build/dmg-background.png - DMG installer background');
     console.log('  assets/logo-400.png       - Marketplace logo (400x400)');
-    console.log('  assets/tray-*.png        - Menu bar tray icons');
+    console.log('  assets/tray-icon*.png    - Source-derived menu bar icons');
     console.log('  src/renderer/assets/     - In-app logo SVGs');
   } catch (error) {
     console.error('\nError during icon generation:', error);

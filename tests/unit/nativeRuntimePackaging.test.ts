@@ -55,6 +55,28 @@ describe('native runtime packaging matrix', () => {
     expect(nativeRuntimeHook.nativeBinaryArchitectures?.(arm64MachO)).toEqual(['arm64']);
   });
 
+  it('reads both slices from a universal Mach-O header', () => {
+    const universalMachO = Buffer.alloc(48);
+    universalMachO.writeUInt32BE(0xcafebabe, 0);
+    universalMachO.writeUInt32BE(2, 4);
+    universalMachO.writeUInt32BE(0x01000007, 8);
+    universalMachO.writeUInt32BE(0x0100000c, 28);
+
+    expect(nativeRuntimeHook.nativeBinaryArchitectures?.(universalMachO))
+      .toEqual(['x64', 'arm64']);
+  });
+
+  it('reads both slices from a 64-bit universal Mach-O header', () => {
+    const universalMachO = Buffer.alloc(72);
+    universalMachO.writeUInt32BE(0xcafebabf, 0);
+    universalMachO.writeUInt32BE(2, 4);
+    universalMachO.writeUInt32BE(0x01000007, 8);
+    universalMachO.writeUInt32BE(0x0100000c, 40);
+
+    expect(nativeRuntimeHook.nativeBinaryArchitectures?.(universalMachO))
+      .toEqual(['x64', 'arm64']);
+  });
+
   it('reads Windows PE and Linux ELF architecture headers', () => {
     const windowsX64 = Buffer.alloc(128);
     windowsX64.write('MZ', 0, 'ascii');

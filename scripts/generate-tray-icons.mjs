@@ -1,8 +1,8 @@
 /**
  * Generate tray icons for all states and sizes
  *
- * Generates 40 PNGs: 5 states x 2 sizes (16x16, 32x32) x 2 variants (normal, Template)
- * Plus 4 animation frames for processing state (16 additional PNGs)
+ * Generates 36 runtime PNGs: four static states, one processing fallback,
+ * and four processing animation frames at 16x16 and 32x32 in normal/Template variants.
  *
  * States:
  * - idle: gray outline circle (microphone shape)
@@ -16,7 +16,7 @@
  */
 
 import sharp from 'sharp';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -86,11 +86,14 @@ function generateProcessingSvg(size, rotation = 0, isTemplate = false) {
  * Generate SVG for complete state (green checkmark in circle)
  */
 function generateCompleteSvg(size, isTemplate = false) {
-  const bgColor = isTemplate ? COLORS.black : COLORS.green;
+  const circle = isTemplate
+    ? `<circle cx="8" cy="8" r="6" fill="none" stroke="${COLORS.black}" stroke-width="1.5"/>`
+    : `<circle cx="8" cy="8" r="6" fill="${COLORS.green}"/>`;
+  const glyphColor = isTemplate ? COLORS.black : COLORS.white;
   return `
     <svg width="${size}" height="${size}" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="6" fill="${bgColor}"/>
-      <path d="M5 8l2 2 4-4" stroke="${COLORS.white}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      ${circle}
+      <path d="M5 8l2 2 4-4" stroke="${glyphColor}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   `.trim();
 }
@@ -99,11 +102,15 @@ function generateCompleteSvg(size, isTemplate = false) {
  * Generate SVG for error state (warning triangle)
  */
 function generateErrorSvg(size, isTemplate = false) {
-  const color = isTemplate ? COLORS.black : COLORS.orange;
+  const triangle = isTemplate
+    ? `<path d="M8 2L14 13H2L8 2Z" fill="none" stroke="${COLORS.black}" stroke-width="1.5" stroke-linejoin="round"/>`
+    : `<path d="M8 2L14 13H2L8 2Z" fill="${COLORS.orange}"/>`;
+  const glyphColor = isTemplate ? COLORS.black : COLORS.white;
   return `
     <svg width="${size}" height="${size}" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 2L14 13H2L8 2Z" fill="${color}"/>
-      <text x="8" y="11" text-anchor="middle" fill="${COLORS.white}" font-size="8" font-weight="bold" font-family="system-ui, sans-serif">!</text>
+      ${triangle}
+      <path d="M8 5.5V9" stroke="${glyphColor}" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="8" cy="11.25" r="0.75" fill="${glyphColor}"/>
     </svg>
   `.trim();
 }
@@ -112,15 +119,22 @@ function generateErrorSvg(size, isTemplate = false) {
  * Convert SVG to PNG using sharp
  */
 async function svgToPng(svg, outputPath, targetSize) {
-  // Parse the SVG to get its viewBox dimensions
-  const viewBoxMatch = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
-  const svgSize = viewBoxMatch ? parseInt(viewBoxMatch[1]) : 16;
-
-  // Create the PNG at the target size
   await sharp(Buffer.from(svg))
     .resize(targetSize, targetSize)
     .png()
     .toFile(outputPath);
+
+  const metadata = await sharp(outputPath).metadata();
+  if (metadata.format !== 'png'
+    || metadata.width !== targetSize
+    || metadata.height !== targetSize) {
+    throw new Error(
+      `Generated runtime tray asset has unexpected dimensions: ${outputPath} `
+      + `(expected ${targetSize}x${targetSize} PNG, received `
+      + `${metadata.width ?? 'unknown'}x${metadata.height ?? 'unknown'} `
+      + `${metadata.format ?? 'unknown'})`,
+    );
+  }
 }
 
 /**
@@ -239,6 +253,14 @@ async function generateIcons() {
   if (errors.length > 0) {
     console.log('\nErrors:');
     errors.forEach(({ file, error }) => console.log(`  - ${file}: ${error}`));
+    throw new Error(
+      `Failed to generate ${errors.length} runtime tray assets:\n`
+      + errors.map(({ file, error }) => `${file}: ${error}`).join('\n'),
+    );
+  }
+
+  if (generated.length !== 36) {
+    throw new Error(`Expected 36 runtime tray assets, generated ${generated.length}.`);
   }
 
   console.log('\nIcon states:');
@@ -254,5 +276,5 @@ async function generateIcons() {
 // Run the generator
 generateIcons().catch((err) => {
   console.error('Failed to generate icons:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

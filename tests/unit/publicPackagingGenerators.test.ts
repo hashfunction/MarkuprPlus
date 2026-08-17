@@ -5,11 +5,15 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import sharp from 'sharp';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.unmock('sharp');
 
 const sandboxes: string[] = [];
 
@@ -35,6 +39,10 @@ function iconGeneratorSandbox(options: {
 } = {}): string {
   const root = sandbox();
   cpSync('scripts/generate-icons.mjs', join(root, 'scripts', 'generate-icons.mjs'));
+  cpSync(
+    'scripts/generate-tray-icons.mjs',
+    join(root, 'scripts', 'generate-tray-icons.mjs'),
+  );
   cpSync('assets/svg-source', join(root, 'assets', 'svg-source'), { recursive: true });
   mkdirSync(join(root, 'src', 'renderer', 'assets'), { recursive: true });
   cpSync(
@@ -64,6 +72,32 @@ function iconGeneratorSandbox(options: {
   return root;
 }
 
+function brokenTrayGeneratorSandbox(): string {
+  const root = sandbox();
+  cpSync(
+    'scripts/generate-tray-icons.mjs',
+    join(root, 'scripts', 'generate-tray-icons.mjs'),
+  );
+  const dependency = join(root, 'node_modules', 'sharp');
+  mkdirSync(dependency, { recursive: true });
+  writeFileSync(
+    join(dependency, 'package.json'),
+    '{"name":"sharp","version":"0.0.0","type":"module","exports":"./index.mjs"}\n',
+  );
+  writeFileSync(
+    join(dependency, 'index.mjs'),
+    `export default function sharp() {
+      return {
+        resize() { return this; },
+        png() { return this; },
+        async toFile() { throw new Error('fixture tray write failure'); },
+      };
+    }
+`,
+  );
+  return root;
+}
+
 function writePackage(root: string, productName: string, homepage: string): void {
   writeFileSync(
     join(root, 'package.json'),
@@ -82,6 +116,19 @@ function pngMetadata(input: string | Buffer) {
     format: 'png',
     hasAlpha: colorType === 4 || colorType === 6,
   };
+}
+
+async function rawRgba(path: string) {
+  return sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+}
+
+function channelAt(
+  image: Awaited<ReturnType<typeof rawRgba>>,
+  x: number,
+  y: number,
+  channel: number,
+): number {
+  return image.data[(y * image.info.width + x) * image.info.channels + channel];
 }
 
 function runInstallerGenerator(productName: string): Buffer {
@@ -130,6 +177,8 @@ describe('public packaging artwork generators', () => {
 
     const result = run(join(root, 'scripts', 'generate-icons.mjs'), root);
     expect(result, result.stderr).toMatchObject({ status: 0, signal: null });
+    const trayResult = run(join(root, 'scripts', 'generate-tray-icons.mjs'), root);
+    expect(trayResult, trayResult.stderr).toMatchObject({ status: 0, signal: null });
 
     const output = join(root, 'assets', 'logo-400.png');
     expect(existsSync(output)).toBe(true);
@@ -171,6 +220,76 @@ describe('public packaging artwork generators', () => {
 
     expect(result.status).not.toBe(0);
     expect(existsSync(join(root, 'build', 'icon.ico'))).toBe(false);
+  });
+
+  it('gives all runtime tray assets one deterministic 16px/32px generator', () => {
+    const root = iconGeneratorSandbox();
+    const trayScript = join(root, 'scripts', 'generate-tray-icons.mjs');
+    const iconScript = join(root, 'scripts', 'generate-icons.mjs');
+    const trayResult = run(trayScript, root);
+    expect(trayResult, trayResult.stderr).toMatchObject({ status: 0, signal: null });
+
+    const runtimeNames = readdirSync(join(root, 'assets'))
+      .filter((name) => /^tray-(?!icon)[A-Za-z0-9@-]+\.png$/.test(name))
+      .sort();
+    expect(runtimeNames).toHaveLength(36);
+    const canonical = new Map(runtimeNames.map((name) => [
+      name,
+      readFileSync(join(root, 'assets', name)).toString('base64'),
+    ]));
+    for (const name of runtimeNames) {
+      const size = name.includes('@2x') ? 32 : 16;
+      expect(pngMetadata(join(root, 'assets', name))).toMatchObject({
+        width: size,
+        height: size,
+        format: 'png',
+      });
+    }
+
+    const iconResult = run(iconScript, root);
+    expect(iconResult, iconResult.stderr).toMatchObject({ status: 0, signal: null });
+    expect(new Map(runtimeNames.map((name) => [
+      name,
+      readFileSync(join(root, 'assets', name)).toString('base64'),
+    ]))).toEqual(canonical);
+
+    const replay = run(trayScript, root);
+    expect(replay, replay.stderr).toMatchObject({ status: 0, signal: null });
+    expect(new Map(runtimeNames.map((name) => [
+      name,
+      readFileSync(join(root, 'assets', name)).toString('base64'),
+    ]))).toEqual(canonical);
+  });
+
+  it('fails closed when any runtime tray asset cannot be generated', () => {
+    const root = brokenTrayGeneratorSandbox();
+    const result = run(join(root, 'scripts', 'generate-tray-icons.mjs'), root);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout + result.stderr).toContain('fixture tray write failure');
+  });
+
+  it('encodes complete and error Template glyphs solely in a deterministic alpha mask', async () => {
+    const root = iconGeneratorSandbox();
+    const result = run(join(root, 'scripts', 'generate-tray-icons.mjs'), root);
+    expect(result, result.stderr).toMatchObject({ status: 0, signal: null });
+
+    const complete = await rawRgba(join(root, 'assets', 'tray-completeTemplate.png'));
+    const error = await rawRgba(join(root, 'assets', 'tray-errorTemplate.png'));
+    for (const image of [complete, error]) {
+      for (let offset = 0; offset < image.data.length; offset += image.info.channels) {
+        if (image.data[offset + 3] === 0) continue;
+        expect([...image.data.subarray(offset, offset + 3)]).toEqual([0, 0, 0]);
+      }
+    }
+
+    expect(channelAt(complete, 8, 2, 3)).toBeGreaterThan(32);
+    expect(channelAt(complete, 8, 5, 3)).toBeLessThan(32);
+    expect(channelAt(complete, 7, 9, 3)).toBeGreaterThan(32);
+    expect(channelAt(error, 8, 2, 3)).toBeGreaterThan(32);
+    expect(channelAt(error, 6, 8, 3)).toBeLessThan(32);
+    expect(channelAt(error, 8, 7, 3)).toBeGreaterThan(32);
+    expect(readFileSync('scripts/generate-tray-icons.mjs', 'utf8')).not.toContain('<text');
   });
 
   it('renders installer artwork from the configured public product name', async () => {

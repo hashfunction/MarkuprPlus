@@ -28,6 +28,7 @@ const activePackagingFiles = new Set([
   'scripts/generate-installer-images.cjs',
   'scripts/generate-og-image.mjs',
   'scripts/notarize.cjs',
+  'scripts/lib/startup-probe.mjs',
   'scripts/smoke-packaged-app.mjs',
   'scripts/verify-brand.mjs',
   'scripts/verify-package.mjs',

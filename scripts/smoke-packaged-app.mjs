@@ -1,17 +1,23 @@
 #!/usr/bin/env node
 
 import { _electron as electron } from '@playwright/test';
-import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
+import { runStartupProbe } from './lib/startup-probe.mjs';
+
 const PUBLIC_PRODUCT_NAME = 'MarkuprPlus';
 
 function defaultPackagedLayout(platform, arch, releaseRoot = resolve('release')) {
   if (platform === 'darwin') {
-    const outputDirectory = arch === 'arm64' ? 'mac-arm64' : 'mac';
+    if (!['x64', 'arm64', 'universal'].includes(arch)) {
+      throw new Error(`Unsupported packaged smoke architecture: ${arch}.`);
+    }
+    const outputDirectory = arch === 'arm64'
+      ? 'mac-arm64'
+      : arch === 'universal' ? 'mac-universal' : 'mac';
     const executablePath = join(
       releaseRoot,
       outputDirectory,
@@ -56,55 +62,6 @@ function resourcesPathForExecutable(executablePath, platform) {
 
 function assertRuntime(condition, message) {
   if (!condition) throw new Error(message);
-}
-
-async function runStartupProbe(executablePath, args, env) {
-  const readyMarker = '[Main] Popover ready to show';
-  const singleInstanceMarker = 'Another instance is running';
-  const child = spawn(executablePath, args, {
-    env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let output = '';
-  let ready = false;
-
-  return await new Promise((resolveProbe, rejectProbe) => {
-    const timeout = setTimeout(() => {
-      child.kill('SIGTERM');
-      rejectProbe(new Error(`Packaged app did not become ready within 30 seconds.\n${output}`));
-    }, 30_000);
-
-    const inspectOutput = (chunk) => {
-      output += chunk.toString();
-      if (output.includes(singleInstanceMarker)) {
-        child.kill('SIGTERM');
-        clearTimeout(timeout);
-        rejectProbe(new Error(`Packaged app hit a single-instance collision.\n${output}`));
-        return;
-      }
-      if (!ready && output.includes(readyMarker)) {
-        ready = true;
-        child.kill('SIGINT');
-      }
-    };
-
-    child.stdout.on('data', inspectOutput);
-    child.stderr.on('data', inspectOutput);
-    child.once('error', (error) => {
-      clearTimeout(timeout);
-      rejectProbe(error);
-    });
-    child.once('close', (code, signal) => {
-      clearTimeout(timeout);
-      if (!ready) {
-        rejectProbe(new Error(
-          `Packaged app exited before reporting readiness (code=${code}, signal=${signal}).\n${output}`,
-        ));
-        return;
-      }
-      resolveProbe();
-    });
-  });
 }
 
 const printLayoutArgument = process.argv.find((argument) => argument.startsWith('--print-layout='));
@@ -191,7 +148,10 @@ try {
     const runtime = { arch, ...applicationInfo };
     const title = await mainWindow.title();
 
-    assertRuntime(runtime.arch === expectedArch,
+    assertRuntime(
+      expectedArch === 'universal'
+        ? runtime.arch === 'x64' || runtime.arch === 'arm64'
+        : runtime.arch === expectedArch,
       `Expected ${expectedArch} package architecture, received ${runtime.arch}.`);
     assertRuntime(runtime.packaged === true, 'Application did not report packaged=true.');
     assertRuntime(

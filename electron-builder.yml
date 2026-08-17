@@ -26,13 +26,8 @@ extraResources:
   - from: assets
     to: assets
     filter:
-      - "tray-*.png"
-  # Windows taskbar icons (overlay and thumbnail toolbar)
-  - from: build
-    to: build
-    filter:
-      - "overlay-*.png"
-      - "toolbar-*.png"
+      - "tray-{idle,recording,complete,error}{,Template,@2x,Template@2x}.png"
+      - "tray-processing{,-0,-1,-2,-3}{,Template,@2x,Template@2x}.png"
 
 # whisper.cpp is executed as a child process and its Metal shader is loaded at
 # runtime, so both files must live outside the read-only app.asar archive.
@@ -87,7 +82,8 @@ dmg:
       y: 170
       type: link
       path: /Applications
-  title: "Install MarkuprPlus ${arch}"
+  # electron-builder expands ${arch} to "-arm64" or an empty string on macOS.
+  title: "Install MarkuprPlus${arch}"
   artifactName: "markuprplus-${version}-${arch}.dmg"
 
 # =============================================================================
@@ -95,6 +91,13 @@ dmg:
 # =============================================================================
 win:
   icon: build/icon.ico
+  # Windows taskbar icons (overlay and thumbnail toolbar)
+  extraResources:
+    - from: build
+      to: build
+      filter:
+        - "overlay-*.png"
+        - "toolbar-*.png"
   target:
     - target: nsis
       arch: [x64]
@@ -141,6 +144,7 @@ linux:
         - x64
   category: Development
   icon: build/icon.png
+  artifactName: "markuprplus-${version}-${arch}.${ext}"
 
 # =============================================================================
 # Code Signing & Notarization

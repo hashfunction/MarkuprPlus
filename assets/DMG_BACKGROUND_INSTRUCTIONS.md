@@ -24,6 +24,10 @@ The DMG window has two drop zones:
 - **App icon** at position (180, 170) - left side
 - **Applications folder** at position (480, 170) - right side
 
+Finder renders both icons and labels. Do not add background placeholders or
+duplicate `MarkuprPlus` / `Applications` labels; align any glow or decoration
+to the exact centers above.
+
 ### Visual Elements
 
 1. **Arrow Indicator**

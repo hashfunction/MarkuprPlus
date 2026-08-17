@@ -28,24 +28,34 @@ describe('public packaging identity', () => {
       'markuprx-mcp': './dist/mcp/index.mjs',
     });
     expect(packageJson.mcpName).toBe('com.markuprx/markuprx');
+    expect(packageJson.scripts['generate:icons']).toContain(
+      'node scripts/generate-tray-icons.mjs',
+    );
 
     expect(builderConfig).toMatchObject({
       appId: 'com.eddiesanjuan.markuprx',
       productName: 'MarkuprPlus',
       executableName: 'MarkuprPlus',
       extraResources: [
-        { from: 'assets', to: 'assets', filter: ['tray-*.png'] },
         {
-          from: 'build',
-          to: 'build',
-          filter: ['overlay-*.png', 'toolbar-*.png'],
+          from: 'assets',
+          to: 'assets',
+          filter: [
+            'tray-{idle,recording,complete,error}{,Template,@2x,Template@2x}.png',
+            'tray-processing{,-0,-1,-2,-3}{,Template,@2x,Template@2x}.png',
+          ],
         },
       ],
       dmg: {
-        title: 'Install MarkuprPlus ${arch}',
+        title: 'Install MarkuprPlus${arch}',
         artifactName: 'markuprplus-${version}-${arch}.dmg',
       },
       win: {
+        extraResources: [{
+          from: 'build',
+          to: 'build',
+          filter: ['overlay-*.png', 'toolbar-*.png'],
+        }],
         fileAssociations: [{
           ext: 'markuprx',
           name: 'MarkuprPlus Session',
@@ -56,7 +66,10 @@ describe('public packaging identity', () => {
         shortcutName: 'MarkuprPlus',
         artifactName: 'markuprplus-Setup-${version}.exe',
       },
-      linux: { icon: 'build/icon.png' },
+      linux: {
+        icon: 'build/icon.png',
+        artifactName: 'markuprplus-${version}-${arch}.${ext}',
+      },
     });
     expect((builderConfig as { win: Record<string, unknown> }).win)
       .not.toHaveProperty('publisherName');
@@ -78,6 +91,22 @@ describe('public packaging identity', () => {
     expect(installer).not.toContain('$INSTDIR\\markuprx.exe');
   });
 
+  it('aligns DMG artwork with Finder item centers without duplicate labels', () => {
+    const builderConfig = parseYaml(read('electron-builder.yml')) as {
+      dmg: { contents: Array<{ x: number; y: number; type: string }> };
+    };
+    const background = read('assets/svg-source/dmg-background.svg');
+
+    expect(builderConfig.dmg.contents).toEqual([
+      { x: 180, y: 170, type: 'file' },
+      { x: 480, y: 170, type: 'link', path: '/Applications' },
+    ]);
+    expect(background).toContain('<circle cx="180" cy="170"');
+    expect(background).toContain('<circle cx="480" cy="170"');
+    expect(background).not.toContain('stroke-dasharray');
+    expect(background).not.toMatch(/<text[^>]*>\s*(MarkuprPlus|Applications)\s*<\/text>/);
+  });
+
   it('keeps active packaging surfaces free of the legacy public display name', () => {
     const activePackagingFiles = [
       'package.json',
@@ -89,6 +118,7 @@ describe('public packaging identity', () => {
       'scripts/generate-installer-images.cjs',
       'scripts/generate-og-image.mjs',
       'scripts/notarize.cjs',
+      'scripts/lib/startup-probe.mjs',
       'scripts/smoke-packaged-app.mjs',
       'scripts/verify-brand.mjs',
       'scripts/verify-package.mjs',
@@ -142,5 +172,60 @@ describe('public packaging identity', () => {
     expect(script).toContain("log.info('MarkuprPlus Notarization')");
     expect(script).toContain("const appBundleId = 'com.eddiesanjuan.markuprx'");
     expect(script).not.toContain("log.info('markuprx Notarization')");
+  });
+
+  it('runs fail-closed package verification after every public packaging command', () => {
+    const scripts = JSON.parse(read('package.json')).scripts as Record<string, string>;
+    const packagingCommands = [
+      'package',
+      'package:mac',
+      'package:mac:unsigned',
+      'package:win',
+      'package:linux',
+      'dist:mac',
+      'dist:mac:universal',
+      'dist:mac:x64',
+      'dist:mac:arm64',
+      'dist:win',
+      'dist:win:portable',
+      'dist:win:nsis',
+    ];
+
+    for (const command of packagingCommands) {
+      expect(scripts[command], command).toMatch(/&& npm run verify:package$/);
+    }
+  });
+
+  it('expands Linux artifact names with electron-builder architecture semantics', () => {
+    const builderConfig = parseYaml(read('electron-builder.yml')) as {
+      linux: { artifactName: string };
+    };
+    const { expandMacro } = nodeRequire('app-builder-lib/out/util/macroExpander.js') as {
+      expandMacro: (
+        pattern: string,
+        arch: string,
+        appInfo: Record<string, string>,
+        extra: Record<string, string>,
+      ) => string;
+    };
+    const { Arch, getArtifactArchName } = nodeRequire('builder-util/out/arch') as {
+      Arch: { x64: number };
+      getArtifactArchName: (arch: number, extension: string) => string;
+    };
+    const appInfo = {
+      name: 'markuprx',
+      productName: 'MarkuprPlus',
+      sanitizedProductName: 'MarkuprPlus',
+      version: '3.0.0',
+    };
+    const expand = (extension: string) => expandMacro(
+      builderConfig.linux.artifactName,
+      getArtifactArchName(Arch.x64, extension),
+      appInfo,
+      { ext: extension, os: 'linux' },
+    );
+
+    expect(expand('AppImage')).toBe('markuprplus-3.0.0-x86_64.AppImage');
+    expect(expand('deb')).toBe('markuprplus-3.0.0-amd64.deb');
   });
 });
