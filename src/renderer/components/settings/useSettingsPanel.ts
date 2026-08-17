@@ -5,7 +5,7 @@
  * Returns everything the SettingsPanel shell needs to render.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type {
   AnalysisProviderStatus,
   AppSettings,
@@ -26,6 +26,8 @@ import { getAnalysisProviderViewState } from './analysisProviderViewState';
 const MASKED_API_KEY_PLACEHOLDER = '********';
 const API_TEST_TIMEOUT_MS = 15000;
 const API_SAVE_TIMEOUT_MS = 12000;
+
+export type SettingsSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const buildProviderTestFailureMessage = (provider: 'OpenAI' | 'Anthropic', error: unknown): string => {
   const detail = error instanceof Error ? error.message : 'Unknown error';
@@ -62,20 +64,14 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const [anthropicApiKey, setAnthropicApiKey] = useState<ApiKeyState>({
     value: '', visible: false, testing: false, valid: null, error: null,
   });
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SettingsSaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
   const [isScanningProviders, setIsScanningProviders] = useState(false);
   const [whisperModelStatus, setWhisperModelStatus] = useState<WhisperModelCheckResult | null>(null);
   const [isRepairingLocalTranscription, setIsRepairingLocalTranscription] = useState(false);
   const [localTranscriptionError, setLocalTranscriptionError] = useState<string | null>(null);
-  const [isCompact, setIsCompact] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < 760
-  );
-
-  const panelRef = useRef<HTMLDivElement>(null);
-
   const getApiKeyPresence = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
     try {
       const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
@@ -159,7 +155,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const handleSettingChange = useCallback(
     async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
-      setHasChanges(true);
+      setSaveStatus('saving');
+      setSaveError(null);
       try {
         await window.markuprx.settings.set(key, value);
         if (key === 'theme' || key === 'accentColor') {
@@ -173,7 +170,13 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
             detail: { type: 'analysis-provider', provider: key === 'analysisProvider' ? value : undefined },
           }));
         }
+        setSaveStatus('saved');
       } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : 'Unable to save this setting.';
+        setSaveStatus('error');
+        setSaveError(message);
         console.error('Failed to save setting:', error);
       }
     },
@@ -217,12 +220,19 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     async (key: keyof HotkeyConfig, value: string) => {
       const newHotkeys = { ...settings.hotkeys, [key]: value };
       setSettings((prev) => ({ ...prev, hotkeys: newHotkeys }));
-      setHasChanges(true);
+      setSaveStatus('saving');
+      setSaveError(null);
       try {
         await window.markuprx.settings.set('hotkeys', newHotkeys);
         await window.markuprx.hotkeys.updateConfig(newHotkeys);
+        setSaveStatus('saved');
       } catch (error) {
-        console.error('Failed to update hotkey:', error);
+        const message = error instanceof Error
+          ? error.message
+          : 'Unable to save this setting.';
+        setSaveStatus('error');
+        setSaveError(message);
+        console.error('Failed to save setting:', error);
       }
     },
     [settings.hotkeys]
@@ -261,20 +271,26 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         'OpenAI API test timed out. Please try again.'
       );
       if (validation.valid) {
+        setSaveStatus('saving');
+        setSaveError(null);
         const saved = await withTimeout(
           window.markuprx.settings.setApiKey('openai', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving OpenAI key timed out. Please try again.'
         );
         if (!saved) {
+          const message = 'OpenAI key validated, but local save verification failed. Relaunch app and try again.';
+          setSaveStatus('error');
+          setSaveError(message);
           setOpenAiApiKey((prev) => ({
             ...prev, valid: false,
-            error: 'OpenAI key validated, but local save verification failed. Relaunch app and try again.',
+            error: message,
           }));
           return;
         }
         setOpenAiApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'openai' } }));
+        setSaveStatus('saved');
       } else {
         setOpenAiApiKey((prev) => ({
           ...prev, valid: false,
@@ -282,6 +298,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         }));
       }
     } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
       setOpenAiApiKey((prev) => ({
         ...prev, valid: false,
         error: buildProviderTestFailureMessage('OpenAI', error),
@@ -320,21 +342,27 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         'Anthropic API test timed out. Please try again.'
       );
       if (validation.valid) {
+        setSaveStatus('saving');
+        setSaveError(null);
         const saved = await withTimeout(
           window.markuprx.settings.setApiKey('anthropic', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving Anthropic key timed out. Please try again.'
         );
         if (!saved) {
+          const message = 'Anthropic key validated, but local save verification failed. Relaunch app and try again.';
+          setSaveStatus('error');
+          setSaveError(message);
           setAnthropicApiKey((prev) => ({
             ...prev, valid: false,
-            error: 'Anthropic key validated, but local save verification failed. Relaunch app and try again.',
+            error: message,
           }));
           return;
         }
         await refreshAnalysisProviders(true);
         setAnthropicApiKey((prev) => ({ ...prev, valid: true }));
         window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'anthropic' } }));
+        setSaveStatus('saved');
       } else {
         setAnthropicApiKey((prev) => ({
           ...prev, valid: false,
@@ -342,6 +370,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         }));
       }
     } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
       setAnthropicApiKey((prev) => ({
         ...prev, valid: false,
         error: buildProviderTestFailureMessage('Anthropic', error),
@@ -362,8 +396,20 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       checkForUpdates: DEFAULT_SETTINGS.checkForUpdates,
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
-    for (const [key, value] of Object.entries(defaults)) {
-      await window.markuprx.settings.set(key as keyof AppSettings, value);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      for (const [key, value] of Object.entries(defaults)) {
+        await window.markuprx.settings.set(key as keyof AppSettings, value);
+      }
+      setSaveStatus('saved');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
     }
   }, []);
 
@@ -377,8 +423,20 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       minTimeBetweenCaptures: DEFAULT_SETTINGS.minTimeBetweenCaptures,
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
-    for (const [key, value] of Object.entries(defaults)) {
-      await window.markuprx.settings.set(key as keyof AppSettings, value);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      for (const [key, value] of Object.entries(defaults)) {
+        await window.markuprx.settings.set(key as keyof AppSettings, value);
+      }
+      setSaveStatus('saved');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
     }
   }, []);
 
@@ -388,20 +446,44 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       accentColor: DEFAULT_SETTINGS.accentColor,
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
-    for (const [key, value] of Object.entries(defaults)) {
-      await window.markuprx.settings.set(key as keyof AppSettings, value);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      for (const [key, value] of Object.entries(defaults)) {
+        await window.markuprx.settings.set(key as keyof AppSettings, value);
+      }
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+        detail: { type: 'appearance' },
+      }));
+      setSaveStatus('saved');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
     }
-    window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
-      detail: { type: 'appearance' },
-    }));
   }, []);
 
   const resetHotkeysSection = useCallback(async () => {
     const defaults = { ...DEFAULT_HOTKEY_CONFIG };
     setSettings((prev) => ({ ...prev, hotkeys: defaults }));
-    await window.markuprx.settings.set('hotkeys', defaults);
-    // @ts-expect-error - update may be named updateConfig in type definition
-    await (window.markuprx.hotkeys.update ?? window.markuprx.hotkeys.updateConfig)?.(defaults);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      await window.markuprx.settings.set('hotkeys', defaults);
+      // @ts-expect-error - update may be named updateConfig in type definition
+      await (window.markuprx.hotkeys.update ?? window.markuprx.hotkeys.updateConfig)?.(defaults);
+      setSaveStatus('saved');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
+    }
   }, []);
 
   const resetAdvancedSection = useCallback(async () => {
@@ -412,11 +494,23 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       keepAudioBackups: DEFAULT_SETTINGS.keepAudioBackups,
     };
     setSettings((prev) => ({ ...prev, ...defaults }));
-    for (const [key, value] of Object.entries(defaults)) {
-      await window.markuprx.settings.set(key as keyof AppSettings, value);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      for (const [key, value] of Object.entries(defaults)) {
+        await window.markuprx.settings.set(key as keyof AppSettings, value);
+      }
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
+      await refreshAnalysisProviders(true);
+      setSaveStatus('saved');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
     }
-    window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
-    await refreshAnalysisProviders(true);
   }, [refreshAnalysisProviders]);
 
   // ---------------------------------------------------------------------------
@@ -474,23 +568,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (isOpen) {
-      setIsAnimating(true);
-      const timer = setTimeout(() => setIsAnimating(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const onResize = () => {
-      setIsCompact(window.innerWidth < 760);
-    };
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
   // ---------------------------------------------------------------------------
   // Return value
   // ---------------------------------------------------------------------------
@@ -509,8 +586,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     audioDevices,
     openAiApiKey,
     anthropicApiKey,
-    hasChanges,
-    isAnimating,
+    saveStatus,
+    saveError,
     appVersion,
     analysisProviderStatuses,
     isScanningProviders,
@@ -518,8 +595,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     isRepairingLocalTranscription,
     localTranscriptionError,
     analysisProviderViewState,
-    isCompact,
-    panelRef,
 
     // Setting handlers
     handleSettingChange,

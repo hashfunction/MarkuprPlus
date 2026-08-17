@@ -150,22 +150,6 @@ const App: React.FC = () => {
         />
       )}
 
-      <SettingsPanel
-        isOpen={ui.currentView === 'settings'}
-        onClose={ui.closeOverlay}
-      />
-
-      <SessionHistory
-        isOpen={ui.currentView === 'history'}
-        onClose={ui.closeOverlay}
-        onOpenSession={recording.openRecent}
-      />
-
-      <KeyboardShortcuts
-        isOpen={ui.currentView === 'shortcuts'}
-        onClose={ui.closeOverlay}
-      />
-
       {ui.showExportDialog && (
         <ExportDialog
           session={{ id: '', startTime: Date.now(), feedbackItems: [] }}
@@ -176,7 +160,29 @@ const App: React.FC = () => {
       )}
 
       {/* === Main Card === */}
-      <main className={`ff-shell__card${ui.isHudMode ? ' ff-shell__card--hud' : ''}`}>
+      <main
+        className={
+          'ff-shell__card' +
+          (ui.isHudMode ? ' ff-shell__card--hud' : '') +
+          (ui.currentView !== 'main' ? ' ff-shell__card--portrait' : '')
+        }
+      >
+        {ui.currentView === 'settings' && (
+          <SettingsPanel isOpen onClose={ui.closeOverlay} />
+        )}
+        {ui.currentView === 'history' && (
+          <SessionHistory
+            isOpen
+            onClose={ui.closeOverlay}
+            onOpenSession={recording.openRecent}
+          />
+        )}
+        {ui.currentView === 'shortcuts' && (
+          <KeyboardShortcuts isOpen onClose={ui.closeOverlay} />
+        )}
+
+        {ui.currentView === 'main' && (
+          <>
         {ui.showRecordingStatus && (
           <RecordingOverlay
             duration={Math.floor(recording.duration / 1000)}
@@ -511,6 +517,8 @@ const App: React.FC = () => {
           </p>
           <DonateButton className="ff-shell__donate" />
         </footer>
+          </>
+        )}
           </>
         )}
       </main>

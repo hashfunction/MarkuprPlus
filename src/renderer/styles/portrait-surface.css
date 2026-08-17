@@ -1,0 +1,90 @@
+.ff-portrait-surface {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.ff-portrait-surface__header {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-glass);
+}
+
+.ff-portrait-surface__back {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 25px;
+}
+
+.ff-portrait-surface__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ff-portrait-surface__heading h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.ff-portrait-surface__subtitle {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.ff-portrait-surface__header-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 6px;
+}
+
+.ff-portrait-surface__navigation {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.ff-portrait-surface__scroller {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.ff-portrait-surface__footer {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-top: 1px solid var(--border-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-portrait-surface,
+  .ff-portrait-surface * {
+    scroll-behavior: auto;
+  }
+}

@@ -5,9 +5,9 @@
  * primitives in ./primitives/, tabs in ./settings/.
  */
 
-import React, { useMemo } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { DonateButton } from './DonateButton';
+import { PortraitSurface } from './PortraitSurface';
 import { GeneralTab, RecordingTab, AppearanceTab, HotkeysTab, AdvancedTab, TABS } from './settings';
 import type { SettingsTab } from './settings';
 import { styles } from './settings/settingsStyles';
@@ -24,8 +24,42 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onClose,
   initialTab = 'general',
 }) => {
-  const { colors } = useTheme();
   const s = useSettingsPanel(isOpen, onClose, initialTab);
+  const tabListRef = useRef<HTMLElement>(null);
+  const tabRefs = useRef<Partial<Record<SettingsTab, HTMLButtonElement | null>>>({});
+
+  const handleTabKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      const currentIndex = TABS.findIndex((tab) => tab.id === s.activeTab);
+      let nextIndex = currentIndex;
+      if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TABS.length;
+      else if (event.key === 'ArrowLeft') {
+        nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+      } else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = TABS.length - 1;
+      else return;
+
+      event.preventDefault();
+      const nextTab = TABS[nextIndex];
+      s.setActiveTab(nextTab.id);
+      requestAnimationFrame(() => {
+        const button = tabRefs.current[nextTab.id];
+        button?.focus();
+        button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+    },
+    [s],
+  );
+
+  const handleResetAll = useCallback(async () => {
+    await s.resetGeneralSection();
+    await s.resetRecordingSection();
+    await s.resetAppearanceSection();
+    await s.resetHotkeysSection();
+    await s.resetAdvancedSection();
+  }, [
+    s,
+  ]);
 
   const renderTabContent = useMemo(() => {
     switch (s.activeTab) {
@@ -82,106 +116,86 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.backdrop} onClick={onClose} />
-
-      <div
-        ref={s.panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="markuprx-settings-title"
-        style={{
-          ...styles.panel,
-          opacity: s.isAnimating ? 0 : 1,
-          transform: s.isAnimating ? 'scale(0.95) translateY(10px)' : 'scale(1) translateY(0)',
-        }}
-      >
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.headerTitleWrap}>
-            <h2 id="markuprx-settings-title" style={styles.headerTitle}>Settings</h2>
-            {!s.analysisProviderViewState.ready && (
-              <button
-                type="button"
-                style={styles.byokBadge}
-                onClick={() => s.setActiveTab('advanced')}
-                title="Open AI provider setup"
-              >
-                AI Setup Required
-              </button>
-            )}
-          </div>
-          <button style={styles.closeButton} onClick={onClose} aria-label="Close settings">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ ...styles.content, flexDirection: s.isCompact ? 'column' : 'row' }}>
-          <nav
-            role="tablist"
-            aria-label="Settings sections"
-            style={{ ...styles.sidebar, ...(s.isCompact ? styles.sidebarCompact : {}) }}
-          >
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                id={`markuprx-settings-tab-${tab.id}`}
-                type="button"
-                role="tab"
-                aria-controls="markuprx-settings-panel"
-                style={{
-                  ...styles.tabButton,
-                  ...(s.isCompact ? styles.tabButtonCompact : {}),
-                  backgroundColor: s.activeTab === tab.id ? 'var(--accent-subtle)' : 'transparent',
-                  color: s.activeTab === tab.id ? colors.text.link : colors.text.tertiary,
-                  borderColor: s.activeTab === tab.id ? 'var(--accent-muted)' : 'transparent',
-                }}
-                onClick={() => s.setActiveTab(tab.id)}
-                aria-selected={s.activeTab === tab.id}
-              >
-                {tab.icon}
-                <span style={styles.tabLabel}>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div
-            id="markuprx-settings-panel"
-            role="tabpanel"
-            aria-labelledby={`markuprx-settings-tab-${s.activeTab}`}
-            style={{ ...styles.tabPanel, ...(s.isCompact ? styles.tabPanelCompact : {}) }}
-          >
-            {renderTabContent}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={styles.footer}>
-          <div style={styles.footerLeft}>
-            <span style={styles.footerText}>
-              MarkuprX {s.appVersion ? `v${s.appVersion}` : ''} {s.hasChanges && <span style={styles.savedIndicator}>Changes saved</span>}
-            </span>
-            <DonateButton />
-          </div>
+    <PortraitSurface
+      title="Settings"
+      titleId="markuprx-settings-title"
+      backLabel="Back to MarkuprX"
+      onBack={onClose}
+      subtitle={
+        <span
+          aria-live="polite"
+          role={s.saveStatus === 'error' ? 'alert' : undefined}
+          title={s.saveError ?? undefined}
+        >
+          {s.saveStatus === 'saving'
+            ? 'Saving'
+            : s.saveStatus === 'saved'
+              ? 'Saved'
+              : s.saveStatus === 'error'
+                ? 'Unable to save'
+                : 'MarkuprX ' + (s.appVersion ? 'v' + s.appVersion : '')}
+        </span>
+      }
+      headerActions={
+        !s.analysisProviderViewState.ready ? (
           <button
-            style={styles.resetAllButton}
-            onClick={async () => {
-              await s.resetGeneralSection();
-              await s.resetRecordingSection();
-              await s.resetAppearanceSection();
-              await s.resetHotkeysSection();
-              await s.resetAdvancedSection();
-            }}
+            type="button"
+            style={styles.byokBadge}
+            onClick={() => s.setActiveTab('advanced')}
           >
+            AI Setup
+          </button>
+        ) : undefined
+      }
+      navigation={
+        <nav
+          ref={tabListRef}
+          role="tablist"
+          aria-label="Settings sections"
+          style={styles.sectionRail}
+          onKeyDown={handleTabKeyDown}
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              ref={(node) => {
+                tabRefs.current[tab.id] = node;
+              }}
+              id={'markuprx-settings-tab-' + tab.id}
+              type="button"
+              role="tab"
+              aria-controls="markuprx-settings-panel"
+              aria-selected={s.activeTab === tab.id}
+              tabIndex={s.activeTab === tab.id ? 0 : -1}
+              style={{
+                ...styles.railTab,
+                ...(s.activeTab === tab.id ? styles.railTabActive : {}),
+              }}
+              onClick={() => s.setActiveTab(tab.id)}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      }
+      contentLabel="Settings content"
+    >
+      <div
+        id="markuprx-settings-panel"
+        role="tabpanel"
+        aria-labelledby={'markuprx-settings-tab-' + s.activeTab}
+        style={styles.portraitPanel}
+      >
+        {renderTabContent}
+        <div style={styles.portraitEndActions}>
+          <DonateButton />
+          <button type="button" style={styles.resetAllButton} onClick={handleResetAll}>
             Reset All to Defaults
           </button>
         </div>
       </div>
 
-      {/* spin keyframe provided by animations.css; form element styles below */}
       <style>
         {`
           input[type="range"]::-webkit-slider-thumb {
@@ -237,7 +251,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           }
         `}
       </style>
-    </div>
+    </PortraitSurface>
   );
 };
 

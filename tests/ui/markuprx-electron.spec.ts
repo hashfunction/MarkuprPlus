@@ -220,6 +220,30 @@ async function seriousAccessibilityViolations(page: Page): Promise<unknown[]> {
   });
 }
 
+async function expectPortraitWindow(
+  application: ElectronApplication,
+  page: Page,
+): Promise<void> {
+  const pageUrl = page.url();
+  const bounds = await application.evaluate(({ BrowserWindow }, url) => {
+    const window = BrowserWindow.getAllWindows()
+      .find((candidate) => candidate.webContents.getURL() === url);
+    return window?.getBounds() ?? null;
+  }, pageUrl);
+  expect(bounds).toMatchObject({ width: 460, height: 680 });
+
+  const overflow = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    documentWidth: document.documentElement.scrollWidth,
+    bodyWidth: document.body.scrollWidth,
+  }));
+  expect(overflow.viewportWidth).toBe(460);
+  expect(overflow.viewportHeight).toBe(680);
+  expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+  expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
 test.describe('MarkuprX desktop application', () => {
   let application: ElectronApplication | null = null;
   let harness: ElectronHarnessEnvironment;
@@ -373,8 +397,7 @@ test.describe('MarkuprX desktop application', () => {
 
     await window.getByRole('button', { name: 'Open Settings' }).click();
     await expect(window.getByRole('heading', { name: 'Settings' })).toBeVisible();
-    await expect.poll(() => window.getByRole('dialog', { name: 'Settings' }).evaluate((element) =>
-      getComputedStyle(element).opacity)).toBe('1');
+    await expect(window.getByRole('region', { name: 'Settings', exact: true })).toBeVisible();
     await window.waitForTimeout(500);
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
 
@@ -384,6 +407,30 @@ test.describe('MarkuprX desktop application', () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true');
       expect(await seriousAccessibilityViolations(window)).toEqual([]);
     }
+  });
+
+  test('renders Settings as the approved portrait surface', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await expectPortraitWindow(application, window);
+    await expect(window.getByRole('dialog', { name: 'Settings' })).toHaveCount(0);
+
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await expect(settings).toBeVisible();
+    const rail = settings.getByRole('tablist', { name: 'Settings sections' });
+    await expect(rail).toBeVisible();
+    expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+
+    const general = rail.getByRole('tab', { name: 'General', exact: true });
+    await general.focus();
+    await window.keyboard.press('End');
+    const advanced = rail.getByRole('tab', { name: 'Advanced', exact: true });
+    await expect(advanced).toBeFocused();
+    await expect(advanced).toHaveAttribute('aria-selected', 'true');
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
   test('applies custom appearance settings immediately and restores them from app settings', async () => {
@@ -415,6 +462,7 @@ test.describe('MarkuprX desktop application', () => {
       theme: await window.markuprx.settings.get('theme'),
       accentColor: await window.markuprx.settings.get('accentColor'),
     }))).toEqual({ theme: 'dark', accentColor: customAccent });
+    await expect(window.getByText('Saved', { exact: true })).toBeVisible();
 
     // Prove the canonical Electron settings store restores appearance instead of
     // accidentally relying on ThemeProvider's localStorage cache.

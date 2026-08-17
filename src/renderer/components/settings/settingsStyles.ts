@@ -11,62 +11,6 @@ export type ExtendedCSSProperties = React.CSSProperties & {
 };
 
 export const styles: Record<string, ExtendedCSSProperties> = {
-  // Overlay & Panel
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    padding: 12,
-  },
-
-  backdrop: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'var(--bg-overlay)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-  },
-
-  panel: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: 940,
-    maxHeight: '92vh',
-    backgroundColor: 'var(--bg-elevated)',
-    borderRadius: 16,
-    boxShadow: '0 24px 56px rgba(0, 0, 0, 0.42), 0 0 0 1px var(--border-default)',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    transition: 'opacity 0.3s ease, transform 0.3s ease',
-    WebkitAppRegion: 'no-drag',
-  },
-
-  // Header
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 24px',
-    borderBottom: '1px solid var(--border-default)',
-    WebkitAppRegion: 'drag',
-  },
-
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--text-primary)',
-    margin: 0,
-  },
-
-  headerTitleWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
 
   byokBadge: {
     border: '1px solid rgba(245, 158, 11, 0.4)',
@@ -80,87 +24,50 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     whiteSpace: 'nowrap',
   },
 
-  closeButton: {
-    width: 32,
-    height: 32,
+  sectionRail: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 8,
-    color: 'var(--text-tertiary)',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    WebkitAppRegion: 'no-drag',
-  },
-
-  // Content
-  content: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-    minHeight: 0,
-  },
-
-  // Sidebar
-  sidebar: {
-    width: 200,
-    padding: '16px 12px',
-    borderRight: '1px solid var(--border-subtle)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    flexShrink: 0,
-  },
-
-  sidebarCompact: {
-    width: '100%',
-    borderRight: 'none',
-    borderBottom: '1px solid var(--border-default)',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 6,
-    padding: '12px',
+    padding: '8px 12px',
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    scrollbarWidth: 'none',
   },
 
-  tabButton: {
-    display: 'flex',
+  railTab: {
+    display: 'inline-flex',
+    flex: '0 0 auto',
     alignItems: 'center',
-    gap: 10,
-    width: '100%',
-    padding: '10px 12px',
-    backgroundColor: 'transparent',
+    gap: 7,
+    minHeight: 36,
+    padding: '7px 10px',
     border: '1px solid transparent',
-    borderRadius: 8,
+    borderRadius: 9,
+    background: 'transparent',
     color: 'var(--text-tertiary)',
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    textAlign: 'left',
+    whiteSpace: 'nowrap',
   },
 
-  tabButtonCompact: {
-    width: 'auto',
-    flex: '1 1 calc(50% - 6px)',
-    justifyContent: 'center',
+  railTabActive: {
+    borderColor: 'var(--accent-muted)',
+    background: 'var(--accent-subtle)',
+    color: 'var(--text-link)',
   },
 
-  tabLabel: {
-    flex: 1,
+  portraitPanel: {
+    display: 'grid',
+    gap: 24,
+    minWidth: 0,
+    padding: 14,
   },
 
-  // Tab Panel
-  tabPanel: {
-    flex: 1,
-    overflow: 'auto',
-    padding: 24,
-    minHeight: 0,
-  },
-
-  tabPanelCompact: {
-    padding: 16,
+  portraitEndActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingTop: 8,
+    borderTop: '1px solid var(--border-subtle)',
   },
 
   tabContent: {
@@ -244,6 +151,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     flexDirection: 'column',
     gap: 2,
     flex: 1,
+    minWidth: 0,
   },
 
   settingLabel: {
@@ -288,6 +196,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
   // Select
   select: {
     minWidth: 180,
+    flex: '1 1 190px',
     padding: '8px 12px',
     backgroundColor: 'var(--bg-tertiary)',
     border: '1px solid var(--border-default)',
@@ -307,6 +216,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     minWidth: 220,
     maxWidth: 320,
     width: '100%',
+    flex: '1 1 190px',
   },
 
   sliderValue: {
@@ -332,6 +242,8 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     gap: 8,
     minWidth: 0,
     width: '100%',
+    maxWidth: '100%',
+    flex: '1 1 190px',
   },
 
   directoryInput: {
@@ -346,6 +258,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
     minWidth: 0,
+    maxWidth: '100%',
   },
 
   browseButton: {
@@ -375,6 +288,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flex: '1 1 190px',
   },
 
   keyRecorderRecording: {
@@ -440,6 +354,9 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     display: 'flex',
     gap: 8,
     flexWrap: 'wrap',
+    width: '100%',
+    maxWidth: '100%',
+    flex: '1 1 190px',
   },
 
   apiKeyInputWrapper: {
@@ -447,6 +364,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    minWidth: 0,
   },
 
   apiKeyInput: {
@@ -458,6 +376,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     color: 'var(--text-primary)',
     fontSize: 13,
     transition: 'border-color 0.2s ease',
+    maxWidth: '100%',
   },
 
   apiKeyVisibilityButton: {
@@ -490,6 +409,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.15s ease',
     whiteSpace: 'nowrap',
+    flex: '1 1 190px',
   },
 
   apiKeyError: {
@@ -621,35 +541,6 @@ export const styles: Record<string, ExtendedCSSProperties> = {
   hotkeyRefLabel: {
     fontSize: 13,
     color: 'var(--text-secondary)',
-  },
-
-  // Footer
-  footer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 24px',
-    borderTop: '1px solid var(--border-default)',
-    backgroundColor: 'var(--bg-secondary)',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-
-  footerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-
-  footerText: {
-    fontSize: 12,
-    color: 'var(--text-tertiary)',
-  },
-
-  savedIndicator: {
-    marginLeft: 8,
-    color: 'var(--status-success)',
   },
 
   resetAllButton: {

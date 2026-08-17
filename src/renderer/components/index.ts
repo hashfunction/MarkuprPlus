@@ -49,6 +49,8 @@ export { TranscriptionTierSelector, type TranscriptionTier } from './Transcripti
 
 // Settings panel
 export { SettingsPanel, default as SettingsPanelDefault } from './SettingsPanel';
+export { PortraitSurface } from './PortraitSurface';
+export type { PortraitSurfaceProps } from './PortraitSurface';
 
 // Donate button
 export { DonateButton, default as DonateButtonDefault } from './DonateButton';
