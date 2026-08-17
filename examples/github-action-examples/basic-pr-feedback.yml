@@ -1,4 +1,8 @@
-# Basic PR Feedback
+# UNPUBLISHED REFERENCE ONLY: the retained markuprx-action path has no published
+# repository/tag today. This workflow is intentionally disabled and will not run
+# until a maintained Action is published and the reference is independently reviewed.
+#
+# Basic MarkuprPlus PR Feedback
 # Analyzes screen recordings in ./recordings/ and posts a visual feedback report on the PR.
 #
 # Setup:
@@ -13,6 +17,7 @@ on:
 
 jobs:
   feedback:
+    if: ${{ false }} # Remove only after the Action release is verified.
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

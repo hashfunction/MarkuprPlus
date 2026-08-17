@@ -1,36 +1,39 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x     | Yes                |
-| < 2.0   | No                 |
+| Version | Supported |
+|---|---|
+| 3.x | Yes |
+| < 3.0 | No |
 
-## Reporting a Vulnerability
+The repository is currently source-available and has no published release artifacts. Security fixes target the current 3.x branch/candidate.
 
-**Do not open a public issue for security vulnerabilities.**
+## Report a vulnerability privately
 
-Please email security concerns directly to **eddie@efsanjuan.com** with:
+Do **not** open a public issue for a vulnerability or attach private recordings, screenshots, credentials, or proof-of-concept data to an issue.
 
-- A description of the vulnerability
-- Steps to reproduce or a proof-of-concept
-- The affected version(s)
-- Any suggested remediation (optional)
+Email **eddie@efsanjuan.com** with:
 
-### Response Timeline
+- a concise description and impact;
+- affected commit/version and platform;
+- minimal reproduction or proof of concept;
+- whether sensitive user data or credentials may be exposed;
+- a safe way to coordinate further details.
 
-- **Acknowledgment:** Within 48 hours of your report.
-- **Fix target:** Within 7 days for confirmed vulnerabilities.
-- **Disclosure:** Coordinated with the reporter once a fix is released.
+Ordinary bugs and feature requests belong in [GitHub Issues](https://github.com/hashfunction/MarkuprPlus/issues).
 
-### What Counts as a Security Issue
+## Scope examples
 
-- Data leaks (session recordings, transcripts, or settings exposed unintentionally)
-- Code injection (XSS, command injection, or unsafe eval paths)
-- Permission escalation (bypassing macOS permission checks)
-- Credential exposure (API keys written to logs, unencrypted storage, or clipboard leaks)
+- capture/session/audio/transcript disclosure;
+- credential/keychain/fallback-store exposure;
+- XSS, command injection, unsafe generated HTML/PDF, or arbitrary file access;
+- IPC/preload/navigation/permission-policy bypass;
+- path traversal, symlink escape, unsafe deletion, or settings-import abuse;
+- provider/delivery behavior that sends content without explicit user intent;
+- malicious media or report input escaping validation;
+- package/update/signature verification failures.
 
-### Credit
+## Disclosure
 
-Security reporters will be credited in the CHANGELOG unless they prefer to remain anonymous. Let us know your preference when reporting.
+Please allow time to reproduce, assess, patch, and verify an issue before public disclosure. Response and remediation timing depends on severity and reproducibility; this project does not promise a fixed SLA. Reporter credit is offered with consent after coordinated disclosure.

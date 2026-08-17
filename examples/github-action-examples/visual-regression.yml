@@ -1,5 +1,9 @@
-# Visual Regression
-# Records E2E test runs with xvfb + ffmpeg, then analyzes the recording with markuprx
+# UNPUBLISHED REFERENCE ONLY: the retained markuprx-action path has no published
+# repository/tag today. This workflow is intentionally disabled and will not run
+# until a maintained Action is published and the reference is independently reviewed.
+#
+# MarkuprPlus Visual Regression
+# Records E2E test runs with xvfb + ffmpeg, then analyzes the recording with MarkuprPlus
 # to detect visual regressions and post a report on the PR.
 #
 # Setup:
@@ -14,6 +18,7 @@ on:
 
 jobs:
   visual-check:
+    if: ${{ false }} # Remove only after the Action release is verified.
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

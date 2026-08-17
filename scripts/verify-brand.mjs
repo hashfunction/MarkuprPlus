@@ -35,6 +35,21 @@ const activePackagingFiles = new Set([
 ]);
 
 const isDecisionRecord = (file) => file.startsWith('docs/superpowers/');
+const originalProjectName = ['mark', 'upr'].join('');
+const originalProjectRepository = [
+  'https://github.com',
+  ['eddie', 'sanjuan'].join(''),
+  originalProjectName,
+].join('/');
+
+function isApprovedOriginalProjectAttribution(file, line) {
+  if (file !== 'README.md') return false;
+  return line.trim().toLowerCase()
+    === `## significantly enhanced from ${originalProjectName}`
+    || line.toLowerCase().includes(
+      `significantly enhanced evolution of [${originalProjectName}](${originalProjectRepository})`,
+    );
+}
 
 function readText(readFile, file, encoding = 'latin1') {
   const content = readFile(file);
@@ -62,7 +77,9 @@ export function findBrandViolations(files, readFile, packageJson) {
     const content = readText(readFile, file);
     const lines = content.split(/\r?\n/);
     lines.forEach((line, index) => {
-      if (previousBrand.test(line)) violations.push(`${file}:${index + 1}`);
+      if (previousBrand.test(line) && !isApprovedOriginalProjectAttribution(file, line)) {
+        violations.push(`${file}:${index + 1}`);
+      }
       if (activePackagingFiles.has(file) && line.includes(legacyDisplayName)) {
         violations.push(`${file}:${index + 1}: legacy packaging display name`);
       }

@@ -1,4 +1,8 @@
-# QA Pipeline
+# UNPUBLISHED REFERENCE ONLY: the retained markuprx-action path has no published
+# repository/tag today. This workflow is intentionally disabled and will not run
+# until a maintained Action is published and the reference is independently reviewed.
+#
+# MarkuprPlus QA Pipeline
 # When an issue is labeled "needs-qa", analyzes attached recordings and creates
 # sub-issues for each feedback item found.
 #
@@ -14,7 +18,7 @@ on:
 
 jobs:
   analyze:
-    if: github.event.label.name == 'needs-qa'
+    if: ${{ false && github.event.label.name == 'needs-qa' }} # Remove `false &&` only after the Action release is verified.
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -63,7 +67,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue comment ${{ github.event.issue.number }} \
-            --body "markuprx QA analysis complete. Sub-issues have been created for each feedback item found in the attached recordings."
+            --body "MarkuprPlus QA analysis complete. Sub-issues have been created for each feedback item found in the attached recordings."
 
       - name: No recordings found
         if: steps.extract.outputs.found != 'true'

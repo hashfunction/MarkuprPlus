@@ -1,336 +1,106 @@
-# Configuration Guide
+# MarkuprPlus configuration
 
-This guide covers all markuprx settings and how to customize them for your workflow.
+Open Settings from the tray/taskbar menu or with `Cmd+,` on macOS and `Ctrl+,` elsewhere. Settings use the same scrollable portrait window as the rest of the app.
 
-## Table of Contents
+## General
 
-- [Accessing Settings](#accessing-settings)
-- [General Settings](#general-settings)
-- [Recording Settings](#recording-settings)
-- [Capture Settings](#capture-settings)
-- [Appearance Settings](#appearance-settings)
-- [Hotkey Settings](#hotkey-settings)
-- [Advanced Settings](#advanced-settings)
-- [Configuration File](#configuration-file)
-- [Reset to Defaults](#reset-to-defaults)
+### Output directory
 
-## Accessing Settings
+New sessions default to `~/Documents/markuprx`. The lower-case directory is retained for compatibility. Choose another writable directory in Settings if desired.
 
-Open the Settings panel using:
-- **Keyboard**: `Cmd+,` (macOS) or `Ctrl+,` (Windows/Linux)
-- **Menu**: markuprx > Preferences (macOS) or File > Settings (Windows)
-- **Tray Icon**: Right-click > Settings
+A completed session can contain its recording, audio, transcript, metadata, screenshots, and generated report. Keep enough disk space for recordings and any downloaded Whisper models.
 
-Settings are saved automatically when changed.
+### Launch at login
 
-## General Settings
+Disabled by default. Enabling it registers the packaged app with the operating system. Development builds may not behave like an installed application.
 
-### Output Directory
+### Updates
 
-**Default**: `~/Documents/markuprx`
+The `checkForUpdates` setting and update IPC surface exist, but the current application does not initialize a published update feed and packaging has no release publisher configured. Treat updates as manual source updates until a signed release channel is announced.
 
-Where markuprx saves your recording sessions. Each session creates a folder with:
-- `feedback.md` - The Markdown document
-- `screenshots/` - Captured screenshots
-- `metadata.json` - Session metadata
+## Recording
 
-To change:
-1. Click the **Browse...** button
-2. Select your preferred directory
-3. The change takes effect immediately
+- **Countdown:** `0` by default; `3` or `5` seconds are available.
+- **Transcription preview:** retained setting; current capture performs post-session transcription rather than promising live transcription.
+- **Audio waveform:** controls the recording feedback visualization.
+- **Audio device:** uses the selected input or system default.
 
-**Tips**:
-- Choose a cloud-synced folder (Dropbox, iCloud, etc.) for automatic backup
-- Avoid network drives for best performance
+Pause/resume temporarily stops and restarts capture components. It is not a promise that a hidden recovery buffer continues recording audio while paused.
 
-### Launch at Login
+## Capture
 
-**Default**: Off
+- Image format: PNG or JPEG.
+- JPEG quality: 1–100; default 85.
+- Maximum image width: 800–2400; default 1920.
+- Manual screenshot hotkey: `CmdOrCtrl+Shift+S` by default.
+- Annotation tools: freehand, circle, and highlight.
 
-When enabled, markuprx starts automatically when you log in to your computer.
+The retained pause-threshold and minimum-capture-interval fields are accepted for compatibility, but the current session controller does not perform automatic silence-triggered screenshots. Use manual cues or commit an annotated issue.
 
-**macOS**: Adds markuprx to Login Items
-**Windows**: Creates a startup registry entry
-**Linux**: Creates a `.desktop` autostart file
+## Transcription
 
-### Check for Updates
+Local Whisper requires a downloaded model. Available downloads are approximately:
 
-**Default**: On
+| Model | Download |
+|---|---:|
+| Tiny | 75 MB |
+| Base | 142 MB |
+| Small | 466 MB |
+| Medium | 1.5 GB |
+| Large | 3.1 GB |
 
-When enabled, markuprx checks for updates on launch and notifies you when a new version is available.
+OpenAI transcription is an optional cloud recovery path when its key is configured. Audio selected for that path leaves the machine and is handled according to OpenAI's service terms.
 
-Updates are never installed automatically - you always have control.
+## Analysis
 
-## Recording Settings
+Choose one provider and, when offered, a model:
 
-### Countdown Before Recording
+| Provider | Connection | Setup |
+|---|---|---|
+| Local Rules | Local | None |
+| Ollama | Local | Run Ollama on its fixed loopback endpoint and install a model |
+| LM Studio | Local | Run the local server and load a model |
+| Codex CLI | CLI | Install and authenticate `codex` |
+| Claude Code CLI | CLI | Install and authenticate `claude` |
+| Anthropic API | Cloud | Store an Anthropic API key in Settings |
 
-**Default**: 3 seconds
-**Options**: 0, 3, or 5 seconds
+CLI providers follow the installed CLI's account and data flow. Anthropic receives selected report input when used. Local services stay local only when they are genuinely bound to the local machine.
 
-A countdown timer before recording begins, giving you time to:
-- Position your window
-- Clear your throat
-- Prepare what to say
+If enhanced analysis is unavailable or invalid, MarkuprPlus records the reason and falls back to Local Rules instead of silently using another cloud provider.
 
-Set to 0 for immediate recording.
+## Hotkeys
 
-### Show Transcription Preview
+Defaults:
 
-**Default**: On
+| Action | Accelerator |
+|---|---|
+| Start/Stop | `CmdOrCtrl+Shift+F` |
+| Manual frame cue | `CmdOrCtrl+Shift+S` |
+| Pause/Resume | `CmdOrCtrl+Shift+P` |
 
-Displays a live transcription overlay during recording, showing:
-- What markuprx hears
-- Confidence indicators
-- Last 100 characters of transcription
+Settings validates global accelerators and reports conflicts. Reset restores these defaults.
 
-Disable if you find it distracting.
+## Appearance and accessibility
 
-### Show Audio Waveform
+- Theme: system (default), light, or dark.
+- Accent color: configurable.
+- Reduced motion and forced-colors modes follow operating-system/browser preferences.
+- macOS Accessibility permission improves global Command-key annotation tracking; explicit Draw/Done controls remain available as a fallback.
 
-**Default**: On
+## Diagnostics and retention
 
-Displays a visual audio level indicator during recording, helping you:
-- Confirm your microphone is working
-- See when voice activity is detected
-- Adjust speaking volume
+- Debug mode increases local diagnostic output.
+- Keep audio backups is off by default.
+- Clear All Data is destructive and asks for confirmation; back up needed sessions first.
 
-## Capture Settings
+MarkuprPlus does not add telemetry. Provider requests and delivery integrations are separate, explicit data flows.
 
-### Pause Threshold
+## Storage and migration
 
-**Default**: 1500ms (1.5 seconds)
-**Range**: 500ms - 3000ms
+Application settings are stored as `settings.json` under Electron's preserved compatibility user-data location. Secrets use the OS credential service when available and the existing encrypted fallback otherwise. Sessions are written to the configured output directory.
 
-How long you must pause speaking before markuprx captures a screenshot.
+Export Settings creates `MarkuprPlus-settings.json`. Import accepts an existing compatible JSON file regardless of its old filename, validates recognized fields, and does not require renaming the file first.
 
-**Lower values (500-1000ms)**:
-- More screenshots captured
-- Good for detailed feedback
-- May capture unintended screenshots
+Machine-facing names remain stable: `.markuprx.json`, `.markuprx`, `MARKUPRX_*`, `window.markuprx`, and `markuprx:` IPC identifiers are not public display branding.
 
-**Higher values (2000-3000ms)**:
-- Fewer screenshots captured
-- Good for general overviews
-- Requires deliberate pauses
-
-### Minimum Time Between Captures
-
-**Default**: 500ms
-**Range**: 300ms - 2000ms
-
-The minimum gap between automatic screenshots, preventing:
-- Duplicate screenshots
-- Rapid-fire captures during stuttering
-- Overwhelming screenshot counts
-
-### Image Format
-
-**Default**: PNG
-**Options**: PNG, JPEG
-
-- **PNG**: Lossless quality, larger files, best for text/UI
-- **JPEG**: Smaller files, configurable quality, good for photos
-
-### Image Quality (JPEG only)
-
-**Default**: 85%
-**Range**: 1-100%
-
-Higher values = better quality but larger files.
-
-Recommended:
-- **85-95%**: High quality, reasonable file size
-- **70-84%**: Good balance
-- **50-69%**: Smaller files, visible compression
-
-### Maximum Image Width
-
-**Default**: 1920px
-**Range**: 800px - 2400px
-
-Screenshots wider than this are scaled down, which:
-- Reduces file size
-- Maintains readability
-- Works well in most documents
-
-For 4K displays, consider increasing to 2400px.
-
-## Appearance Settings
-
-### Theme
-
-**Default**: System
-**Options**: Dark, Light, System
-
-- **System**: Matches your operating system theme
-- **Dark**: Always use dark theme
-- **Light**: Always use light theme
-
-### Accent Color
-
-**Default**: Blue (#3B82F6)
-**Options**: 9 presets + custom color
-
-The accent color is used for:
-- Recording indicator
-- Buttons and links
-- Focus states
-- Progress indicators
-
-Preset colors:
-- Blue, Purple, Pink, Red, Orange
-- Amber, Emerald, Teal, Cyan
-
-Or use the custom color picker for any color.
-
-## Hotkey Settings
-
-### Toggle Recording
-
-**Default**: `CommandOrControl+Shift+F`
-
-The primary hotkey to start and stop recording sessions.
-
-### Manual Screenshot
-
-**Default**: `CommandOrControl+Shift+S`
-
-Capture a screenshot immediately, regardless of voice activity.
-
-### Customizing Hotkeys
-
-1. Click on a hotkey field
-2. Press your desired key combination
-3. If there's a conflict, you'll see a warning
-4. The new hotkey is saved automatically
-
-**Supported modifiers**:
-- `Cmd` (macOS) / `Ctrl` (Windows/Linux)
-- `Shift`
-- `Alt` / `Option`
-- `Ctrl` (macOS)
-
-**Tips**:
-- Avoid common system shortcuts
-- Test hotkeys in different applications
-- Some applications may capture hotkeys before markuprx
-
-### Hotkey Conflicts
-
-If a hotkey conflicts with another application or system shortcut:
-1. markuprx shows a warning
-2. Try a different combination
-3. Consider disabling the conflicting shortcut in the other app
-
-## Advanced Settings
-
-### OpenAI API Key
-
-Your OpenAI API key for transcription. See [Getting Started](GETTING_STARTED.md) for setup instructions.
-
-**Security**: The API key is stored securely using:
-- macOS: Keychain
-- Windows: Credential Manager
-- Linux: Secret Service (libsecret)
-
-### Debug Mode
-
-**Default**: Off
-
-When enabled:
-- Verbose logging in DevTools console
-- Additional diagnostic information
-- Performance metrics
-
-Useful for troubleshooting. Disable for normal use.
-
-### Keep Audio Backups
-
-**Default**: Off
-
-When enabled, markuprx saves the raw audio from each session:
-- Stored as `.wav` files in the session folder
-- Useful if transcription needs correction
-- Increases storage usage
-
-## Configuration File
-
-markuprx stores settings in a JSON file:
-
-**macOS**: `~/Library/Application Support/markuprx/config.json`
-**Windows**: `%APPDATA%\markuprx\config.json`
-**Linux**: `~/.config/markuprx/config.json`
-
-### Example Configuration
-
-```json
-{
-  "outputDirectory": "/Users/you/Documents/markuprx",
-  "launchAtLogin": false,
-  "checkForUpdates": true,
-  "defaultCountdown": 3,
-  "showTranscriptionPreview": true,
-  "showAudioWaveform": true,
-  "pauseThreshold": 1500,
-  "minTimeBetweenCaptures": 500,
-  "imageFormat": "png",
-  "imageQuality": 85,
-  "maxImageWidth": 1920,
-  "theme": "system",
-  "accentColor": "#3B82F6",
-  "hotkeys": {
-    "toggleRecording": "CommandOrControl+Shift+F",
-    "manualScreenshot": "CommandOrControl+Shift+S"
-  },
-  "debugMode": false,
-  "keepAudioBackups": false
-}
-```
-
-**Note**: Editing the config file directly is not recommended. Use the Settings UI instead.
-
-## Reset to Defaults
-
-### Reset a Single Section
-
-Each settings section has a reset button (circular arrow icon) that resets only that section to defaults.
-
-### Reset All Settings
-
-At the bottom of the Settings panel:
-1. Click **Reset All to Defaults**
-2. Confirm the action
-
-This resets all settings but:
-- Does NOT delete your sessions
-- Does NOT remove your API key
-- Does NOT affect your output directory contents
-
-### Complete Reset
-
-To completely reset markuprx:
-
-1. Quit markuprx
-2. Delete the config directory:
-   - macOS: `rm -rf ~/Library/Application\ Support/markuprx`
-   - Windows: Delete `%APPDATA%\markuprx`
-   - Linux: `rm -rf ~/.config/markuprx`
-3. Relaunch markuprx
-
-## Import/Export Settings
-
-### Export Settings
-
-1. Go to Settings > Advanced > Settings Management
-2. Click **Export**
-3. Choose a location to save `markuprx-settings.json`
-
-### Import Settings
-
-1. Go to Settings > Advanced > Settings Management
-2. Click **Import**
-3. Select a previously exported settings file
-4. Settings are applied immediately
-
-**Note**: API keys are NOT included in exports for security reasons.
+For exact legacy paths and safe recovery steps, see [Troubleshooting](TROUBLESHOOTING.md).

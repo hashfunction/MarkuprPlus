@@ -1,420 +1,128 @@
-# Troubleshooting Guide
+# MarkuprPlus troubleshooting
 
-> **Upgrading to MarkuprX 3.0:** the new application and bundle identity may cause macOS or Windows to request Screen Recording, Microphone, or Accessibility permission again. Re-enable MarkuprX in the relevant privacy panels, then restart the app once.
+Use the least destructive check that can explain the problem. Do not delete application or session directories as a first step.
 
-This guide helps resolve common issues with markuprx.
+## App does not start
 
-## Table of Contents
+From a source checkout:
 
-- [Installation Issues](#installation-issues)
-- [Permission Issues](#permission-issues)
-- [Audio Issues](#audio-issues)
-- [Transcription Issues](#transcription-issues)
-- [Screenshot Issues](#screenshot-issues)
-- [Hotkey Issues](#hotkey-issues)
-- [Export Issues](#export-issues)
-- [Performance Issues](#performance-issues)
-- [Getting Help](#getting-help)
-
-## Installation Issues
-
-### macOS: "markuprx" cannot be opened because it is from an unidentified developer
-
-**Solution**:
-1. Right-click (or Control-click) the app in Applications
-2. Select "Open" from the context menu
-3. Click "Open" in the dialog that appears
-4. The app will be saved as an exception
-
-Or via System Preferences:
-1. Open System Preferences > Security & Privacy > General
-2. Click "Open Anyway" next to the blocked app message
-3. Click "Open" in the confirmation dialog
-
-### macOS: "markuprx" is damaged and can't be opened
-
-This usually means the app's code signature was invalidated.
-
-**Solution**:
 ```bash
-# Remove quarantine attribute
-xattr -cr /Applications/markuprx.app
-
-# Then try opening again
-open /Applications/markuprx.app
+node --version
+npm install
+npm run typecheck
+npm run build:desktop
+npm run dev
 ```
 
-### Windows: SmartScreen Warning
-
-**Solution**:
-1. Click "More info" on the SmartScreen dialog
-2. Click "Run anyway"
-3. The app will run normally
+Node.js must be 20.9 or newer and ffmpeg must be on `PATH` for media workflows. Capture the terminal error when opening an issue.
 
-### Windows: Installation fails with error code
+Packaged macOS application paths use the public app name, for example `/Applications/MarkuprPlus.app`. Unsigned local builds may require an explicit one-time approval in System Settings; official signing/notarization is not claimed until a release artifact is published and verified.
 
-**Common causes**:
-- Antivirus blocking installation
-- Insufficient disk space
-- Running installer from network drive
+## Compatibility data paths
 
-**Solutions**:
-1. Temporarily disable antivirus
-2. Clear temp folder: `%TEMP%`
-3. Run installer as Administrator
-4. Download installer to local drive first
+The legacy user-data directory remains `MarkuprX` as a compatibility path.
 
-## Permission Issues
+Production deliberately points Electron `userData` there so upgrades keep settings, credentials, and recovery state. Do not rename that directory. The default session output remains `~/Documents/markuprx` and can be changed in Settings.
 
-### macOS: Microphone Permission
+To diagnose a settings problem safely:
 
-**Symptom**: No audio captured, "Microphone access denied" error
+1. Quit the app.
+2. Back up the compatibility user-data directory and configured output directory.
+3. Relaunch and use **Export Settings** where possible.
+4. Use the in-app reset/clear actions only after reading their confirmation and preserving needed data.
 
-**Solution**:
-1. Open System Preferences > Security & Privacy > Privacy
-2. Click Microphone in the sidebar
-3. Find markuprx and check the box
-4. Restart markuprx
+Exported settings use `MarkuprPlus-settings.json`; compatible older JSON exports can still be selected during import.
 
-**If markuprx isn't listed**:
-1. Click the lock icon and authenticate
-2. Click the "+" button
-3. Navigate to /Applications and select markuprx
-4. Click Open
+## Screen capture is blank or unavailable
 
-### macOS: Screen Recording Permission
+### macOS
 
-**Symptom**: Black screenshots, "Screen recording not permitted"
-
-**Solution**:
-1. Open System Preferences > Security & Privacy > Privacy
-2. Click Screen Recording in the sidebar
-3. Find markuprx and check the box
-4. **Restart markuprx** (required for screen recording)
+1. Open System Settings → Privacy & Security → Screen Recording.
+2. Enable MarkuprPlus or the terminal/editor running the development build.
+3. Quit and relaunch after changing the permission.
+4. Select the exact display/window again.
 
-**If permission was previously granted but not working**:
-1. Uncheck markuprx
-2. Quit markuprx completely
-3. Re-check markuprx
-4. Restart markuprx
-
-### macOS: Accessibility Permission
-
-**Symptom**: Global hotkeys not working in all apps
-
-**Solution**:
-1. Open System Preferences > Security & Privacy > Privacy
-2. Click Accessibility in the sidebar
-3. Find markuprx and check the box
-
-### Windows: Microphone Access
+### Windows
 
-**Symptom**: No audio input
-
-**Solution**:
-1. Open Settings > Privacy > Microphone
-2. Ensure "Allow apps to access your microphone" is On
-3. Scroll down and ensure markuprx has access
-
-## Audio Issues
-
-### No Audio Detected
+Confirm the target window is visible and not protected by DRM/secure-desktop restrictions. Windows desktop support is pre-release until a signed artifact is independently validated.
 
-**Symptoms**:
-- Waveform shows no activity
-- "No audio input" message
-- Transcription is empty
-
-**Checklist**:
-1. **Check permissions** (see above)
-2. **Check microphone hardware**:
-   - Test in other apps (Voice Memos, etc.)
-   - Check microphone is plugged in/enabled
-3. **Check audio device selection**:
-   - Open Settings > Recording > Microphone
-   - Select the correct input device
-4. **Check system volume**:
-   - Ensure input volume isn't muted
-   - macOS: System Preferences > Sound > Input
-   - Windows: Settings > Sound > Input
+## Microphone is unavailable
 
-### Wrong Microphone Selected
+1. Confirm the intended device is connected and selected in Settings.
+2. Check OS microphone permission for MarkuprPlus (or the development host).
+3. Verify another app is not holding the device exclusively.
+4. Use the recording waveform/level display to confirm input before a long session.
 
-**Solution**:
-1. Open markuprx Settings (`Cmd+,` or `Ctrl+,`)
-2. Go to Recording tab
-3. Select correct microphone from dropdown
-4. Test by speaking - waveform should respond
+## Annotation does not activate
 
-### Audio is Distorted or Clipping
+On macOS, Accessibility permission improves global Command-key observation. Without it, use the visible Draw/Done fallback control. On Windows the modifier is Control. Annotation tools are freehand, circle, and highlight.
 
-**Symptom**: Transcription is garbled, audio sounds bad
+If a modifier seems stuck, release it and use the explicit fallback control. Pause returns annotation to interaction mode for safety.
 
-**Solutions**:
-1. Move microphone away from mouth
-2. Lower microphone input gain:
-   - macOS: System Preferences > Sound > Input
-   - Windows: Settings > Sound > Input device properties
-3. Use a lower quality microphone setting
+## Transcription failed
 
-### Bluetooth Audio Issues
+### Local Whisper
 
-**Symptom**: Audio cuts out, delays, or doesn't work with Bluetooth headset
+- Confirm a model is downloaded in Settings.
+- Confirm the model file is complete and there is enough disk space.
+- Retry with the base/tiny model when diagnosing memory or download constraints.
+- Remember that transcription occurs after the session stops, not continuously during recording.
 
-**Solutions**:
-1. Use wired microphone if possible
-2. Disconnect and reconnect Bluetooth device
-3. Set Bluetooth device as default in system settings
-4. Check Bluetooth device battery level
+### OpenAI recovery
 
-## Transcription Issues
+- Confirm an OpenAI key is stored and valid.
+- Confirm network access and account availability.
+- Understand that selected audio is sent to OpenAI when this path is used.
 
-### OpenAI Connection Failed
+Capture evidence remains valuable even if transcription fails; inspect the session/recovery state before deleting anything.
 
-**Symptom**: "Connection failed", "API error", no transcription
+## Analysis provider is unavailable
 
-**Checklist**:
-1. **Verify API key**:
-   - Check key is entered correctly (no extra spaces)
-   - Try re-entering the key
-   - Test with "Test Connection" button
-2. **Check internet connection**:
-   - Test other websites
-   - Check firewall isn't blocking OpenAI
-3. **Check OpenAI account**:
-   - Log in to platform.openai.com/api-keys
-   - Verify account has available credits
-   - Check API key permissions
+- **Local Rules:** requires no external service and is the deterministic fallback.
+- **Ollama/LM Studio:** start the loopback service, load a model, and refresh discovery.
+- **Codex/Claude Code CLI:** install the executable, authenticate it, and confirm it runs outside MarkuprPlus.
+- **Anthropic API:** validate the stored key and network access.
 
-### Poor Transcription Quality
+MarkuprPlus does not silently switch to another cloud provider. The report records fallback diagnostics when Local Rules is used.
 
-**Symptoms**: Many errors, wrong words, low confidence
+## Session is stuck or app exited
 
-**Solutions**:
-1. **Improve audio quality**:
-   - Use better microphone
-   - Reduce background noise
-   - Speak closer to microphone
-2. **Speak clearly**:
-   - Moderate pace
-   - Clear enunciation
-   - Avoid mumbling
-3. **Check language setting**:
-   - Settings > Advanced > Language
-   - Ensure matches your spoken language
+The session state machine has bounded starting/stopping/processing states. Reopen MarkuprPlus and use the Crash Recovery dialog if incomplete persisted evidence is found. Choose Recover before Discard when the evidence matters.
 
-### Transcription Lag
+For a recovered session, verify its screenshots and transcript before exporting. A recovery report may contain warnings when an expected artifact could not be restored.
 
-**Symptom**: Text appears several seconds after speaking
+## Export failed
 
-**Causes**:
-- Network latency
-- CPU overload
+- Confirm the destination exists and is writable.
+- Avoid exporting through a symlinked/untrusted screenshot directory.
+- Confirm source screenshot bytes still exist and are supported PNG/JPEG/WebP media.
+- For Markdown, enabling images creates contained colocated assets; disabling images removes screenshot references.
+- HTML/PDF can embed evidence; JSON is deliberately metadata-oriented.
 
-**Solutions**:
-1. Check internet speed
-2. Close other applications
-3. Restart markuprx
+## CLI or MCP does not run
 
-### API Key "Invalid" Error
+The npm package is not published today. Build from source:
 
-**Solutions**:
-1. Generate a new API key at platform.openai.com/api-keys
-2. Ensure key has "Usage" permission
-3. Copy key carefully (no extra characters)
-4. Paste in Settings > Advanced > API Key
-5. Click "Test Connection"
+```bash
+npm run build:cli
+npm run build:mcp
+node dist/cli/index.mjs --help
+node dist/mcp/index.mjs
+```
 
-## Screenshot Issues
+Use an absolute MCP server path and restart the client after configuration changes. Diagnostics are written to stderr.
 
-### Black Screenshots
+## Logs and issue reports
 
-**Symptom**: All screenshots are solid black
+Debug mode adds local diagnostics. Electron logs and recovery data live under the preserved user-data location; session artifacts live under the configured output directory. Avoid attaching API keys, private audio, screenshots, or full settings files to a public issue.
 
-**Causes**:
-- Screen recording permission not granted
-- DRM-protected content (Netflix, etc.)
-- GPU/driver issues
+When reporting a reproducible bug, include:
 
-**Solutions**:
-1. **Grant screen recording permission** (macOS)
-2. **Avoid DRM content**: Some streaming services block capture
-3. **Update graphics drivers** (Windows)
-4. **Disable hardware acceleration**: Settings > Advanced > Debug Mode
+- MarkuprPlus version/commit;
+- OS and architecture;
+- source or packaged run method;
+- selected transcription and analysis provider names (never keys);
+- concise reproduction steps;
+- sanitized error/log excerpt.
 
-### Wrong Monitor Captured
-
-**Symptom**: Screenshots from different monitor than selected
-
-**Solutions**:
-1. Use Window Selector carefully
-2. Select specific window instead of full screen
-3. Check display arrangement in system settings
-
-### Screenshots Not Capturing
-
-**Symptom**: Screenshot count stays at 0
-
-**Causes**:
-- Voice pause threshold too high
-- Not pausing long enough
-- Audio issues (no voice detected)
-
-**Solutions**:
-1. Lower pause threshold: Settings > Recording > Pause Threshold
-2. Pause more deliberately while speaking
-3. Use manual screenshot: `Cmd+Shift+S` / `Ctrl+Shift+S`
-4. Check audio is being captured (waveform active)
-
-### Screenshots Too Frequent
-
-**Symptom**: Too many screenshots, capturing on every pause
-
-**Solutions**:
-1. Increase pause threshold: Settings > Recording
-2. Increase minimum time between captures
-3. Speak more continuously
-
-## Hotkey Issues
-
-### Hotkey Not Working
-
-**Symptoms**: Pressing hotkey does nothing
-
-**Checklist**:
-1. **Check permissions** (macOS Accessibility)
-2. **Check for conflicts**:
-   - Another app using same hotkey
-   - System shortcut conflict
-3. **Try different hotkey**: Settings > Hotkeys
-4. **Restart markuprx**
-
-### Hotkey Works in Some Apps Only
-
-**Causes**:
-- App captures keystrokes before system (games, VMs)
-- App has same hotkey defined
-
-**Solutions**:
-1. Change markuprx hotkey
-2. Check app's shortcut settings
-3. Exit full-screen mode
-
-### Hotkey Works but Takes Long
-
-**Symptom**: Delay between pressing hotkey and action
-
-**Solutions**:
-1. Close background applications
-2. Check CPU usage
-3. Restart markuprx
-
-## Export Issues
-
-### Export Fails
-
-**Symptoms**: "Export failed" error, no file created
-
-**Checklist**:
-1. **Check disk space**: Ensure enough space for export
-2. **Check write permissions**: Can you write to output folder?
-3. **Check path**: Avoid special characters in path
-4. **Try different location**: Export to Desktop first
-
-### PDF Export Issues
-
-**Symptoms**: PDF generation fails, images missing
-
-**Solutions**:
-1. Ensure session has screenshots
-2. Try with "Include Images" disabled
-3. Try smaller session (fewer items)
-
-### Corrupted Export
-
-**Symptom**: File opens but content is garbled
-
-**Solutions**:
-1. Re-export with different settings
-2. Try different format
-3. Check for disk errors
-
-## Performance Issues
-
-### High CPU Usage
-
-**Symptoms**: Fan running, system slow during recording
-
-**Causes**:
-- Audio processing
-- Transcription
-- Screenshot capture
-
-**Solutions**:
-1. Close other applications
-2. Disable audio waveform: Settings > Recording
-3. Increase pause threshold (fewer screenshots)
-4. Restart markuprx periodically
-
-### High Memory Usage
-
-**Symptom**: Memory usage grows during long sessions
-
-**Solutions**:
-1. Keep sessions under 10 minutes
-2. Restart markuprx between sessions
-3. Close other memory-intensive apps
-
-### Slow Export
-
-**Symptom**: Export takes very long
-
-**Solutions**:
-1. Use Markdown instead of PDF (faster)
-2. Disable "Include Images"
-3. Export fewer items at once
-
-## Getting Help
-
-### Collecting Debug Information
-
-1. Enable debug mode: Settings > Advanced > Debug Mode
-2. Reproduce the issue
-3. Collect logs:
-   - macOS: `~/Library/Logs/markuprx/`
-   - Windows: `%APPDATA%\markuprx\logs\`
-4. Include system info:
-   - OS version
-   - markuprx version (Settings footer)
-   - Hardware specs
-
-### Reporting Issues
-
-When reporting an issue:
-
-1. Search existing issues first
-2. Include:
-   - Steps to reproduce
-   - Expected behavior
-   - Actual behavior
-   - Debug logs
-   - Screenshots if helpful
-3. Use the bug report template
-
-### Contact
-
-- **Project website**: [markuprx.com](https://markuprx.com)
-- **Documentation**: This documentation
-- **Release Notes**: Check for known issues in release notes
-
-### Self-Diagnosis Checklist
-
-Before seeking help, verify:
-
-- [ ] markuprx is up to date
-- [ ] System meets requirements
-- [ ] Permissions are granted
-- [ ] API key is valid
-- [ ] Internet connection works
-- [ ] Issue persists after restart
-- [ ] Issue persists after reinstall
+Use [GitHub Issues](https://github.com/hashfunction/MarkuprPlus/issues) for ordinary bugs and requests. Follow [SECURITY.md](../SECURITY.md) for vulnerabilities. [markuprplus.com](https://markuprplus.com) is the canonical forthcoming home, not a current download/support service.

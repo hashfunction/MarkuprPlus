@@ -1,460 +1,106 @@
-# Architecture
+# MarkuprPlus architecture
 
-This document provides a high-level overview of markuprx's architecture.
+MarkuprPlus is an Electron application with separate main, preload, and renderer responsibilities, plus source-built CLI and MCP entry points.
 
-## Table of Contents
+## Process boundary
 
-- [Overview](#overview)
-- [Process Model](#process-model)
-- [State Management](#state-management)
-- [Data Flow](#data-flow)
-- [Service Architecture](#service-architecture)
-- [Security Model](#security-model)
-
-## Overview
-
-markuprx is an Electron application with a React frontend. It follows Electron's multi-process architecture with clear separation between the main process (Node.js) and renderer process (Chromium).
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        markuprx                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────┐                ┌──────────────────────┐   │
-│  │   Main Process   │◄──── IPC ─────►│  Renderer Process    │   │
-│  │    (Node.js)     │                │    (Chromium)        │   │
-│  │                  │                │                      │   │
-│  │  - Capture       │                │  - React UI          │   │
-│  │  - Transcription │                │  - Audio Capture     │   │
-│  │  - File I/O      │                │  - Visualization     │   │
-│  │  - Settings      │                │                      │   │
-│  │  - Hotkeys       │                │                      │   │
-│  └──────────────────┘                └──────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+```text
+renderer (React, unprivileged UI)
+             |
+       window.markuprx
+       validated IPC
+             |
+preload (contextBridge, narrow typed API)
+             |
+main (capture, files, credentials, providers, exports)
 ```
 
-## Process Model
+`window.markuprx` and `markuprx:` IPC channels are retained compatibility interfaces. They are not public display branding and should not be renamed casually.
 
-### Main Process
+The renderer does not receive raw Electron/Node authority. Privileged handlers validate the sender, arguments, paths, media, and allowed operation. Navigation and new-window attempts are guarded; external URLs go through explicit main-process handlers.
 
-The main process handles:
+## Main-process services
 
-- **System Integration**: Tray icons, hotkeys, native menus
-- **Screen Capture**: Using Electron's desktopCapturer
-- **File Operations**: Saving sessions, screenshots
-- **Settings**: Persistent storage via electron-store
-- **Secure Storage**: API keys via keytar
-- **Updates**: Auto-updater
-- **Session Orchestration**: State machine, service coordination
+- `SessionController`: bounded recording state machine and orchestration.
+- `TrayManager` / `MenuManager`: native tray/taskbar and application menus.
+- Capture managers: source selection, recording lifecycle, overlays, manual cues, and marked-issue accumulation.
+- Audio/transcription services: recorded audio plus post-session local Whisper/OpenAI recovery.
+- Pipeline services: frame extraction, evidence correlation, analysis-provider selection, validation, and Local Rules fallback.
+- Output services: deterministic report generation, trusted-media handling, Review export, session listing/deletion, clipboard/folder actions.
+- `SettingsManager`: schema-validated settings and credential-store access.
+- Crash recovery: persisted in-progress evidence and recovery/discard workflow.
+- Permission/error handlers: OS permission guidance, bounded diagnostics, and user-visible failure states.
 
-### Renderer Process
+An `AutoUpdater` implementation and renderer API exist, but current startup does not initialize a published update feed and packaging has no publisher endpoint. It is dormant infrastructure, not an active distribution promise.
 
-The renderer process handles:
+## Renderer surfaces
 
-- **User Interface**: React components
-- **Audio Capture**: Web Audio API (requires renderer for MediaDevices)
-- **Visualization**: Waveforms, transcription preview
-- **User Input**: Buttons, forms, drag operations
+React contexts coordinate UI settings, recording state, and navigation. The main secondary surfaces share a 460 × 680 portrait shell and one intentional primary scroller:
 
-### Preload Script
+- Start/status popover;
+- Settings;
+- Session History;
+- Keyboard Shortcuts;
+- Review Editor;
+- onboarding and recovery flows.
 
-The preload script bridges the two processes:
+The recording HUD (316 × 90) and processing HUD (320 × 140) remain intentionally compact. Capture/selection/annotation overlays are separate transparent windows bound to the chosen target.
 
-- **Context Isolation**: Enabled for security
-- **Node Integration**: Disabled in renderer
-- **API Exposure**: via `contextBridge.exposeInMainWorld`
+Accessibility behaviors include keyboard navigation, focus containment/restoration, reduced-motion support, forced-colors support, labelled controls, and visible focus. Theme tokens support system/light/dark modes.
 
-```typescript
-// Preload exposes a safe API
-contextBridge.exposeInMainWorld('markuprx', {
-  session: {
-    start: (sourceId) => ipcRenderer.invoke('markuprx:session:start', sourceId),
-    // ...
-  },
-  // ...
-});
+## Recording lifecycle
+
+```text
+idle -> starting -> recording -> stopping -> processing -> complete -> idle
+                         |                         |
+                         +-> paused/resumed        +-> error/recovery
 ```
 
-## State Management
+Each non-idle state is bounded so an external service cannot leave the UI indefinitely stuck. During recording, the app persists recoverable evidence. Stopping ends capture before post-session transcription, frame extraction, and analysis.
 
-### Session State Machine
+Current capture does not perform real-time transcription or automatic silence-triggered screenshots. Manual cues and committed annotations supply intentional evidence points.
 
-The session follows a finite state machine pattern:
+## Evidence model
 
-```
-                    ┌───────────────────────────────────────┐
-                    │                                       │
-                    ▼                                       │
-┌──────┐  start  ┌───────────┐  stop   ┌────────────┐     │
-│ idle │────────►│ recording │───────►│ processing │─────┘
-└──────┘         └───────────┘         └────────────┘
-   ▲                  │                      │
-   │                  │ cancel               │ complete
-   │                  │                      │
-   │                  ▼                      ▼
-   │              ┌──────┐             ┌──────────┐
-   └──────────────│ idle │◄────────────│ complete │
-                  └──────┘             └──────────┘
-```
+A marked issue combines:
 
-**States**:
-- `idle`: No active session
-- `recording`: Capturing audio and screenshots
-- `processing`: Generating output
-- `complete`: Session saved
+- timestamp and narration window;
+- trusted screenshot reference;
+- annotation tool/strokes;
+- cursor, active-window, and focused-element context when available;
+- optional classification/description added in Review.
 
-### State in Main Process
+The accumulator commits each marked issue once and keeps evidence separate. Output generators consume a normalized session model; they do not scrape the renderer DOM or grant analysis providers filesystem authority.
 
-```typescript
-// SessionController manages state
-class SessionController {
-  private state: SessionState = 'idle';
-  private session: Session | null = null;
+## Transcription and analysis
 
-  async start(sourceId: string): Promise<void> {
-    if (this.state !== 'idle') throw new Error('Invalid state');
-    this.state = 'recording';
-    // ...
-  }
-}
-```
+Post-session transcription uses a downloaded local Whisper model when available, with an optional configured OpenAI recovery path. Analysis selects exactly one of Local Rules, Ollama, LM Studio, Codex CLI, Claude Code CLI, or Anthropic API. All enhanced output passes through a shared validator. Invalid/unavailable enhanced analysis falls back to Local Rules with a recorded reason rather than another hidden provider.
 
-### State in Renderer
+See [AI pipeline design](AI_PIPELINE_DESIGN.md) for data-flow details.
 
-React components subscribe to state changes:
+## Persistence
 
-```tsx
-function App() {
-  const [state, setState] = useState<SessionState>('idle');
+- Settings: `settings.json` in the preserved Electron user-data directory.
+- Secrets: OS credential store when available, otherwise the existing encrypted compatibility fallback.
+- Sessions: configured output directory, default `~/Documents/markuprx`.
+- Recovery: atomic, bounded in-progress metadata/evidence.
 
-  useEffect(() => {
-    const unsubscribe = window.markuprx.session.onStateChange(({ state }) => {
-      setState(state);
-    });
-    return unsubscribe;
-  }, []);
-}
-```
+Paths are resolved and checked at privileged boundaries. Output deletion and export operate only on validated contained targets; trusted media is byte-validated before use.
 
-## Data Flow
+## Exports and integrations
 
-### Recording Flow
+Desktop Review exports Markdown, PDF, HTML, and JSON. CLI templates are Markdown, JSON, GitHub issue, Linear, and Jira. GitHub/Linear delivery is explicit and separate from local generation.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Recording Flow                            │
-└─────────────────────────────────────────────────────────────────┘
+PDF rendering uses a constrained hidden BrowserWindow. HTML/PDF content is escaped and generated from trusted templates. Markdown images are copied into a contained relative directory when enabled; JSON remains metadata-oriented.
 
-User speaks
-    │
-    ▼
-┌──────────────────┐
-│  AudioCapture    │  (Renderer - Web Audio API)
-│  (Renderer)      │
-└────────┬─────────┘
-         │ Audio chunks (100ms)
-         ▼
-┌──────────────────┐
-│  Main Process    │  IPC: AUDIO_CHUNK
-│                  │
-└────────┬─────────┘
-         │
-         ├────────────────────────┐
-         │                        │
-         ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐
-│ Transcription    │    │ Intelligent      │
-│ Service          │    │ Capture          │
-│ (OpenAI WS)    │    │                  │
-└────────┬─────────┘    └────────┬─────────┘
-         │                        │
-         │ Transcript             │ Voice pause detected
-         │                        │
-         ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐
-│ Session          │    │ Screen           │
-│ Controller       │◄───│ Capture          │
-│                  │    │                  │
-└────────┬─────────┘    └──────────────────┘
-         │
-         │ Feedback item
-         │
-         ▼
-┌──────────────────┐
-│  Renderer        │  IPC: SESSION_FEEDBACK_ITEM
-│  (UI Update)     │
-└──────────────────┘
-```
+## CLI and MCP
 
-### Export Flow
+The CLI and MCP server reuse analysis, transcription, template, and integration modules without starting the desktop UI. The MCP server communicates over stdio and registers nine tools. Lower-case binary/package/MCP registry IDs remain stable for compatibility.
 
-```
-User clicks Export
-    │
-    ▼
-┌──────────────────┐
-│  ExportDialog    │  User selects format
-│  (Renderer)      │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  Main Process    │  IPC: OUTPUT_EXPORT
-│                  │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  ExportService   │  Generates document
-│                  │
-└────────┬─────────┘
-         │
-         ├───────────────────────────────┐
-         │                               │
-         ▼                               ▼
-┌──────────────────┐           ┌──────────────────┐
-│ Markdown         │           │ PDF / HTML       │
-│ Generator        │           │ Generator        │
-└────────┬─────────┘           └────────┬─────────┘
-         │                               │
-         └───────────────┬───────────────┘
-                         │
-                         ▼
-                ┌──────────────────┐
-                │  FileManager     │  Saves to disk
-                └──────────────────┘
-```
+## Testing strategy
 
-## Service Architecture
+- Vitest unit/integration tests exercise pure state, providers, output, IPC helpers, security boundaries, and services.
+- Real-Electron Playwright tests exercise main/preload/renderer behavior, capture harness flows, recovery, portrait layout, accessibility, and deterministic screenshots.
+- Package verification inspects public bundle/executable metadata, native architectures, runtime asset allowlists, and artifact naming.
 
-### Main Process Services
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Main Process Services                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                  SessionController                       │   │
-│  │  - State machine                                         │   │
-│  │  - Service coordination                                  │   │
-│  │  - Event emission                                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│         │                │                │                     │
-│         │                │                │                     │
-│         ▼                ▼                ▼                     │
-│  ┌───────────┐    ┌───────────┐    ┌───────────┐              │
-│  │ Capture   │    │Transcript │    │  Output   │              │
-│  │ Service   │    │ Service   │    │ Service   │              │
-│  └───────────┘    └───────────┘    └───────────┘              │
-│                                                                  │
-│  ┌───────────┐    ┌───────────┐    ┌───────────┐              │
-│  │  Hotkey   │    │   Tray    │    │ Settings  │              │
-│  │  Manager  │    │  Manager  │    │  Manager  │              │
-│  └───────────┘    └───────────┘    └───────────┘              │
-│                                                                  │
-│  ┌───────────┐    ┌───────────┐    ┌───────────┐              │
-│  │   Menu    │    │  Crash    │    │   Auto    │              │
-│  │  Manager  │    │ Recovery  │    │  Updater  │              │
-│  └───────────┘    └───────────┘    └───────────┘              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Service Descriptions
-
-| Service | Responsibility |
-|---------|----------------|
-| **SessionController** | Orchestrates recording sessions, manages state |
-| **CaptureService** | Screen capture via desktopCapturer |
-| **IntelligentCapture** | Voice-triggered screenshot timing |
-| **TranscriptionService** | OpenAI WebSocket integration |
-| **OutputService** | Document generation coordination |
-| **HotkeyManager** | Global hotkey registration |
-| **TrayManager** | System tray icon and menu |
-| **MenuManager** | Native application menu |
-| **SettingsManager** | Persistent settings via electron-store |
-| **CrashRecovery** | Session recovery after crashes |
-| **AutoUpdater** | Application updates |
-
-### Service Communication
-
-Services communicate through:
-
-1. **Direct method calls** (same process)
-2. **Events** (pub/sub pattern)
-3. **IPC** (between processes)
-
-```typescript
-// SessionController coordinates services
-class SessionController {
-  constructor(
-    private capture: CaptureService,
-    private transcription: TranscriptionService,
-    private output: OutputService,
-  ) {}
-
-  async start(sourceId: string) {
-    // Direct method calls
-    await this.capture.start(sourceId);
-    await this.transcription.connect();
-
-    // Event subscription
-    this.transcription.on('transcript', (text) => {
-      this.handleTranscript(text);
-    });
-  }
-}
-```
-
-## Security Model
-
-### Context Isolation
-
-The renderer process is sandboxed:
-
-```typescript
-// main/index.ts
-new BrowserWindow({
-  webPreferences: {
-    contextIsolation: true,   // Enabled
-    nodeIntegration: false,   // Disabled
-    preload: 'preload.js',    // Bridge
-  },
-});
-```
-
-### Secure API Key Storage
-
-API keys are stored using system keychain:
-
-```typescript
-// macOS: Keychain
-// Windows: Credential Manager
-// Linux: Secret Service
-
-import keytar from 'keytar';
-
-await keytar.setPassword('markuprx', 'openai', apiKey);
-const key = await keytar.getPassword('markuprx', 'openai');
-```
-
-### Content Security Policy
-
-```html
-<meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
-```
-
-### IPC Security
-
-All IPC channels are:
-- Explicitly defined in shared types
-- Validated in handlers
-- Never expose raw Node.js APIs
-
-```typescript
-// Safe: Defined channel with specific handler
-ipcMain.handle('markuprx:session:start', async (_, sourceId: string) => {
-  // Validate input
-  if (typeof sourceId !== 'string') throw new Error('Invalid sourceId');
-  return sessionController.start(sourceId);
-});
-
-// Unsafe (never do this): Exposing arbitrary execution
-ipcMain.handle('execute', (_, code) => eval(code)); // NEVER!
-```
-
-## Diagrams
-
-### Component Interaction
-
-```mermaid
-graph TD
-    subgraph Renderer
-        UI[React UI]
-        AC[Audio Capture]
-    end
-
-    subgraph Preload
-        API[markuprx API]
-    end
-
-    subgraph Main
-        SC[Session Controller]
-        TC[Transcription]
-        CC[Capture]
-        HK[Hotkeys]
-        TR[Tray]
-    end
-
-    UI --> API
-    AC --> API
-    API --> SC
-    SC --> TC
-    SC --> CC
-    HK --> SC
-    TR --> SC
-```
-
-### Recording Sequence
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant R as Renderer
-    participant M as Main
-    participant D as OpenAI
-
-    U->>R: Press hotkey
-    R->>M: session.start(sourceId)
-    M->>M: Initialize capture
-    M->>D: Connect WebSocket
-    D-->>M: Connection ready
-
-    loop Recording
-        R->>M: Audio chunk
-        M->>D: Send audio
-        D-->>M: Transcript
-        M-->>R: Feedback item
-        Note over M: Voice pause detected
-        M->>M: Capture screenshot
-        M-->>R: Screenshot captured
-    end
-
-    U->>R: Press hotkey
-    R->>M: session.stop()
-    M->>D: Close connection
-    M->>M: Generate output
-    M-->>R: Session complete
-```
-
-### Data Model
-
-```mermaid
-erDiagram
-    Session ||--o{ FeedbackItem : contains
-    FeedbackItem ||--o| Screenshot : has
-    Session ||--o{ Screenshot : buffers
-    Session {
-        string id
-        number startTime
-        number endTime
-        string sourceId
-        SessionState state
-    }
-    FeedbackItem {
-        string id
-        number timestamp
-        string text
-        number confidence
-    }
-    Screenshot {
-        string id
-        number timestamp
-        Buffer data
-        number width
-        number height
-    }
-```
+Use `npm run verify:source`, `npm run test:ui-electron`, and the applicable package verifier before release decisions.

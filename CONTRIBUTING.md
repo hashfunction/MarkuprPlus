@@ -1,287 +1,102 @@
-# Contributing to MarkuprX
+# Contributing to MarkuprPlus
 
-Thank you for your interest in contributing to MarkuprX! This document covers everything you need to get started.
+Thanks for helping improve MarkuprPlus. Start with a focused issue or proposal, preserve the compatibility boundaries below, and include evidence for behavior changes.
 
-## Table of Contents
+## Setup
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [How the Pipeline Works](#how-the-pipeline-works)
-- [Development Workflow](#development-workflow)
-- [Pull Request Process](#pull-request-process)
-- [Style Guide](#style-guide)
-- [Reporting Issues](#reporting-issues)
+Requirements:
 
-## Code of Conduct
-
-By participating in this project, you agree to maintain a respectful and inclusive environment. Please:
-
-- Be respectful and considerate in all interactions
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Accept responsibility for mistakes and learn from them
-
-## Getting Started
-
-### Prerequisites
-
-- **Node.js** 20.9+ (check with `node --version`)
-- **npm** 9+ (comes with Node.js)
-- **Git**
-- **ffmpeg** -- required for frame extraction and audio processing
-  - macOS: `brew install ffmpeg`
-  - Ubuntu/Debian: `sudo apt install ffmpeg`
-  - Windows: `choco install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/)
-- A code editor (VS Code recommended)
-
-**Optional:**
-- **Whisper model** -- downloaded automatically on first run (~75MB for tiny, ~500MB for base)
-- **OpenAI API key** -- for cloud transcription (configured in-app, not required for development)
-- **Anthropic API key** -- for AI-enhanced analysis (configured in-app, not required for development)
-
-### Setup
-
-1. **Open an authorized source checkout**:
-   ```bash
-   cd markuprx
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Start development**:
-   ```bash
-   npm run dev
-   ```
-
-### Key Commands
-
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Start development mode with hot reload |
-| `npm test` | Run all tests |
-| `npm run test:unit` | Run unit tests only |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run lint` | Lint code |
-| `npm run lint:fix` | Auto-fix lint issues |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run build` | Build for production |
-
-### Architecture Reference
-
-See [CLAUDE.md](CLAUDE.md) for the most up-to-date architecture reference, including the full directory structure, key design decisions, and conventions. This file is also used by AI coding assistants (Claude Code, Cursor, etc.) for codebase context.
-
-For detailed development setup and debugging instructions, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-
-## How the Pipeline Works
-
-Understanding the post-processing pipeline helps when contributing to any part of the codebase. When recording stops, four stages run in sequence:
-
-1. **Transcribe** (`src/main/transcription/`) -- Audio is transcribed using local Whisper (or OpenAI API). Produces timestamped transcript segments.
-2. **Analyze** (`src/main/pipeline/TranscriptAnalyzer.ts`) -- Transcript is analyzed to identify key moments, topic changes, and important observations using heuristic scoring.
-3. **Extract** (`src/main/pipeline/FrameExtractor.ts`) -- ffmpeg extracts video frames at the exact timestamps of each key moment.
-4. **Generate** (`src/main/output/MarkdownGenerator.ts`) -- Everything is stitched into a structured Markdown document with screenshots placed at the correct positions.
-
-Each step degrades gracefully: if transcription fails, frame extraction still runs on a timer; if ffmpeg is missing, a transcript-only document is generated.
-
-The pipeline orchestrator lives at `src/main/pipeline/PostProcessor.ts`.
-
-## Development Workflow
-
-### Branch Naming
-
-Use descriptive branch names:
-
-- `feature/add-pdf-export`
-- `fix/hotkey-conflict`
-- `docs/update-readme`
-- `refactor/settings-panel`
-
-### Making Changes
-
-1. **Create a branch**:
-   ```bash
-   git checkout -b feature/my-feature
-   ```
-
-2. **Make your changes** following the [style guide](#style-guide)
-
-3. **Test your changes**:
-   ```bash
-   npm test
-   npm run lint
-   npm run typecheck
-   ```
-
-4. **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/):
-   ```bash
-   git commit -m "feat(export): add PDF export format"
-   ```
-
-### Commit Message Format
-
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation only
-- `style`: Code style (formatting, etc.)
-- `refactor`: Code change that neither fixes nor adds
-- `perf`: Performance improvement
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-
-**Examples:**
-```
-feat(export): add PDF export format
-fix(hotkey): resolve conflict with system shortcuts
-docs(readme): update installation instructions
-refactor(settings): simplify settings manager
-```
-
-### Keeping Your Fork Updated
+- Node.js 20.9 or newer;
+- npm;
+- ffmpeg on `PATH`;
+- macOS for the currently exercised real-Electron desktop/package path (other targets may still be developed/tested where supported).
 
 ```bash
-git fetch upstream
-git checkout main
-git merge upstream/main
-git push origin main
+git clone https://github.com/hashfunction/MarkuprPlus.git
+cd MarkuprPlus
+npm install
+npm run dev
 ```
 
-## Pull Request Process
+A local Whisper model is optional for most development. The tiny download is about 75 MB and base is 142 MB. Cloud keys are optional and should never be committed.
 
-### Before Submitting
+## Before coding
 
-Ensure your PR:
+1. Search existing [issues](https://github.com/hashfunction/MarkuprPlus/issues).
+2. Read the nearest `AGENTS.md` and applicable plan/spec.
+3. Identify whether the work changes public behavior or a retained compatibility interface.
+4. Add a failing test for fixes/features before production changes.
 
-1. **Passes all tests**: `npm test`
-2. **Passes linting**: `npm run lint`
-3. **Passes type checking**: `npm run typecheck`
-4. **Has been tested manually**
-5. **Includes documentation updates** (if applicable)
+## Compatibility boundary
 
-### Submitting a PR
+Public product copy is MarkuprPlus. Retain these machine-facing names unless the change includes a reviewed migration:
 
-1. Push your branch: `git push origin feature/my-feature`
-2. Open a Pull Request on GitHub
-3. Fill out the [PR template](.github/PULL_REQUEST_TEMPLATE.md) -- describe what the PR does, link related issues, and include screenshots for UI changes
-4. Request review if not automatically assigned
+- package/CLI `markuprx`, MCP binary `markuprx-mcp`, MCP registry ID;
+- `.markuprx`, `.markuprx.json`, `MARKUPRX_*`;
+- `window.markuprx`, `markuprx:` IPC, public TypeScript API names;
+- app ID, stored paths, service identifiers, and migration keys.
 
-### Review Process
+Do not perform a blind repository-wide rename.
 
-1. Automated checks (CI) must pass
-2. At least one maintainer must approve
-3. All comments must be resolved
-4. No merge conflicts with main
+## Architecture expectations
 
-### After Merging
+- Main process owns files, shell, capture orchestration, credentials, providers, export, and native UI.
+- Preload exposes only explicit typed capabilities.
+- Renderer is unprivileged React.
+- Shared types/channels/constants are single sources of truth.
+- CLI/MCP reuse service/output modules without bypassing their validation.
 
-- Delete your branch
-- Pull changes to your local main
+The project uses repository CSS and CSS variables, not Tailwind. Follow existing component and stylesheet patterns.
 
-## Style Guide
+## Testing
 
-### TypeScript
+Run the smallest relevant test first, then broaden in proportion to risk:
 
-- Use explicit types for function parameters and return values
-- Use interfaces for object shapes
-- Use `as const` assertions for literal objects
-- Strict mode is enabled -- no `any` without justification
-
-```typescript
-// Use explicit types
-function createSession(sourceId: string): Session {
-  // ...
-}
-
-// Use interfaces for objects
-interface SessionOptions {
-  sourceId: string;
-  sourceName?: string;
-}
-
-// Use const assertions for literals
-const STATUS = {
-  IDLE: 'idle',
-  RECORDING: 'recording',
-} as const;
+```bash
+npm run typecheck
+npm run lint
+npm run test:unit -- --run
+npm run test:integration -- --run
+npm run build:desktop
+npm run test:ui-electron
+npm run verify:source
 ```
 
-### React
+`verify:source` is the source release gate. Real-Electron tests are required for main/preload/renderer behavior that a DOM-only unit test cannot prove. Packaging changes also require the package verifier and the applicable startup smoke.
 
-- Functional components only
-- Named exports preferred
-- Clean up effects with return functions
+Tests should cover failure paths, cancellation, cleanup, accessibility, and compatibility—not just the happy path. Avoid weakening assertions or refreshing visual snapshots without understanding the change.
 
-```tsx
-export function SessionStatus({ state }: SessionStatusProps) {
-  const [isActive, setIsActive] = useState(false);
+## Security and privacy
 
-  useEffect(() => {
-    return () => cleanup();
-  }, []);
+- Treat renderer values, imported settings, provider output, paths, and media bytes as untrusted.
+- Validate IPC senders and keep channel access enumerated.
+- Never log or commit API keys, tokens, private screenshots, audio, or user paths.
+- Do not introduce shell command interpolation or broad recursive deletion.
+- Describe provider-specific egress accurately: local capture is not proof that a selected cloud/CLI/delivery operation stays local.
+- Report vulnerabilities according to [SECURITY.md](SECURITY.md), not a public issue.
 
-  return <div className="status">{state}</div>;
-}
-```
+## Pull requests
 
-### CSS / Tailwind
+Keep each PR focused and explain:
 
-- Use Tailwind utilities for styling
-- Use `cn()` helper for conditional classes
+- user-visible outcome;
+- tests added and RED/GREEN evidence;
+- commands run and results;
+- compatibility/security/data-flow impact;
+- screenshots for UI changes;
+- known limitations or follow-up work.
 
-```tsx
-<div className={cn(
-  "bg-gray-900 text-white p-4 rounded-lg",
-  isActive && "ring-2 ring-blue-500",
-  className
-)}>
-```
+Do not commit build output, personal configuration, credentials, or unrelated formatting churn. Update public documentation when behavior or availability changes.
 
-### Testing
+## Style
 
-- **Framework:** Vitest
-- **Convention:** Test files mirror source structure in `tests/unit/`, `tests/integration/`, `tests/e2e/`
-- **Expectation:** New features should include tests; bug fixes should include a regression test
+- TypeScript strictness and existing ESLint rules apply.
+- Prefer explicit types at process/security boundaries.
+- Keep functions small and pure where practical.
+- Use public-brand constants for visible application copy.
+- Add comments for intent or a compatibility/security constraint, not restatements of code.
+- Preserve keyboard and screen-reader behavior when changing UI.
 
-### Naming Conventions
+## Community
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Components | PascalCase | `SessionReview.tsx` |
-| Hooks | camelCase, `use` prefix | `useSessionState.ts` |
-| Utilities | camelCase | `formatTime.ts` |
-| Types | PascalCase | `SessionState` |
-| Constants | UPPER_SNAKE_CASE | `MAX_RETRIES` |
-
-## Reporting Issues
-
-### Before Reporting
-
-1. **Search existing issues** for duplicates
-2. **Try the latest version** -- the issue may already be fixed
-3. **Collect information**: OS, MarkuprX version (visible in Settings footer), steps to reproduce, error messages or logs
-
-### Filing a Bug
-
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening a new issue. Include your OS, MarkuprX version, and steps to reproduce.
-
-### Requesting a Feature
-
-Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). Describe the problem you're trying to solve, not just the solution you want.
-
-## Questions?
-
-- Check the [documentation](docs/)
-- Visit [markuprx.com](https://markuprx.com) for current project information
-
-Thank you for contributing to MarkuprX!
+Use [GitHub Issues](https://github.com/hashfunction/MarkuprPlus/issues) for bugs and feature requests and follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). The project is MIT licensed.

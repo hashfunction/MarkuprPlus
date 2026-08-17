@@ -124,6 +124,22 @@ describe('repository brand audit', () => {
     })).toContain('README.md:1');
   });
 
+  it('allows only the approved README attribution to the original project', async () => {
+    const originalName = ['mark', 'upr'].join('');
+    const originalRepository = `https://github.com/${['eddie', 'sanjuan'].join('')}/${originalName}`;
+    const attribution = [
+      `## Significantly enhanced from ${originalName}`,
+      `MarkuprPlus is a significantly enhanced evolution of [${originalName}](${originalRepository}).`,
+    ].join('\n');
+
+    await expect(scan({ 'README.md': attribution })).resolves.toEqual([]);
+    expect(await scan({ 'docs/GETTING_STARTED.md': attribution }))
+      .toEqual(expect.arrayContaining([
+        'docs/GETTING_STARTED.md:1',
+        'docs/GETTING_STARTED.md:2',
+      ]));
+  });
+
   it('ignores approved historical decision records', async () => {
     const legacyWordmark = ['mark', 'upr'].join('');
 
