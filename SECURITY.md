@@ -9,11 +9,13 @@
 
 The repository is currently source-available and has no published release artifacts. Security fixes target the current 3.x branch/candidate.
 
-## Report a vulnerability privately
+## Request private vulnerability coordination
 
-Do **not** open a public issue for a vulnerability or attach private recordings, screenshots, credentials, or proof-of-concept data to an issue.
+Private vulnerability reporting is not yet configured for this repository, and the project does not currently publish a verified private security mailbox. Do not post sensitive details, private recordings, screenshots, credentials, exploit steps, or proof-of-concept data in a public issue.
 
-Email **eddie@efsanjuan.com** with:
+As an interim coordination step, open only a [minimal Contact issue](https://github.com/hashfunction/MarkuprPlus/issues/new) requesting a private channel. Include no vulnerability details; state only that you need private security coordination and how the current maintainer can reach you through a channel you control. If even that disclosure is unsafe, wait until this policy publishes a verified private route.
+
+After a maintainer establishes a private channel, be ready to provide:
 
 - a concise description and impact;
 - affected commit/version and platform;
@@ -22,6 +24,16 @@ Email **eddie@efsanjuan.com** with:
 - a safe way to coordinate further details.
 
 Ordinary bugs and feature requests belong in [GitHub Issues](https://github.com/hashfunction/MarkuprPlus/issues).
+
+## Credential-storage limitation
+
+API-key storage attempts the OS credential service first and Electron `safeStorage` encryption second. If both fail, the current compatibility path can store a key in owner-only plaintext inside `secure-keys.json`; the file permission is tightened to mode `0600` on a best-effort basis, but that is not encryption.
+
+Omit hosted API keys from MarkuprPlus when neither supported storage mechanism is available. Local Whisper and Local Rules do not need hosted keys; Ollama/LM Studio can use local services. CLI providers use their own authentication and may still communicate with their configured service.
+
+Do not open, print, attach, or back up the fallback file while diagnosing storage. To request removal of stored OpenAI/Anthropic credentials without exposing their values, first back up any sessions you need, then use Settings → Advanced → Clear All Data. That action is intentionally destructive: it removes the configured output directory, attempts current/legacy keychain and fallback cleanup, and resets settings. Cleanup failures are best-effort and can be logged without failing the overall action, so completion is not proof that every credential backend erased its entry. [Troubleshooting](docs/TROUBLESHOOTING.md) explains how to locate the fallback and the legacy storage boundary safely.
+
+Treat Settings Export as potentially sensitive. The current raw settings projection can carry legacy secret material from an older fallback path; do not publish, attach, or use an exported settings file as a general backup until that limitation is removed and independently verified.
 
 ## Scope examples
 

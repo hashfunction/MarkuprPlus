@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus"><img src="https://img.shields.io/github/stars/hashfunction/MarkuprPlus?style=flat" alt="GitHub stars"></a>
+</p>
+
+<p align="center">
   <a href="https://markuprplus.com">Website</a> &middot;
   <a href="https://github.com/hashfunction/MarkuprPlus">Source</a> &middot;
   <a href="https://github.com/hashfunction/MarkuprPlus/issues">Issues</a> &middot;
@@ -31,7 +37,7 @@ MarkuprPlus is a significantly enhanced evolution of [markupr](https://github.co
 - Local Whisper transcription with explicit local, CLI-backed, and hosted analysis-provider choices
 - Desktop export, clipboard/open-folder actions, plus GitHub and Linear delivery paths
 - Keyboard-first navigation, visible focus, reduced-motion and forced-colors support, and automated accessibility coverage
-- Hardened IPC/navigation boundaries, secure credential storage, and provider-specific privacy controls
+- Context-isolated preload access, guarded navigation, input/path/media validation, explicit credential-fallback disclosure, and provider-specific privacy controls
 
 ## Product tour
 
@@ -116,7 +122,7 @@ See [README-MCP.md](README-MCP.md) and [docs/AI_AGENT_QUICKSTART.md](docs/AI_AGE
 
 Capture files, transcripts, screenshots, and reports are stored in the configured output directory. Local Whisper, Local Rules, Ollama, and LM Studio can keep the processing path on the machine when their services are local. Choosing OpenAI transcription, Anthropic API, Codex CLI, Claude Code CLI, GitHub, Linear, or screen-description tools can transmit selected audio, text, images, or report content according to that provider's behavior.
 
-MarkuprPlus does not add application telemetry or analytics. API keys are stored through the operating system credential service when available, with the existing encrypted compatibility fallback. Renderer navigation is guarded, IPC is exposed through the preload boundary, and external links are opened through explicit handlers.
+MarkuprPlus does not add application telemetry or analytics. API-key storage first tries the operating system credential service, then Electron `safeStorage` encryption. If both are unavailable, the current compatibility behavior can write the key to an owner-only plaintext `secure-keys.json` fallback. Omit hosted API keys from MarkuprPlus unless the supported keychain or `safeStorage` is available; local Whisper and Local Rules require no hosted key. Renderer navigation is guarded, IPC is exposed through the preload boundary, and external links are opened through explicit handlers.
 
 See [SECURITY.md](SECURITY.md) before reporting a vulnerability.
 

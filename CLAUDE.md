@@ -56,7 +56,7 @@ Build/package commands are defined in `package.json`. There is no generic releas
 
 ## Development rules
 
-1. Read `AGENTS.md` and the applicable written plan before editing.
+1. Read the nearest `AGENTS.md` if one is present, plus the applicable written plan before editing.
 2. Add a failing regression first for behavior changes.
 3. Preserve unrelated user changes and compatibility identifiers.
 4. Keep renderer privilege narrow and IPC enumerated.

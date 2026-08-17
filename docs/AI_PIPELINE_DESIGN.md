@@ -84,7 +84,7 @@ GitHub and Linear delivery are separate explicit actions. They receive only the 
 
 - Renderer code reaches privileged operations only through the preload/IPC boundary.
 - Screenshot bytes are validated and normalized before export or provider use.
-- API keys use the operating system credential store when possible, with the existing encrypted compatibility fallback.
+- API keys first try the operating system credential store and then Electron `safeStorage`. If both fail, current compatibility behavior can use an owner-only plaintext `secure-keys.json` entry; users who cannot provide supported secure storage should omit hosted API keys.
 - Local Rules and local Whisper do not require a model-service request.
 - Ollama/LM Studio use local loopback services.
 - CLI providers follow the installed CLI/account configuration.

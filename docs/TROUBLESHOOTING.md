@@ -24,14 +24,28 @@ The legacy user-data directory remains `MarkuprX` as a compatibility path.
 
 Production deliberately points Electron `userData` there so upgrades keep settings, credentials, and recovery state. Do not rename that directory. The default session output remains `~/Documents/markuprx` and can be changed in Settings.
 
+## Credential fallback and safe cleanup
+
+MarkuprPlus tries the OS credential service, then Electron `safeStorage`. If both fail, it can store an API key as an owner-only plaintext entry in `secure-keys.json`. Best-effort mode `0600` limits ordinary file access but does not encrypt the value.
+
+The fallback file is inside the compatibility user-data directory named above. Its parent is normally `~/Library/Application Support` on macOS, `%APPDATA%` on Windows, and `$XDG_CONFIG_HOME` (or `~/.config`) on Linux. Do not open, print, attach, or back up the file: encrypted and plaintext entries can both be sensitive, and older installations may also contain a legacy fallback map in `settings.json`.
+
+To clear stored OpenAI/Anthropic keys without viewing them:
+
+1. Back up any session output you need.
+2. Open Settings → Advanced.
+3. Choose **Clear All Data** and confirm.
+
+Clear All Data removes the configured output directory, attempts current/legacy keychain and fallback cleanup, resets settings, and clears recovery data. It is intentionally destructive. Credential cleanup is best-effort: backend deletion failures can be logged while the action completes, so completion is not proof that every stored entry was erased. If confirmation matters, use the operating system credential manager to verify/remove the app's entries without printing their values. If you cannot use a supported OS keychain or Electron `safeStorage`, omit hosted API keys and select a no-key path such as Local Rules/local Whisper instead.
+
 To diagnose a settings problem safely:
 
 1. Quit the app.
-2. Back up the compatibility user-data directory and configured output directory.
-3. Relaunch and use **Export Settings** where possible.
-4. Use the in-app reset/clear actions only after reading their confirmation and preserving needed data.
+2. Back up only needed session output or recovery artifacts, explicitly excluding `secure-keys.json`, `settings.json`, and Settings Export files that may contain older secret material. Do not copy the entire compatibility user-data directory.
+3. Relaunch and record non-secret settings manually; the current Settings Export is not a safe general backup because it reads raw persisted state.
+4. Use the in-app reset/clear actions only after reading their confirmation and preserving needed session data.
 
-Exported settings use `MarkuprPlus-settings.json`; compatible older JSON exports can still be selected during import.
+Exported settings use `MarkuprPlus-settings.json`; compatible older JSON exports can still be selected during import, but both old and current exports must be treated as sensitive until inspected through a hardened non-secret projection.
 
 ## Screen capture is blank or unavailable
 

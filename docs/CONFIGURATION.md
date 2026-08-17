@@ -97,9 +97,19 @@ MarkuprPlus does not add telemetry. Provider requests and delivery integrations 
 
 ## Storage and migration
 
-Application settings are stored as `settings.json` under Electron's preserved compatibility user-data location. Secrets use the OS credential service when available and the existing encrypted fallback otherwise. Sessions are written to the configured output directory.
+Application settings are stored as `settings.json` under Electron's preserved compatibility user-data location. Sessions are written to the configured output directory.
 
-Export Settings creates `MarkuprPlus-settings.json`. Import accepts an existing compatible JSON file regardless of its old filename, validates recognized fields, and does not require renaming the file first.
+API-key storage attempts, in order:
+
+1. the operating system credential service through keytar;
+2. an Electron `safeStorage`-encrypted entry in `secure-keys.json`;
+3. if both mechanisms fail, an owner-only plaintext entry in that same file.
+
+The last-resort file is chmod `0600` on a best-effort basis, which restricts ordinary access but does not encrypt the key. Omit hosted API keys when the OS credential service and `safeStorage` are unavailable. Local Whisper and Local Rules require no hosted key; local Ollama/LM Studio avoid an app-stored hosted key as well.
+
+Do not inspect, print, attach, or casually back up `secure-keys.json`. Settings → Advanced → Clear All Data attempts current/legacy keychain and fallback cleanup, but it also removes the configured output directory and resets settings; back up needed sessions first. Credential-backend cleanup is best-effort, so a completed action is not proof that every entry was erased. See [Troubleshooting](TROUBLESHOOTING.md) for location and cleanup guidance.
+
+Export Settings creates `MarkuprPlus-settings.json`, but the current export reads the raw persisted store and can carry legacy secret material from an older fallback path. Treat the file as sensitive and do not share or use it as a general backup. Import accepts an existing compatible JSON file regardless of its old filename and selects recognized keys, but not every accepted value currently has a complete schema check.
 
 Machine-facing names remain stable: `.markuprx.json`, `.markuprx`, `MARKUPRX_*`, `window.markuprx`, and `markuprx:` IPC identifiers are not public display branding.
 

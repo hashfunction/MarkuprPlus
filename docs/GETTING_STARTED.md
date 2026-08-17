@@ -35,7 +35,7 @@ The contained onboarding flow has six stages:
 2. **Microphone** — request and verify audio input permission.
 3. **Screen Recording** — request capture permission.
 4. **OpenAI transcription** — optional cloud transcription setup; it may be skipped when using local Whisper.
-5. **Analysis** — discover and choose Local Rules, a local model service, a CLI provider, or Anthropic API.
+5. **Analysis** — optionally validate/save an Anthropic API key and learn that analysis providers can be chosen later in Settings; this onboarding stage does not perform provider discovery or selection.
 6. **Success** — complete setup and open the Start surface.
 
 On macOS, screen-recording permission changes can require restarting the app. Accessibility permission is optional but improves reliable global modifier observation for live annotation. MarkuprPlus exposes explicit annotation fallback controls; do not grant administrator access.
@@ -56,7 +56,7 @@ Install and authenticate Codex CLI or Claude Code CLI, then select it in Setting
 
 ### Cloud processing
 
-OpenAI transcription and Anthropic analysis require their respective keys. MarkuprPlus stores keys via the OS credential service when possible. Selected audio/report content is sent to the chosen provider.
+OpenAI transcription and Anthropic analysis require their respective keys. MarkuprPlus tries the OS credential service first, but has documented encrypted and last-resort plaintext compatibility fallbacks; review [Configuration](CONFIGURATION.md#storage-and-migration) before saving a hosted key. Selected audio/report content is sent to the chosen provider.
 
 ## Record a session
 

@@ -9,7 +9,7 @@ This is an internal desktop boundary, not a web/plugin API. Third-party renderer
 - Context isolation is enabled.
 - The renderer has no direct Node/Electron import.
 - Preload methods use enumerated `markuprx:` IPC channels.
-- Main-process handlers validate senders, values, paths, and media before privileged work.
+- Many privileged handlers validate values, paths, and media before use; this API does not yet provide a general sender/origin authorization check for every IPC registration.
 - Event subscriptions return an unsubscribe function.
 - External navigation is guarded and allowed links are opened explicitly.
 
@@ -17,7 +17,7 @@ Do not expose `ipcRenderer`, filesystem, shell, or arbitrary channel access to r
 
 ## Domains
 
-The exact request/response types live in `src/renderer/types/electron.d.ts` and `src/shared/types.ts`. The current top-level domains are:
+The exact request/response types live in `src/renderer/types/electron.d.ts` and `src/shared/types.ts`. The primary domain objects are:
 
 | Domain | Responsibility |
 |---|---|
@@ -42,6 +42,8 @@ The exact request/response types live in `src/renderer/types/electron.d.ts` and 
 | `navigation` | Request application-surface navigation |
 
 An E2E-only domain is exposed only when the authorized Electron test harness is active. Production builds do not make the harness generally available.
+
+Compatibility top-level members also remain available, including `version`, `startSession`, `stopSession`, `pauseSession`, `resumeSession`, `takeScreenshot`, `getSettings`, `setSettings`, `copyToClipboard`, `openOutputFolder`, and the legacy session/transcription/output event subscribers. New renderer code should prefer the domain objects while compatibility consumers migrate deliberately.
 
 ## Example: read settings
 
@@ -85,9 +87,9 @@ History batch export currently accepts Markdown, JSON, or PDF for one or more pe
 
 ## Settings and credentials
 
-Ordinary settings are schema-validated. API keys are not returned in `getAll()` and should be handled only through the dedicated credential methods. Do not persist keys in renderer state, logs, reports, or configuration examples.
+Current limitation: individual known settings have per-key checks, but unknown setting keys are not rejected universally. `getAll()` and Settings Export currently read the raw persisted store, which can include legacy secret material left by an older fallback path. Treat those renderer results and exported files as sensitive; do not log, publish, attach, or use them as proof that credentials are absent. New credential operations should still use only the dedicated methods.
 
-Settings export defaults to `MarkuprPlus-settings.json`; compatible older selected JSON files remain importable after validation.
+Settings export defaults to `MarkuprPlus-settings.json`. Import selects recognized keys from compatible older JSON files, but not every accepted value currently has a complete schema check.
 
 ## Updates
 

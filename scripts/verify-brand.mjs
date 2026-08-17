@@ -42,13 +42,13 @@ const originalProjectRepository = [
   originalProjectName,
 ].join('/');
 
-function isApprovedOriginalProjectAttribution(file, line) {
-  if (file !== 'README.md') return false;
-  return line.trim().toLowerCase()
-    === `## significantly enhanced from ${originalProjectName}`
-    || line.toLowerCase().includes(
-      `significantly enhanced evolution of [${originalProjectName}](${originalProjectRepository})`,
-    );
+function removeApprovedOriginalProjectAttribution(file, line) {
+  if (file !== 'README.md') return line;
+  if (line === `## Significantly enhanced from ${originalProjectName}`) return '';
+  return line.replace(
+    `significantly enhanced evolution of [${originalProjectName}](${originalProjectRepository})`,
+    '',
+  );
 }
 
 function readText(readFile, file, encoding = 'latin1') {
@@ -77,7 +77,7 @@ export function findBrandViolations(files, readFile, packageJson) {
     const content = readText(readFile, file);
     const lines = content.split(/\r?\n/);
     lines.forEach((line, index) => {
-      if (previousBrand.test(line) && !isApprovedOriginalProjectAttribution(file, line)) {
+      if (previousBrand.test(removeApprovedOriginalProjectAttribution(file, line))) {
         violations.push(`${file}:${index + 1}`);
       }
       if (activePackagingFiles.has(file) && line.includes(legacyDisplayName)) {

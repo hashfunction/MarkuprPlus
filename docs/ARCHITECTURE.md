@@ -17,7 +17,7 @@ main (capture, files, credentials, providers, exports)
 
 `window.markuprx` and `markuprx:` IPC channels are retained compatibility interfaces. They are not public display branding and should not be renamed casually.
 
-The renderer does not receive raw Electron/Node authority. Privileged handlers validate the sender, arguments, paths, media, and allowed operation. Navigation and new-window attempts are guarded; external URLs go through explicit main-process handlers.
+The renderer does not receive raw Electron/Node authority. Many privileged handlers validate arguments, paths, media, and allowed operations. The current IPC surface does not generally authorize every request by sender/origin, so context isolation and enumerated preload methods are containment layers rather than a complete IPC authorization boundary. Navigation and new-window attempts are guarded; external URLs go through explicit main-process handlers.
 
 ## Main-process services
 
@@ -81,11 +81,11 @@ See [AI pipeline design](AI_PIPELINE_DESIGN.md) for data-flow details.
 ## Persistence
 
 - Settings: `settings.json` in the preserved Electron user-data directory.
-- Secrets: OS credential store when available, otherwise the existing encrypted compatibility fallback.
+- Secrets: OS credential store first, then Electron `safeStorage` encryption; if both fail, current compatibility behavior can use an owner-only plaintext `secure-keys.json` entry. Mode `0600` is best-effort access restriction, not encryption.
 - Sessions: configured output directory, default `~/Documents/markuprx`.
 - Recovery: atomic, bounded in-progress metadata/evidence.
 
-Paths are resolved and checked at privileged boundaries. Output deletion and export operate only on validated contained targets; trusted media is byte-validated before use.
+Session/export operations validate supported media bytes and constrain generated or copied evidence destinations. Clear All Data is a separate destructive path: after confirmation it recursively removes the currently configured output directory, and that setting is not re-contained at deletion time. Back up needed sessions and verify the configured path before invoking it.
 
 ## Exports and integrations
 

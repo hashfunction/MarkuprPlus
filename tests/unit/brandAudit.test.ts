@@ -138,6 +138,9 @@ describe('repository brand audit', () => {
         'docs/GETTING_STARTED.md:1',
         'docs/GETTING_STARTED.md:2',
       ]));
+    expect(await scan({
+      'README.md': `${attribution}\nMarkuprPlus is a significantly enhanced evolution of [${originalName}](${originalRepository}). Current product name is ${originalName}.`,
+    })).toEqual(expect.arrayContaining(['README.md:3']));
   });
 
   it('ignores approved historical decision records', async () => {

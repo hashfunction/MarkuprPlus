@@ -23,7 +23,7 @@ A local Whisper model is optional for most development. The tiny download is abo
 ## Before coding
 
 1. Search existing [issues](https://github.com/hashfunction/MarkuprPlus/issues).
-2. Read the nearest `AGENTS.md` and applicable plan/spec.
+2. Read the nearest `AGENTS.md` if one is present, plus the applicable plan/spec.
 3. Identify whether the work changes public behavior or a retained compatibility interface.
 4. Add a failing test for fixes/features before production changes.
 
