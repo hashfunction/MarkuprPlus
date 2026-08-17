@@ -1,40 +1,130 @@
 #!/usr/bin/env node
 
 import { _electron as electron } from '@playwright/test';
+import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-function defaultExecutablePath() {
-  if (process.platform !== 'darwin') {
-    throw new Error(
-      'Set MARKUPRX_PACKAGED_EXECUTABLE to test a packaged app outside macOS.',
+const PUBLIC_PRODUCT_NAME = 'MarkuprPlus';
+
+function defaultPackagedLayout(platform, arch, releaseRoot = resolve('release')) {
+  if (platform === 'darwin') {
+    const outputDirectory = arch === 'arm64' ? 'mac-arm64' : 'mac';
+    const executablePath = join(
+      releaseRoot,
+      outputDirectory,
+      `${PUBLIC_PRODUCT_NAME}.app`,
+      'Contents',
+      'MacOS',
+      PUBLIC_PRODUCT_NAME,
     );
+    return {
+      executablePath,
+      resourcesPath: join(
+        releaseRoot,
+        outputDirectory,
+        `${PUBLIC_PRODUCT_NAME}.app`,
+        'Contents',
+        'Resources',
+      ),
+    };
   }
-  const outputDirectory = process.arch === 'arm64' ? 'mac-arm64' : 'mac';
-  return resolve(
-    'release',
-    outputDirectory,
-    'MarkuprX.app',
-    'Contents',
-    'MacOS',
-    'MarkuprX',
-  );
+  if (platform === 'win32') {
+    const outputDirectory = 'win-unpacked';
+    return {
+      executablePath: join(releaseRoot, outputDirectory, `${PUBLIC_PRODUCT_NAME}.exe`),
+      resourcesPath: join(releaseRoot, outputDirectory, 'resources'),
+    };
+  }
+  if (platform === 'linux') {
+    const outputDirectory = arch === 'arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked';
+    return {
+      executablePath: join(releaseRoot, outputDirectory, PUBLIC_PRODUCT_NAME),
+      resourcesPath: join(releaseRoot, outputDirectory, 'resources'),
+    };
+  }
+  throw new Error(`Unsupported packaged smoke platform: ${platform}.`);
+}
+
+function resourcesPathForExecutable(executablePath, platform) {
+  return platform === 'darwin'
+    ? join(dirname(dirname(executablePath)), 'Resources')
+    : join(dirname(executablePath), 'resources');
 }
 
 function assertRuntime(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function runStartupProbe(executablePath, args, env) {
+  const readyMarker = '[Main] Popover ready to show';
+  const singleInstanceMarker = 'Another instance is running';
+  const child = spawn(executablePath, args, {
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  let ready = false;
+
+  return await new Promise((resolveProbe, rejectProbe) => {
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      rejectProbe(new Error(`Packaged app did not become ready within 30 seconds.\n${output}`));
+    }, 30_000);
+
+    const inspectOutput = (chunk) => {
+      output += chunk.toString();
+      if (output.includes(singleInstanceMarker)) {
+        child.kill('SIGTERM');
+        clearTimeout(timeout);
+        rejectProbe(new Error(`Packaged app hit a single-instance collision.\n${output}`));
+        return;
+      }
+      if (!ready && output.includes(readyMarker)) {
+        ready = true;
+        child.kill('SIGINT');
+      }
+    };
+
+    child.stdout.on('data', inspectOutput);
+    child.stderr.on('data', inspectOutput);
+    child.once('error', (error) => {
+      clearTimeout(timeout);
+      rejectProbe(error);
+    });
+    child.once('close', (code, signal) => {
+      clearTimeout(timeout);
+      if (!ready) {
+        rejectProbe(new Error(
+          `Packaged app exited before reporting readiness (code=${code}, signal=${signal}).\n${output}`,
+        ));
+        return;
+      }
+      resolveProbe();
+    });
+  });
+}
+
+const printLayoutArgument = process.argv.find((argument) => argument.startsWith('--print-layout='));
+if (printLayoutArgument) {
+  const target = printLayoutArgument.slice('--print-layout='.length);
+  const [platform, arch] = target.split(':');
+  console.log(JSON.stringify(defaultPackagedLayout(platform, arch), null, 2));
+  process.exit(0);
+}
+
+const defaultLayout = defaultPackagedLayout(process.platform, process.arch);
 const executablePath = process.env.MARKUPRX_PACKAGED_EXECUTABLE
   ? resolve(process.env.MARKUPRX_PACKAGED_EXECUTABLE)
-  : defaultExecutablePath();
+  : defaultLayout.executablePath;
 const expectedArch = process.env.MARKUPRX_EXPECTED_ARCH || process.arch;
-const resourcesPath = join(dirname(dirname(executablePath)), 'Resources');
+const resourcesPath = process.env.MARKUPRX_PACKAGED_EXECUTABLE
+  ? resourcesPathForExecutable(executablePath, process.platform)
+  : defaultLayout.resourcesPath;
 const updaterConfigPath = join(resourcesPath, 'app-update.yml');
 const temporaryRoot = await mkdtemp(join(tmpdir(), 'markuprx-packaged-smoke-'));
-const outputRoot = join(temporaryRoot, 'output');
 const userDataDir = join(temporaryRoot, 'user-data');
 const documentsDir = join(temporaryRoot, 'documents');
 let application;
@@ -52,55 +142,76 @@ try {
     `Packaged app must not contain updater metadata: ${updaterConfigPath}`,
   );
   await Promise.all([
-    mkdir(outputRoot, { recursive: true }),
     mkdir(userDataDir, { recursive: true }),
     mkdir(documentsDir, { recursive: true }),
   ]);
   const inheritedEnvironment = Object.fromEntries(
     Object.entries(process.env).filter((entry) => entry[1] !== undefined),
   );
-  application = await electron.launch({
-    executablePath,
-    args: [`--user-data-dir=${userDataDir}`],
-    env: {
-      ...inheritedEnvironment,
-      NODE_ENV: 'test',
-      MARKUPRX_E2E: '1',
-      MARKUPRX_E2E_OUTPUT_ROOT: outputRoot,
-      MARKUPRX_E2E_USER_DATA_DIR: userDataDir,
-      MARKUPRX_E2E_DOCUMENTS_DIR: documentsDir,
-      MARKUPRX_E2E_SKIP_ONBOARDING: '0',
-    },
-    timeout: 30_000,
-  });
+  const launchArguments = [
+    '--markuprplus-package-smoke',
+    `--user-data-dir=${userDataDir}`,
+  ];
+  const launchEnvironment = {
+    ...inheritedEnvironment,
+    NODE_ENV: 'test',
+    MARKUPRX_PACKAGE_SMOKE: '1',
+    MARKUPRX_PACKAGE_SMOKE_USER_DATA_DIR: userDataDir,
+    MARKUPRX_PACKAGE_SMOKE_DOCUMENTS_DIR: documentsDir,
+  };
 
-  const mainWindow = await application.firstWindow({ timeout: 30_000 });
-  await mainWindow.waitForLoadState('domcontentloaded');
-  await mainWindow.getByRole('heading', { name: 'Welcome to MarkuprX' })
-    .waitFor({ state: 'visible', timeout: 30_000 });
-  const applicationInfo = await application.evaluate(({ app }) => ({
-    name: app.getName(),
-    packaged: app.isPackaged,
-    version: app.getVersion(),
-  }));
-  const arch = await application.evaluate(() => process.arch);
-  const runtime = { arch, ...applicationInfo };
-  const title = await mainWindow.title();
+  if (process.env.MARKUPRX_PACKAGE_SMOKE_MODE === 'startup') {
+    await runStartupProbe(executablePath, launchArguments, launchEnvironment);
+    console.log(JSON.stringify({
+      executablePath,
+      expectedArch,
+      mode: 'startup',
+      startupReady: true,
+      updaterMetadataPresent,
+    }, null, 2));
+    process.exitCode = 0;
+  } else {
+    application = await electron.launch({
+      executablePath,
+      args: launchArguments,
+      env: launchEnvironment,
+      timeout: 30_000,
+    });
 
-  assertRuntime(runtime.arch === expectedArch,
-    `Expected ${expectedArch} package architecture, received ${runtime.arch}.`);
-  assertRuntime(runtime.packaged === true, 'Application did not report packaged=true.');
-  assertRuntime(runtime.name === 'MarkuprX', `Unexpected application name: ${runtime.name}.`);
-  assertRuntime(runtime.version === '3.0.0', `Unexpected application version: ${runtime.version}.`);
-  assertRuntime(title.includes('MarkuprX'), `Unexpected application title: ${title}.`);
+    const mainWindow = await application.firstWindow({ timeout: 30_000 });
+    await mainWindow.waitForLoadState('domcontentloaded');
+    await mainWindow.getByRole('heading', { name: `Welcome to ${PUBLIC_PRODUCT_NAME}` })
+      .waitFor({ state: 'visible', timeout: 30_000 });
+    const applicationInfo = await application.evaluate(({ app }) => ({
+      name: app.getName(),
+      packaged: app.isPackaged,
+      version: app.getVersion(),
+    }));
+    const arch = await application.evaluate(() => process.arch);
+    const runtime = { arch, ...applicationInfo };
+    const title = await mainWindow.title();
 
-  console.log(JSON.stringify({
-    executablePath,
-    runtime,
-    title,
-    onboardingVisible: true,
-    updaterMetadataPresent,
-  }, null, 2));
+    assertRuntime(runtime.arch === expectedArch,
+      `Expected ${expectedArch} package architecture, received ${runtime.arch}.`);
+    assertRuntime(runtime.packaged === true, 'Application did not report packaged=true.');
+    assertRuntime(
+      runtime.name === PUBLIC_PRODUCT_NAME,
+      `Unexpected application name: ${runtime.name}.`,
+    );
+    assertRuntime(runtime.version === '3.0.0', `Unexpected application version: ${runtime.version}.`);
+    assertRuntime(
+      title.includes(PUBLIC_PRODUCT_NAME),
+      `Unexpected application title: ${title}.`,
+    );
+
+    console.log(JSON.stringify({
+      executablePath,
+      runtime,
+      title,
+      onboardingVisible: true,
+      updaterMetadataPresent,
+    }, null, 2));
+  }
 } finally {
   if (application) await application.close().catch(() => undefined);
   await rm(temporaryRoot, { recursive: true, force: true });

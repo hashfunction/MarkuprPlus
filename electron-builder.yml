@@ -1,10 +1,10 @@
 # electron-builder.yml
-# macOS Distribution Configuration for MarkuprX
+# Desktop Distribution Configuration for MarkuprPlus
 # Version: 0.4.0
 
 appId: com.eddiesanjuan.markuprx
-productName: MarkuprX
-executableName: MarkuprX
+productName: MarkuprPlus
+executableName: MarkuprPlus
 copyright: Copyright 2026 Eddie San Juan
 
 directories:
@@ -26,7 +26,7 @@ extraResources:
   - from: assets
     to: assets
     filter:
-      - "**/*"
+      - "tray-*.png"
   # Windows taskbar icons (overlay and thumbnail toolbar)
   - from: build
     to: build
@@ -87,8 +87,8 @@ dmg:
       y: 170
       type: link
       path: /Applications
-  title: "Install MarkuprX ${arch}"
-  artifactName: "markuprx-${version}-${arch}.dmg"
+  title: "Install MarkuprPlus ${arch}"
+  artifactName: "markuprplus-${version}-${arch}.dmg"
 
 # =============================================================================
 # Windows Configuration
@@ -100,13 +100,14 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
+  # Authenticode certificate subject; keep aligned with the actual signing identity.
   publisherName: "MarkuprX"
   verifyUpdateCodeSignature: false
   # File associations
   fileAssociations:
     - ext: markuprx
-      name: MarkuprX Session
-      description: MarkuprX feedback session file
+      name: MarkuprPlus Session
+      description: MarkuprPlus feedback session file
       icon: build/icon.ico
       role: Editor
 
@@ -122,8 +123,8 @@ nsis:
   license: LICENSE
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: "MarkuprX"
-  artifactName: "markuprx-Setup-${version}.exe"
+  shortcutName: "MarkuprPlus"
+  artifactName: "markuprplus-Setup-${version}.exe"
   include: build/installer.nsh
   deleteAppDataOnUninstall: false
 
@@ -139,7 +140,7 @@ linux:
       arch:
         - x64
   category: Development
-  icon: build/icons
+  icon: build/icon.png
 
 # =============================================================================
 # Code Signing & Notarization

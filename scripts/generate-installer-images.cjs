@@ -14,8 +14,16 @@ const path = require('path');
 const fs = require('fs');
 
 const BUILD_DIR = path.join(__dirname, '../build');
+const PACKAGE_JSON = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'),
+);
+const PRODUCT_NAME = PACKAGE_JSON.productName;
 
-// MarkuprX brand colors
+if (typeof PRODUCT_NAME !== 'string' || PRODUCT_NAME.length === 0) {
+  throw new Error('package.json productName is required for installer artwork');
+}
+
+// MarkuprPlus brand colors
 const COLORS = {
   primary: '#6366f1',      // Indigo
   secondary: '#8b5cf6',    // Purple
@@ -32,7 +40,7 @@ async function createInstallerHeader() {
   const width = 150;
   const height = 57;
 
-  // Create a gradient header with MarkuprX branding
+  // Create a gradient header with public product branding
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -43,7 +51,7 @@ async function createInstallerHeader() {
       </defs>
       <rect width="${width}" height="${height}" fill="url(#headerGrad)"/>
       <text x="10" y="35" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600" fill="${COLORS.text}">
-        MarkuprX
+        ${PRODUCT_NAME}
       </text>
     </svg>
   `;
@@ -86,14 +94,14 @@ async function createInstallerSidebar() {
       <circle cx="82" cy="80" r="40" fill="${COLORS.text}" fill-opacity="0.15"/>
       <circle cx="82" cy="80" r="35" fill="${COLORS.text}" fill-opacity="0.1"/>
 
-      <!-- M monogram for MarkuprX -->
+      <!-- M monogram for MarkuprPlus -->
       <text x="82" y="95" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="${COLORS.text}" text-anchor="middle">
         M
       </text>
 
       <!-- App name -->
       <text x="82" y="150" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="${COLORS.text}" text-anchor="middle">
-        MarkuprX
+        ${PRODUCT_NAME}
       </text>
 
       <!-- Tagline -->
@@ -186,50 +194,6 @@ async function createBmpFromSvg(svg, width, height, outputPath) {
   fs.writeFileSync(outputPath, bmp);
 }
 
-/**
- * Create Windows icon (ICO format placeholder)
- */
-async function createWindowsIcon() {
-  const outputPath = path.join(BUILD_DIR, 'icon.ico');
-
-  // Check if icon already exists
-  if (fs.existsSync(outputPath)) {
-    console.log(`Icon already exists: ${outputPath}`);
-    return;
-  }
-
-  // Create a placeholder icon PNG
-  const svg = `
-    <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${COLORS.primary};stop-opacity:1" />
-          <stop offset="100%" style="stop-color:${COLORS.secondary};stop-opacity:1" />
-        </linearGradient>
-      </defs>
-      <rect width="256" height="256" rx="40" fill="url(#iconGrad)"/>
-      <text x="128" y="165" font-family="Arial, sans-serif" font-size="120" font-weight="700" fill="${COLORS.text}" text-anchor="middle">
-        F
-      </text>
-    </svg>
-  `;
-
-  // Create PNG at multiple sizes for ICO conversion
-  const sizes = [16, 32, 48, 64, 128, 256];
-  for (const size of sizes) {
-    const pngPath = path.join(BUILD_DIR, `icon-${size}.png`);
-    await sharp(Buffer.from(svg))
-      .resize(size, size)
-      .png()
-      .toFile(pngPath);
-    console.log(`Created: ${pngPath}`);
-  }
-
-  console.log('\nNote: To create icon.ico, run:');
-  console.log('  npx electron-icon-builder --input=build/icon-256.png --output=build');
-  console.log('  or use an online converter with the PNG files');
-}
-
 async function main() {
   console.log('Generating Windows installer images...\n');
 
@@ -241,7 +205,6 @@ async function main() {
   try {
     await createInstallerHeader();
     await createInstallerSidebar();
-    await createWindowsIcon();
 
     console.log('\nDone! Windows installer images created in build/');
   } catch (error) {

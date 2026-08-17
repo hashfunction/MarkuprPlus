@@ -16,10 +16,12 @@ const bootstrapState = vi.hoisted(() => ({
 vi.mock('electron', () => ({ app: bootstrapState.app }));
 
 const temporaryRoots: string[] = [];
+const originalArgv = [...process.argv];
 
 beforeEach(() => {
   vi.resetModules();
   vi.unstubAllEnvs();
+  process.argv.splice(0, process.argv.length, ...originalArgv);
   bootstrapState.events.length = 0;
   bootstrapState.app.isPackaged = false;
   bootstrapState.app.getPath.mockReset();
@@ -39,6 +41,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.unstubAllEnvs();
+  process.argv.splice(0, process.argv.length, ...originalArgv);
   await Promise.all(temporaryRoots.splice(0).map((root) =>
     rm(root, { recursive: true, force: true })));
 });
@@ -100,5 +103,52 @@ describe('runtime brand bootstrap ordering', () => {
     await expect(import('../../src/main/bootstrap')).rejects.toThrow();
 
     expect(bootstrapState.events).toEqual([]);
+  });
+
+  it('isolates packaged smoke paths before public naming without enabling the E2E harness', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'markuprplus-packaged-smoke-'));
+    temporaryRoots.push(root);
+    const userDataDir = join(root, 'user-data');
+    const documentsDir = join(root, 'documents');
+    bootstrapState.app.isPackaged = true;
+    bootstrapState.app.getPath.mockImplementation(() => {
+      throw new Error('Packaged smoke must not read a production application-data path.');
+    });
+    vi.stubEnv('MARKUPRX_PACKAGE_SMOKE', '1');
+    vi.stubEnv('MARKUPRX_PACKAGE_SMOKE_USER_DATA_DIR', userDataDir);
+    vi.stubEnv('MARKUPRX_PACKAGE_SMOKE_DOCUMENTS_DIR', documentsDir);
+    process.argv.push('--markuprplus-package-smoke');
+
+    await import('../../src/main/bootstrap');
+
+    expect(bootstrapState.events).toEqual([
+      `setPath:userData:${resolve(userDataDir)}`,
+      `setPath:documents:${resolve(documentsDir)}`,
+      `setPath:logs:${join(resolve(userDataDir), 'logs')}`,
+      `setPath:temp:${join(resolve(userDataDir), 'temp')}`,
+      'setName:MarkuprPlus',
+      'import:index',
+    ]);
+  });
+
+  it('ignores packaged smoke environment variables without the explicit capability flag', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'markuprplus-packaged-smoke-'));
+    temporaryRoots.push(root);
+    const appDataDir = join(root, 'Application Support');
+    bootstrapState.app.isPackaged = true;
+    bootstrapState.app.getPath.mockImplementation((name) => {
+      if (name === 'appData') return appDataDir;
+      throw new Error('Unexpected path: ' + name);
+    });
+    vi.stubEnv('MARKUPRX_PACKAGE_SMOKE', '1');
+    vi.stubEnv('MARKUPRX_PACKAGE_SMOKE_USER_DATA_DIR', join(root, 'untrusted'));
+
+    await import('../../src/main/bootstrap');
+
+    expect(bootstrapState.events).toEqual([
+      `setPath:userData:${join(appDataDir, 'MarkuprX')}`,
+      'setName:MarkuprPlus',
+      'import:index',
+    ]);
   });
 });

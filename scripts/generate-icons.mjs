@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * MarkuprX Icon Generation Script
+ * MarkuprPlus Icon Generation Script
  *
  * Generates all app icons and brand assets from SVG sources using sharp.
  *
@@ -48,6 +48,15 @@ async function svgToPng(svgPath, outputPath, width, height = width) {
     .png()
     .toFile(outputPath);
 
+  const metadata = await sharp(outputPath).metadata();
+  if (metadata.format !== 'png' || metadata.width !== width || metadata.height !== height) {
+    throw new Error(
+      `Generated image has unexpected dimensions: ${outputPath} `
+      + `(expected ${width}x${height} PNG, received `
+      + `${metadata.width ?? 'unknown'}x${metadata.height ?? 'unknown'} ${metadata.format ?? 'unknown'})`,
+    );
+  }
+
   console.log(`  Generated: ${path.basename(outputPath)} (${width}x${height})`);
 }
 
@@ -60,8 +69,7 @@ async function generateAppIcon() {
   const svgPath = path.join(SVG_SOURCE_DIR, 'icon.svg');
 
   if (!fs.existsSync(svgPath)) {
-    console.error('Error: icon.svg not found in assets/svg-source/');
-    return false;
+    throw new Error('Required icon source is missing: assets/svg-source/icon.svg');
   }
 
   // Generate master 1024x1024 PNG
@@ -97,11 +105,14 @@ async function generateAppIcon() {
   // Generate .icns using iconutil (macOS only)
   const icnsPath = path.join(BUILD_DIR, 'icon.icns');
   if (process.platform === 'darwin') {
+    if (fs.existsSync(icnsPath)) fs.unlinkSync(icnsPath);
     try {
       execSync(`iconutil -c icns "${iconsetDir}" -o "${icnsPath}"`);
       console.log(`  Generated: icon.icns`);
     } catch (error) {
-      console.error('  Warning: Could not generate .icns (iconutil failed)');
+      throw new Error('Could not generate required icon.icns with iconutil', {
+        cause: error,
+      });
     }
   } else {
     console.log('  Skipping .icns generation (not on macOS)');
@@ -126,16 +137,20 @@ async function generateWindowsIcon(svgPath) {
     await svgToPng(svgPath, outputPath, size);
   }
 
-  // Try to use png2icons if available
+  const icoPath = path.join(BUILD_DIR, 'icon.ico');
+  if (fs.existsSync(icoPath)) fs.unlinkSync(icoPath);
+
   try {
     const png2icons = await import('png2icons');
     const input = fs.readFileSync(path.join(BUILD_DIR, 'icon.png'));
     const output = png2icons.default.createICO(input, png2icons.default.BICUBIC2, 0, true, true);
-    fs.writeFileSync(path.join(BUILD_DIR, 'icon.ico'), output);
+    if (!output) throw new Error('png2icons returned no ICO data');
+    fs.writeFileSync(icoPath, output);
     console.log(`  Generated: icon.ico`);
-  } catch {
-    console.log('  Note: png2icons not installed. Windows icon sizes generated as PNGs.');
-    console.log('  Run: npm install --save-dev png2icons');
+  } catch (error) {
+    throw new Error('Could not generate required icon.ico with png2icons', {
+      cause: error,
+    });
   }
 }
 
@@ -151,8 +166,7 @@ async function generateTrayIcons() {
     const svgPath = path.join(SVG_SOURCE_DIR, `${state}.svg`);
 
     if (!fs.existsSync(svgPath)) {
-      console.log(`  Skipping ${state}.svg (not found)`);
-      continue;
+      throw new Error(`Required tray icon source is missing: ${state}.svg`);
     }
 
     // Generate normal size (22x22)
@@ -184,20 +198,22 @@ async function generateProcessingFrames() {
   const baseSvgPath = path.join(SVG_SOURCE_DIR, 'tray-icon-processing.svg');
 
   if (!fs.existsSync(baseSvgPath)) {
-    console.log('  Skipping processing frames (SVG not found)');
-    return;
+    throw new Error('Required processing icon source is missing: tray-icon-processing.svg');
   }
 
   const baseSvg = fs.readFileSync(baseSvgPath, 'utf8');
 
-  // Generate 4 frames with rotated spinner
-  for (let frame = 0; frame < 4; frame++) {
-    const rotation = frame * 90;
+  const dashPattern = 'stroke-dasharray="7 5"';
+  if (!baseSvg.includes(dashPattern)) {
+    throw new Error('Processing icon is missing the required spinner dash pattern');
+  }
 
-    // Modify SVG to rotate the spinner
+  // Generate 4 frames by advancing the spinner dash pattern.
+  for (let frame = 0; frame < 4; frame++) {
+    const dashOffset = frame * 3;
     const frameSvg = baseSvg.replace(
-      'stroke-dasharray="10 6"',
-      `stroke-dasharray="10 6" transform="rotate(${rotation}, 16, 5)"`
+      dashPattern,
+      `${dashPattern} stroke-dashoffset="${dashOffset}"`,
     );
 
     const tempSvgPath = path.join(SVG_SOURCE_DIR, `tray-processing-frame-${frame}.svg`);
@@ -228,8 +244,7 @@ async function generateDmgBackground() {
   const svgPath = path.join(SVG_SOURCE_DIR, 'dmg-background.svg');
 
   if (!fs.existsSync(svgPath)) {
-    console.log('  Skipping DMG background (SVG not found)');
-    return;
+    throw new Error('Required DMG source is missing: dmg-background.svg');
   }
 
   // Standard resolution (660x400)
@@ -254,9 +269,22 @@ async function checkLogos() {
     if (fs.existsSync(srcPath)) {
       console.log(`  Found: ${logo}`);
     } else {
-      console.log(`  Missing: ${logo}`);
+      throw new Error(`Required renderer logo is missing: ${logo}`);
     }
   }
+}
+
+/**
+ * Generate the transparent marketplace logo from the canonical renderer SVG.
+ */
+async function generateMarketplaceLogo() {
+  console.log('\n=== Generating Marketplace Logo ===');
+
+  const sourcePath = path.join(RENDERER_ASSETS_DIR, 'logo.svg');
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error('Required marketplace logo source is missing: logo.svg');
+  }
+  await svgToPng(sourcePath, path.join(ASSETS_DIR, 'logo-400.png'), 400, 400);
 }
 
 /**
@@ -284,7 +312,7 @@ async function generateFavicons() {
  */
 async function main() {
   console.log('=========================================');
-  console.log('  MarkuprX Icon Generator (sharp)');
+  console.log('  MarkuprPlus Icon Generator (sharp)');
   console.log('=========================================');
 
   try {
@@ -292,6 +320,7 @@ async function main() {
     await generateTrayIcons();
     await generateDmgBackground();
     await checkLogos();
+    await generateMarketplaceLogo();
     await generateFavicons();
 
     console.log('\n=========================================');
@@ -303,6 +332,7 @@ async function main() {
     console.log('  build/icon.icns          - macOS icon bundle');
     console.log('  build/icon-*.png         - Windows icon sizes');
     console.log('  build/dmg-background.png - DMG installer background');
+    console.log('  assets/logo-400.png       - Marketplace logo (400x400)');
     console.log('  assets/tray-*.png        - Menu bar tray icons');
     console.log('  src/renderer/assets/     - In-app logo SVGs');
   } catch (error) {

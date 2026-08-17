@@ -1,7 +1,7 @@
 /**
  * notarize.js
  *
- * Apple Notarization script for markuprx
+ * Apple Notarization script for MarkuprPlus
  * This script runs automatically after code signing via electron-builder
  *
  * Handles notarization for:
@@ -98,7 +98,7 @@ exports.default = async function notarizing(context) {
   const appBundleId = 'com.eddiesanjuan.markuprx';
 
   log.divider();
-  log.info('markuprx Notarization');
+  log.info('MarkuprPlus Notarization');
   log.divider();
 
   // Only notarize on macOS

@@ -12,8 +12,16 @@ type BrandVerifier = {
 
 const compatiblePackageJson = {
   name: 'markuprx',
-  productName: 'MarkuprX',
+  productName: 'MarkuprPlus',
   version: '3.0.0',
+  homepage: 'https://markuprplus.com',
+  repository: {
+    type: 'git',
+    url: 'git+https://github.com/hashfunction/MarkuprPlus.git',
+  },
+  bugs: {
+    url: 'https://github.com/hashfunction/MarkuprPlus/issues',
+  },
   mcpName: 'com.markuprx/markuprx',
   bin: {
     markuprx: './dist/cli/index.mjs',
@@ -54,6 +62,47 @@ async function scan(
 describe('repository brand audit', () => {
   it('accepts the MarkuprPlus public product name', async () => {
     await expect(scan({ 'README.md': 'MarkuprPlus' })).resolves.toEqual([]);
+  });
+
+  it('rejects stale public packaging metadata and accepts canonical destinations', async () => {
+    const verifier = await import('../../scripts/verify-brand.mjs') as BrandVerifier;
+    const files = Object.keys(requiredFiles);
+    const readFile = (file: string) => requiredFiles[file as keyof typeof requiredFiles];
+    const legacyRepository = [
+      'https://github.com',
+      'eddiesanjuan',
+      'markuprx',
+    ].join('/');
+
+    expect(verifier.findBrandViolations!(files, readFile, {
+      ...compatiblePackageJson,
+      productName: 'MarkuprX',
+      homepage: 'https://markuprx.com',
+      repository: {
+        type: 'git',
+        url: `git+${legacyRepository}.git`,
+      },
+      bugs: { url: `${legacyRepository}/issues` },
+    })).toEqual(expect.arrayContaining([
+      'package.json: expected productName="MarkuprPlus"',
+      'package.json: expected homepage="https://markuprplus.com"',
+      'package.json: expected repository={"type":"git","url":"git+https://github.com/hashfunction/MarkuprPlus.git"}',
+      'package.json: expected bugs={"url":"https://github.com/hashfunction/MarkuprPlus/issues"}',
+    ]));
+
+    expect(verifier.findBrandViolations!(
+      files,
+      readFile,
+      compatiblePackageJson,
+    )).toEqual([]);
+  });
+
+  it('rejects the legacy display brand in active packaging surfaces', async () => {
+    const legacyDisplayName = ['Mark', 'uprX'].join('');
+
+    expect(await scan({
+      'electron-builder.yml': `productName: ${legacyDisplayName}`,
+    })).toContain('electron-builder.yml:1: legacy packaging display name');
   });
 
   it('rejects the legacy public wordmark in active public documentation', async () => {

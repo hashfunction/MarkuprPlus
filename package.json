@@ -1,6 +1,6 @@
 {
   "name": "markuprx",
-  "productName": "MarkuprX",
+  "productName": "MarkuprPlus",
   "version": "3.0.0",
   "description": "Record your screen, narrate feedback, get structured Markdown with screenshots. Desktop app, CLI, and MCP server for AI coding agents like Claude Code, Cursor, and Windsurf.",
   "type": "module",
@@ -16,7 +16,14 @@
   ],
   "author": "Eddie San Juan",
   "license": "MIT",
-  "homepage": "https://markuprx.com",
+  "homepage": "https://markuprplus.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hashfunction/MarkuprPlus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hashfunction/MarkuprPlus/issues"
+  },
   "mcpName": "com.markuprx/markuprx",
   "keywords": [
     "mcp",

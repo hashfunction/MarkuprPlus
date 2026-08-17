@@ -1,15 +1,15 @@
 # DMG Background Image Instructions
 
-Create a professional DMG background for markuprx installation.
+Create a professional DMG background for MarkuprPlus installation.
 
 ## Specifications
 
 | Property | Value |
 |----------|-------|
-| **Dimensions** | 540 x 400 pixels |
+| **Dimensions** | 660 x 400 pixels |
 | **Format** | PNG |
 | **Filename** | `dmg-background.png` |
-| **Location** | `assets/dmg-background.png` |
+| **Location** | `build/dmg-background.png` |
 
 ## Design Guidelines
 
@@ -21,8 +21,8 @@ Create a professional DMG background for markuprx installation.
 
 ### Layout
 The DMG window has two drop zones:
-- **App icon** at position (130, 220) - left side
-- **Applications folder** at position (410, 220) - right side
+- **App icon** at position (180, 170) - left side
+- **Applications folder** at position (480, 170) - right side
 
 ### Visual Elements
 
@@ -38,7 +38,7 @@ The DMG window has two drop zones:
    - Position: centered, below the arrow (y~280)
 
 3. **App Branding** (optional)
-   - Small markuprx logo in top-left corner
+   - Small MarkuprPlus logo in top-left corner
    - Very subtle, ~40px height
 
 ### Color Palette
@@ -59,7 +59,7 @@ Text:
 ## Creating the Background
 
 ### Option 1: Figma/Sketch
-1. Create a 540x400 artboard
+1. Create a 660x400 artboard
 2. Apply background gradient
 3. Add arrow and optional text
 4. Export as PNG
@@ -67,7 +67,7 @@ Text:
 ### Option 2: Command Line (Simple Gradient Only)
 ```bash
 # Using ImageMagick
-convert -size 540x400 gradient:'#0f172a'-'#1e293b' assets/dmg-background.png
+convert -size 660x400 gradient:'#0f172a'-'#1e293b' build/dmg-background.png
 ```
 
 ### Option 3: Online Tools
@@ -80,7 +80,7 @@ convert -size 540x400 gradient:'#0f172a'-'#1e293b' assets/dmg-background.png
 ### Application Icon (`icon.icns`)
 - Required sizes: 16, 32, 64, 128, 256, 512, 1024 pixels
 - Format: .icns (macOS icon format)
-- Location: `assets/icon.icns`
+- Location: `build/icon.icns`
 
 To create from PNG:
 ```bash
@@ -100,23 +100,23 @@ sips -z 512 512   icon-1024.png --out icon.iconset/icon_512x512.png
 sips -z 1024 1024 icon-1024.png --out icon.iconset/icon_512x512@2x.png
 
 # Convert to icns
-iconutil -c icns icon.iconset -o assets/icon.icns
+iconutil -c icns icon.iconset -o build/icon.icns
 ```
 
 ### DMG Icon (`dmg-icon.icns`)
 - Same process as above
 - Can be the same as app icon or a variation
-- Location: `assets/dmg-icon.icns`
+- The application icon at `build/icon.icns` is also used for the DMG.
 
 ## File Checklist
 
 Before building, ensure these files exist:
 
 ```
-assets/
-├── dmg-background.png    (540x400 PNG)
-├── icon.icns             (macOS app icon)
-└── dmg-icon.icns         (DMG volume icon)
+build/
+├── dmg-background.png       (660x400 PNG)
+├── dmg-background@2x.png    (1320x800 PNG)
+└── icon.icns                (macOS app icon)
 ```
 
 ## Quick Placeholder
@@ -124,7 +124,7 @@ assets/
 For testing, create a simple placeholder:
 ```bash
 # Solid color placeholder (just for testing builds)
-convert -size 540x400 xc:'#0f172a' assets/dmg-background.png
+convert -size 660x400 xc:'#0f172a' build/dmg-background.png
 ```
 
 The build will work with a simple background - polish it before release.

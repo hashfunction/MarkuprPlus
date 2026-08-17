@@ -1,13 +1,32 @@
 import sharp from 'sharp';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readFileSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outputPath = join(__dirname, '..', 'site', 'og-image.png');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
 const versionTag = `v${packageJson.version}`;
+const productName = packageJson.productName;
+const publicWebsite = packageJson.homepage;
+
+if (typeof productName !== 'string' || productName.length === 0) {
+  throw new Error('package.json productName is required for social artwork');
+}
+if (typeof publicWebsite !== 'string' || publicWebsite.length === 0) {
+  throw new Error('package.json homepage is required for social artwork');
+}
+
+const escapeXml = (value) => value
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&apos;');
+const productSuffix = productName.endsWith('Plus') ? 'Plus' : '';
+const productStem = productSuffix ? productName.slice(0, -productSuffix.length) : productName;
+const publicHost = new URL(publicWebsite).host;
 
 const width = 1200;
 const height = 630;
@@ -46,9 +65,9 @@ const svg = `
   <!-- Bottom accent line -->
   <rect x="0" y="${height - 4}" width="${width}" height="4" fill="${accent}"/>
 
-  <!-- MarkuprX wordmark -->
+  <!-- Public product wordmark -->
   <text x="600" y="240" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="96" font-weight="900" letter-spacing="-4">
-    <tspan fill="${textPrimary}">Markup</tspan><tspan fill="${accent}">rX</tspan>
+    <tspan fill="${textPrimary}">${escapeXml(productStem)}</tspan><tspan fill="${accent}">${escapeXml(productSuffix)}</tspan>
   </text>
 
   <!-- Tagline -->
@@ -78,7 +97,7 @@ const svg = `
 
   <!-- GitHub icon hint -->
   <text x="200" y="${height - 34}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" fill="${textTertiary}">
-    markuprx.com
+    ${escapeXml(publicHost)}
   </text>
 
   <!-- Version badge -->
@@ -104,7 +123,7 @@ async function generate() {
     console.log(`OG image generated: ${outputPath}`);
     console.log(`Dimensions: ${metadata.width}x${metadata.height}`);
     console.log(`Format: ${metadata.format}`);
-    console.log(`Size: ${(metadata.size || 0) / 1024} KB`);
+    console.log(`Size: ${Math.ceil(statSync(outputPath).size / 1024)} KB`);
   } catch (err) {
     console.error('Failed to generate OG image:', err);
     process.exit(1);

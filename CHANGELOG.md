@@ -1,11 +1,15 @@
 # Changelog
 
-All notable changes to MarkuprX will be documented in this file.
+All notable changes to MarkuprPlus will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased — MarkuprPlus
+
+- Rebranded the public desktop experience and documentation as MarkuprPlus.
+- Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.
+- Added a portrait-first taskbar popover experience and new README screenshot gallery.
 
 ### Fixed
 

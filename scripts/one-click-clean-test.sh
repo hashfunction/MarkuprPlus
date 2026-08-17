@@ -23,8 +23,9 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> Stopping old markuprx processes"
+echo "==> Stopping MarkuprPlus and legacy processes"
 PATTERNS=(
+  "MarkuprPlus.app/Contents/MacOS/MarkuprPlus"
   "markuprx.app/Contents/MacOS/markuprx"
   "markuprx.app/Contents/MacOS/FeedbackFlow"
   "FeedbackFlow.app/Contents/MacOS/FeedbackFlow"
@@ -49,8 +50,10 @@ sleep 1
 
 echo "==> Removing previous installed artifacts"
 TARGETS=(
+  "/Applications/MarkuprPlus.app"
   "/Applications/markuprx.app"
   "/Applications/FeedbackFlow.app"
+  "$HOME/Applications/MarkuprPlus.app"
   "$HOME/Applications/markuprx.app"
   "$HOME/Applications/FeedbackFlow.app"
   "$HOME/Library/Preferences/com.eddiesanjuan.markuprx.plist"
@@ -67,6 +70,7 @@ TARGETS=(
 
 if [[ "$FULL_WIPE" -eq 1 ]]; then
   TARGETS+=(
+    "$HOME/Library/Application Support/MarkuprX"
     "$HOME/Library/Application Support/feedbackflow"
     "$HOME/Library/Application Support/markuprx"
     "$HOME/Library/Logs/feedbackflow"
@@ -90,12 +94,12 @@ fi
 
 if [[ "$DEV_MODE" -eq 1 ]]; then
   if [[ "$RUN_MODE" == "foreground" ]]; then
-    echo "==> Launching markuprx (dev) in foreground"
+    echo "==> Launching MarkuprPlus (dev) in foreground"
     npm run dev
     exit 0
   fi
 
-  echo "==> Launching markuprx (dev) in detached mode"
+  echo "==> Launching MarkuprPlus (dev) in detached mode"
   mkdir -p "$HOME/Library/Logs/markuprx"
   LOG_FILE="$HOME/Library/Logs/markuprx/dev-run.log"
   : > "$LOG_FILE"
@@ -119,23 +123,13 @@ echo "==> Building production app"
 npm run build
 npx electron-builder --mac --arm64 --dir --config electron-builder.yml
 
-APP_SRC=""
-if [[ -d "$ROOT_DIR/release/mac-arm64/markuprx.app" ]]; then
-  APP_SRC="$ROOT_DIR/release/mac-arm64/markuprx.app"
-elif [[ -d "$ROOT_DIR/release/mac-arm64" ]]; then
-  APP_SRC="$(find "$ROOT_DIR/release/mac-arm64" -maxdepth 1 -type d -name '*.app' | head -n 1)"
-fi
-
-if [[ -z "$APP_SRC" ]]; then
-  APP_SRC="$(find "$ROOT_DIR/release" -maxdepth 3 -type d -name '*.app' | sort -r | head -n 1)"
-fi
-
-if [[ -z "$APP_SRC" ]]; then
-  echo "Build succeeded but no .app bundle was found in release/"
+APP_SRC="$ROOT_DIR/release/mac-arm64/MarkuprPlus.app"
+if [[ ! -d "$APP_SRC" ]]; then
+  echo "Build succeeded but MarkuprPlus.app was not found in release/mac-arm64/"
   exit 1
 fi
 
-APP_DEST="/Applications/markuprx.app"
+APP_DEST="/Applications/MarkuprPlus.app"
 echo "==> Installing fresh app bundle"
 rm -rf "$APP_DEST"
 cp -R "$APP_SRC" "$APP_DEST"

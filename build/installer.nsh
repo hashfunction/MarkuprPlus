@@ -19,13 +19,13 @@
 !macro customInstall
   ; Add context menu integration "Capture feedback here"
   WriteRegStr HKCU "${CONTEXT_MENU_KEY}" "" "Capture feedback here"
-  WriteRegStr HKCU "${CONTEXT_MENU_KEY}" "Icon" "$INSTDIR\markuprx.exe,0"
-  WriteRegStr HKCU "${CONTEXT_MENU_COMMAND_KEY}" "" '"$INSTDIR\markuprx.exe" "--capture-path=%V"'
+  WriteRegStr HKCU "${CONTEXT_MENU_KEY}" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
+  WriteRegStr HKCU "${CONTEXT_MENU_COMMAND_KEY}" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "--capture-path=%V"'
 
   ; Add to folder context menu as well
   WriteRegStr HKCU "Software\Classes\Directory\shell\markuprx" "" "Capture feedback here"
-  WriteRegStr HKCU "Software\Classes\Directory\shell\markuprx" "Icon" "$INSTDIR\markuprx.exe,0"
-  WriteRegStr HKCU "Software\Classes\Directory\shell\markuprx\command" "" '"$INSTDIR\markuprx.exe" "--capture-path=%1"'
+  WriteRegStr HKCU "Software\Classes\Directory\shell\markuprx" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
+  WriteRegStr HKCU "Software\Classes\Directory\shell\markuprx\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "--capture-path=%1"'
 
   ; Refresh shell to apply context menu changes
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'

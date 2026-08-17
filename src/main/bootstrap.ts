@@ -8,15 +8,28 @@ const testHarnessAllowed = isElectronTestHarnessAllowed({
   requested: process.env.MARKUPRX_E2E === '1',
   isPackaged: app.isPackaged,
 });
+const packagedSmokeAllowed = app.isPackaged
+  && process.env.MARKUPRX_PACKAGE_SMOKE === '1'
+  && process.argv.includes('--markuprplus-package-smoke');
+const isolatedRuntime = testHarnessAllowed || packagedSmokeAllowed;
 
-if (testHarnessAllowed) {
-  const requestedRoot = process.env.MARKUPRX_E2E_USER_DATA_DIR;
+if (isolatedRuntime) {
+  const requestedRoot = testHarnessAllowed
+    ? process.env.MARKUPRX_E2E_USER_DATA_DIR
+    : process.env.MARKUPRX_PACKAGE_SMOKE_USER_DATA_DIR;
   if (!requestedRoot) {
-    throw new Error('MARKUPRX_E2E_USER_DATA_DIR is required for isolated Electron tests.');
+    throw new Error(
+      testHarnessAllowed
+        ? 'MARKUPRX_E2E_USER_DATA_DIR is required for isolated Electron tests.'
+        : 'MARKUPRX_PACKAGE_SMOKE_USER_DATA_DIR is required for packaged smoke tests.',
+    );
   }
 
   const userDataDir = resolve(requestedRoot);
-  const documentsDir = resolve(process.env.MARKUPRX_E2E_DOCUMENTS_DIR || join(userDataDir, 'documents'));
+  const requestedDocumentsDir = testHarnessAllowed
+    ? process.env.MARKUPRX_E2E_DOCUMENTS_DIR
+    : process.env.MARKUPRX_PACKAGE_SMOKE_DOCUMENTS_DIR;
+  const documentsDir = resolve(requestedDocumentsDir || join(userDataDir, 'documents'));
   const logsDir = join(userDataDir, 'logs');
   const tempDir = join(userDataDir, 'temp');
   for (const path of [userDataDir, documentsDir, logsDir, tempDir]) {
@@ -29,6 +42,6 @@ if (testHarnessAllowed) {
   app.setPath('temp', tempDir);
 }
 
-configureRuntimeBrand(app, !testHarnessAllowed);
+configureRuntimeBrand(app, !isolatedRuntime);
 
 await import('./index');
