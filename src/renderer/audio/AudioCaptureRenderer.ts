@@ -9,6 +9,8 @@
 import pcmCaptureProcessorUrl from './PcmCaptureProcessor.worklet.js?url';
 import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
+class CaptureStartCancelledError extends Error {}
+
 interface CaptureConfig {
   deviceId: string | null;
   sampleRate: number;
@@ -40,6 +42,7 @@ class AudioCaptureRenderer {
   private latestLevel = 0;
   private electronTestAudioInterval: number | null = null;
   private electronTestAudioPhase = 0;
+  private captureGeneration = 0;
   private config: CaptureConfig = {
     deviceId: null,
     sampleRate: 16000,
@@ -73,8 +76,9 @@ class AudioCaptureRenderer {
       try {
         this.config = { ...this.config, ...config };
         await this.startCapture();
-        api.audio.notifyCaptureStarted();
+        if (this.capturing) api.audio.notifyCaptureStarted();
       } catch (error) {
+        if (error instanceof CaptureStartCancelledError) return;
         api.audio.sendCaptureError((error as Error).message);
       }
     });
@@ -92,8 +96,9 @@ class AudioCaptureRenderer {
         await this.stopCapture();
         try {
           await this.startCapture();
-          api.audio.notifyCaptureStarted();
+          if (this.capturing) api.audio.notifyCaptureStarted();
         } catch (error) {
+          if (error instanceof CaptureStartCancelledError) return;
           api.audio.sendCaptureError((error as Error).message);
         }
       }
@@ -133,8 +138,13 @@ class AudioCaptureRenderer {
       console.log('[AudioCaptureRenderer] Already capturing');
       return;
     }
+    const generation = ++this.captureGeneration;
+    const assertCurrentStart = () => {
+      if (generation !== this.captureGeneration) throw new CaptureStartCancelledError();
+    };
 
     const testConfig = await window.markuprx.e2e?.getConfig().catch(() => null);
+    assertCurrentStart();
     if (testConfig?.enabled) {
       this.capturing = true;
       this.stopping = false;
@@ -187,7 +197,12 @@ class AudioCaptureRenderer {
     };
 
     try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (generation !== this.captureGeneration) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        throw new CaptureStartCancelledError();
+      }
+      this.mediaStream = mediaStream;
     } catch (error) {
       throw new Error(`Failed to access microphone: ${(error as Error).message}`);
     }
@@ -209,6 +224,10 @@ class AudioCaptureRenderer {
       this.latestRms = 0;
       this.latestLevel = 0;
     });
+    if (generation !== this.captureGeneration) {
+      await this.stopCapture();
+      throw new CaptureStartCancelledError();
+    }
 
     this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
       if ((!this.capturing && !this.stopping) || !event.data || event.data.size === 0) {
@@ -504,6 +523,7 @@ class AudioCaptureRenderer {
   }
 
   async stopCapture(): Promise<void> {
+    this.captureGeneration += 1;
     if (!this.capturing && !this.mediaStream && !this.mediaRecorder) {
       return;
     }

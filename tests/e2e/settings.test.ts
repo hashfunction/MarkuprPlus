@@ -525,6 +525,56 @@ describe('Settings E2E', () => {
       expect(storeRefs.secure?._data.has('openai')).toBe(true);
     });
 
+    it('fails closed when a newer legacy keychain tier is unreadable', async () => {
+      storeRefs.secure?._data.set('plaintext:openai', 'older-plaintext-material');
+      vi.mocked(keytar.getPassword).mockImplementation((service: string) => {
+        if (service === LEGACY_KEYTAR_SERVICES[0]) {
+          return Promise.reject(new Error('legacy keychain temporarily unreadable'));
+        }
+        return Promise.resolve(null);
+      });
+
+      await expect(settings.getApiKey('openai'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+      expect(storeRefs.secure?._data.get('plaintext:openai'))
+        .toBe('older-plaintext-material');
+    });
+
+    it('fails closed when current encrypted material cannot be decrypted', async () => {
+      storeRefs.secure?._data.set(
+        'openai',
+        Buffer.from('encrypted:newer-material').toString('base64'),
+      );
+      storeRefs.secure?._data.set('plaintext:openai', 'older-plaintext-material');
+      vi.mocked(safeStorage.decryptString).mockImplementation(() => {
+        throw new Error('encrypted storage temporarily unreadable');
+      });
+
+      await expect(settings.getApiKey('openai'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+      expect(storeRefs.secure?._data.get('plaintext:openai'))
+        .toBe('older-plaintext-material');
+    });
+
+    it('treats present empty secure tiers as corruption rather than absence', async () => {
+      mockKeychain.set(`${CURRENT_KEYTAR_SERVICE}:openai`, '');
+      storeRefs.secure?._data.set('plaintext:openai', 'older-plaintext-material');
+      vi.mocked(keytar.getPassword).mockImplementation((service: string, account: string) => (
+        Promise.resolve(mockKeychain.has(`${service}:${account}`)
+          ? mockKeychain.get(`${service}:${account}`)!
+          : null)
+      ));
+
+      await expect(settings.getApiKey('openai'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+
+      mockKeychain.clear();
+      storeRefs.secure?._data.set('openai', 'present-but-corrupt');
+      vi.mocked(safeStorage.decryptString).mockReturnValue('');
+      await expect(settings.getApiKey('openai'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+    });
+
     it('retains legacy plaintext when secure migration cannot be verified', async () => {
       storeRefs.secure?._data.set('plaintext:openai', 'legacy-key-material');
       vi.mocked(keytar.setPassword).mockRejectedValue(new Error('write failed'));

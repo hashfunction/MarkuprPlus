@@ -189,7 +189,7 @@ describe('private capture storage', () => {
     await expect(lstat(result!.path!)).rejects.toThrow();
   });
 
-  it('clears recognized legacy temp artifacts without touching aliases or unrelated files', async () => {
+  it('clears every artifact from verified legacy roots without following aliases', async () => {
     const userData = await temporaryUserData();
     const legacyTemp = join(userData, 'temp');
     const audio = join(legacyTemp, 'markuprx-audio');
@@ -207,9 +207,13 @@ describe('private capture storage', () => {
       writeFile(join(audio, 'audio-2026-08-17.raw'), 'legacy audio'),
       writeFile(join(recordings, '123e4567-e89b-42d3-a456-426614174000.webm'), 'legacy video'),
       writeFile(join(markedSession, 'candidate-1.png'), 'legacy screenshot'),
-      writeFile(join(audio, 'unrelated.txt'), 'preserve'),
+      writeFile(join(audio, 'orphan-narration.bin'), 'legacy orphan audio'),
+      writeFile(join(recordings, 'orphan-recording.bin'), 'legacy orphan video'),
       writeFile(join(external, 'keep.raw'), 'external'),
     ]);
+    const orphanMarkedSession = join(marked, 'orphan-session');
+    await mkdir(orphanMarkedSession);
+    await writeFile(join(orphanMarkedSession, 'candidate.png'), 'legacy orphan screenshot');
     await symlink(join(external, 'keep.raw'), join(audio, 'audio-linked.raw'));
 
     await expect(clearLegacyCaptureArtifacts()).resolves.toBeUndefined();
@@ -219,7 +223,9 @@ describe('private capture storage', () => {
     await expect(lstat(join(recordings, '123e4567-e89b-42d3-a456-426614174000.webm')))
       .rejects.toThrow();
     await expect(lstat(markedSession)).rejects.toThrow();
-    await expect(readFile(join(audio, 'unrelated.txt'), 'utf8')).resolves.toBe('preserve');
+    await expect(lstat(join(audio, 'orphan-narration.bin'))).rejects.toThrow();
+    await expect(lstat(join(recordings, 'orphan-recording.bin'))).rejects.toThrow();
+    await expect(lstat(orphanMarkedSession)).rejects.toThrow();
     await expect(readFile(join(external, 'keep.raw'), 'utf8')).resolves.toBe('external');
   });
 

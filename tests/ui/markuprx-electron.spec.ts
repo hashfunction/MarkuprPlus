@@ -2514,6 +2514,9 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(window.getByText(/Clear All Data is incomplete\./).last())
       .toContainText('Clear All Data is incomplete.');
     await expect(window.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(window.evaluate(() => window.markuprx.settings.get('hasCompletedOnboarding')))
+      .resolves.toBe(true);
+    await expect(window.getByRole('heading', { name: 'Welcome to MarkuprPlus' })).toHaveCount(0);
 
     const retryResult = await window.evaluate(() => window.markuprx.settings.clearAllData());
     expect(retryResult).toMatchObject({
@@ -2652,13 +2655,26 @@ test.describe('MarkuprPlus desktop application', () => {
       'recordings',
       'orphan-recording.bin',
     );
-    await mkdir(dirname(staleRecording), { recursive: true });
-    await writeFile(staleRecording, 'stale private recording');
+    const legacyRecording = join(
+      harness.userDataDir,
+      'temp',
+      'markuprx-recordings',
+      'legacy-orphan-recording.bin',
+    );
+    await Promise.all([
+      mkdir(dirname(staleRecording), { recursive: true }),
+      mkdir(dirname(legacyRecording), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(staleRecording, 'stale private recording'),
+      writeFile(legacyRecording, 'stale legacy recording'),
+    ]);
 
     const launched = await launchApplication(harness);
     application = launched.application;
     await expectPortraitWindow(application, launched.mainWindow);
     await expect.poll(() => pathExists(staleRecording)).toBe(false);
+    await expect.poll(() => pathExists(legacyRecording)).toBe(false);
   });
 
   test('waits for private audio cleanup before an ordinary process exit', async () => {
@@ -2679,6 +2695,56 @@ test.describe('MarkuprPlus desktop application', () => {
     application = null;
 
     expect(await pathExists(rawAudio)).toBe(false);
+  });
+
+  test('quiesces a delayed audio start before process exit', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ audioStartDelayMs: 1_200 });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.evaluate(() => {
+      void window.markuprx.session.start('screen:e2e-quit-starting', 'Quit Starting');
+    });
+    await expect.poll(() => window.evaluate(async () => (
+      await window.markuprx.session.getStatus()
+    ).state)).toBe('starting');
+    await window.waitForTimeout(250);
+    await expect(window.evaluate(async () => (
+      await window.markuprx.session.getStatus()
+    ).state)).resolves.toBe('starting');
+
+    const closed = application.waitForEvent('close');
+    await application.evaluate(({ app }) => app.quit());
+    await closed;
+    application = null;
+
+    const audioRoot = join(harness.userDataDir, 'capture-recovery', 'audio');
+    const remaining = await readdir(audioRoot).catch(() => []);
+    expect(remaining).toEqual([]);
+  });
+
+  test('quiesces active audio before process exit', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await expect(window.evaluate(() => window.markuprx.session.start(
+      'screen:e2e-quit-recording',
+      'Quit Recording',
+    ))).resolves.toMatchObject({ success: true });
+    await expect.poll(() => window.evaluate(async () => (
+      await window.markuprx.session.getStatus()
+    ).state)).toBe('recording');
+    await window.waitForTimeout(400);
+
+    const closed = application.waitForEvent('close');
+    await application.evaluate(({ app }) => app.quit());
+    await closed;
+    application = null;
+
+    const audioRoot = join(harness.userDataDir, 'capture-recovery', 'audio');
+    const remaining = await readdir(audioRoot).catch(() => []);
+    expect(remaining).toEqual([]);
   });
 
   test('keeps local-success transcription off the OpenAI network with a saved key', async () => {
@@ -3143,6 +3209,32 @@ test.describe('MarkuprPlus desktop application', () => {
       .filter({ hasText: 'Start/Stop Recording' });
     expect(await recordingRow.locator('kbd').allTextContents())
       .toEqual([primaryKey, '⌥', 'J']);
+  });
+
+  test('shows the native fallback chosen for an unavailable Settings hotkey', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ initializeHotkeys: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    const requested = 'CommandOrControl+Alt+J';
+    const fallback = 'CommandOrControl+Shift+R';
+    expect(await application.evaluate(({ globalShortcut }, accelerator) => (
+      globalShortcut.register(accelerator, () => {})
+    ), requested)).toBe(true);
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Hotkeys', exact: true }).click();
+    const label = window.getByText('Start/Stop Recording', { exact: true }).first();
+    const recorder = label.locator('..').locator('..').getByRole('button');
+    await recorder.click();
+    await window.keyboard.press('Control+Alt+J');
+
+    await expect.poll(() => window.evaluate(async () => ({
+      live: (await window.markuprx.hotkeys.getConfig()).toggleRecording,
+      persisted: (await window.markuprx.settings.get('hotkeys')).toggleRecording,
+    }))).toEqual({ live: fallback, persisted: fallback });
+    await expect(recorder).toContainText(/Cmd.*Shift.*R/u);
   });
 
   test('restores a persisted shortcut registration after relaunch', async () => {
@@ -3999,15 +4091,15 @@ test.describe('MarkuprPlus desktop application', () => {
       lastExitTimestamp: startTime + 5_000,
     }));
     const external = join(harness.userDataDir, 'discard-external.png');
-    const stagedSession = join(
+    const orphanStagedSession = join(
       harness.userDataDir,
       'capture-recovery',
       'marked-issues',
-      sessionId,
+      '123e4567-e89b-42d3-a456-426614174999',
     );
-    await mkdir(stagedSession, { recursive: true });
+    await mkdir(orphanStagedSession, { recursive: true });
     await writeFile(external, 'external evidence');
-    const blocker = join(stagedSession, 'candidate-1.png');
+    const blocker = join(orphanStagedSession, 'candidate-1.png');
     await symlink(external, blocker);
 
     const launched = await launchApplication(harness);
@@ -4015,14 +4107,19 @@ test.describe('MarkuprPlus desktop application', () => {
     const window = launched.mainWindow;
     const recovery = await expectContainedDialog(window, 'Recover Previous Session?');
     const discard = recovery.getByRole('button', { name: /Discard/ });
+    const recover = recovery.getByRole('button', { name: /Recover Session/ });
 
     await discard.click();
     await expect(recovery).toBeVisible();
     await expect(recovery.getByRole('alert')).toContainText('could not be removed');
+    await expect(recover).toBeDisabled();
+    await window.keyboard.press('Enter');
+    await expect(recovery).toBeVisible();
     await expect(readFile(external, 'utf8')).resolves.toBe('external evidence');
 
     await rm(blocker);
-    await discard.click();
+    await expect(discard).toContainText('Retry Discard');
+    await window.keyboard.press('Escape');
     await expect(recovery).toBeHidden();
     const persisted = JSON.parse(await readFile(
       join(harness.userDataDir, 'markuprx-crash-recovery.json'),

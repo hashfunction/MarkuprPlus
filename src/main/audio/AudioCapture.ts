@@ -128,6 +128,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   private stopFinalizeTimer: NodeJS.Timeout | null = null;
   private stopPromise: Promise<void> | null = null;
   private resolveStopPromise: (() => void) | null = null;
+  private pendingStartCancel: (() => void) | null = null;
   private currentDeviceId: string | null = null;
   private currentAudioLevel: number = 0;
   private voiceActive: boolean = false;
@@ -306,6 +307,9 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
       });
       return;
     }
+    if (this.pendingStartCancel) {
+      throw new Error('Audio capture start is already in progress');
+    }
 
     // Check permission first
     const hasPermission = await this.checkPermission();
@@ -336,44 +340,68 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
     this.recoveryBufferPath = await ensurePrivateCaptureArea('audio');
 
     return new Promise((resolve, reject) => {
+      let completionTimer: NodeJS.Timeout | null = null;
+      const cleanup = () => {
+        clearTimeout(timeout);
+        if (completionTimer) clearTimeout(completionTimer);
+        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
+        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
+        if (this.pendingStartCancel === cancel) this.pendingStartCancel = null;
+      };
+      const rejectStart = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      const cancel = () => rejectStart(new Error('Audio capture start cancelled'));
       const timeout = setTimeout(() => {
-        reject(new Error('Audio capture start timeout'));
+        rejectStart(new Error('Audio capture start timeout'));
       }, 10000);
 
       const successHandler = () => {
+        if (this.pendingStartCancel !== cancel) return;
         clearTimeout(timeout);
         ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
         ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
-
-        this.capturing = true;
-        this.stopRequested = false;
-        this.settleStopPromise();
-        if (this.stopFinalizeTimer) {
-          clearTimeout(this.stopFinalizeTimer);
-          this.stopFinalizeTimer = null;
-        }
-        this.paused = false;
-        this.sessionAudioChunks = [];
-        this.sessionAudioBytes = 0;
-        this.sessionAudioDurationMs = 0;
-        this.sessionAudioMimeType = 'audio/wav';
-        this.encodedAudioChunks = [];
-        this.encodedAudioBytes = 0;
-        this.encodedAudioDurationMs = 0;
-        this.encodedAudioMimeType = null;
-        this.sessionAudioCapWarningLogged = false;
-        this.startRecoveryBuffer();
-        console.log('[AudioCapture] Capture started');
-        resolve();
+        const complete = () => {
+          if (this.pendingStartCancel !== cancel) return;
+          cleanup();
+          this.capturing = true;
+          this.stopRequested = false;
+          this.settleStopPromise();
+          if (this.stopFinalizeTimer) {
+            clearTimeout(this.stopFinalizeTimer);
+            this.stopFinalizeTimer = null;
+          }
+          this.paused = false;
+          this.sessionAudioChunks = [];
+          this.sessionAudioBytes = 0;
+          this.sessionAudioDurationMs = 0;
+          this.sessionAudioMimeType = 'audio/wav';
+          this.encodedAudioChunks = [];
+          this.encodedAudioBytes = 0;
+          this.encodedAudioDurationMs = 0;
+          this.encodedAudioMimeType = null;
+          this.sessionAudioCapWarningLogged = false;
+          this.startRecoveryBuffer();
+          console.log('[AudioCapture] Capture started');
+          resolve();
+        };
+        const requestedDelay = isElectronTestHarnessAllowed({
+          requested: process.env.MARKUPRX_E2E === '1',
+          isPackaged: app.isPackaged,
+        }) ? Number(process.env.MARKUPRX_E2E_AUDIO_START_DELAY_MS) : 0;
+        const delay = Number.isFinite(requestedDelay)
+          ? Math.min(2_000, Math.max(0, Math.floor(requestedDelay)))
+          : 0;
+        if (delay > 0) completionTimer = setTimeout(complete, delay);
+        else complete();
       };
 
       const captureErrorHandler = (_event: Electron.IpcMainEvent, error: string) => {
-        clearTimeout(timeout);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
-        reject(new Error(error));
+        if (this.pendingStartCancel === cancel) rejectStart(new Error(error));
       };
 
+      this.pendingStartCancel = cancel;
       ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
       ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
 
@@ -391,7 +419,8 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * Stop audio capture
    */
   async stop(): Promise<void> {
-    if (!this.capturing) {
+    const cancelPendingStart = this.pendingStartCancel;
+    if (!this.capturing && !cancelPendingStart) {
       this.stopRequested = false;
       this.settleStopPromise();
       return;
@@ -404,6 +433,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
     const stopPromise = this.ensureStopPromise();
     this.stopRequested = true;
     this.paused = false;
+    cancelPendingStart?.();
 
     if (this.mainWindow) {
       this.mainWindow.webContents.send(AUDIO_IPC_CHANNELS.STOP_CAPTURE);

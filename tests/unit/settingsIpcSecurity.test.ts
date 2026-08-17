@@ -388,7 +388,10 @@ describe('settings IPC security boundary', () => {
     expect(manager.deleteApiKey).toHaveBeenCalledWith('anthropic');
     expect(clearLogs).toHaveBeenCalledOnce();
     expect(manager.reset).toHaveBeenCalledOnce();
-    expect(manager.update).toHaveBeenCalledWith({ outputDirectory: root });
+    expect(manager.update).toHaveBeenCalledWith({
+      outputDirectory: root,
+      hasCompletedOnboarding: true,
+    });
     expect(result).toMatchObject({
       success: false,
       deletedSessions: 0,
@@ -585,7 +588,7 @@ describe('settings IPC security boundary', () => {
     const discard = vi.spyOn(crashRecovery, 'discardIncompleteSession')
       .mockImplementation(() => undefined);
     vi.spyOn(audioCapture, 'clearRecoveryBuffers').mockResolvedValue(undefined);
-    const cleanupSession = vi.spyOn(getMarkedIssueArtifactStore(), 'cleanupSession')
+    const cleanupSessions = vi.spyOn(getMarkedIssueArtifactStore(), 'cleanupStaleSessions')
       .mockRejectedValueOnce(new Error('staged screenshot is busy'))
       .mockResolvedValue(undefined);
     registerSettingsHandlers(context(manager), {} as SessionActions);
@@ -595,7 +598,7 @@ describe('settings IPC security boundary', () => {
     expect(discard).not.toHaveBeenCalled();
 
     await expect(handler({})).resolves.toEqual({ success: true });
-    expect(cleanupSession).toHaveBeenCalledWith(sessionId);
+    expect(cleanupSessions).toHaveBeenCalledWith([]);
     expect(discard).toHaveBeenCalledOnce();
   });
 

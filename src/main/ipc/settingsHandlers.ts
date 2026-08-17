@@ -232,7 +232,12 @@ async function validateProviderApiKey(
 // =============================================================================
 
 export function registerSettingsHandlers(ctx: IpcContext, actions: SessionActions): void {
-  const { getMainWindow, getSettingsManager, setHasCompletedOnboarding } = ctx;
+  const {
+    getMainWindow,
+    getSettingsManager,
+    getHasCompletedOnboarding,
+    setHasCompletedOnboarding,
+  } = ctx;
 
   // -------------------------------------------------------------------------
   // Settings Channels
@@ -357,6 +362,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       }
 
       let outputDirectory: string | null = null;
+      const completedOnboardingBeforeClear = getHasCompletedOnboarding();
       try {
         outputDirectory = settingsManager.get('outputDirectory');
       } catch {
@@ -472,17 +478,24 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         }
       }
 
-      if (failures.length > 0 && outputDirectory) {
+      if (failures.length === 0) {
         try {
-          settingsManager.update({ outputDirectory });
+          fileManager.setOutputDirectory(settingsManager.get('outputDirectory'));
         } catch {
           addFailure({ kind: 'settings' });
         }
       }
-      try {
-        fileManager.setOutputDirectory(settingsManager.get('outputDirectory'));
-      } catch {
-        addFailure({ kind: 'settings' });
+      if (failures.length > 0) {
+        try {
+          const restored = settingsManager.update({
+            ...(outputDirectory ? { outputDirectory } : {}),
+            hasCompletedOnboarding: completedOnboardingBeforeClear,
+          });
+          setHasCompletedOnboarding(completedOnboardingBeforeClear);
+          fileManager.setOutputDirectory(restored.outputDirectory);
+        } catch {
+          addFailure({ kind: 'settings' });
+        }
       }
 
       return {
@@ -853,7 +866,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
     const results = await Promise.allSettled([
       audioCapture.clearRecoveryBuffers(),
-      getMarkedIssueArtifactStore().cleanupSession(session.id),
+      getMarkedIssueArtifactStore().cleanupStaleSessions([]),
       clearScreenRecordingArtifacts(),
       clearLegacyCaptureArtifacts(),
     ]);

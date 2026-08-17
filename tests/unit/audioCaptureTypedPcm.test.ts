@@ -26,6 +26,7 @@ describe('AudioCapture typed PCM IPC', () => {
       stoppedHandler?.({} as never);
       await stopPromise;
     }
+    await service.clearRecoveryBuffers();
     service.clearCapturedAudio();
   });
 
@@ -60,5 +61,29 @@ describe('AudioCapture typed PCM IPC', () => {
       captured!.byteOffset,
       captured!.byteLength / Float32Array.BYTES_PER_ELEMENT,
     ))).toEqual([0.25, -0.5, 0.75]);
+  });
+
+  it('cancels a pending start and ignores a late renderer acknowledgement', async () => {
+    const startPromise = service.start();
+    await vi.waitFor(() => {
+      expect(
+        vi.mocked(ipcMain.once).mock.calls.some(
+          ([channel]) => channel === AUDIO_IPC_CHANNELS.CAPTURE_STARTED,
+        ),
+      ).toBe(true);
+    });
+    const startedHandler = vi.mocked(ipcMain.once).mock.calls
+      .find(([channel]) => channel === AUDIO_IPC_CHANNELS.CAPTURE_STARTED)?.[1];
+
+    const stopPromise = service.stop();
+    const stoppedHandler = vi.mocked(ipcMain.on).mock.calls
+      .filter(([channel]) => channel === AUDIO_IPC_CHANNELS.CAPTURE_STOPPED)
+      .at(-1)?.[1];
+    stoppedHandler?.({} as never);
+    startedHandler?.({} as never);
+
+    await expect(startPromise).rejects.toThrow(/cancelled/i);
+    await expect(stopPromise).resolves.toBeUndefined();
+    expect(service.isCapturing()).toBe(false);
   });
 });

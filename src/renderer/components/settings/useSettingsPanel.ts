@@ -220,15 +220,17 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const handleHotkeyChange = useCallback(
     async (key: keyof HotkeyConfig, value: string) => {
+      const previousHotkeys = settings.hotkeys;
       const newHotkeys = { ...settings.hotkeys, [key]: value };
       setSettings((prev) => ({ ...prev, hotkeys: newHotkeys }));
       setSaveStatus('saving');
       setSaveError(null);
       try {
-        await window.markuprx.settings.set('hotkeys', newHotkeys);
-        await window.markuprx.hotkeys.updateConfig(newHotkeys);
+        const saved = await window.markuprx.settings.set('hotkeys', newHotkeys);
+        setSettings(saved);
         setSaveStatus('saved');
       } catch (error) {
+        setSettings((previous) => ({ ...previous, hotkeys: previousHotkeys }));
         const message = error instanceof Error
           ? error.message
           : 'Unable to save this setting.';
@@ -464,17 +466,18 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   }, []);
 
   const resetHotkeysSection = useCallback(async () => {
+    const previousHotkeys = settings.hotkeys;
     const defaults = { ...DEFAULT_HOTKEY_CONFIG };
     setSettings((prev) => ({ ...prev, hotkeys: defaults }));
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      await window.markuprx.settings.set('hotkeys', defaults);
-      // @ts-expect-error - update may be named updateConfig in type definition
-      await (window.markuprx.hotkeys.update ?? window.markuprx.hotkeys.updateConfig)?.(defaults);
+      const saved = await window.markuprx.settings.set('hotkeys', defaults);
+      setSettings(saved);
       setSaveStatus('saved');
       return true;
     } catch (error) {
+      setSettings((previous) => ({ ...previous, hotkeys: previousHotkeys }));
       const message = error instanceof Error
         ? error.message
         : 'Unable to save this setting.';
@@ -483,7 +486,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       console.error('Failed to save setting:', error);
       return false;
     }
-  }, []);
+  }, [settings.hotkeys]);
 
   const resetAdvancedSection = useCallback(async () => {
     const defaults = {
@@ -529,6 +532,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
         detail: { type: result.success ? 'reset' : 'partial-reset' },
       }));
+      await refreshAnalysisProviders(true);
       if (!result.success) {
         const count = result.failures.length;
         const message = `Clear All Data is incomplete. ${count} ${count === 1 ? 'item needs' : 'items need'} attention. Retry when ready.`;
@@ -550,7 +554,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       }
       setOpenAiApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnthropicApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
-      setAnalysisProviderStatuses([]);
       setSaveError(null);
       setSaveStatus('saved');
     } catch {
@@ -562,7 +565,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     } finally {
       setIsClearingData(false);
     }
-  }, [getApiKeyPresence, isClearingData]);
+  }, [getApiKeyPresence, isClearingData, refreshAnalysisProviders]);
 
   const handleExportSettings = useCallback(async () => {
     try {

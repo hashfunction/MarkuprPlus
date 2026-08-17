@@ -61,7 +61,9 @@ import { wireTrayActionCallbacks } from './trayActionWiring';
 import { audioCapture } from './audio/AudioCapture';
 import { getSettingsManager, type SettingsManager } from './settings';
 import { synchronizeOutputDirectory } from './settings/synchronizeOutputDirectory';
+import { discoverStartupCredentialAvailability } from './settings/startupCredentialAvailability';
 import { beginApplicationDataSessionStart } from './settings/clearApplicationData';
+import { clearLegacyScreenRecordingArtifacts } from './security/PrivateCaptureStorage';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
@@ -1862,6 +1864,9 @@ app.whenReady().then(async () => {
   await clearScreenRecordingArtifacts().catch((error) => {
     console.warn('[Main] Failed to clean stale screen recording staging:', error);
   });
+  await clearLegacyScreenRecordingArtifacts().catch((error) => {
+    console.warn('[Main] Failed to clean legacy screen recording staging:', error);
+  });
   if (incompleteSession?.markedIssues) {
     for (const issue of incompleteSession.markedIssues) {
       try {
@@ -1895,10 +1900,8 @@ app.whenReady().then(async () => {
   console.log('[Main] Settings loaded');
 
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path
-  const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
-    settingsManager.hasApiKey('openai'),
-    settingsManager.hasApiKey('anthropic'),
-  ]);
+  const { hasOpenAiKey, hasAnthropicKey } =
+    await discoverStartupCredentialAvailability(settingsManager);
   const hasLocalWhisperModel = modelDownloadManager.hasAnyModel();
   const hasTranscriptionPath = hasOpenAiKey || hasLocalWhisperModel;
   const storedOnboardingCompletion = settingsManager.get('hasCompletedOnboarding');
@@ -2074,10 +2077,13 @@ let quitCleanupState: 'idle' | 'running' | 'complete' = 'idle';
 async function performApplicationQuitCleanup(): Promise<void> {
   console.log('[Main] App quitting, cleaning up...');
 
-  // Stop any active session
-  if (sessionController.getState() === 'recording') {
+  // Quiesce every state that can still own or start an audio producer before
+  // clearing recovery files. `cancel()` begins the stop; the explicit await
+  // below joins both active and pending starts.
+  if (['starting', 'recording', 'processing'].includes(sessionController.getState())) {
     sessionController.cancel();
   }
+  await audioCapture.stop();
 
   // Best-effort cleanup of temporary recording artifacts.
   for (const [sessionId] of getActiveScreenRecordings()) {

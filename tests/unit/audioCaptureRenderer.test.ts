@@ -57,6 +57,10 @@ const analyserNode = {
 
 let workletNodeInstance: MockAudioWorkletNode | null = null;
 
+function rememberWorkletNode(instance: MockAudioWorkletNode): void {
+  workletNodeInstance = instance;
+}
+
 class MockAudioWorkletNode {
   readonly port = {
     onmessage: null as ((event: MessageEvent) => void) | null,
@@ -65,7 +69,7 @@ class MockAudioWorkletNode {
   readonly disconnect = vi.fn();
 
   constructor() {
-    workletNodeInstance = this;
+    rememberWorkletNode(this);
   }
 }
 
@@ -155,5 +159,26 @@ describe('AudioCaptureRenderer', () => {
     await renderer.startCapture();
 
     expect(createScriptProcessor).not.toHaveBeenCalled();
+  });
+
+  it('does not begin capture after Stop overtakes an asynchronous Start', async () => {
+    let resolveStream: ((stream: MockMediaStream) => void) | undefined;
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementation(() => (
+      new Promise<MediaStream>((resolve) => {
+        resolveStream = (stream) => resolve(stream as unknown as MediaStream);
+      })
+    ));
+    const startHandler = audioApi.onStartCapture.mock.calls.at(-1)?.[0];
+    const stopHandler = audioApi.onStopCapture.mock.calls.at(-1)?.[0];
+
+    const starting = startHandler?.({});
+    await vi.waitFor(() => expect(resolveStream).toBeTypeOf('function'));
+    const stopping = stopHandler?.();
+    resolveStream?.(new MockMediaStream());
+    await Promise.all([starting, stopping]);
+
+    expect(renderer.isCapturing()).toBe(false);
+    expect(audioApi.notifyCaptureStarted).not.toHaveBeenCalled();
+    expect(audioApi.notifyCaptureStopped).toHaveBeenCalledOnce();
   });
 });

@@ -14,9 +14,6 @@ import { isPathInside } from './pathContainment';
 
 export type PrivateCaptureArea = 'audio' | 'marked-issues' | 'recordings';
 
-const LEGACY_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const LEGACY_RECORDING_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:mov|mp4|webm)$/iu;
-
 export function privateCaptureAreaPath(area: PrivateCaptureArea): string {
   return join(app.getPath('userData'), 'capture-recovery', area);
 }
@@ -164,89 +161,53 @@ async function resolveLegacyCaptureRoot(name: string, label: string): Promise<st
   return realCandidate;
 }
 
-async function removeLegacyFiles(
-  root: string,
-  pattern: RegExp,
-  label: string,
-): Promise<void> {
+async function clearLegacyRoot(name: string, label: string): Promise<void> {
+  const root = await resolveLegacyCaptureRoot(name, label);
+  if (!root) return;
   const entries = await readdir(root, { withFileTypes: true });
   const errors: unknown[] = [];
   for (const entry of entries) {
-    if (!pattern.test(entry.name)) continue;
     const candidate = join(root, entry.name);
     try {
       const stats = await lstat(candidate);
-      if (!stats.isFile() && !stats.isSymbolicLink()) {
-        throw new Error(`${label} contains a non-file artifact.`);
+      if (stats.isFile() || stats.isSymbolicLink()) {
+        await unlink(candidate);
+      } else if (stats.isDirectory()) {
+        await removePrivateDirectoryTree(root, candidate, `${label} artifact`);
+      } else {
+        throw new Error(`${label} contains an unsupported filesystem artifact.`);
       }
-      await unlink(candidate);
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') errors.push(error);
     }
   }
-  throwCollectedErrors(errors, `${label} could not be fully cleared.`);
-}
-
-async function removeLegacyRootIfEmpty(root: string): Promise<void> {
   try {
     await rmdir(root);
   } catch (error) {
-    if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
+    if (errorCode(error) !== 'ENOENT') errors.push(error);
   }
+  throwCollectedErrors(errors, `${label} could not be fully cleared.`);
 }
 
 /**
- * Remove only recognized artifacts from the pre-hardening temporary roots.
+ * Remove every artifact from the verified pre-hardening temporary roots.
  * Final-component aliases and foreign-owned roots are rejected; child aliases
- * are unlinked without following them.
+ * are unlinked without following them, and failures never stop later roots.
  */
 export async function clearLegacyCaptureArtifacts(): Promise<void> {
   const operations = [
-    async () => {
-      const root = await resolveLegacyCaptureRoot('markuprx-audio', 'Legacy audio root');
-      if (!root) return;
-      await removeLegacyFiles(root, /^audio-.+\.raw$/iu, 'Legacy audio root');
-      await removeLegacyRootIfEmpty(root);
-    },
-    async () => {
-      const root = await resolveLegacyCaptureRoot(
-        'markuprx-recordings',
-        'Legacy recording root',
-      );
-      if (!root) return;
-      await removeLegacyFiles(root, LEGACY_RECORDING_PATTERN, 'Legacy recording root');
-      await removeLegacyRootIfEmpty(root);
-    },
-    async () => {
-      const root = await resolveLegacyCaptureRoot(
-        'markuprx-marked-issues',
-        'Legacy marked screenshot root',
-      );
-      if (!root) return;
-      const entries = await readdir(root, { withFileTypes: true });
-      const errors: unknown[] = [];
-      for (const entry of entries) {
-        if (!LEGACY_SESSION_ID_PATTERN.test(entry.name)) continue;
-        const candidate = join(root, entry.name);
-        try {
-          const stats = await lstat(candidate);
-          if (stats.isSymbolicLink()) await unlink(candidate);
-          else if (stats.isDirectory()) {
-            await removePrivateDirectoryTree(root, candidate, 'Legacy marked screenshot session');
-          } else {
-            throw new Error('Legacy marked screenshot root contains an invalid session artifact.');
-          }
-        } catch (error) {
-          if (errorCode(error) !== 'ENOENT') errors.push(error);
-        }
-      }
-      await removeLegacyRootIfEmpty(root);
-      throwCollectedErrors(errors, 'Legacy marked screenshots could not be fully cleared.');
-    },
+    () => clearLegacyRoot('markuprx-audio', 'Legacy audio root'),
+    () => clearLegacyRoot('markuprx-recordings', 'Legacy recording root'),
+    () => clearLegacyRoot('markuprx-marked-issues', 'Legacy marked screenshot root'),
   ];
   const results = await Promise.allSettled(operations.map((operation) => operation()));
   throwCollectedErrors(
     results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []),
     'Legacy capture artifacts could not be fully cleared.',
   );
+}
+
+/** Remove stale pre-hardening recordings at startup without touching recoverable evidence. */
+export async function clearLegacyScreenRecordingArtifacts(): Promise<void> {
+  await clearLegacyRoot('markuprx-recordings', 'Legacy recording root');
 }

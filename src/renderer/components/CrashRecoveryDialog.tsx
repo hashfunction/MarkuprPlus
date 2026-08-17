@@ -120,6 +120,7 @@ export function CrashRecoveryDialog({
 }: CrashRecoveryDialogProps): React.ReactElement {
   const [isRecovering, setIsRecovering] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [discardMustRetry, setDiscardMustRetry] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState<'recover' | 'discard' | null>(null);
@@ -138,6 +139,7 @@ export function CrashRecoveryDialog({
     : '#ffffff';
 
   const handleRecover = useCallback(async () => {
+    if (discardMustRetry) return;
     setIsRecovering(true);
     setOperationError(null);
     try {
@@ -147,7 +149,7 @@ export function CrashRecoveryDialog({
       setOperationError(error instanceof Error ? error.message : 'Recovery failed.');
       setIsRecovering(false);
     }
-  }, [onRecover]);
+  }, [discardMustRetry, onRecover]);
 
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
@@ -156,6 +158,7 @@ export function CrashRecoveryDialog({
       await onDiscard();
     } catch (error) {
       console.error('Discard failed:', error);
+      setDiscardMustRetry(true);
       setOperationError(error instanceof Error ? error.message : 'Discard failed.');
       setIsDiscarding(false);
     }
@@ -167,7 +170,7 @@ export function CrashRecoveryDialog({
       if (!dialogRef.current || !isTopmostContainedDialog(dialogRef.current)) return;
       if (isRecovering || isDiscarding) return;
 
-      if (e.key === 'Enter' || e.key === 'r' || e.key === 'R') {
+      if (!discardMustRetry && (e.key === 'Enter' || e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
         handleRecover();
       } else if (e.key === 'Escape' || e.key === 'd' || e.key === 'D') {
@@ -178,7 +181,14 @@ export function CrashRecoveryDialog({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRecovering, isDiscarding, handleRecover, handleDiscard, dialogRef]);
+  }, [
+    isRecovering,
+    isDiscarding,
+    discardMustRetry,
+    handleRecover,
+    handleDiscard,
+    dialogRef,
+  ]);
 
   const spinnerSvg = (
     <svg style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} fill="none" viewBox="0 0 24 24">
@@ -469,18 +479,21 @@ export function CrashRecoveryDialog({
 
           {/* Keyboard hint */}
           <p style={{ textAlign: 'center', fontSize: 12, color: colors.text.tertiary, marginTop: 16 }}>
-            Press <kbd style={{
+            {discardMustRetry ? 'Discard is incomplete. Press ' : 'Press '}
+            <kbd style={{
               padding: '2px 6px',
               backgroundColor: colors.bg.tertiary,
               borderRadius: 4,
               color: colors.text.secondary,
-            }}>Enter</kbd> to recover or{' '}
+            }}>{discardMustRetry ? 'Esc' : 'Enter'}</kbd>{discardMustRetry ? ' to retry discard' : ' to recover or '}
+            {!discardMustRetry && <>
             <kbd style={{
               padding: '2px 6px',
               backgroundColor: colors.bg.tertiary,
               borderRadius: 4,
               color: colors.text.secondary,
             }}>Esc</kbd> to discard
+            </>}
           </p>
         </div>
 
@@ -529,7 +542,7 @@ export function CrashRecoveryDialog({
               </span>
             ) : (
               <>
-                Discard
+                {discardMustRetry ? 'Retry Discard' : 'Discard'}
                 <span style={{ fontSize: 12, color: colors.text.tertiary, marginLeft: 4 }}>(D)</span>
               </>
             )}
@@ -537,7 +550,7 @@ export function CrashRecoveryDialog({
 
           <button
             onClick={handleRecover}
-            disabled={isRecovering || isDiscarding}
+            disabled={isRecovering || isDiscarding || discardMustRetry}
             onMouseEnter={() => setHoveredBtn('recover')}
             onMouseLeave={() => setHoveredBtn(null)}
             style={{
@@ -547,8 +560,8 @@ export function CrashRecoveryDialog({
               fontWeight: 500,
               fontSize: 14,
               border: 'none',
-              cursor: isRecovering ? 'wait' : (isDiscarding ? 'not-allowed' : 'pointer'),
-              opacity: (isRecovering || isDiscarding) ? 0.5 : 1,
+              cursor: isRecovering ? 'wait' : ((isDiscarding || discardMustRetry) ? 'not-allowed' : 'pointer'),
+              opacity: (isRecovering || isDiscarding || discardMustRetry) ? 0.5 : 1,
               transition: 'all 200ms ease',
               backgroundColor: recoveryButtonBackground,
               color: recoveryButtonText,

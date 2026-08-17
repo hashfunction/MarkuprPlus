@@ -333,17 +333,35 @@ export class SettingsManager implements ISettingsManager {
   ): string | null {
     try {
       const encrypted = this.secureStore.get(service);
-      if (!encrypted) {
+      if (encrypted === undefined) {
         return null;
       }
+      if (typeof encrypted !== 'string' || encrypted.length === 0) {
+        throw new SecureStorageUnavailableError();
+      }
 
-      if (requireProtectedBackend && !this.canUseEncryptedFallback()) return null;
-      if (!safeStorage.isEncryptionAvailable()) return null;
+      if (requireProtectedBackend && !this.canUseEncryptedFallback()) {
+        // `basic_text` is a known legacy tier that can still be read for a
+        // verified migration. Any other unavailable/unknown backend makes an
+        // existing value unreadable and must stop lower-authority fallbacks.
+        if (
+          safeStorage.isEncryptionAvailable()
+          && safeStorage.getSelectedStorageBackend() === 'basic_text'
+        ) return null;
+        throw new SecureStorageUnavailableError();
+      }
+      if (!safeStorage.isEncryptionAvailable()) {
+        throw new SecureStorageUnavailableError();
+      }
 
-      return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+      const decrypted = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+      if (decrypted.length === 0 || decrypted.length > 20_000) {
+        throw new SecureStorageUnavailableError();
+      }
+      return decrypted;
     } catch {
       console.warn(`[SettingsManager] Could not read encrypted credential storage for ${service}.`);
-      return null;
+      throw new SecureStorageUnavailableError();
     }
   }
 
@@ -409,7 +427,7 @@ export class SettingsManager implements ISettingsManager {
       return typeof value === 'string' && value.length > 0 ? value : null;
     } catch {
       console.warn(`[SettingsManager] Could not inspect legacy credential storage for ${service}.`);
-      return null;
+      throw new SecureStorageUnavailableError();
     }
   }
 
@@ -449,7 +467,11 @@ export class SettingsManager implements ISettingsManager {
   private async getKeychainApiKey(service: string): Promise<string | null> {
     if (electronTestHarnessAllowed()) return null;
     try {
-      return await keytar.getPassword(KEYTAR_SERVICE, service);
+      const value = await keytar.getPassword(KEYTAR_SERVICE, service);
+      if (value !== null && (value.length === 0 || value.length > 20_000)) {
+        throw new SecureStorageUnavailableError();
+      }
+      return value;
     } catch {
       console.warn(`[SettingsManager] Could not read keychain credential for ${service}.`);
       // Absence and unreadability have different authority semantics. Falling
@@ -568,13 +590,33 @@ export class SettingsManager implements ISettingsManager {
       return fallbackCurrent;
     }
 
+    // A current-store value written through Electron's former Linux
+    // `basic_text` backend is newer than every legacy service. Read it only to
+    // migrate it; unreadability is authoritative and never falls through.
+    const legacyUnprotectedFallback = this.getLegacyUnprotectedFallbackApiKey(service);
+    if (legacyUnprotectedFallback) {
+      try {
+        await this.storeSecureApiKey(service, legacyUnprotectedFallback);
+        if (await this.getCurrentSecureApiKey(service) === legacyUnprotectedFallback) {
+          this.cleanupStoredFallbackApiKey(service);
+        }
+      } catch {
+        console.warn(`[SettingsManager] Legacy credential migration will be retried for ${service}.`);
+      }
+      return legacyUnprotectedFallback;
+    }
+
     if (!electronTestHarnessAllowed()) {
       for (const legacyService of LEGACY_KEYTAR_SERVICES) {
         let legacyKey: string | null = null;
         try {
           legacyKey = await keytar.getPassword(legacyService, service);
+          if (legacyKey !== null && (legacyKey.length === 0 || legacyKey.length > 20_000)) {
+            throw new SecureStorageUnavailableError();
+          }
         } catch {
           console.warn(`[SettingsManager] Could not read a legacy keychain credential for ${service}.`);
+          throw new SecureStorageUnavailableError();
         }
         if (!legacyKey) {
           continue;
@@ -591,19 +633,6 @@ export class SettingsManager implements ISettingsManager {
 
         return legacyKey;
       }
-    }
-
-    const legacyUnprotectedFallback = this.getLegacyUnprotectedFallbackApiKey(service);
-    if (legacyUnprotectedFallback) {
-      try {
-        await this.storeSecureApiKey(service, legacyUnprotectedFallback);
-        if (await this.getCurrentSecureApiKey(service) === legacyUnprotectedFallback) {
-          this.cleanupStoredFallbackApiKey(service);
-        }
-      } catch {
-        console.warn(`[SettingsManager] Legacy credential migration will be retried for ${service}.`);
-      }
-      return legacyUnprotectedFallback;
     }
 
     const legacyPlaintext = this.getLegacyPlaintextApiKey(service);
