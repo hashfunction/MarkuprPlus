@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import {
   chmod,
   lstat,
   mkdir,
   mkdtemp,
-  readFile,
+  open,
   realpath,
   rm,
 } from 'node:fs/promises';
@@ -24,18 +25,23 @@ import type {
   ReviewSession,
 } from '../../shared/types';
 import { sanitizeReviewSession } from './SavedReviewUpdater';
+import {
+  decodeTrustedImageBase64,
+  inspectTrustedImageBytes,
+  MAX_TRUSTED_IMAGE_BYTES,
+} from './TrustedImageMedia';
 
 export type SanitizedReviewExportOptions = ReviewExportOptions;
 
 const EXPORT_FORMATS = new Set<ReviewExportFormat>(['markdown', 'pdf', 'html', 'json']);
 const EXPORT_THEMES = new Set<ReviewExportTheme>(['dark', 'light']);
 const MAX_PROJECT_NAME_LENGTH = 120;
-const MAX_SCREENSHOT_BYTES = 12 * 1024 * 1024;
 const MAX_TOTAL_SCREENSHOT_BYTES = 48 * 1024 * 1024;
 
 export interface TrustedReviewExportContext {
   mainOwnedSession: ReviewSession | null;
   sessionDirectory: string | null;
+  resolveSessionDirectory?: () => Promise<string | null>;
   outputRoot: string;
   format: ReviewExportFormat;
   includeImages: boolean;
@@ -112,22 +118,6 @@ async function trustedSessionRoots(
   };
 }
 
-function decodeMainOwnedBase64(value: string, screenshotId: string): Buffer {
-  const dataUrl = /^data:image\/(?:png|jpe?g|webp);base64,(.*)$/i.exec(value);
-  const encoded = dataUrl?.[1] ?? value;
-  if (!encoded || !/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) {
-    throw new Error(`Requested screenshot ${screenshotId} has invalid main-owned image data.`);
-  }
-  const bytes = Buffer.from(encoded, 'base64');
-  if (
-    bytes.length === 0
-    || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')
-  ) {
-    throw new Error(`Requested screenshot ${screenshotId} has invalid main-owned image data.`);
-  }
-  return bytes;
-}
-
 /** Sanitize renderer edits and hydrate image bytes only from main-owned evidence. */
 export async function trustedReviewExportSession(
   rendererSession: ReviewSession,
@@ -141,12 +131,30 @@ export async function trustedReviewExportSession(
     throw new Error('The completed session has no feedback to export.');
   }
 
+  const mainOwnedSession = context.mainOwnedSession;
+  if (
+    !mainOwnedSession
+    || mainOwnedSession.id !== sanitized.id
+    || mainOwnedSession.startTime !== sanitized.startTime
+  ) {
+    throw new Error('A matching main-owned review session is required for export.');
+  }
+  if (!Number.isFinite(mainOwnedSession.endTime)) {
+    throw new Error('A completed main-owned review session is required for export.');
+  }
+
   const shouldHydrateImages = context.format !== 'json' && context.includeImages;
-  const trustedItems = context.mainOwnedSession?.id === sanitized.id
-    ? new Map(context.mainOwnedSession.feedbackItems.map((item) => [item.id, item]))
-    : null;
+  const trustedItems = new Map(mainOwnedSession.feedbackItems.map((item) => [item.id, item]));
   let totalScreenshotBytes = 0;
   let rootsPromise: Promise<{ outputRoot: string; sessionDirectory: string }> | null = null;
+  let sessionDirectoryPromise: Promise<string | null> | null = null;
+
+  const resolveSavedSessionDirectory = (): Promise<string | null> => {
+    sessionDirectoryPromise ??= context.resolveSessionDirectory
+      ? context.resolveSessionDirectory()
+      : Promise.resolve(context.sessionDirectory);
+    return sessionDirectoryPromise;
+  };
 
   const hydrateScreenshot = async (
     screenshot: ReviewSession['feedbackItems'][number]['screenshots'][number],
@@ -156,11 +164,13 @@ export async function trustedReviewExportSession(
       throw new Error(`Requested screenshot ${screenshot.id} is unavailable for export.`);
     }
     let bytes: Buffer;
+    let media;
     if (trusted.imagePath) {
-      if (!context.sessionDirectory) {
+      const sessionDirectory = await resolveSavedSessionDirectory();
+      if (!sessionDirectory) {
         throw new Error(`Requested screenshot ${screenshot.id} has no saved session directory.`);
       }
-      rootsPromise ??= trustedSessionRoots(context.outputRoot, context.sessionDirectory);
+      rootsPromise ??= trustedSessionRoots(context.outputRoot, sessionDirectory);
       const roots = await rootsPromise;
       const requestedImage = isAbsolute(trusted.imagePath)
         ? resolve(trusted.imagePath)
@@ -177,7 +187,7 @@ export async function trustedReviewExportSession(
       if (!imageStats.isFile()) {
         throw new Error(`Requested screenshot ${screenshot.id} is not a regular file.`);
       }
-      if (imageStats.size > MAX_SCREENSHOT_BYTES) {
+      if (imageStats.size > MAX_TRUSTED_IMAGE_BYTES) {
         throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
       }
       const resolvedImage = await realpath(requestedImage);
@@ -187,13 +197,29 @@ export async function trustedReviewExportSession(
       ) {
         throw new Error(`Requested screenshot ${screenshot.id} is outside the saved session.`);
       }
-      bytes = await readFile(resolvedImage);
+      const noFollow = typeof fsConstants.O_NOFOLLOW === 'number' ? fsConstants.O_NOFOLLOW : 0;
+      const imageHandle = await open(resolvedImage, fsConstants.O_RDONLY | noFollow);
+      try {
+        const openedStats = await imageHandle.stat();
+        if (!openedStats.isFile()) {
+          throw new Error(`Requested screenshot ${screenshot.id} is not a regular file.`);
+        }
+        if (openedStats.size > MAX_TRUSTED_IMAGE_BYTES) {
+          throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
+        }
+        bytes = await imageHandle.readFile();
+      } finally {
+        await imageHandle.close();
+      }
+      media = inspectTrustedImageBytes(bytes, screenshot.id);
     } else if (trusted.base64) {
-      bytes = decodeMainOwnedBase64(trusted.base64, screenshot.id);
+      const decoded = decodeTrustedImageBase64(trusted.base64, screenshot.id);
+      bytes = decoded.bytes;
+      media = decoded.media;
     } else {
       throw new Error(`Requested screenshot ${screenshot.id} is unavailable for export.`);
     }
-    if (bytes.length > MAX_SCREENSHOT_BYTES) {
+    if (bytes.length > MAX_TRUSTED_IMAGE_BYTES) {
       throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
     }
     totalScreenshotBytes += bytes.length;
@@ -204,13 +230,19 @@ export async function trustedReviewExportSession(
       ...screenshot,
       imagePath: '',
       base64: bytes.toString('base64'),
+      mimeType: media.mimeType,
+      width: media.width,
+      height: media.height,
     };
   };
 
   const feedbackItems: ReviewSession['feedbackItems'] = [];
   for (const item of sanitized.feedbackItems) {
-    const trustedItem = trustedItems?.get(item.id);
-    const trustedScreenshotMetadata = (trustedItem?.screenshots ?? []).map((screenshot) => ({
+    const trustedItem = trustedItems.get(item.id);
+    if (!trustedItem) {
+      throw new Error(`Review item ${item.id} has no matching main-owned item.`);
+    }
+    const trustedScreenshotMetadata = trustedItem.screenshots.map((screenshot) => ({
       id: screenshot.id,
       timestamp: screenshot.timestamp,
       imagePath: '',
@@ -218,15 +250,29 @@ export async function trustedReviewExportSession(
       width: screenshot.width,
       height: screenshot.height,
     }));
+    const trustedReviewItem = {
+      id: trustedItem.id,
+      transcription: item.transcription,
+      timestamp: trustedItem.timestamp,
+      screenshots: trustedScreenshotMetadata,
+      ...(trustedItem.title ? { title: trustedItem.title } : {}),
+      ...(trustedItem.keywords ? { keywords: [...trustedItem.keywords] } : {}),
+      ...(item.category ? { category: item.category } : {}),
+      ...(item.severity ? { severity: item.severity } : {}),
+      ...(trustedItem.reviewItemKind === 'marked-issue'
+        ? { reviewItemKind: 'marked-issue' as const }
+        : { reviewItemKind: 'feedback' as const }),
+      ...(trustedItem.reviewItemKind === 'marked-issue'
+        && trustedItem.markedIssueOrdinal !== undefined
+        ? { markedIssueOrdinal: trustedItem.markedIssueOrdinal }
+        : {}),
+    };
     if (context.format === 'json') {
-      feedbackItems.push({
-        ...item,
-        screenshots: trustedScreenshotMetadata,
-      });
+      feedbackItems.push(trustedReviewItem);
       continue;
     }
     if (!shouldHydrateImages) {
-      feedbackItems.push({ ...item, screenshots: trustedScreenshotMetadata });
+      feedbackItems.push(trustedReviewItem);
       continue;
     }
     const trustedScreenshots = new Map(
@@ -236,12 +282,28 @@ export async function trustedReviewExportSession(
     for (const screenshot of trustedScreenshotMetadata) {
       screenshots.push(await hydrateScreenshot(screenshot, trustedScreenshots.get(screenshot.id)));
     }
-    feedbackItems.push({ ...item, screenshots });
+    feedbackItems.push({ ...trustedReviewItem, screenshots });
   }
 
   return {
-    ...sanitized,
+    id: mainOwnedSession.id,
+    startTime: mainOwnedSession.startTime,
+    endTime: mainOwnedSession.endTime,
     feedbackItems,
+    metadata: {
+      ...(mainOwnedSession.metadata?.os
+        ? { os: mainOwnedSession.metadata.os }
+        : {}),
+      ...(mainOwnedSession.metadata?.sourceName
+        ? { sourceName: mainOwnedSession.metadata.sourceName }
+        : {}),
+      ...(mainOwnedSession.metadata?.sourceType
+        ? { sourceType: mainOwnedSession.metadata.sourceType }
+        : {}),
+      ...(mainOwnedSession.metadata?.videoStartTime !== undefined
+        ? { videoStartTime: mainOwnedSession.metadata.videoStartTime }
+        : {}),
+    },
   };
 }
 

@@ -258,9 +258,8 @@ export function registerOutputHandlers(ctx: IpcContext): void {
           rendererSession as ReviewSession,
           {
             mainOwnedSession: mainOwnedReview,
-            sessionDirectory: await getSavedSessionDirectory(
-              (rendererSession as Partial<ReviewSession>)?.id ?? '',
-            ),
+            sessionDirectory: null,
+            resolveSessionDirectory: () => getSavedSessionDirectory(mainOwnedReview?.id ?? ''),
             outputRoot: fileManager.getOutputDirectory(),
             format: options.format,
             includeImages: options.includeImages,

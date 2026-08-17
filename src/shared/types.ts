@@ -5,11 +5,15 @@
 /**
  * Represents a single screenshot captured during a feedback session
  */
+export type ScreenshotMimeType = 'image/png' | 'image/jpeg' | 'image/webp';
+
 export interface Screenshot {
   id: string;
   timestamp: number;
   imagePath: string;
   base64?: string;
+  /** Main-derived media type after byte validation; renderer values are discarded. */
+  mimeType?: ScreenshotMimeType;
   width: number;
   height: number;
 }

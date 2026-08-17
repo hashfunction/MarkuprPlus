@@ -8,7 +8,7 @@
  * - File naming and format metadata
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // =============================================================================
 // Mocks
@@ -31,17 +31,15 @@ vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
 }));
 
-const mockFs = {
-  mkdir: vi.fn(() => Promise.resolve()),
-  writeFile: vi.fn(() => Promise.resolve()),
-  stat: vi.fn(() => Promise.resolve({ size: 2048 })),
-  unlink: vi.fn(() => Promise.resolve()),
-};
-vi.mock('fs/promises', () => mockFs);
+// This file exercises an in-memory test model and does not need filesystem
+// stubs. Import the real module explicitly so this hoisted mock cannot replace
+// fs/promises for files that run later in Vitest's shared fork.
+vi.mock('fs/promises', async (importOriginal) =>
+  importOriginal<typeof import('fs/promises')>());
 
-vi.mock('os', () => ({
-  tmpdir: () => '/tmp',
-}));
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // =============================================================================
 // Import after mocks

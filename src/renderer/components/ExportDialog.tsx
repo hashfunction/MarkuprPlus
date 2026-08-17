@@ -198,9 +198,15 @@ interface PreviewPanelProps {
   session: Session | null;
   format: ExportFormat;
   projectName: string;
+  includeImages: boolean;
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ session, format, projectName }) => {
+const PreviewPanel: React.FC<PreviewPanelProps> = ({
+  session,
+  format,
+  projectName,
+  includeImages,
+}) => {
   const preview = useMemo(() => {
     if (!session) {
       return 'Complete a feedback session to preview an export.';
@@ -262,7 +268,7 @@ ${'='.repeat(40)}
 This will generate a beautifully formatted
 PDF document with:
 
-- Embedded screenshots
+- ${includeImages ? 'Embedded screenshots' : 'Screenshots excluded (text-only export)'}
 - Professional typography
 - Print-ready layout
 - ${session.feedbackItems.length} feedback items
@@ -272,7 +278,7 @@ Export to see the full PDF.`;
       default:
         return '';
     }
-  }, [session, format, projectName]);
+  }, [session, format, projectName, includeImages]);
 
   return (
     <div style={styles.previewPanel}>
@@ -562,7 +568,12 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
           {/* Right: Preview */}
           <div style={styles.rightPane}>
-            <PreviewPanel session={session} format={format} projectName={projectName} />
+            <PreviewPanel
+              session={session}
+              format={format}
+              projectName={projectName}
+              includeImages={includeImages}
+            />
           </div>
         </div>
 

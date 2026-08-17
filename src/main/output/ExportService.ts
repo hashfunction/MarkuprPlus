@@ -24,6 +24,10 @@ import type { PostProcessResult } from '../pipeline/PostProcessor';
 import { generateHtmlDocument } from './templates/html-template';
 import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import {
+  decodeTrustedImageBase64,
+  screenshotExtension,
+} from './TrustedImageMedia';
 
 /**
  * JSON export schema version. Bump when the schema changes:
@@ -156,30 +160,43 @@ function stripExportScreenshots(session: Session): Session {
   };
 }
 
-function decodeExportScreenshot(value: string, screenshotId: string): Buffer {
-  const dataUrl = /^data:image\/(?:png|jpe?g|webp);base64,(.*)$/i.exec(value);
-  const encoded = dataUrl?.[1] ?? value;
-  if (!encoded || !/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) {
-    throw new Error(`Screenshot ${screenshotId} has invalid image data.`);
-  }
-  const bytes = Buffer.from(encoded, 'base64');
-  if (
-    bytes.length === 0
-    || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')
-  ) {
-    throw new Error(`Screenshot ${screenshotId} has invalid image data.`);
-  }
-  return bytes;
-}
-
 function markdownScreenshotFilename(
   itemIndex: number,
   screenshotIndex: number,
   screenshotCount: number,
+  mimeType: FeedbackItem['screenshots'][number]['mimeType'],
 ): string {
   const itemNumber = String(itemIndex + 1).padStart(3, '0');
   const suffix = screenshotCount > 1 ? `-${screenshotIndex + 1}` : '';
-  return `fb-${itemNumber}${suffix}.png`;
+  return `fb-${itemNumber}${suffix}.${screenshotExtension(mimeType)}`;
+}
+
+function validateExportScreenshotMedia(session: Session): Session {
+  return {
+    ...session,
+    feedbackItems: session.feedbackItems.map((item) => ({
+      ...item,
+      screenshots: item.screenshots.map((screenshot) => {
+        if (!screenshot.base64) {
+          throw new Error(`Screenshot ${screenshot.id} is unavailable for export.`);
+        }
+        const { bytes, media } = decodeTrustedImageBase64(
+          screenshot.base64,
+          screenshot.id,
+          undefined,
+          screenshot.mimeType,
+        );
+        return {
+          ...screenshot,
+          imagePath: '',
+          base64: bytes.toString('base64'),
+          mimeType: media.mimeType,
+          width: media.width,
+          height: media.height,
+        };
+      }),
+    })),
+  };
 }
 
 async function writeMarkdownAssets(
@@ -190,7 +207,12 @@ async function writeMarkdownAssets(
   const screenshots = session.feedbackItems.flatMap((item, itemIndex) =>
     item.screenshots.map((screenshot, screenshotIndex) => ({
       screenshot,
-      filename: markdownScreenshotFilename(itemIndex, screenshotIndex, item.screenshots.length),
+      filename: markdownScreenshotFilename(
+        itemIndex,
+        screenshotIndex,
+        item.screenshots.length,
+        screenshot.mimeType,
+      ),
     })));
   if (screenshots.length === 0) return async () => {};
 
@@ -233,7 +255,13 @@ async function writeMarkdownAssets(
       if (!isContainedPath(canonicalAssetsDirectory, assetPath)) {
         throw new Error('Unable to create a contained Markdown screenshot asset.');
       }
-      await fs.writeFile(assetPath, decodeExportScreenshot(screenshot.base64, screenshot.id), {
+      const { bytes } = decodeTrustedImageBase64(
+        screenshot.base64,
+        screenshot.id,
+        undefined,
+        screenshot.mimeType,
+      );
+      await fs.writeFile(assetPath, bytes, {
         flag: 'wx',
         mode: 0o600,
       });
@@ -255,6 +283,56 @@ async function writeMarkdownAssets(
     }
     throw error;
   }
+}
+
+type PdfTempDirectoryRemover = (
+  path: string,
+  options: { recursive: true; force: true },
+) => Promise<unknown>;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Close the hidden PDF window and independently attempt temp cleanup. */
+export async function cleanupPdfExportResources(
+  pdfWindow: Pick<BrowserWindow, 'destroy'>,
+  temporaryDirectory: string,
+  removeDirectory: PdfTempDirectoryRemover = fs.rm,
+): Promise<void> {
+  const cleanupErrors: unknown[] = [];
+  try {
+    pdfWindow.destroy();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  if (temporaryDirectory) {
+    try {
+      await removeDirectory(temporaryDirectory, { recursive: true, force: true });
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+  }
+  if (cleanupErrors.length === 1) throw cleanupErrors[0];
+  if (cleanupErrors.length > 1) {
+    throw new AggregateError(
+      cleanupErrors,
+      `PDF export cleanup failed: ${cleanupErrors.map(errorMessage).join('; ')}`,
+    );
+  }
+}
+
+function combinePdfExportErrors(primaryError: unknown, cleanupError: unknown): AggregateError {
+  const cleanupErrors = cleanupError instanceof AggregateError
+    ? cleanupError.errors
+    : [cleanupError];
+  const errors = [primaryError, ...cleanupErrors];
+  return new AggregateError(
+    errors,
+    `PDF export failed: ${errorMessage(primaryError)}; cleanup also failed: ${cleanupErrors
+      .map(errorMessage)
+      .join('; ')}`,
+  );
 }
 
 // ============================================================================
@@ -308,8 +386,11 @@ class ExportServiceImpl {
     } = options;
 
     // Generate HTML content
+    const exportSession = includeImages
+      ? validateExportScreenshotMedia(session)
+      : stripExportScreenshots(session);
     const htmlContent = generateHtmlDocument(
-      includeImages ? session : stripExportScreenshots(session), {
+      exportSession, {
       projectName,
       includeImages,
       theme,
@@ -330,15 +411,24 @@ class ExportServiceImpl {
     });
     protectRendererNavigation(pdfWindow.webContents);
 
-    // Write HTML to a temp file to avoid Chromium's ~2MB data: URL limit
-    // which breaks sessions with 5+ base64-embedded screenshots.
-    const tmpHtmlPath = path.join(tmpdir(), `markuprx-pdf-export-${Date.now()}.html`);
-
+    let temporaryDirectory = '';
+    let result: ExportResult | undefined;
+    let primaryError: unknown;
+    let primaryFailed = false;
     try {
-      await fs.writeFile(tmpHtmlPath, htmlContent, 'utf-8');
+      // Use an exclusive private namespace so another local process cannot
+      // pre-create or redirect Chromium's staging document.
+      temporaryDirectory = await fs.mkdtemp(path.join(tmpdir(), 'markuprplus-pdf-export-'));
+      await fs.chmod(temporaryDirectory, 0o700);
+      const temporaryHtmlPath = path.join(temporaryDirectory, 'document.html');
+      await fs.writeFile(temporaryHtmlPath, htmlContent, {
+        encoding: 'utf8',
+        flag: 'wx',
+        mode: 0o600,
+      });
 
       // Load from file instead of data: URL
-      await pdfWindow.loadFile(tmpHtmlPath);
+      await pdfWindow.loadFile(temporaryHtmlPath);
 
       // Wait for content to fully render
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -366,17 +456,32 @@ class ExportServiceImpl {
 
       console.log(`[ExportService] PDF exported to ${outputPath} (${stats.size} bytes)`);
 
-      return {
+      result = {
         success: true,
         format: 'pdf',
         outputPath,
         fileSize: stats.size,
       };
-    } finally {
-      // Always close the window and clean up temp file
-      pdfWindow.destroy();
-      await fs.unlink(tmpHtmlPath).catch(() => {});
+    } catch (error) {
+      primaryFailed = true;
+      primaryError = error;
     }
+
+    let cleanupError: unknown;
+    let cleanupFailed = false;
+    try {
+      await cleanupPdfExportResources(pdfWindow, temporaryDirectory);
+    } catch (error) {
+      cleanupFailed = true;
+      cleanupError = error;
+    }
+    if (primaryFailed) {
+      if (cleanupFailed) throw combinePdfExportErrors(primaryError, cleanupError);
+      throw primaryError;
+    }
+    if (cleanupFailed) throw cleanupError;
+    if (!result) throw new Error('PDF export completed without a result.');
+    return result;
   }
 
   /**
@@ -388,8 +493,11 @@ class ExportServiceImpl {
   async exportToHtml(session: Session, options: HtmlOptions): Promise<ExportResult> {
     const { outputPath, projectName, includeImages = true, theme = 'dark' } = options;
 
+    const exportSession = includeImages
+      ? validateExportScreenshotMedia(session)
+      : stripExportScreenshots(session);
     const htmlContent = generateHtmlDocument(
-      includeImages ? session : stripExportScreenshots(session), {
+      exportSession, {
       projectName,
       includeImages,
       theme,
@@ -467,7 +575,9 @@ class ExportServiceImpl {
             .filter((item) => item.screenshots.length > 0)
             .map((item) => item.id),
     );
-    const exportSession = includeImages ? session : stripExportScreenshots(session);
+    const exportSession = includeImages
+      ? validateExportScreenshotMedia(session)
+      : stripExportScreenshots(session);
 
     const document = markdownGenerator.generateFullDocument(exportSession, {
       projectName: projectName || session.metadata?.sourceName || 'Feedback Report',

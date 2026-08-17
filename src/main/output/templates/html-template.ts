@@ -411,10 +411,11 @@ function generateFeedbackItemHtml(item: FeedbackItem, index: number, includeImag
 
         if (base64Data) {
           // Strip data URI prefix if already present
-          const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+          const cleanBase64 = base64Data.replace(/^data:image\/[a-z0-9.+-]+;base64,/i, '');
+          const mimeType = ss.mimeType ?? 'image/png';
           return `
             <div class="screenshot">
-              <img src="data:image/png;base64,${cleanBase64}" alt="Screenshot ${ssIndex + 1}" loading="lazy" />
+              <img src="data:${mimeType};base64,${cleanBase64}" alt="Screenshot ${ssIndex + 1}" loading="lazy" />
             </div>
           `;
         }

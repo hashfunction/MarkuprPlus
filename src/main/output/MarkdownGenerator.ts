@@ -24,6 +24,7 @@ import {
   insertMarkedIssuesSection,
   renderMarkedIssuesMarkdown,
 } from './MarkedIssueReportBuilder';
+import { screenshotExtension } from './TrustedImageMedia';
 
 const REPORT_SUPPORT_LINE = '*If this report saved you time, support development: [Ko-fi](https://ko-fi.com/eddiesanjuan)*';
 
@@ -368,7 +369,12 @@ ${REPORT_SUPPORT_LINE}
           // Use the item's position index (not the FB-XXX display ID) for the
           // filename so it stays aligned with FileManager.saveSession which
           // names files by the original feedbackItems array index.
-          const screenshotFilename = this.generateScreenshotFilename(index, ssIndex, item.screenshots.length);
+          const screenshotFilename = this.generateScreenshotFilename(
+            index,
+            ssIndex,
+            item.screenshots.length,
+            ss.mimeType,
+          );
           content += `![${id}${item.screenshots.length > 1 ? `-${ssIndex + 1}` : ''}](${screenshotDir}/${screenshotFilename})\n\n`;
         });
       } else {
@@ -771,10 +777,15 @@ ${REPORT_SUPPORT_LINE}
    * Uses the item's position index to produce `fb-{NNN}.png`, matching the
    * naming convention in FileManager.saveSession.
    */
-  private generateScreenshotFilename(itemIndex: number, screenshotIndex: number, total: number): string {
+  private generateScreenshotFilename(
+    itemIndex: number,
+    screenshotIndex: number,
+    total: number,
+    mimeType?: Screenshot['mimeType'],
+  ): string {
     const num = (itemIndex + 1).toString().padStart(3, '0');
     const suffix = total > 1 ? `-${screenshotIndex + 1}` : '';
-    return `fb-${num}${suffix}.png`;
+    return `fb-${num}${suffix}.${screenshotExtension(mimeType)}`;
   }
 
   /**

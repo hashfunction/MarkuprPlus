@@ -1080,6 +1080,15 @@ test.describe('MarkuprX desktop application', () => {
       if (options.includeImages === false && options.format !== 'JSON') {
         await dialog.getByRole('button', { name: 'Include images' }).click();
       }
+      if (options.format === 'PDF') {
+        const preview = dialog.getByLabel('PDF export preview');
+        if (options.includeImages === false) {
+          await expect(preview).toContainText('Screenshots excluded');
+          await expect(preview).not.toContainText('Embedded screenshots');
+        } else {
+          await expect(preview).toContainText('Embedded screenshots');
+        }
+      }
       const action = dialog.getByRole('button', { name: `Export as ${options.format}` });
       await expect(action).toBeEnabled();
       await action.click();
