@@ -31,6 +31,7 @@ export interface HotkeyRegistrationResult {
   action: HotkeyAction;
   accelerator: string;
   fallbackUsed?: string;
+  restoredAccelerator?: string;
   error?: string;
 }
 
@@ -38,7 +39,7 @@ export interface HotkeyRegistrationResult {
  * HotkeyManager interface
  */
 export interface IHotkeyManager {
-  initialize(): HotkeyRegistrationResult[];
+  initialize(config?: Partial<HotkeyConfig>): HotkeyRegistrationResult[];
   register(action: HotkeyAction, accelerator: string): HotkeyRegistrationResult;
   unregister(action: HotkeyAction): void;
   unregisterAll(): void;
@@ -96,11 +97,17 @@ class HotkeyManagerImpl implements IHotkeyManager {
    * Initialize the hotkey manager with default or custom config
    * Returns results for each hotkey registration attempt
    */
-  initialize(): HotkeyRegistrationResult[] {
+  initialize(config?: Partial<HotkeyConfig>): HotkeyRegistrationResult[] {
     if (this.initialized) {
       console.warn('[HotkeyManager] Already initialized, skipping...');
       return [];
     }
+
+    this.config = {
+      toggleRecording: config?.toggleRecording || this.config.toggleRecording,
+      manualScreenshot: config?.manualScreenshot || this.config.manualScreenshot,
+      pauseResume: config?.pauseResume || this.config.pauseResume,
+    };
 
     const results: HotkeyRegistrationResult[] = [];
 
@@ -129,6 +136,8 @@ class HotkeyManagerImpl implements IHotkeyManager {
    * Will try fallback accelerators if the primary fails
    */
   register(action: HotkeyAction, accelerator: string): HotkeyRegistrationResult {
+    const previousAccelerator = this.registeredKeys.get(action);
+
     // Unregister existing if any
     this.unregister(action);
 
@@ -166,7 +175,36 @@ class HotkeyManagerImpl implements IHotkeyManager {
       }
     }
 
-    // All attempts failed
+    // All attempts failed. Restore the exact accelerator that was live before
+    // this replacement so callers never receive a failed update that silently
+    // disabled the action.
+    if (previousAccelerator) {
+      if (this.tryRegister(action, previousAccelerator)) {
+        return {
+          success: false,
+          action,
+          accelerator: normalizedAccelerator,
+          restoredAccelerator: previousAccelerator,
+          error:
+            `Failed to register hotkey. ${normalizedAccelerator} and all fallbacks are unavailable. ` +
+            `Previous hotkey ${previousAccelerator} was restored.`,
+        };
+      }
+
+      const restoreError =
+        `Could not restore previous hotkey ${previousAccelerator} for ${action}; ` +
+        'the action is currently unregistered.';
+      console.error(`[HotkeyManager] ${restoreError}`);
+      return {
+        success: false,
+        action,
+        accelerator: normalizedAccelerator,
+        error:
+          `Failed to register hotkey. ${normalizedAccelerator} and all fallbacks are unavailable. ` +
+          restoreError,
+      };
+    }
+
     return {
       success: false,
       action,

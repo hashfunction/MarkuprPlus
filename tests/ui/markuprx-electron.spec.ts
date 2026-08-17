@@ -637,6 +637,99 @@ test.describe('MarkuprX desktop application', () => {
       .toEqual([primaryKey, '⌥', 'J']);
   });
 
+  test('restores a persisted shortcut registration after relaunch', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ initializeHotkeys: true });
+    let launched = await launchApplication(harness);
+    application = launched.application;
+    let window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+    let shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    let recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    await recordingRow.click();
+    await window.keyboard.press('Control+Alt+J');
+    await shortcuts.getByRole('button', { name: 'Save' }).click();
+
+    const expectedAccelerator = 'CommandOrControl+Alt+J';
+    await expect.poll(() => window.evaluate(async () => ({
+      live: (await window.markuprx.hotkeys.getConfig()).toggleRecording,
+      persisted: (await window.markuprx.settings.get('hotkeys')).toggleRecording,
+    }))).toEqual({
+      live: expectedAccelerator,
+      persisted: expectedAccelerator,
+    });
+    expect(await application.evaluate(({ globalShortcut }, accelerator) => (
+      globalShortcut.isRegistered(accelerator)
+    ), expectedAccelerator)).toBe(true);
+
+    await application.close();
+    application = null;
+    launched = await launchApplication(harness);
+    application = launched.application;
+    window = launched.mainWindow;
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+
+    const restored = await window.evaluate(async () => ({
+      live: (await window.markuprx.hotkeys.getConfig()).toggleRecording,
+      persisted: (await window.markuprx.settings.get('hotkeys')).toggleRecording,
+    }));
+    expect(restored).toEqual({
+      live: expectedAccelerator,
+      persisted: expectedAccelerator,
+    });
+    expect(await application.evaluate(({ globalShortcut }, accelerator) => (
+      globalShortcut.isRegistered(accelerator)
+    ), expectedAccelerator)).toBe(true);
+
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+    shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    await expect.poll(() => recordingRow.locator('kbd').allTextContents())
+      .toEqual([primaryKey, '⌥', 'J']);
+  });
+
+  test('persists the actual fallback configuration chosen during startup', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ initializeHotkeys: true });
+    let launched = await launchApplication(harness);
+    application = launched.application;
+    let window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    const configured = {
+      toggleRecording: 'CommandOrControl+Alt+J',
+      manualScreenshot: 'CommandOrControl+Alt+J',
+      pauseResume: 'CommandOrControl+Alt+K',
+    };
+    await window.evaluate((hotkeys) => window.markuprx.settings.set('hotkeys', hotkeys), configured);
+    await application.close();
+    application = null;
+
+    launched = await launchApplication(harness);
+    application = launched.application;
+    window = launched.mainWindow;
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+
+    const reconciled = await window.evaluate(async () => ({
+      live: await window.markuprx.hotkeys.getConfig(),
+      persisted: await window.markuprx.settings.get('hotkeys'),
+    }));
+    expect(reconciled.persisted).toEqual(reconciled.live);
+    expect(reconciled.live.toggleRecording).toBe(configured.toggleRecording);
+    expect(reconciled.live.manualScreenshot).not.toBe(configured.manualScreenshot);
+    expect(new Set(Object.values(reconciled.live)).size).toBe(3);
+    for (const accelerator of Object.values(reconciled.live)) {
+      expect(await application.evaluate(({ globalShortcut }, registeredAccelerator) => (
+        globalShortcut.isRegistered(registeredAccelerator)
+      ), accelerator)).toBe(true);
+    }
+  });
+
   test('reports and displays the actual fallback when a requested shortcut is unavailable', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -678,14 +771,29 @@ test.describe('MarkuprX desktop application', () => {
       .toEqual([primaryKey, '⇧', 'R']);
   });
 
-  test('keeps a failed shortcut rebind visible and retryable', async () => {
+  test('rolls back a registered shortcut when settings persistence fails', async () => {
     await harness.cleanup();
-    harness = await createElectronHarnessEnvironment({ failHotkeyUpdate: true });
+    harness = await createElectronHarnessEnvironment({
+      initializeHotkeys: true,
+      failHotkeyPersistenceAfterRegistration: true,
+    });
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
 
     await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await expect.poll(() => window.evaluate(async () => {
+      const config = await window.markuprx.hotkeys.getConfig();
+      return window.markuprx.settings.get('hotkeys').then((stored) => (
+        stored.toggleRecording === config.toggleRecording
+      ));
+    })).toBe(true);
+    const priorAccelerator = await window.evaluate(async () => (
+      (await window.markuprx.hotkeys.getConfig()).toggleRecording
+    ));
+    expect(await application.evaluate(({ globalShortcut }, accelerator) => (
+      globalShortcut.isRegistered(accelerator)
+    ), priorAccelerator)).toBe(true);
     await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
 
     const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
@@ -713,9 +821,17 @@ test.describe('MarkuprX desktop application', () => {
       };
     });
     expect(unchanged).toEqual({
-      registered: 'CommandOrControl+Shift+F',
-      persisted: 'CommandOrControl+Shift+F',
+      registered: priorAccelerator,
+      persisted: priorAccelerator,
     });
+    const registrations = await application.evaluate(({ globalShortcut }, accelerators) => ({
+      prior: globalShortcut.isRegistered(accelerators.prior),
+      requested: globalShortcut.isRegistered(accelerators.requested),
+    }), {
+      prior: priorAccelerator,
+      requested: 'CommandOrControl+Alt+J',
+    });
+    expect(registrations).toEqual({ prior: true, requested: false });
   });
 
   test('preserves shortcut search in the portrait surface', async () => {

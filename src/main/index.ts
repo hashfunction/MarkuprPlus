@@ -194,6 +194,15 @@ function electronTestHarnessAllowed(): boolean {
   });
 }
 
+function electronHotkeyInitializationAllowed(): boolean {
+  return isElectronTestHarnessAllowed({
+    requested:
+      process.env.MARKUPRX_E2E === '1' &&
+      process.env.MARKUPRX_E2E_INITIALIZE_HOTKEYS === '1',
+    isPackaged: app.isPackaged,
+  });
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -668,7 +677,29 @@ function showErrorNotification(title: string, body: string): void {
 // =============================================================================
 
 function initializeHotkeys(): void {
-  const results = hotkeyManager.initialize();
+  const configuredHotkeys = settingsManager?.get('hotkeys');
+  const results = hotkeyManager.initialize(configuredHotkeys);
+  const registeredHotkeys = hotkeyManager.getConfig();
+
+  if (
+    settingsManager &&
+    configuredHotkeys &&
+    (
+      configuredHotkeys.toggleRecording !== registeredHotkeys.toggleRecording ||
+      configuredHotkeys.manualScreenshot !== registeredHotkeys.manualScreenshot ||
+      configuredHotkeys.pauseResume !== registeredHotkeys.pauseResume
+    )
+  ) {
+    try {
+      settingsManager.update({ hotkeys: registeredHotkeys });
+      console.warn('[Main] Persisted actual hotkey configuration after startup fallback.');
+    } catch (error) {
+      console.error(
+        '[Main] Failed to persist actual hotkey configuration after startup fallback:',
+        error
+      );
+    }
+  }
 
   for (const result of results) {
     if (result.success) {
@@ -1965,7 +1996,9 @@ app.whenReady().then(async () => {
   }
 
   // 9. Initialize hotkeys
-  if (!electronTestHarnessAllowed()) initializeHotkeys();
+  if (!electronTestHarnessAllowed() || electronHotkeyInitializationAllowed()) {
+    initializeHotkeys();
+  }
 
   // 10. Setup IPC handlers
   setupIPC();

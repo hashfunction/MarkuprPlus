@@ -5,7 +5,7 @@
  * and navigation IPC listeners from the main process menu/tray.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisProviderStatus, AppSettings, HotkeyConfig, SessionState } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
 import { getPopoverSizeForView } from '../../shared/popoverLayout';
@@ -103,62 +103,70 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // ---------------------------------------------------------------------------
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
+  const hasEvaluatedInitialOnboarding = useRef(false);
 
-  const refreshAnalysisProviderStatus = useCallback(async (): Promise<AppSettings | null> => {
-    if (!window.markuprx?.settings || !window.markuprx?.analysisProviders) {
-      setAnalysisProviderStatuses([]);
+  const refreshSettings = useCallback(async (): Promise<AppSettings | null> => {
+    if (!window.markuprx?.settings) {
       return null;
     }
     try {
-      const [loadedSettings, statuses] = await Promise.all([
-        window.markuprx.settings.getAll(),
-        window.markuprx.analysisProviders.discover(false),
-      ]);
+      const loadedSettings = await window.markuprx.settings.getAll();
       const mergedSettings = { ...DEFAULT_SETTINGS, ...loadedSettings };
       setSettings(mergedSettings);
-      setAnalysisProviderStatuses(statuses);
       return mergedSettings;
     } catch {
-      setAnalysisProviderStatuses([]);
       return null;
     }
   }, []);
 
+  const refreshAnalysisProviderStatus = useCallback(async (): Promise<void> => {
+    if (!window.markuprx?.analysisProviders) {
+      setAnalysisProviderStatuses([]);
+      return;
+    }
+    try {
+      const statuses = await window.markuprx.analysisProviders.discover(false);
+      setAnalysisProviderStatuses(statuses);
+    } catch {
+      setAnalysisProviderStatuses([]);
+    }
+  }, []);
+
+  // Refresh settings independently on every view transition. Native menu
+  // navigation is delivered only after main-process IPC registration, making
+  // it a stable retry point if eager renderer hydration raced startup.
   useEffect(() => {
     if (!window.markuprx?.settings) return;
-    const loadInitialSettings = async () => {
-      try {
-        const loadedSettings = await refreshAnalysisProviderStatus();
-        if (loadedSettings && !loadedSettings.hasCompletedOnboarding) {
+    const hydrateSettings = async () => {
+      const loadedSettings = await refreshSettings();
+      if (loadedSettings && !hasEvaluatedInitialOnboarding.current) {
+        hasEvaluatedInitialOnboarding.current = true;
+        if (!loadedSettings.hasCompletedOnboarding) {
           setShowOnboarding(true);
         }
-      } catch {
-        // Settings load failure is non-fatal
       }
     };
 
-    void loadInitialSettings();
-  }, [refreshAnalysisProviderStatus]);
+    void hydrateSettings();
+    if (currentView === 'main') {
+      void refreshAnalysisProviderStatus();
+    }
+  }, [currentView, refreshAnalysisProviderStatus, refreshSettings]);
 
   const applyHotkeyConfig = useCallback((hotkeys: HotkeyConfig) => {
     setSettings((current) => ({ ...(current ?? DEFAULT_SETTINGS), hotkeys }));
   }, []);
 
-  // Re-check provider readiness when returning to the main view from settings.
-  useEffect(() => {
-    if (!window.markuprx?.settings || currentView !== 'main') return;
-    void refreshAnalysisProviderStatus();
-  }, [currentView, refreshAnalysisProviderStatus]);
-
   useEffect(() => {
     const handleSettingsUpdated = () => {
+      void refreshSettings();
       void refreshAnalysisProviderStatus();
     };
     window.addEventListener('markuprx:settings-updated', handleSettingsUpdated);
     return () => {
       window.removeEventListener('markuprx:settings-updated', handleSettingsUpdated);
     };
-  }, [refreshAnalysisProviderStatus]);
+  }, [refreshAnalysisProviderStatus, refreshSettings]);
 
   // ---------------------------------------------------------------------------
   // Navigation event listeners (from main process menu/tray)
@@ -278,12 +286,13 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
     window.markuprx?.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
+    void refreshSettings();
     void refreshAnalysisProviderStatus();
     window.markuprx?.whisper
       ?.hasTranscriptionCapability()
       .then(() => {})
       .catch(() => {});
-  }, [refreshAnalysisProviderStatus]);
+  }, [refreshAnalysisProviderStatus, refreshSettings]);
 
   const handleOnboardingSkip = useCallback(() => {
     setShowOnboarding(false);

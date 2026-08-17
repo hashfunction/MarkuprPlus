@@ -14,6 +14,7 @@ import { crashRecovery } from '../CrashRecovery';
 import { fileManager } from '../output';
 import { saveRecoveredSession } from '../recovery/RecoveredSessionWriter';
 import { getMarkedIssueArtifactStore } from './captureHandlers';
+import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 import {
   IPC_CHANNELS,
   DEFAULT_SETTINGS,
@@ -30,6 +31,25 @@ import type { IpcContext, SessionActions } from './types';
 // =============================================================================
 
 type ApiKeyProvider = 'openai' | 'anthropic';
+
+function hotkeyConfigsEqual(left: HotkeyConfig, right: HotkeyConfig): boolean {
+  return left.toggleRecording === right.toggleRecording &&
+    left.manualScreenshot === right.manualScreenshot &&
+    left.pauseResume === right.pauseResume;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function shouldInjectHotkeyPersistenceFailure(): boolean {
+  return isElectronTestHarnessAllowed({
+    requested:
+      process.env.MARKUPRX_E2E === '1' &&
+      process.env.MARKUPRX_E2E_FAIL_HOTKEY_PERSISTENCE_AFTER_REGISTRATION === '1',
+    isPackaged: app.isPackaged,
+  });
+}
 
 async function validateProviderApiKey(
   service: ApiKeyProvider,
@@ -436,16 +456,49 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
   ipcMain.handle(
     IPC_CHANNELS.HOTKEY_UPDATE,
     (_, newConfig: Partial<HotkeyConfig>) => {
-      if (
-        process.env.MARKUPRX_E2E === '1' &&
-        process.env.MARKUPRX_E2E_FAIL_HOTKEY_UPDATE === '1'
-      ) {
-        throw new Error('Injected hotkey update failure.');
+      const previousConfig = hotkeyManager.getConfig();
+      const results = hotkeyManager.updateConfig(newConfig);
+      const updatedConfig = hotkeyManager.getConfig();
+
+      try {
+        if (shouldInjectHotkeyPersistenceFailure()) {
+          throw new Error('Injected hotkey persistence failure after registration');
+        }
+
+        const settingsManager = getSettingsManager();
+        if (!settingsManager) {
+          throw new Error('Settings manager is unavailable.');
+        }
+        const persisted = settingsManager.update({ hotkeys: updatedConfig });
+        if (!hotkeyConfigsEqual(persisted.hotkeys, updatedConfig)) {
+          throw new Error('Stored hotkey settings did not match the registered configuration.');
+        }
+      } catch (persistenceError) {
+        const rollbackResults = hotkeyManager.updateConfig(previousConfig);
+        const rolledBackConfig = hotkeyManager.getConfig();
+        const rollbackFailed = rollbackResults.some((result) => !result.success) ||
+          !hotkeyConfigsEqual(rolledBackConfig, previousConfig);
+
+        if (rollbackFailed) {
+          console.error('[Main] Hotkey rollback failed; live state may differ.', {
+            persistenceError,
+            rollbackResults,
+            previousConfig,
+            liveConfig: rolledBackConfig,
+          });
+          throw new Error(
+            `Hotkey persistence failed (${errorMessage(persistenceError)}); ` +
+            'rollback failed and live state may differ.'
+          );
+        }
+
+        throw new Error(
+          `Failed to persist hotkey settings: ${errorMessage(persistenceError)}. ` +
+          'Live registration was rolled back.'
+        );
       }
 
-      const results = hotkeyManager.updateConfig(newConfig);
-      getSettingsManager()?.update({ hotkeys: hotkeyManager.getConfig() });
-      return { config: hotkeyManager.getConfig(), results };
+      return { config: updatedConfig, results };
     }
   );
 
