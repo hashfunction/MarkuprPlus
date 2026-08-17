@@ -150,7 +150,7 @@ function isFalseCondition(line, expectedIndent) {
 function actionUseIsDisabled(lines, useIndex) {
   let jobStart = -1;
   for (let index = useIndex; index >= 0; index -= 1) {
-    if (/^  [a-zA-Z\d_-]+:\s*(?:#.*)?$/u.test(lines[index])) {
+    if (/^ {2}[a-zA-Z\d_-]+:\s*(?:#.*)?$/u.test(lines[index])) {
       jobStart = index;
       break;
     }
@@ -159,7 +159,7 @@ function actionUseIsDisabled(lines, useIndex) {
 
   let jobEnd = lines.length;
   for (let index = jobStart + 1; index < lines.length; index += 1) {
-    if (/^  [a-zA-Z\d_-]+:\s*(?:#.*)?$/u.test(lines[index])
+    if (/^ {2}[a-zA-Z\d_-]+:\s*(?:#.*)?$/u.test(lines[index])
       || (/^\S/u.test(lines[index]) && lines[index].trim() !== '')) {
       jobEnd = index;
       break;
