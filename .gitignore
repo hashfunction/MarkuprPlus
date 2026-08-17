@@ -59,5 +59,8 @@ certificate-base64.txt
 # Playwright MCP
 .playwright-mcp/
 
+# Superdesign temporary component templates
+.superdesign/tmp/
+
 # Root-level screenshots (design artifacts, not source)
 /*.png
