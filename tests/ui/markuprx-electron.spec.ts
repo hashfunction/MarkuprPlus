@@ -1145,6 +1145,8 @@ test.describe('MarkuprX desktop application', () => {
     await expect(historyRow).toBeVisible();
     await expect(historyRow.getByText(String(metadata.screenshotCount), { exact: true })).toBeVisible();
     await expect(historyRow.getByRole('button', { name: 'Open session' })).toBeVisible();
+    await historyRow.click();
+    await expect(history.getByText('1 selected', { exact: true })).toBeVisible();
     const moreActions = historyRow.getByRole('button', { name: 'More actions for session' });
     await moreActions.focus();
     await mainWindow.keyboard.press('Enter');

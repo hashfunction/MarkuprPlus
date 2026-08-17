@@ -85,6 +85,14 @@ function formatRelativeDate(timestamp: number): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+function isInteractiveShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  return target.closest(
+    'button, input, textarea, select, a, [contenteditable="true"], [role="button"], [role="link"], [role="textbox"], [role="combobox"], [role="menuitem"]',
+  ) !== null;
+}
+
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -941,6 +949,8 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         }
         return;
       }
+
+      if (isInteractiveShortcutTarget(e.target)) return;
 
       // Navigation
       if (e.key === 'ArrowDown') {
