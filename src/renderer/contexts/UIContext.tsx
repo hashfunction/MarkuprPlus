@@ -40,6 +40,7 @@ export interface UIContextValue {
   setShowCountdown: (show: boolean) => void;
   showExportDialog: boolean;
   setShowExportDialog: (show: boolean) => void;
+  isExportInFlight: boolean;
 
   // Settings
   settings: AppSettings | null;
@@ -108,6 +109,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [isExportInFlight, setIsExportInFlight] = useState(false);
+  const exportInFlightRef = useRef<Promise<ReviewExportResult> | null>(null);
 
   // ---------------------------------------------------------------------------
   // Settings
@@ -217,6 +220,15 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [recording.state]);
 
+  // Recovery owns the transient surface. Clear queued intents instead of
+  // merely hiding them so they cannot reappear after recover/discard.
+  useEffect(() => {
+    if (recording.incompleteSession && !recording.isCheckingRecovery) {
+      setShowCountdown(false);
+      setShowExportDialog(false);
+    }
+  }, [recording.incompleteSession, recording.isCheckingRecovery]);
+
   // ---------------------------------------------------------------------------
   // Popover resize on state/view change
   // ---------------------------------------------------------------------------
@@ -320,7 +332,25 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     session: ReviewSession,
     options: ReviewExportOptions,
   ): Promise<ReviewExportResult> => {
-    return window.markuprx.output.exportReview(session, options);
+    if (exportInFlightRef.current) {
+      return {
+        success: false,
+        status: 'error',
+        error: 'A previous export is still finishing.',
+      };
+    }
+
+    const operation = window.markuprx.output.exportReview(session, options);
+    exportInFlightRef.current = operation;
+    setIsExportInFlight(true);
+    try {
+      return await operation;
+    } finally {
+      if (exportInFlightRef.current === operation) {
+        exportInFlightRef.current = null;
+        setIsExportInFlight(false);
+      }
+    }
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -337,6 +367,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       setShowCountdown,
       showExportDialog,
       setShowExportDialog,
+      isExportInFlight,
       settings,
       applyHotkeyConfig,
       analysisProviderViewState,
@@ -359,6 +390,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       showOnboarding,
       showCountdown,
       showExportDialog,
+      isExportInFlight,
       settings,
       applyHotkeyConfig,
       analysisProviderViewState,

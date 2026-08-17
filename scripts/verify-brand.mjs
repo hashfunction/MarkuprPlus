@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const previousMachineName = ['mark', 'upr'].join('');
@@ -96,15 +96,15 @@ export function findBrandViolations(files, readFile, packageJson) {
   return violations;
 }
 
-function listRepositoryFiles() {
-  return [...new Set(execFileSync(
-    'git',
-    ['ls-files', '-co', '--exclude-standard', '-z'],
-    {
-      encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-    },
-  ).split('\0').filter((file) => file && existsSync(file)))];
+export function listRepositoryFiles(runGit = () => execFileSync(
+  'git',
+  ['ls-files', '-co', '--exclude-standard', '-z'],
+  {
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+  },
+)) {
+  return [...new Set(runGit().split('\0').filter(Boolean))];
 }
 
 function runBrandAudit() {

@@ -48,6 +48,7 @@ const SEVERITIES = new Set<ReviewFeedbackSeverity>([
   'Medium',
   'Low',
 ]);
+const SOURCE_TYPES = new Set(['screen', 'window', 'region'] as const);
 
 interface StoredReviewMetadata {
   sessionId: string;
@@ -167,7 +168,8 @@ export function sanitizeReviewSession(input: ReviewSession): ReviewSession {
       ...(typeof input.metadata?.sourceName === 'string'
         ? { sourceName: input.metadata.sourceName.trim().slice(0, 200) }
         : {}),
-      ...(input.metadata?.sourceType
+      ...(typeof input.metadata?.sourceType === 'string'
+        && SOURCE_TYPES.has(input.metadata.sourceType)
         ? { sourceType: input.metadata.sourceType }
         : {}),
       ...(Number.isFinite(input.metadata?.videoStartTime)

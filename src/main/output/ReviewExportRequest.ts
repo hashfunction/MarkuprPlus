@@ -1,12 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import {
+  chmod,
   lstat,
   mkdir,
+  mkdtemp,
+  readFile,
   realpath,
-  stat,
+  rm,
 } from 'node:fs/promises';
 import {
   basename,
+  dirname,
+  extname,
   isAbsolute,
   join,
   relative,
@@ -25,6 +30,16 @@ export type SanitizedReviewExportOptions = ReviewExportOptions;
 const EXPORT_FORMATS = new Set<ReviewExportFormat>(['markdown', 'pdf', 'html', 'json']);
 const EXPORT_THEMES = new Set<ReviewExportTheme>(['dark', 'light']);
 const MAX_PROJECT_NAME_LENGTH = 120;
+const MAX_SCREENSHOT_BYTES = 12 * 1024 * 1024;
+const MAX_TOTAL_SCREENSHOT_BYTES = 48 * 1024 * 1024;
+
+export interface TrustedReviewExportContext {
+  mainOwnedSession: ReviewSession | null;
+  sessionDirectory: string | null;
+  outputRoot: string;
+  format: ReviewExportFormat;
+  includeImages: boolean;
+}
 
 function replaceControlCharacters(value: string): string {
   return Array.from(value, (character) => {
@@ -67,14 +82,57 @@ export function sanitizeReviewExportOptions(input: unknown): SanitizedReviewExpo
   };
 }
 
-/**
- * Sanitize renderer edits, then hydrate image bytes/paths only from the
- * identity-matched session retained by the main process.
- */
-export function trustedReviewExportSession(
+function isStrictlyContained(parent: string, candidate: string): boolean {
+  const child = relative(parent, candidate);
+  return Boolean(child) && !child.startsWith('..') && !isAbsolute(child);
+}
+
+async function trustedSessionRoots(
+  outputRoot: string,
+  sessionDirectory: string,
+): Promise<{ outputRoot: string; sessionDirectory: string }> {
+  const requestedOutputRoot = resolve(outputRoot);
+  const outputStats = await lstat(requestedOutputRoot);
+  if (outputStats.isSymbolicLink() || !outputStats.isDirectory()) {
+    throw new Error('The configured output root is unsafe for screenshot export.');
+  }
+  const resolvedOutputRoot = await realpath(requestedOutputRoot);
+  const requestedSessionDirectory = resolve(sessionDirectory);
+  const sessionStats = await lstat(requestedSessionDirectory);
+  if (sessionStats.isSymbolicLink() || !sessionStats.isDirectory()) {
+    throw new Error('The saved session directory is unsafe for screenshot export.');
+  }
+  const resolvedSessionDirectory = await realpath(requestedSessionDirectory);
+  if (!isStrictlyContained(resolvedOutputRoot, resolvedSessionDirectory)) {
+    throw new Error('The saved session directory is outside the configured output root.');
+  }
+  return {
+    outputRoot: resolvedOutputRoot,
+    sessionDirectory: resolvedSessionDirectory,
+  };
+}
+
+function decodeMainOwnedBase64(value: string, screenshotId: string): Buffer {
+  const dataUrl = /^data:image\/(?:png|jpe?g|webp);base64,(.*)$/i.exec(value);
+  const encoded = dataUrl?.[1] ?? value;
+  if (!encoded || !/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) {
+    throw new Error(`Requested screenshot ${screenshotId} has invalid main-owned image data.`);
+  }
+  const bytes = Buffer.from(encoded, 'base64');
+  if (
+    bytes.length === 0
+    || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')
+  ) {
+    throw new Error(`Requested screenshot ${screenshotId} has invalid main-owned image data.`);
+  }
+  return bytes;
+}
+
+/** Sanitize renderer edits and hydrate image bytes only from main-owned evidence. */
+export async function trustedReviewExportSession(
   rendererSession: ReviewSession,
-  mainOwnedSession: ReviewSession | null,
-): ReviewSession {
+  context: TrustedReviewExportContext,
+): Promise<ReviewSession> {
   const sanitized = sanitizeReviewSession(rendererSession);
   if (sanitized.endTime === undefined) {
     throw new Error('Only a completed review session can be exported.');
@@ -83,28 +141,107 @@ export function trustedReviewExportSession(
     throw new Error('The completed session has no feedback to export.');
   }
 
-  const trustedItems = mainOwnedSession?.id === sanitized.id
-    ? new Map(mainOwnedSession.feedbackItems.map((item) => [item.id, item]))
+  const shouldHydrateImages = context.format !== 'json' && context.includeImages;
+  const trustedItems = context.mainOwnedSession?.id === sanitized.id
+    ? new Map(context.mainOwnedSession.feedbackItems.map((item) => [item.id, item]))
     : null;
+  let totalScreenshotBytes = 0;
+  let rootsPromise: Promise<{ outputRoot: string; sessionDirectory: string }> | null = null;
+
+  const hydrateScreenshot = async (
+    screenshot: ReviewSession['feedbackItems'][number]['screenshots'][number],
+    trusted: ReviewSession['feedbackItems'][number]['screenshots'][number] | undefined,
+  ) => {
+    if (!trusted) {
+      throw new Error(`Requested screenshot ${screenshot.id} is unavailable for export.`);
+    }
+    let bytes: Buffer;
+    if (trusted.imagePath) {
+      if (!context.sessionDirectory) {
+        throw new Error(`Requested screenshot ${screenshot.id} has no saved session directory.`);
+      }
+      rootsPromise ??= trustedSessionRoots(context.outputRoot, context.sessionDirectory);
+      const roots = await rootsPromise;
+      const requestedImage = isAbsolute(trusted.imagePath)
+        ? resolve(trusted.imagePath)
+        : resolve(roots.sessionDirectory, trusted.imagePath);
+      let imageStats;
+      try {
+        imageStats = await lstat(requestedImage);
+      } catch {
+        throw new Error(`Requested screenshot ${screenshot.id} is unavailable for export.`);
+      }
+      if (imageStats.isSymbolicLink()) {
+        throw new Error(`Requested screenshot ${screenshot.id} must not be a symbolic link.`);
+      }
+      if (!imageStats.isFile()) {
+        throw new Error(`Requested screenshot ${screenshot.id} is not a regular file.`);
+      }
+      if (imageStats.size > MAX_SCREENSHOT_BYTES) {
+        throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
+      }
+      const resolvedImage = await realpath(requestedImage);
+      if (
+        !isStrictlyContained(roots.sessionDirectory, resolvedImage)
+        || !isStrictlyContained(roots.outputRoot, resolvedImage)
+      ) {
+        throw new Error(`Requested screenshot ${screenshot.id} is outside the saved session.`);
+      }
+      bytes = await readFile(resolvedImage);
+    } else if (trusted.base64) {
+      bytes = decodeMainOwnedBase64(trusted.base64, screenshot.id);
+    } else {
+      throw new Error(`Requested screenshot ${screenshot.id} is unavailable for export.`);
+    }
+    if (bytes.length > MAX_SCREENSHOT_BYTES) {
+      throw new Error(`Requested screenshot ${screenshot.id} exceeds the export size limit.`);
+    }
+    totalScreenshotBytes += bytes.length;
+    if (totalScreenshotBytes > MAX_TOTAL_SCREENSHOT_BYTES) {
+      throw new Error('Requested screenshots exceed the total export size limit.');
+    }
+    return {
+      ...screenshot,
+      imagePath: '',
+      base64: bytes.toString('base64'),
+    };
+  };
+
+  const feedbackItems: ReviewSession['feedbackItems'] = [];
+  for (const item of sanitized.feedbackItems) {
+    const trustedItem = trustedItems?.get(item.id);
+    const trustedScreenshotMetadata = (trustedItem?.screenshots ?? []).map((screenshot) => ({
+      id: screenshot.id,
+      timestamp: screenshot.timestamp,
+      imagePath: '',
+      base64: undefined,
+      width: screenshot.width,
+      height: screenshot.height,
+    }));
+    if (context.format === 'json') {
+      feedbackItems.push({
+        ...item,
+        screenshots: trustedScreenshotMetadata,
+      });
+      continue;
+    }
+    if (!shouldHydrateImages) {
+      feedbackItems.push({ ...item, screenshots: trustedScreenshotMetadata });
+      continue;
+    }
+    const trustedScreenshots = new Map(
+      (trustedItem?.screenshots ?? []).map((screenshot) => [screenshot.id, screenshot]),
+    );
+    const screenshots = [];
+    for (const screenshot of trustedScreenshotMetadata) {
+      screenshots.push(await hydrateScreenshot(screenshot, trustedScreenshots.get(screenshot.id)));
+    }
+    feedbackItems.push({ ...item, screenshots });
+  }
 
   return {
     ...sanitized,
-    feedbackItems: sanitized.feedbackItems.map((item) => {
-      const trustedScreenshots = new Map(
-        (trustedItems?.get(item.id)?.screenshots ?? []).map((screenshot) => [screenshot.id, screenshot]),
-      );
-      return {
-        ...item,
-        screenshots: item.screenshots.map((screenshot) => {
-          const trusted = trustedScreenshots.get(screenshot.id);
-          return {
-            ...screenshot,
-            imagePath: trusted?.imagePath ?? '',
-            ...(trusted?.base64 ? { base64: trusted.base64 } : {}),
-          };
-        }),
-      };
-    }),
+    feedbackItems,
   };
 }
 
@@ -166,8 +303,17 @@ export async function prepareReviewExportDestination(
   nonce = randomUUID(),
 ): Promise<string> {
   const requestedOutputRoot = resolve(outputRoot);
-  await mkdir(requestedOutputRoot, { recursive: true });
-  const outputRootStats = await stat(requestedOutputRoot);
+  let outputRootStats;
+  try {
+    outputRootStats = await lstat(requestedOutputRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    await mkdir(requestedOutputRoot, { recursive: true });
+    outputRootStats = await lstat(requestedOutputRoot);
+  }
+  if (outputRootStats.isSymbolicLink()) {
+    throw new Error('The configured output root must not be a symbolic link.');
+  }
   if (!outputRootStats.isDirectory()) {
     throw new Error('The configured output root is not a directory.');
   }
@@ -202,10 +348,65 @@ export async function prepareReviewExportDestination(
     options,
     nonce,
   );
-  const destination = resolve(resolvedExportRoot, basename(suggestedDestination));
-  const destinationChild = relative(resolvedExportRoot, destination);
-  if (!destinationChild || destinationChild.startsWith('..') || isAbsolute(destinationChild)) {
-    throw new Error('Unable to create a contained export destination.');
+  const suggestedName = basename(suggestedDestination);
+  const extension = extname(suggestedName);
+  const uniqueDirectory = await mkdtemp(join(
+    resolvedExportRoot,
+    `${suggestedName.slice(0, -extension.length)}-`,
+  ));
+  try {
+    await chmod(uniqueDirectory, 0o700);
+    const resolvedUniqueDirectory = await realpath(uniqueDirectory);
+    const uniqueDirectoryChild = relative(resolvedExportRoot, resolvedUniqueDirectory);
+    if (
+      !uniqueDirectoryChild
+      || uniqueDirectoryChild.startsWith('..')
+      || isAbsolute(uniqueDirectoryChild)
+    ) {
+      throw new Error('Unable to create a contained export directory.');
+    }
+    const destination = resolve(
+      resolvedUniqueDirectory,
+      `${exportSlug(options.projectName)}-feedback${extension}`,
+    );
+    const destinationChild = relative(resolvedUniqueDirectory, destination);
+    if (!destinationChild || destinationChild.startsWith('..') || isAbsolute(destinationChild)) {
+      throw new Error('Unable to create a contained export destination.');
+    }
+    return destination;
+  } catch (error) {
+    await rm(uniqueDirectory, { recursive: true, force: true }).catch(() => {});
+    throw error;
   }
-  return destination;
+}
+
+/**
+ * Execute one export inside a freshly allocated namespace and remove partial
+ * artifacts if the exporter reports or throws a failure.
+ */
+export async function runReviewExportInPrivateDirectory<T extends { success: boolean }>(
+  outputRoot: string,
+  session: ReviewSession,
+  options: SanitizedReviewExportOptions,
+  operation: (outputPath: string) => Promise<T>,
+): Promise<T> {
+  const outputPath = await prepareReviewExportDestination(outputRoot, session, options);
+  const privateDirectory = dirname(outputPath);
+  try {
+    const result = await operation(outputPath);
+    if (!result.success) {
+      await rm(privateDirectory, { recursive: true, force: true });
+    }
+    return result;
+  } catch (error) {
+    try {
+      await rm(privateDirectory, { recursive: true, force: true });
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'The export failed and its partial artifacts could not be removed.',
+      );
+    }
+    throw error;
+  }
 }

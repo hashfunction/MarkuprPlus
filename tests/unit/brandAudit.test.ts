@@ -7,6 +7,7 @@ type BrandVerifier = {
     readFile: (file: string) => string,
     packageJson: Record<string, unknown>,
   ) => string[];
+  listRepositoryFiles?: (runGit: () => string) => string[];
 };
 
 const compatiblePackageJson = {
@@ -90,6 +91,26 @@ describe('repository brand audit', () => {
       'site/launch.html: missing canonical file',
       'site/whats-new-v2.5.0.html: missing canonical file',
     ]);
+  });
+
+  it('keeps missing tracked files in the audit input so reads fail closed', async () => {
+    const verifier = await import('../../scripts/verify-brand.mjs') as BrandVerifier;
+    expect(verifier.listRepositoryFiles).toBeTypeOf('function');
+
+    const tracked = verifier.listRepositoryFiles!(() =>
+      ['README.md', 'missing-tracked-file.md', ''].join('\0'));
+    expect(tracked).toEqual(['README.md', 'missing-tracked-file.md']);
+    expect(() => verifier.findBrandViolations!(
+      tracked,
+      (file) => {
+        if (file === 'missing-tracked-file.md') throw new Error('ENOENT: tracked file is missing');
+        return 'MarkuprPlus';
+      },
+      compatiblePackageJson,
+    )).toThrow(/ENOENT.*tracked file is missing/i);
+
+    const afterCommittedDeletion = verifier.listRepositoryFiles!(() => 'README.md\0');
+    expect(afterCommittedDeletion).toEqual(['README.md']);
   });
 
   it('can be imported without executing the command-line audit', () => {

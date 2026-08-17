@@ -32,6 +32,7 @@ import { getContrastColor, useTheme } from '../hooks/useTheme';
 interface ExportDialogProps {
   session: Session | null;
   isOpen: boolean;
+  isExportBusy: boolean;
   onClose: () => void;
   onExport: (options: ExportOptions) => Promise<ReviewExportResult>;
   defaultProjectName?: string;
@@ -297,6 +298,7 @@ Export to see the full PDF.`;
 const ExportDialog: React.FC<ExportDialogProps> = ({
   session,
   isOpen,
+  isExportBusy,
   onClose,
   onExport,
   defaultProjectName,
@@ -313,6 +315,8 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const [exportError, setExportError] = useState<string | null>(null);
   const exportInFlightRef = useRef(false);
   const successCloseTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(false);
+  const operationGenerationRef = useRef(0);
   const dialogRef = useContainedDialogFocus<HTMLDivElement>(isOpen);
 
   const clearSuccessCloseTimer = useCallback(() => {
@@ -323,20 +327,29 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   }, []);
 
   const requestClose = useCallback(() => {
-    if (exportInFlightRef.current) return;
+    if (exportInFlightRef.current || isExportBusy) return;
     clearSuccessCloseTimer();
     onClose();
-  }, [clearSuccessCloseTimer, onClose]);
+  }, [clearSuccessCloseTimer, isExportBusy, onClose]);
 
-  // Reset state when dialog opens
+  // Reset state for this mounted instance and invalidate all async work before
+  // teardown. A resolved promise from an older dialog must never close a newer
+  // instance that happens to share the same parent callback.
   useEffect(() => {
     if (isOpen) {
+      mountedRef.current = true;
+      operationGenerationRef.current += 1;
       setExportPath(null);
       setExportError(null);
       setIsExporting(false);
       exportInFlightRef.current = false;
     }
-    return clearSuccessCloseTimer;
+    return () => {
+      mountedRef.current = false;
+      operationGenerationRef.current += 1;
+      exportInFlightRef.current = false;
+      clearSuccessCloseTimer();
+    };
   }, [clearSuccessCloseTimer, isOpen]);
 
   // Handle escape key
@@ -356,7 +369,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   }, [isOpen, requestClose, dialogRef]);
 
   const handleExport = useCallback(async () => {
-    if (!session || exportInFlightRef.current) return;
+    if (!session || isExportBusy || exportInFlightRef.current) return;
+    const operationGeneration = operationGenerationRef.current + 1;
+    operationGenerationRef.current = operationGeneration;
     exportInFlightRef.current = true;
     clearSuccessCloseTimer();
     setExportPath(null);
@@ -369,6 +384,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         includeImages,
         theme,
       });
+      if (!mountedRef.current || operationGenerationRef.current !== operationGeneration) return;
       if (!result.success) {
         setExportError(
           result.status === 'cancelled'
@@ -379,22 +395,27 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
       }
       setExportPath(result.path);
       successCloseTimerRef.current = window.setTimeout(() => {
+        if (!mountedRef.current || operationGenerationRef.current !== operationGeneration) return;
         successCloseTimerRef.current = null;
         onClose();
       }, 2200);
     } catch (error) {
+      if (!mountedRef.current || operationGenerationRef.current !== operationGeneration) return;
       setExportError(error instanceof Error ? error.message : 'Unable to export the feedback session.');
     } finally {
-      exportInFlightRef.current = false;
-      setIsExporting(false);
+      if (operationGenerationRef.current === operationGeneration) {
+        exportInFlightRef.current = false;
+        if (mountedRef.current) setIsExporting(false);
+      }
     }
-  }, [clearSuccessCloseTimer, format, projectName, includeImages, theme, onExport, onClose, session]);
+  }, [clearSuccessCloseTimer, format, projectName, includeImages, isExportBusy, theme, onExport, onClose, session]);
 
   if (!isOpen) return null;
 
   const selectedFormat = FORMAT_DATA.find((f) => f.format === format)!;
   const showThemeOption = format === 'html' || format === 'pdf';
   const showImagesOption = format !== 'json';
+  const isBusy = isExporting || isExportBusy;
 
   return (
     <div className="ff-contained-dialog-layer" style={styles.overlay} onClick={requestClose}>
@@ -418,7 +439,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
             aria-label="Close export dialog"
             onClick={requestClose}
             style={styles.closeButton}
-            disabled={isExporting}
+            disabled={isBusy}
           >
             <CloseIcon />
           </button>
@@ -434,6 +455,11 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           {exportError && (
             <div role="alert" style={styles.errorMessage}>
               {exportError}
+            </div>
+          )}
+          {isExportBusy && !isExporting && !exportPath && !exportError && (
+            <div role="status" style={styles.busyMessage}>
+              A previous export is still finishing. You can export again when it completes.
             </div>
           )}
           {exportPath && (
@@ -553,7 +579,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           </div>
 
           <div style={styles.footerActions}>
-            <button type="button" onClick={requestClose} style={styles.cancelButton} disabled={isExporting}>
+            <button type="button" onClick={requestClose} style={styles.cancelButton} disabled={isBusy}>
               Cancel
             </button>
             <button
@@ -561,10 +587,10 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
               onClick={handleExport}
               style={{
                 ...styles.exportButton,
-                opacity: isExporting || !session ? 0.7 : 1,
+                opacity: isBusy || !session ? 0.7 : 1,
                 color: getContrastColor(colors.accent.default),
               }}
-              disabled={isExporting || !session}
+              disabled={isBusy || !session}
             >
               {isExporting ? (
                 <>
@@ -573,6 +599,8 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                   </span>
                   <span>Exporting...</span>
                 </>
+              ) : isExportBusy ? (
+                <span>Export in progress...</span>
               ) : exportError ? (
                 <span>Retry Export as {selectedFormat.name}</span>
               ) : exportPath ? (
@@ -673,6 +701,18 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid var(--status-error)',
     borderRadius: 10,
     backgroundColor: 'var(--status-error-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    lineHeight: 1.5,
+    overflowWrap: 'anywhere',
+  },
+
+  busyMessage: {
+    margin: '16px 16px 0',
+    padding: 12,
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    backgroundColor: 'var(--surface-inset)',
     color: 'var(--text-primary)',
     fontSize: 13,
     lineHeight: 1.5,

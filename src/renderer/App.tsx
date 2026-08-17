@@ -296,6 +296,7 @@ const App: React.FC = () => {
         <ExportDialog
           session={reviewDraft?.session ?? recording.reviewSession}
           isOpen={ui.showExportDialog}
+          isExportBusy={ui.isExportInFlight}
           onClose={() => ui.setShowExportDialog(false)}
           onExport={(options) => {
             const session = reviewDraft?.session ?? recording.reviewSession;

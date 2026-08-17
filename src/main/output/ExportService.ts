@@ -124,6 +124,139 @@ export interface JsonExportSchema {
   };
 }
 
+function isContainedPath(parent: string, candidate: string): boolean {
+  const child = path.relative(parent, candidate);
+  return Boolean(child) && !child.startsWith('..') && !path.isAbsolute(child);
+}
+
+function stripExportScreenshots(session: Session): Session {
+  return {
+    ...session,
+    feedbackItems: session.feedbackItems.map((item) => ({
+      ...item,
+      screenshots: [],
+    })),
+    ...(session.metadata
+      ? {
+          metadata: {
+            ...session.metadata,
+            ...(session.metadata.markedIssues
+              ? {
+                  markedIssues: session.metadata.markedIssues.map((issue) => {
+                    const withoutScreenshot = { ...issue };
+                    delete withoutScreenshot.screenshotPath;
+                    withoutScreenshot.evidenceWarning = 'Marked screenshot was excluded from this export.';
+                    return withoutScreenshot;
+                  }),
+                }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+function decodeExportScreenshot(value: string, screenshotId: string): Buffer {
+  const dataUrl = /^data:image\/(?:png|jpe?g|webp);base64,(.*)$/i.exec(value);
+  const encoded = dataUrl?.[1] ?? value;
+  if (!encoded || !/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) {
+    throw new Error(`Screenshot ${screenshotId} has invalid image data.`);
+  }
+  const bytes = Buffer.from(encoded, 'base64');
+  if (
+    bytes.length === 0
+    || bytes.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')
+  ) {
+    throw new Error(`Screenshot ${screenshotId} has invalid image data.`);
+  }
+  return bytes;
+}
+
+function markdownScreenshotFilename(
+  itemIndex: number,
+  screenshotIndex: number,
+  screenshotCount: number,
+): string {
+  const itemNumber = String(itemIndex + 1).padStart(3, '0');
+  const suffix = screenshotCount > 1 ? `-${screenshotIndex + 1}` : '';
+  return `fb-${itemNumber}${suffix}.png`;
+}
+
+async function writeMarkdownAssets(
+  session: Session,
+  outputPath: string,
+  screenshotDir: string,
+): Promise<() => Promise<void>> {
+  const screenshots = session.feedbackItems.flatMap((item, itemIndex) =>
+    item.screenshots.map((screenshot, screenshotIndex) => ({
+      screenshot,
+      filename: markdownScreenshotFilename(itemIndex, screenshotIndex, item.screenshots.length),
+    })));
+  if (screenshots.length === 0) return async () => {};
+
+  const outputDirectory = path.resolve(path.dirname(outputPath));
+  if (path.isAbsolute(screenshotDir)) {
+    throw new Error('Markdown screenshot directory must be relative to the export.');
+  }
+  const requestedAssetsDirectory = path.resolve(outputDirectory, screenshotDir);
+  if (!isContainedPath(outputDirectory, requestedAssetsDirectory)) {
+    throw new Error('Markdown screenshot directory is outside the export.');
+  }
+
+  let createdAssetsDirectory = false;
+  const writtenAssets: string[] = [];
+  try {
+    try {
+      await fs.lstat(requestedAssetsDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      await fs.mkdir(requestedAssetsDirectory, { recursive: true, mode: 0o700 });
+      createdAssetsDirectory = true;
+    }
+    const assetsStats = await fs.lstat(requestedAssetsDirectory);
+    if (assetsStats.isSymbolicLink() || !assetsStats.isDirectory()) {
+      throw new Error('Markdown screenshot path is not a safe directory.');
+    }
+    const [canonicalOutputDirectory, canonicalAssetsDirectory] = await Promise.all([
+      fs.realpath(outputDirectory),
+      fs.realpath(requestedAssetsDirectory),
+    ]);
+    if (!isContainedPath(canonicalOutputDirectory, canonicalAssetsDirectory)) {
+      throw new Error('Markdown screenshot directory is outside the export.');
+    }
+
+    for (const { screenshot, filename } of screenshots) {
+      if (!screenshot.base64) {
+        throw new Error(`Screenshot ${screenshot.id} is unavailable for Markdown export.`);
+      }
+      const assetPath = path.resolve(canonicalAssetsDirectory, filename);
+      if (!isContainedPath(canonicalAssetsDirectory, assetPath)) {
+        throw new Error('Unable to create a contained Markdown screenshot asset.');
+      }
+      await fs.writeFile(assetPath, decodeExportScreenshot(screenshot.base64, screenshot.id), {
+        flag: 'wx',
+        mode: 0o600,
+      });
+      writtenAssets.push(assetPath);
+    }
+
+    return async () => {
+      if (createdAssetsDirectory) {
+        await fs.rm(requestedAssetsDirectory, { recursive: true, force: true }).catch(() => {});
+        return;
+      }
+      await Promise.all(writtenAssets.map((assetPath) => fs.rm(assetPath, { force: true })));
+    };
+  } catch (error) {
+    if (createdAssetsDirectory) {
+      await fs.rm(requestedAssetsDirectory, { recursive: true, force: true }).catch(() => {});
+    } else {
+      await Promise.all(writtenAssets.map((assetPath) => fs.rm(assetPath, { force: true })));
+    }
+    throw error;
+  }
+}
+
 // ============================================================================
 // Export Service Class
 // ============================================================================
@@ -175,12 +308,14 @@ class ExportServiceImpl {
     } = options;
 
     // Generate HTML content
-    const htmlContent = generateHtmlDocument(session, {
+    const htmlContent = generateHtmlDocument(
+      includeImages ? session : stripExportScreenshots(session), {
       projectName,
       includeImages,
       theme,
       version: app.getVersion(),
-    });
+      },
+    );
 
     // Create a hidden browser window for PDF rendering
     const pdfWindow = new BrowserWindow({
@@ -253,12 +388,14 @@ class ExportServiceImpl {
   async exportToHtml(session: Session, options: HtmlOptions): Promise<ExportResult> {
     const { outputPath, projectName, includeImages = true, theme = 'dark' } = options;
 
-    const htmlContent = generateHtmlDocument(session, {
+    const htmlContent = generateHtmlDocument(
+      includeImages ? session : stripExportScreenshots(session), {
       projectName,
       includeImages,
       theme,
       version: app.getVersion(),
-    });
+      },
+    );
 
     // Ensure output directory exists
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -317,18 +454,40 @@ class ExportServiceImpl {
    * Uses the existing MarkdownGenerator for consistent output.
    */
   async exportToMarkdown(session: Session, options: MarkdownOptions): Promise<ExportResult> {
-    const { outputPath, projectName, screenshotDir = './screenshots' } = options;
+    const {
+      outputPath,
+      projectName,
+      includeImages = true,
+      screenshotDir = './screenshots',
+    } = options;
+    const excludedScreenshotItemIds = new Set(
+      includeImages
+        ? []
+        : session.feedbackItems
+            .filter((item) => item.screenshots.length > 0)
+            .map((item) => item.id),
+    );
+    const exportSession = includeImages ? session : stripExportScreenshots(session);
 
-    const document = markdownGenerator.generateFullDocument(session, {
+    const document = markdownGenerator.generateFullDocument(exportSession, {
       projectName: projectName || session.metadata?.sourceName || 'Feedback Report',
       screenshotDir,
+      excludedScreenshotItemIds,
     });
 
     // Ensure output directory exists
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-    // Write Markdown file
-    await fs.writeFile(outputPath, document.content, 'utf-8');
+    const cleanupAssets = includeImages
+      ? await writeMarkdownAssets(exportSession, outputPath, screenshotDir)
+      : async () => {};
+    try {
+      // Write Markdown file
+      await fs.writeFile(outputPath, document.content, 'utf-8');
+    } catch (error) {
+      await cleanupAssets();
+      throw error;
+    }
 
     const stats = await fs.stat(outputPath);
 

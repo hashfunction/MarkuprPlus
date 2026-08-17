@@ -83,6 +83,8 @@ export interface Session {
 export interface GenerateOptions {
   projectName: string;
   screenshotDir: string; // Relative path for image references
+  /** Item identifiers whose evidence exists but was deliberately left out. */
+  excludedScreenshotItemIds?: ReadonlySet<string>;
 }
 
 /**
@@ -370,7 +372,10 @@ ${REPORT_SUPPORT_LINE}
           content += `![${id}${item.screenshots.length > 1 ? `-${ssIndex + 1}` : ''}](${screenshotDir}/${screenshotFilename})\n\n`;
         });
       } else {
-        content += `#### Evidence\n_No screenshot captured for this item._\n\n`;
+        const evidenceMessage = options.excludedScreenshotItemIds?.has(item.id)
+          ? 'Screenshots were excluded from this export.'
+          : 'No screenshot captured for this item.';
+        content += `#### Evidence\n_${evidenceMessage}_\n\n`;
       }
 
       content += `#### Suggested Next Step

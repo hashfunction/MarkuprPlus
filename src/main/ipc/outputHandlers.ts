@@ -18,7 +18,7 @@ import {
   generateDocumentForFileManager,
 } from '../output';
 import {
-  prepareReviewExportDestination,
+  runReviewExportInPrivateDirectory,
   sanitizeReviewExportOptions,
   trustedReviewExportSession,
 } from '../output/ReviewExportRequest';
@@ -149,6 +149,11 @@ async function getSessionHistoryItem(sessionId: string): Promise<SessionHistoryI
   return sessions.find((session) => session.id === sessionId) || null;
 }
 
+async function getSavedSessionDirectory(sessionId: string): Promise<string | null> {
+  const sessions = await fileManager.listSessions();
+  return sessions.find(({ metadata }) => metadata.sessionId === sessionId)?.dir ?? null;
+}
+
 async function exportSessionFolders(sessionIds: string[]): Promise<string> {
   const sessions = await listSessionHistoryItems();
   const selected = sessions.filter((session) => sessionIds.includes(session.id));
@@ -249,19 +254,31 @@ export function registerOutputHandlers(ctx: IpcContext): void {
         const mainOwnedReview = controllerSession
           ? adaptSessionForReview(controllerSession)
           : null;
-        const session = trustedReviewExportSession(
+        const session = await trustedReviewExportSession(
           rendererSession as ReviewSession,
-          mainOwnedReview,
+          {
+            mainOwnedSession: mainOwnedReview,
+            sessionDirectory: await getSavedSessionDirectory(
+              (rendererSession as Partial<ReviewSession>)?.id ?? '',
+            ),
+            outputRoot: fileManager.getOutputDirectory(),
+            format: options.format,
+            includeImages: options.includeImages,
+          },
         );
-        const outputPath = await prepareReviewExportDestination(
+        const result = await runReviewExportInPrivateDirectory(
           fileManager.getOutputDirectory(),
           session,
           options,
+          async (outputPath) => {
+            const exportOptions = {
+              ...options,
+              outputPath,
+              ...(options.format === 'markdown' ? { screenshotDir: './assets' } : {}),
+            };
+            return exportService.export(session, exportOptions);
+          },
         );
-        const result = await exportService.export(session, {
-          ...options,
-          outputPath,
-        });
         if (!result.success) {
           return {
             success: false,

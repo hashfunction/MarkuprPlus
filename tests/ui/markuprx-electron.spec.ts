@@ -7,8 +7,8 @@ import {
   type Page,
 } from '@playwright/test';
 import axe from 'axe-core';
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, resolve } from 'node:path';
 import sharp from 'sharp';
 import {
   createElectronHarnessEnvironment,
@@ -1031,14 +1031,23 @@ test.describe('MarkuprX desktop application', () => {
   });
 
   test('exports a genuine completed evidence session through the native File menu', async () => {
-    test.setTimeout(90_000);
+    test.setTimeout(120_000);
     const launched = await launchApplication(harness);
     application = launched.application;
     const mainWindow = launched.mainWindow;
     const annotation = await selectDeterministicWindow(application, mainWindow);
     const input = createInputSequence(mainWindow);
-    const evidence = 'The exported checkout evidence keeps this exact narration.';
+    const ordinaryEvidence = 'The general checkout feedback keeps this exact narration.';
+    const markedEvidence = 'The marked checkout evidence keeps this exact narration.';
     await input.next();
+    expect(await mainWindow.evaluate(() => window.markuprx.capture.manualScreenshot()))
+      .toEqual({ success: true });
+    await expect(mainWindow.getByText('+1', { exact: true })).toBeVisible();
+    expect(await mainWindow.evaluate(async ({ text, recordedAt }) => {
+      if (!window.markuprx.e2e) throw new Error('Electron test bridge is unavailable.');
+      return window.markuprx.e2e.injectTranscript(text, recordedAt);
+    }, { text: ordinaryEvidence, recordedAt: Date.now() })).toEqual({ success: true });
+    await mainWindow.waitForTimeout(500);
     await drawAndCommitIssue({
       annotation,
       mainWindow,
@@ -1046,36 +1055,139 @@ test.describe('MarkuprX desktop application', () => {
       ordinal: 1,
       tool: 'Circle',
       color: '#ffcc00',
-      comment: evidence,
+      comment: markedEvidence,
     });
 
     await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
       .toBeVisible({ timeout: 60_000 });
-    await clickApplicationMenuItem(application, 'File', 'Export...');
-    const exportDialog = await expectContainedDialog(mainWindow, 'Export Feedback');
-    await exportDialog.getByRole('button', { name: /HTML/ }).click();
-    await exportDialog.getByRole('textbox', { name: 'Project Name' }).fill('Public Checkout Audit');
-    await exportDialog.getByRole('button', { name: 'Light', exact: true }).click();
-    await exportDialog.getByRole('button', { name: 'Include images' }).click();
-    const exportAction = exportDialog.getByRole('button', { name: 'Export as HTML' });
-    await expect(exportAction).toBeEnabled();
-    await exportAction.click();
+    const canonicalOutputRoot = await realpath(harness.outputRoot);
+    const exportArtifact = async (options: {
+      format: 'Markdown' | 'PDF' | 'HTML' | 'JSON';
+      includeImages?: boolean;
+      theme?: 'Dark' | 'Light';
+      projectName: string;
+    }): Promise<string> => {
+      await clickApplicationMenuItem(application!, 'File', 'Export...');
+      const dialog = await expectContainedDialog(mainWindow, 'Export Feedback');
+      if (options.format !== 'Markdown') {
+        await dialog.getByRole('button', { name: new RegExp(`^${options.format}`) }).click();
+      }
+      await dialog.getByRole('textbox', { name: 'Project Name' }).fill(options.projectName);
+      if (options.theme) {
+        await dialog.getByRole('button', { name: options.theme, exact: true }).click();
+      }
+      if (options.includeImages === false && options.format !== 'JSON') {
+        await dialog.getByRole('button', { name: 'Include images' }).click();
+      }
+      const action = dialog.getByRole('button', { name: `Export as ${options.format}` });
+      await expect(action).toBeEnabled();
+      await action.click();
+      const success = dialog.getByRole('status');
+      await expect(success).toContainText('Exported to', { timeout: 30_000 });
+      const artifactPath = (await success.locator('code').textContent())?.trim() ?? '';
+      expect(artifactPath).not.toBe('');
+      expect(relative(canonicalOutputRoot, artifactPath)).toMatch(/^exports\//);
+      expect(relative(canonicalOutputRoot, artifactPath)).not.toContain('..');
+      expect(await stat(artifactPath)).toMatchObject({ isFile: expect.any(Function) });
+      expect((await stat(artifactPath)).isFile()).toBe(true);
+      expect(dirname(relative(canonicalOutputRoot, artifactPath)))
+        .toMatch(/^exports\/public-checkout-audit-/);
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(dialog).toBeHidden();
+      return artifactPath;
+    };
 
-    const success = exportDialog.getByRole('status');
-    await expect(success).toContainText('Exported to', { timeout: 30_000 });
-    const exportsRoot = join(harness.outputRoot, 'exports');
-    await expect.poll(async () => readdir(exportsRoot).catch(() => []))
-      .toHaveLength(1);
-    const [artifactName] = await readdir(exportsRoot);
-    expect(artifactName).toMatch(/^public-checkout-audit-feedback-.*\.html$/);
-    const artifactPath = join(exportsRoot, artifactName);
-    const artifact = await readFile(artifactPath, 'utf8');
-    expect(resolve(artifactPath).startsWith(`${resolve(harness.outputRoot)}/exports/`)).toBe(true);
-    expect(artifact).toContain('<h1>Public Checkout Audit Feedback Report</h1>');
-    expect(artifact).toContain(evidence);
-    expect(artifact).toContain('<meta name="theme-color" content="#ffffff">');
-    expect(artifact).not.toContain('<img src=');
+    const htmlWithImagesPath = await exportArtifact({
+      format: 'HTML',
+      includeImages: true,
+      theme: 'Light',
+      projectName: 'Public Checkout Audit HTML Images',
+    });
+    const htmlWithImages = await readFile(htmlWithImagesPath, 'utf8');
+    expect(htmlWithImages).toContain('<h1>Public Checkout Audit HTML Images Feedback Report</h1>');
+    expect(htmlWithImages).toContain(ordinaryEvidence);
+    expect(htmlWithImages).toContain(markedEvidence);
+    expect(htmlWithImages).toContain('<meta name="theme-color" content="#ffffff">');
+    const htmlEmbeds = [...htmlWithImages.matchAll(/<img src="data:image\/png;base64,([^"]+)"/g)]
+      .map((match) => match[1]);
+    expect(htmlEmbeds.length).toBeGreaterThanOrEqual(1);
+    expect(htmlWithImages).not.toContain('Screenshot not available');
+    for (const embed of htmlEmbeds) {
+      expect((await sharp(Buffer.from(embed, 'base64')).metadata()).format).toBe('png');
+    }
+
+    const htmlWithoutImagesPath = await exportArtifact({
+      format: 'HTML',
+      includeImages: false,
+      theme: 'Dark',
+      projectName: 'Public Checkout Audit HTML Text',
+    });
+    const htmlWithoutImages = await readFile(htmlWithoutImagesPath, 'utf8');
+    expect(htmlWithoutImages).toContain(ordinaryEvidence);
+    expect(htmlWithoutImages).toContain(markedEvidence);
+    expect(htmlWithoutImages).not.toContain('<img src="data:image/');
+    expect(htmlWithoutImages).toContain('0 screenshots');
+
+    const markdownWithImagesPath = await exportArtifact({
+      format: 'Markdown',
+      includeImages: true,
+      projectName: 'Public Checkout Audit Markdown Images',
+    });
+    const markdownWithImages = await readFile(markdownWithImagesPath, 'utf8');
+    const markdownReferences = [...markdownWithImages.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)]
+      .map((match) => match[1]);
+    expect(markdownWithImages).toContain(ordinaryEvidence);
+    expect(markdownWithImages).toContain(markedEvidence);
+    expect(markdownReferences.length).toBeGreaterThanOrEqual(1);
+    for (const reference of markdownReferences) {
+      expect(reference).toMatch(/^\.\/assets\/fb-\d{3}(?:-\d+)?\.png$/);
+      const imagePath = resolve(dirname(markdownWithImagesPath), reference);
+      expect(relative(dirname(markdownWithImagesPath), imagePath)).toMatch(/^assets\//);
+      expect((await sharp(imagePath).metadata()).format).toBe('png');
+    }
+
+    const markdownWithoutImagesPath = await exportArtifact({
+      format: 'Markdown',
+      includeImages: false,
+      projectName: 'Public Checkout Audit Markdown Text',
+    });
+    const markdownWithoutImages = await readFile(markdownWithoutImagesPath, 'utf8');
+    expect(markdownWithoutImages).toContain('Screenshots: 0');
+    expect(markdownWithoutImages).not.toMatch(/!\[[^\]]+\]\([^)]+\)/);
+    expect(markdownWithoutImages).toContain('Screenshots were excluded from this export.');
+
+    const jsonPath = await exportArtifact({
+      format: 'JSON',
+      projectName: 'Public Checkout Audit JSON',
+    });
+    const jsonText = await readFile(jsonPath, 'utf8');
+    const json = JSON.parse(jsonText) as {
+      session: { items: Array<{ screenshots: Array<{ base64?: string }> }> };
+      summary: { screenshotCount: number };
+    };
+    expect(json.summary.screenshotCount).toBe(markdownReferences.length);
+    expect(json.session.items.flatMap((item) => item.screenshots))
+      .not.toContainEqual(expect.objectContaining({ base64: expect.anything() }));
+    expect(jsonText).not.toContain('data:image/');
+
+    const pdfWithImagesPath = await exportArtifact({
+      format: 'PDF',
+      includeImages: true,
+      theme: 'Light',
+      projectName: 'Public Checkout Audit PDF Images',
+    });
+    const pdfWithoutImagesPath = await exportArtifact({
+      format: 'PDF',
+      includeImages: false,
+      theme: 'Light',
+      projectName: 'Public Checkout Audit PDF Text',
+    });
+    const pdfWithImages = await readFile(pdfWithImagesPath);
+    const pdfWithoutImages = await readFile(pdfWithoutImagesPath);
+    expect(pdfWithImages.subarray(0, 4).toString('ascii')).toBe('%PDF');
+    expect(pdfWithoutImages.subarray(0, 4).toString('ascii')).toBe('%PDF');
+    expect(pdfWithImages.length).toBeGreaterThan(pdfWithoutImages.length);
   });
 
   test('keeps Export guarded and retryable through delayed IPC failures', async () => {
@@ -1151,6 +1263,118 @@ test.describe('MarkuprX desktop application', () => {
     await expect(dialog.getByRole('alert')).toContainText('Retry remains open.');
     await mainWindow.waitForTimeout(2_300);
     await expect(dialog).toBeVisible();
+  });
+
+  test('keeps a stale export operation from surviving recovery into a newer dialog', async () => {
+    test.setTimeout(90_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    await selectDeterministicWindow(application, mainWindow);
+    expect(await mainWindow.evaluate(async () => window.markuprx.e2e?.injectTranscript(
+      'A completed session drives the recovery export race.',
+      Date.now(),
+    ))).toEqual({ success: true });
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 60_000 });
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      const state = globalThis as typeof globalThis & {
+        __markuprxPendingExport?: {
+          calls: number;
+          resolvers: Array<(value: unknown) => void>;
+        };
+      };
+      state.__markuprxPendingExport = { calls: 0, resolvers: [] };
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => {
+        state.__markuprxPendingExport!.calls += 1;
+        return new Promise((resolveExport) => {
+          state.__markuprxPendingExport!.resolvers.push(resolveExport);
+        });
+      });
+    }, 'markuprx:output:export');
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const firstDialog = await expectContainedDialog(mainWindow, 'Export Feedback');
+    await firstDialog.getByRole('button', { name: 'Export as Markdown' }).click();
+    await expect(firstDialog.getByRole('button', { name: 'Exporting...' })).toBeDisabled();
+
+    await application.evaluate(({ BrowserWindow }, payload) => {
+      const target = BrowserWindow.getAllWindows()
+        .find((candidate) => candidate.webContents.getURL() === payload.url);
+      if (!target) throw new Error('Main renderer window not found.');
+      target.webContents.send('markuprx:crash-recovery:found', {
+        session: payload.session,
+      });
+    }, {
+      url: mainWindow.url(),
+      session: {
+        id: 'injected-recovery-export-race',
+        startTime: Date.now() - 10_000,
+        lastSaveTime: Date.now(),
+        feedbackItems: [],
+        transcriptionBuffer: '',
+        sourceId: 'window:test',
+        sourceName: 'Injected Recovery',
+        screenshotCount: 0,
+        markedIssueCount: 0,
+        pendingMarkedIssue: false,
+      },
+    });
+
+    await expect(firstDialog).toBeHidden();
+    const recovery = await expectContainedDialog(mainWindow, 'Recover Previous Session?');
+    await recovery.getByRole('button', { name: /Discard/ }).click();
+    await expect(recovery).toBeHidden();
+    await expect(mainWindow.getByRole('dialog', { name: 'Export Feedback' })).toHaveCount(0);
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const secondDialog = await expectContainedDialog(mainWindow, 'Export Feedback');
+    await expect(secondDialog.getByRole('status'))
+      .toContainText('A previous export is still finishing.');
+    await expect(secondDialog.getByRole('button', { name: 'Export in progress...' })).toBeDisabled();
+    expect(await application.evaluate(() => (
+      globalThis as typeof globalThis & {
+        __markuprxPendingExport?: { calls: number };
+      }
+    ).__markuprxPendingExport?.calls)).toBe(1);
+
+    await application.evaluate(() => {
+      const pending = (globalThis as typeof globalThis & {
+        __markuprxPendingExport?: { resolvers: Array<(value: unknown) => void> };
+      }).__markuprxPendingExport;
+      pending?.resolvers.shift()?.({
+        success: true,
+        status: 'success',
+        path: '/test/stale-export.md',
+        format: 'markdown',
+      });
+    });
+
+    await expect(secondDialog.getByRole('button', { name: 'Export as Markdown' })).toBeEnabled();
+    await mainWindow.waitForTimeout(2_400);
+    await expect(secondDialog).toBeVisible();
+    await expect(secondDialog.getByRole('status')).toHaveCount(0);
+
+    await secondDialog.getByRole('button', { name: 'Export as Markdown' }).click();
+    expect(await application.evaluate(() => (
+      globalThis as typeof globalThis & {
+        __markuprxPendingExport?: { calls: number };
+      }
+    ).__markuprxPendingExport?.calls)).toBe(2);
+    await application.evaluate(() => {
+      const pending = (globalThis as typeof globalThis & {
+        __markuprxPendingExport?: { resolvers: Array<(value: unknown) => void> };
+      }).__markuprxPendingExport;
+      pending?.resolvers.shift()?.({
+        success: false,
+        status: 'error',
+        error: 'Fresh export remains retryable.',
+      });
+    });
+    await expect(secondDialog.getByRole('alert')).toContainText('Fresh export remains retryable.');
   });
 
   test('has no serious accessibility violations on the home and settings surfaces', async () => {
