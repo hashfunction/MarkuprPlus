@@ -1303,7 +1303,7 @@ test.describe('MarkuprPlus desktop application', () => {
     harness = await createElectronHarnessEnvironment();
   });
 
-  test.afterEach(async (_fixtures, testInfo) => {
+  test.afterEach(async ({ browserName: _browserName }, testInfo) => {
     if (testInfo.status !== testInfo.expectedStatus) {
       if (harness.logs.length > 0) {
         await testInfo.attach('electron.log', {
