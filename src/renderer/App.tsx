@@ -212,6 +212,13 @@ const App: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+  const showReviewSurface =
+    recording.state === 'complete' &&
+    Boolean(recording.reviewSession) &&
+    recording.showReviewEditor;
+  const showPrimarySurface = ui.currentView === 'main' && !showReviewSurface;
+  const hasDedicatedPortraitSurface = ui.currentView !== 'main' || showReviewSurface;
+
   return (
     <div className={`ff-shell ff-shell--${recording.state}${ui.isHudMode ? ' ff-shell--hud' : ''}`}>
       {/* === Global overlays === */}
@@ -252,7 +259,7 @@ const App: React.FC = () => {
         className={
           'ff-shell__card' +
           (ui.isHudMode ? ' ff-shell__card--hud' : '') +
-          (ui.currentView !== 'main' ? ' ff-shell__card--portrait' : '')
+          (hasDedicatedPortraitSurface ? ' ff-shell__card--portrait' : '')
         }
       >
         {ui.currentView === 'settings' && (
@@ -274,7 +281,17 @@ const App: React.FC = () => {
           />
         )}
 
-        {ui.currentView === 'main' && (
+        {showReviewSurface && recording.reviewSession && (
+          <SessionReview
+            session={recording.reviewSession}
+            onSave={recording.reviewSave}
+            onCopy={recording.copyReportPath}
+            onOpenFolder={recording.openReportFolder}
+            onClose={recording.reviewClose}
+          />
+        )}
+
+        {showPrimarySurface && (
           <>
         {ui.showRecordingStatus && (
           <RecordingOverlay
@@ -502,17 +519,7 @@ const App: React.FC = () => {
           </section>
         )}
 
-        {recording.state === 'complete' && recording.reviewSession && recording.showReviewEditor && (
-          <SessionReview
-            session={recording.reviewSession}
-            onSave={recording.reviewSave}
-            onCopy={recording.copyReportPath}
-            onOpenFolder={recording.openReportFolder}
-            onClose={recording.reviewClose}
-          />
-        )}
-
-        {recording.reportPath && (!recording.reviewSession || !recording.showReviewEditor) && (
+        {recording.reportPath && (
           <section className="ff-shell__report">
             <p className="ff-shell__report-label">Latest Report Path</p>
             <code className="ff-shell__path">{recording.reportPath}</code>

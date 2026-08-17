@@ -6,7 +6,7 @@ import {
   type Page,
 } from '@playwright/test';
 import axe from 'axe-core';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, rm, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 import {
@@ -1459,12 +1459,27 @@ test.describe('MarkuprX desktop application', () => {
 
     await expect.poll(async () => (await diagnostics(mainWindow)).state).toBe('complete');
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
+    await expectPortraitWindow(application, mainWindow);
     await expect(mainWindow.getByText('Latest Report Path')).toBeVisible();
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
 
     // Exercise the completed-session editor against the already-saved report.
     // The update must happen in place without losing marked evidence or media.
     await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
+    const review = mainWindow.getByRole('region', { name: 'Review Editor' });
+    await expect(review).toBeVisible();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeHidden();
+    await expect(mainWindow.getByRole('heading', { name: 'Recent Captures' })).toBeHidden();
+    await expectPortraitWindow(application, mainWindow);
+    const feedbackRegion = review.getByRole('region', { name: 'Feedback items' });
+    await expect(feedbackRegion).toBeVisible();
+    const reviewLayout = await feedbackRegion.evaluate((element) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      hasVerticalScroll: element.scrollHeight > element.clientHeight,
+    }));
+    expect(reviewLayout.scrollWidth).toBeLessThanOrEqual(reviewLayout.clientWidth);
+    expect(reviewLayout.hasVerticalScroll).toBe(true);
     await expect(mainWindow.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     const reviewActions = await Promise.all(
       ['Open Folder', 'Copy', 'Save', 'Close'].map(async (name) => {
@@ -1473,14 +1488,31 @@ test.describe('MarkuprX desktop application', () => {
         return box!;
       }),
     );
-    for (let index = 1; index < reviewActions.length; index += 1) {
-      expect(reviewActions[index].x).toBeGreaterThanOrEqual(
-        reviewActions[index - 1].x + reviewActions[index - 1].width,
-      );
+    for (const action of reviewActions) {
+      expect(action.x).toBeGreaterThanOrEqual(0);
+      expect(action.x + action.width).toBeLessThanOrEqual(460);
+      expect(action.y).toBeGreaterThanOrEqual(0);
+      expect(action.y + action.height).toBeLessThanOrEqual(680);
     }
-    const reviewViewportWidth = await mainWindow.evaluate(() => window.innerWidth);
-    expect(reviewActions.at(-1)!.x + reviewActions.at(-1)!.width)
-      .toBeLessThanOrEqual(reviewViewportWidth);
+    const previewButton = review.getByRole('button', { name: 'Preview', exact: true });
+    await expect(previewButton).toHaveAttribute('aria-expanded', 'false');
+    await previewButton.click();
+    await expect(previewButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(review.getByLabel('Markdown report preview')).toBeVisible();
+    await previewButton.click();
+
+    await review.locator('button[title="Click to view full size"]').first().click();
+    const lightbox = mainWindow.getByRole('dialog', { name: 'Screenshot preview' });
+    await expect(lightbox).toBeVisible();
+    const lightboxBox = await lightbox.boundingBox();
+    expect(lightboxBox).not.toBeNull();
+    expect(lightboxBox!.x).toBeGreaterThanOrEqual(12);
+    expect(lightboxBox!.y).toBeGreaterThanOrEqual(12);
+    expect(lightboxBox!.x + lightboxBox!.width).toBeLessThanOrEqual(448);
+    expect(lightboxBox!.y + lightboxBox!.height).toBeLessThanOrEqual(668);
+    await expect(lightbox.getByRole('button', { name: 'Close screenshot preview' })).toBeFocused();
+    await mainWindow.keyboard.press('Escape');
+    await expect(lightbox).toBeHidden();
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
     await mainWindow.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
     const editor = mainWindow.getByPlaceholder('Enter feedback text...');
@@ -1596,6 +1628,18 @@ test.describe('MarkuprX desktop application', () => {
     await mainWindow.keyboard.press('Enter');
     await actionMenu.getByRole('menuitem', { name: 'Export' }).click();
     await expect(actionError).toContainText('Export folder unavailable for test.');
+
+    await mainWindow.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
+    await rm(sessionDir, { recursive: true, force: true });
+    await mainWindow.locator('p').filter({ hasText: editedComment }).first().dblclick();
+    const failedEditor = mainWindow.getByPlaceholder('Enter feedback text...');
+    const unsavedComment = 'This edit must remain visible after save fails.';
+    await failedEditor.fill(unsavedComment);
+    await failedEditor.press('Enter');
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(mainWindow.getByRole('alert')).toContainText(/save|folder/i);
+    await expect(mainWindow.getByText(unsavedComment, { exact: true })).toBeVisible();
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
   });
 });

@@ -296,6 +296,13 @@
   color: var(--ff-text-muted);
 }
 
+.ff-shell__report,
+.ff-shell__error,
+.ff-shell__recent {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ff-shell__report {
   border-radius: 14px;
   border: 1px solid rgba(70, 160, 255, 0.34);
@@ -324,8 +331,8 @@
 }
 
 .ff-shell__report-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 7px;
 }
 

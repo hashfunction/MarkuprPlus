@@ -777,7 +777,11 @@ export const RecordingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setErrorMessage(null);
       await loadRecentSessions();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to save review changes.');
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save review changes.';
+      setErrorMessage(message);
+      throw error instanceof Error ? error : new Error(message);
     }
   }, [sessionDir, loadRecentSessions]);
 

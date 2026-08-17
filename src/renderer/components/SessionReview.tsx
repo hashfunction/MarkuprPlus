@@ -7,7 +7,7 @@
  * - Thumbnail grid with drag-to-reorder
  * - Inline transcript editing
  * - Delete with undo (5 second toast)
- * - Split view: items list (60%) / Markdown preview (40%)
+ * - Portrait item flow with an optional Markdown preview
  * - Category/severity tags (clickable to change)
  * - Save/Copy/Open Folder actions
  * - Full keyboard navigation (Up/Down, Delete, Enter)
@@ -20,7 +20,8 @@ import type {
   ReviewFeedbackCategory as FeedbackCategory,
   ReviewFeedbackSeverity as FeedbackSeverity,
 } from '../../shared/types';
-import { useTheme } from '../hooks/useTheme';
+import { getContrastColor, useTheme } from '../hooks/useTheme';
+import { PortraitSurface } from './PortraitSurface';
 
 // ============================================================================
 // Types
@@ -28,7 +29,7 @@ import { useTheme } from '../hooks/useTheme';
 
 interface SessionReviewProps {
   session: Session;
-  onSave: (session: Session) => void;
+  onSave: (session: Session) => Promise<void> | void;
   onCopy: () => void;
   onOpenFolder: () => void;
   onClose: () => void;
@@ -466,86 +467,6 @@ const DeleteUndoToast: React.FC<DeleteUndoToastProps> = ({ itemId, onUndo, progr
 };
 
 /**
- * ActionToolbar - Save, Copy, Open Folder, Close actions
- */
-interface ActionToolbarProps {
-  onSave: () => void;
-  onCopy: () => void;
-  onOpenFolder: () => void;
-  onClose: () => void;
-  itemCount: number;
-  hasChanges: boolean;
-}
-
-const ActionToolbar: React.FC<ActionToolbarProps> = ({
-  onSave,
-  onCopy,
-  onOpenFolder,
-  onClose,
-  itemCount,
-  hasChanges,
-}) => {
-  return (
-    <div style={styles.toolbar} className="markuprx-review-toolbar">
-      <div style={styles.toolbarLeft} className="markuprx-review-toolbar-left">
-        <span style={styles.itemCount}>{itemCount} items</span>
-        {hasChanges && <span style={styles.unsavedBadge}>Unsaved changes</span>}
-      </div>
-      <div style={styles.toolbarRight} className="markuprx-review-toolbar-right">
-        <button
-          onClick={onOpenFolder}
-          style={styles.toolbarButton}
-          className="markuprx-review-action"
-          title="Open folder"
-          aria-label="Open Folder"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-          </svg>
-          <span className="markuprx-review-action-label">Open Folder</span>
-        </button>
-        <button
-          onClick={onCopy}
-          style={styles.toolbarButton}
-          className="markuprx-review-action"
-          title="Copy to clipboard"
-          aria-label="Copy"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-          </svg>
-          <span className="markuprx-review-action-label">Copy</span>
-        </button>
-        <button
-          onClick={onSave}
-          style={{
-            ...styles.toolbarButton,
-            ...styles.primaryButton,
-          }}
-          className="markuprx-review-action"
-          title="Save changes"
-          aria-label="Save"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          <span className="markuprx-review-action-label">Save</span>
-        </button>
-        <button onClick={onClose} style={styles.closeButton} title="Close">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/**
  * ImageLightbox - Full-size image viewer
  */
 interface ImageLightboxProps {
@@ -554,7 +475,10 @@ interface ImageLightboxProps {
 }
 
 const ImageLightbox: React.FC<ImageLightboxProps> = ({ imagePath, onClose }) => {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
+    closeButtonRef.current?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -565,8 +489,22 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ imagePath, onClose }) => 
   }, [onClose]);
 
   return (
-    <div style={styles.lightboxOverlay} onClick={onClose}>
-      <button style={styles.lightboxClose} onClick={onClose}>
+    <div
+      className="ff-contained-lightbox ff-dialog-enter"
+      style={styles.lightboxOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Screenshot preview"
+      tabIndex={-1}
+      onClick={onClose}
+    >
+      <button
+        ref={closeButtonRef}
+        type="button"
+        style={styles.lightboxClose}
+        aria-label="Close screenshot preview"
+        onClick={onClose}
+      >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -604,6 +542,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
   onOpenFolder,
   onClose,
 }) => {
+  const { colors } = useTheme();
   // State
   const [items, setItems] = useState<FeedbackItem[]>(session.feedbackItems);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -614,6 +553,8 @@ const SessionReview: React.FC<SessionReviewProps> = ({
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [undoProgress, setUndoProgress] = useState(100);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -781,87 +722,65 @@ const SessionReview: React.FC<SessionReviewProps> = ({
     setDragOverIndex(null);
   }, [dragIndex, dragOverIndex]);
 
-  const handleSave = useCallback(() => {
-    onSave(currentSession);
-    setHasChanges(false);
+  const handleSave = useCallback(async () => {
+    try {
+      await onSave(currentSession);
+      setHasChanges(false);
+      setSaveError(null);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save review.');
+    }
   }, [currentSession, onSave]);
 
   return (
-    <div ref={containerRef} style={styles.container}>
-      {/* toastSlideIn, pageFadeIn, pulseBorder keyframes provided by animations.css; scrollbar styles below */}
-      <style>
-        {`
-          .markuprx-scrollbar::-webkit-scrollbar {
-            width: 8px;
-          }
-
-          .markuprx-scrollbar::-webkit-scrollbar-track {
-            background: rgba(31, 41, 55, 0.3);
-            border-radius: 4px;
-          }
-
-          .markuprx-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(107, 114, 128, 0.5);
-            border-radius: 4px;
-          }
-
-          .markuprx-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(107, 114, 128, 0.7);
-          }
-
-          @media (max-width: 620px) {
-            .markuprx-review-toolbar {
-              flex-wrap: wrap;
-              gap: 8px;
-              padding: 10px 12px !important;
-            }
-
-            .markuprx-review-toolbar-left {
-              flex: 1 1 auto;
-              min-width: 0;
-              gap: 6px !important;
-            }
-
-            .markuprx-review-toolbar-right {
-              flex: 0 0 auto;
-              gap: 4px !important;
-            }
-
-            .markuprx-review-action {
-              width: 36px;
-              height: 36px;
-              padding: 0 !important;
-              justify-content: center;
-            }
-
-            .markuprx-review-action-label,
-            .markuprx-review-preview,
-            .markuprx-review-shortcuts {
-              display: none !important;
-            }
-
-            .markuprx-review-items {
-              width: 100% !important;
-              padding: 12px !important;
-            }
-          }
-        `}
-      </style>
-
-      {/* Toolbar */}
-      <ActionToolbar
-        onSave={handleSave}
-        onCopy={onCopy}
-        onOpenFolder={onOpenFolder}
-        onClose={onClose}
-        itemCount={items.length}
-        hasChanges={hasChanges}
-      />
-
-      {/* Main Content */}
-      <div style={styles.mainContent} className="markuprx-review-main">
-        {/* Items List (60%) */}
-        <div style={styles.itemsPane} className="markuprx-scrollbar markuprx-review-items">
+    <div ref={containerRef} className="ff-review-shell">
+      <PortraitSurface
+        title="Review Editor"
+        titleId="markuprx-review-title"
+        backLabel="Back to report"
+        onBack={onClose}
+        subtitle={hasChanges ? 'Unsaved changes' : `${items.length} feedback items`}
+        className="ff-review-surface"
+        headerActions={(
+          <button
+            type="button"
+            className="ff-review-preview-toggle"
+            aria-expanded={showPreview}
+            aria-controls="markuprx-review-preview"
+            onClick={() => setShowPreview((value) => !value)}
+          >
+            Preview
+          </button>
+        )}
+        contentLabel="Feedback items"
+        footer={(
+          <div className="ff-review-actions">
+            <button type="button" onClick={onOpenFolder}>Open Folder</button>
+            <button type="button" onClick={onCopy}>Copy</button>
+            <button
+              type="button"
+              style={{
+                backgroundColor: colors.accent.default,
+                borderColor: colors.accent.default,
+                color: getContrastColor(colors.accent.default),
+              }}
+              onClick={() => { void handleSave(); }}
+            >
+              Save
+            </button>
+            <button type="button" onClick={onClose}>Close</button>
+          </div>
+        )}
+      >
+        <div className="ff-review-items">
+          {saveError && (
+            <div className="ff-review-save-error" role="alert">
+              <span>{saveError}</span>
+              <button type="button" onClick={() => { void handleSave(); }}>
+                Retry save
+              </button>
+            </div>
+          )}
           {items.length === 0 ? (
             <div style={styles.emptyState}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -900,15 +819,22 @@ const SessionReview: React.FC<SessionReviewProps> = ({
               </div>
             ))
           )}
+
+          <div style={styles.shortcutsHint} className="markuprx-review-shortcuts">
+            <span style={styles.shortcutKey}>Arrow</span> Navigate
+            <span style={styles.shortcutKey}>Enter</span> Edit
+            <span style={styles.shortcutKey}>Del</span> Remove
+            <span style={styles.shortcutKey}>Drag</span> Reorder
+          </div>
         </div>
 
-        {/* Preview Pane (40%) */}
-        <div style={styles.previewPane} className="markuprx-review-preview">
-          <MarkdownPreview session={currentSession} projectName={session.metadata?.sourceName} />
-        </div>
-      </div>
+        {showPreview && (
+          <div id="markuprx-review-preview" className="ff-review-preview">
+            <MarkdownPreview session={currentSession} projectName={session.metadata?.sourceName} />
+          </div>
+        )}
+      </PortraitSurface>
 
-      {/* Delete Undo Toast */}
       {deletedItems.length > 0 && (
         <div style={styles.toastContainer} className="ff-toast-enter">
           {deletedItems.map((deleted) => (
@@ -922,20 +848,9 @@ const SessionReview: React.FC<SessionReviewProps> = ({
         </div>
       )}
 
-      {/* Image Lightbox */}
       {lightboxImage && (
-        <div className="ff-dialog-enter">
-          <ImageLightbox imagePath={lightboxImage} onClose={() => setLightboxImage(null)} />
-        </div>
+        <ImageLightbox imagePath={lightboxImage} onClose={() => setLightboxImage(null)} />
       )}
-
-      {/* Keyboard Shortcuts Help */}
-      <div style={styles.shortcutsHint} className="markuprx-review-shortcuts">
-        <span style={styles.shortcutKey}>Arrow</span> Navigate
-        <span style={styles.shortcutKey}>Enter</span> Edit
-        <span style={styles.shortcutKey}>Del</span> Remove
-        <span style={styles.shortcutKey}>Drag</span> Reorder
-      </div>
     </div>
   );
 };
@@ -944,116 +859,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
 // Styles
 // ============================================================================
 
-type ExtendedCSSProperties = React.CSSProperties & {
-  WebkitAppRegion?: 'drag' | 'no-drag';
-};
-
-const styles: Record<string, ExtendedCSSProperties> = {
-  container: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: 'var(--bg-primary)',
-    backgroundImage: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)',
-    color: 'var(--text-primary)',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    position: 'fixed',
-    inset: 0,
-    zIndex: 100,
-    overflow: 'hidden',
-  },
-
-  // Toolbar
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 20px',
-    borderBottom: '1px solid var(--border-default)',
-    backgroundColor: 'var(--surface-glass)',
-    backdropFilter: 'blur(12px)',
-    WebkitAppRegion: 'drag',
-  },
-  toolbarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    WebkitAppRegion: 'no-drag',
-  },
-  toolbarRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    WebkitAppRegion: 'no-drag',
-  },
-  itemCount: {
-    fontSize: 13,
-    color: 'var(--text-secondary)',
-    fontWeight: 500,
-  },
-  unsavedBadge: {
-    fontSize: 11,
-    color: 'var(--status-warning)',
-    backgroundColor: 'var(--status-warning-subtle)',
-    padding: '2px 8px',
-    borderRadius: 10,
-    fontWeight: 500,
-  },
-  toolbarButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 12px',
-    backgroundColor: 'var(--surface-inset)',
-    border: '1px solid var(--border-strong)',
-    borderRadius: 8,
-    color: 'var(--text-primary)',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-  primaryButton: {
-    backgroundColor: 'var(--accent-default)',
-    borderColor: 'var(--accent-muted)',
-  },
-  closeButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 32,
-    height: 32,
-    padding: 0,
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 6,
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-
-  // Main Content
-  mainContent: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  itemsPane: {
-    width: '60%',
-    padding: 16,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  },
-  previewPane: {
-    width: '40%',
-    borderLeft: '1px solid var(--border-default)',
-    backgroundColor: 'var(--surface-glass)',
-    overflow: 'hidden',
-  },
-
+const styles: Record<string, React.CSSProperties> = {
   // Card
   card: {
     display: 'flex',
@@ -1239,16 +1045,20 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Toast
   toastContainer: {
-    position: 'fixed',
-    bottom: 60,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    position: 'absolute',
+    right: 12,
+    bottom: 56,
+    left: 12,
     display: 'flex',
     flexDirection: 'column',
+    alignItems: 'center',
     gap: 8,
+    maxWidth: 'calc(100% - 24px)',
     zIndex: 1000,
   },
   toast: {
+    width: 'min(100%, 360px)',
+    maxWidth: '100%',
     backgroundColor: 'var(--bg-elevated)',
     border: '1px solid var(--border-strong)',
     borderRadius: 12,
@@ -1292,8 +1102,6 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Lightbox
   lightboxOverlay: {
-    position: 'fixed',
-    inset: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
     display: 'flex',
     alignItems: 'center',
@@ -1319,8 +1127,8 @@ const styles: Record<string, ExtendedCSSProperties> = {
     transition: 'background-color 0.15s ease',
   },
   lightboxImage: {
-    maxWidth: '90vw',
-    maxHeight: '90vh',
+    maxWidth: '100%',
+    maxHeight: '100%',
     objectFit: 'contain',
     borderRadius: 8,
     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -1351,12 +1159,11 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   // Keyboard Shortcuts Hint
   shortcutsHint: {
-    position: 'absolute',
-    bottom: 12,
-    left: 20,
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 12,
+    marginTop: 4,
     fontSize: 11,
     color: 'var(--text-tertiary)',
   },

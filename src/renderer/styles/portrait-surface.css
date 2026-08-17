@@ -82,6 +82,119 @@
   border-top: 1px solid var(--border-default);
 }
 
+.ff-review-shell {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.ff-review-surface {
+  min-width: 0;
+}
+
+.ff-review-preview-toggle {
+  min-width: 68px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ff-review-preview-toggle[aria-expanded='true'] {
+  border-color: var(--accent-muted);
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+.ff-review-items {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.ff-review-items > * {
+  min-width: 0;
+}
+
+.ff-review-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.ff-review-actions button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 6px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ff-review-preview {
+  max-height: 260px;
+  min-width: 0;
+  margin: 0 14px 14px;
+  overflow: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-glass);
+}
+
+.ff-review-preview pre {
+  overflow-wrap: anywhere;
+}
+
+.ff-review-save-error {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--status-error) 42%, transparent);
+  border-radius: 10px;
+  background: var(--status-error-subtle);
+  color: var(--status-error);
+  font-size: 12px;
+}
+
+.ff-review-save-error span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ff-review-save-error button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  color: inherit;
+}
+
+.ff-contained-lightbox {
+  position: absolute;
+  inset: 12px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+}
+
 .ff-shortcuts {
   display: grid;
   gap: 18px;
