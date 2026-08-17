@@ -14,7 +14,7 @@
 
 import { ipcMain, systemPreferences, BrowserWindow } from 'electron';
 import { EventEmitter } from 'events';
-import { lstat, mkdir, readdir, stat, unlink, writeFile } from 'fs/promises';
+import { mkdir, readdir, stat, unlink, writeFile } from 'fs/promises';
 import { randomUUID } from 'node:crypto';
 import { join, dirname } from 'path';
 import { app } from 'electron';
@@ -23,6 +23,7 @@ import { IPC_CHANNELS } from '../../shared/types';
 import { extensionFromMimeType, encodeFloat32Wav } from './audioUtils';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 import {
+  clearPrivateCaptureFiles,
   ensurePrivateCaptureArea,
   privateCaptureAreaPath,
 } from '../security/PrivateCaptureStorage';
@@ -968,17 +969,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    */
   async clearRecoveryBuffers(): Promise<void> {
     await this.recoveryWriteChain;
-    const root = await ensurePrivateCaptureArea('audio');
-    const files = await readdir(root, { withFileTypes: true });
-    for (const entry of files) {
-      if (!entry.name.startsWith('audio-') || !entry.name.endsWith('.raw')) continue;
-      const candidate = join(root, entry.name);
-      const stats = await lstat(candidate);
-      if (!stats.isFile() && !stats.isSymbolicLink()) {
-        throw new Error('Audio recovery entry is not removable.');
-      }
-      await unlink(candidate);
-    }
+    await clearPrivateCaptureFiles('audio', 'Audio recovery root');
     this.recoveryChunks = [];
     this.currentBufferFile = null;
     console.log('[AudioCapture] Recovery buffers cleared');

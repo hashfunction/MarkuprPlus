@@ -22,6 +22,7 @@ export {
   getActiveScreenRecordings,
   getFinalizedScreenRecordings,
   getMarkedIssueArtifactStore,
+  clearScreenRecordingArtifacts,
 } from './captureHandlers';
 
 // Re-export session history used by the main entry point

@@ -86,6 +86,7 @@ import {
   getActiveScreenRecordings,
   getFinalizedScreenRecordings,
   getMarkedIssueArtifactStore,
+  clearScreenRecordingArtifacts,
 } from './ipc';
 import { probeCaptureContext } from './capture/CaptureContextProbe';
 import { captureOverlayManager } from './capture/CaptureOverlayManager';
@@ -1858,6 +1859,9 @@ app.whenReady().then(async () => {
     .catch((error) => {
       console.warn('[Main] Failed to clean stale marked screenshot staging:', error);
     });
+  await clearScreenRecordingArtifacts().catch((error) => {
+    console.warn('[Main] Failed to clean stale screen recording staging:', error);
+  });
   if (incompleteSession?.markedIssues) {
     for (const issue of incompleteSession.markedIssues) {
       try {
@@ -2065,13 +2069,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Handle before quit
-app.on('before-quit', () => {
-  isQuitting = true;
-});
+let quitCleanupState: 'idle' | 'running' | 'complete' = 'idle';
 
-// Handle app quit
-app.on('will-quit', async () => {
+async function performApplicationQuitCleanup(): Promise<void> {
   console.log('[Main] App quitting, cleaning up...');
 
   // Stop any active session
@@ -2114,6 +2114,42 @@ app.on('will-quit', async () => {
   await errorHandler.destroy();
 
   console.log('[Main] Cleanup complete');
+}
+
+async function performBoundedApplicationQuitCleanup(timeoutMs = 5_000): Promise<void> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      performApplicationQuitCleanup(),
+      new Promise<void>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error('Application cleanup timed out.')),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+// Electron does not await async will-quit listeners. Delay the first quit once,
+// finish bounded cleanup, then re-enter app.quit() with the barrier released.
+app.on('before-quit', (event) => {
+  isQuitting = true;
+  if (quitCleanupState === 'complete') return;
+  event.preventDefault();
+  if (quitCleanupState === 'running') return;
+
+  quitCleanupState = 'running';
+  void performBoundedApplicationQuitCleanup()
+    .catch((error) => {
+      console.warn('[Main] Application cleanup did not fully finish:', error);
+    })
+    .finally(() => {
+      quitCleanupState = 'complete';
+      app.quit();
+    });
 });
 
 // Handle uncaught exceptions

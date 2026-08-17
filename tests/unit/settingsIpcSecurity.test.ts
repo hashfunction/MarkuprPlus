@@ -12,6 +12,7 @@ import { fileManager } from '../../src/main/output';
 import { audioCapture } from '../../src/main/audio';
 import { sessionController } from '../../src/main/SessionController';
 import { crashRecovery } from '../../src/main/CrashRecovery';
+import { hotkeyManager } from '../../src/main/HotkeyManager';
 import type { IpcContext, SessionActions } from '../../src/main/ipc/types';
 import {
   DEFAULT_SETTINGS,
@@ -221,6 +222,48 @@ describe('settings IPC security boundary', () => {
     expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
   });
 
+  it('routes current and legacy hotkey settings through native state transactions', async () => {
+    const manager = makeManager();
+    const ctx = context(manager);
+    let live = { ...DEFAULT_SETTINGS.hotkeys };
+    vi.spyOn(hotkeyManager, 'getConfig').mockImplementation(() => ({ ...live }));
+    const updateLive = vi.spyOn(hotkeyManager, 'updateConfig').mockImplementation((patch) => {
+      live = { ...live, ...patch };
+      return Object.entries(patch).map(([action, accelerator]) => ({
+        action,
+        accelerator,
+        success: true,
+      })) as never;
+    });
+    registerSettingsHandlers(ctx, {} as SessionActions);
+
+    const currentHotkeys = {
+      ...DEFAULT_SETTINGS.hotkeys,
+      toggleRecording: 'CommandOrControl+Alt+J',
+    };
+    const current = await registeredHandler(IPC_CHANNELS.SETTINGS_SET)(
+      {},
+      'hotkeys',
+      currentHotkeys,
+    );
+    expect(current).toMatchObject({ hotkeys: currentHotkeys });
+    expect(updateLive).toHaveBeenCalledWith(currentHotkeys);
+    expect(live).toEqual(currentHotkeys);
+
+    const legacyHotkeys = {
+      ...currentHotkeys,
+      pauseResume: 'CommandOrControl+Alt+K',
+    };
+    const legacy = await registeredHandler(IPC_CHANNELS.SET_SETTINGS)({}, {
+      hotkeys: legacyHotkeys,
+      hasCompletedOnboarding: false,
+    });
+    expect(legacy).toMatchObject({ hotkeys: legacyHotkeys, hasCompletedOnboarding: false });
+    expect(updateLive).toHaveBeenLastCalledWith(legacyHotkeys);
+    expect(live).toEqual(legacyHotkeys);
+    expect(ctx.setHasCompletedOnboarding).toHaveBeenCalledWith(false);
+  });
+
   it('validates imports atomically and exports only the public projection', async () => {
     const root = await mkdtemp(join(tmpdir(), 'markuprplus-settings-security-'));
     temporaryRoots.push(root);
@@ -264,6 +307,37 @@ describe('settings IPC security boundary', () => {
     const exported = await readFile(exportPath, 'utf8');
     expect(Object.keys(JSON.parse(exported)).sort()).toEqual([...PUBLIC_SETTING_KEYS].sort());
     expect(exported).not.toContain(SECRET_CANARY);
+  });
+
+  it('applies imported hotkeys to native state in the same transaction', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'markuprplus-settings-hotkey-import-'));
+    temporaryRoots.push(root);
+    const importPath = join(root, 'import.json');
+    const manager = makeManager();
+    const requested = {
+      ...DEFAULT_SETTINGS.hotkeys,
+      toggleRecording: 'CommandOrControl+Alt+J',
+    };
+    let live = { ...DEFAULT_SETTINGS.hotkeys };
+    vi.spyOn(hotkeyManager, 'getConfig').mockImplementation(() => ({ ...live }));
+    const updateLive = vi.spyOn(hotkeyManager, 'updateConfig').mockImplementation((patch) => {
+      live = { ...live, ...patch };
+      return Object.entries(patch).map(([action, accelerator]) => ({
+        action,
+        accelerator,
+        success: true,
+      })) as never;
+    });
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: [importPath] });
+    await writeFile(importPath, JSON.stringify({ theme: 'light', hotkeys: requested }));
+
+    const imported = await registeredHandler(IPC_CHANNELS.SETTINGS_IMPORT)({});
+
+    expect(imported).toMatchObject({ theme: 'light', hotkeys: requested });
+    expect(updateLive).toHaveBeenCalledWith(requested);
+    expect(live).toEqual(requested);
+    expect(manager.update).toHaveBeenCalledWith({ theme: 'light', hotkeys: requested });
   });
 
   it('never returns stored key material to the renderer', async () => {
@@ -466,6 +540,63 @@ describe('settings IPC security boundary', () => {
     expect(isApplicationDataClearInProgress()).toBe(false);
     expect(listOwned).toHaveBeenCalledOnce();
     expect(manager.reset).toHaveBeenCalledOnce();
+  });
+
+  it('synchronizes default native hotkeys and onboarding state during Clear All Data', async () => {
+    const customHotkeys = {
+      ...DEFAULT_SETTINGS.hotkeys,
+      toggleRecording: 'CommandOrControl+Alt+J',
+    };
+    const manager = makeManager({
+      outputDirectory: join(tmpdir(), 'markuprplus-clear-runtime'),
+      hotkeys: customHotkeys,
+      hasCompletedOnboarding: true,
+    });
+    let live = { ...customHotkeys };
+    vi.spyOn(hotkeyManager, 'getConfig').mockImplementation(() => ({ ...live }));
+    const updateLive = vi.spyOn(hotkeyManager, 'updateConfig').mockImplementation((patch) => {
+      live = { ...live, ...patch };
+      return Object.entries(patch).map(([action, accelerator]) => ({
+        action,
+        accelerator,
+        success: true,
+      })) as never;
+    });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion').mockResolvedValue([]);
+    vi.spyOn(crashRecovery, 'clearCrashLogs').mockResolvedValue(undefined);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    const ctx = context(manager);
+    registerSettingsHandlers(ctx, {} as SessionActions);
+
+    const result = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+
+    expect(result).toMatchObject({ success: true });
+    expect(updateLive).toHaveBeenCalledWith(DEFAULT_SETTINGS.hotkeys);
+    expect(live).toEqual(DEFAULT_SETTINGS.hotkeys);
+    expect(ctx.setHasCompletedOnboarding).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps a recoverable snapshot until every discard artifact cleanup succeeds', async () => {
+    const manager = makeManager();
+    const sessionId = '123e4567-e89b-42d3-a456-426614174000';
+    vi.spyOn(crashRecovery, 'getIncompleteSession').mockReturnValue({ id: sessionId } as never);
+    const discard = vi.spyOn(crashRecovery, 'discardIncompleteSession')
+      .mockImplementation(() => undefined);
+    vi.spyOn(audioCapture, 'clearRecoveryBuffers').mockResolvedValue(undefined);
+    const cleanupSession = vi.spyOn(getMarkedIssueArtifactStore(), 'cleanupSession')
+      .mockRejectedValueOnce(new Error('staged screenshot is busy'))
+      .mockResolvedValue(undefined);
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const handler = registeredHandler(IPC_CHANNELS.CRASH_RECOVERY_DISCARD);
+
+    await expect(handler({})).resolves.toMatchObject({ success: false });
+    expect(discard).not.toHaveBeenCalled();
+
+    await expect(handler({})).resolves.toEqual({ success: true });
+    expect(cleanupSession).toHaveBeenCalledWith(sessionId);
+    expect(discard).toHaveBeenCalledOnce();
   });
 
   it('updates only the validated public audioDeviceId field', async () => {

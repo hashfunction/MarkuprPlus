@@ -881,7 +881,7 @@ const markuprxApi = {
     /**
      * Discard an incomplete session
      */
-    discard: (): Promise<{ success: boolean }> => {
+    discard: (): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.CRASH_RECOVERY_DISCARD);
     },
 

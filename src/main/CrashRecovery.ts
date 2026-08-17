@@ -230,10 +230,9 @@ export class CrashRecoveryManager {
     // Stop auto-save
     this.stopAutoSave();
 
-    // Clear active session if no current recording
-    if (!this.currentSession) {
-      getCrashRecoveryStore().delete('activeSession');
-    }
+    // A persisted session is an unresolved user choice. Normal completion
+    // clears it through stopTracking(), while Recover/Discard clear it through
+    // their explicit handlers. Merely quitting the dialog must preserve it.
 
     // Mark clean exit
     getCrashRecoveryStore().set('lastCleanExit', true);

@@ -513,6 +513,18 @@ describe('Settings E2E', () => {
       expect(mockKeychain.has(`${LEGACY_KEYTAR_SERVICES[0]}:openai`)).toBe(false);
     });
 
+    it('fails closed instead of activating a stale fallback when keychain reads fail', async () => {
+      storeRefs.secure?._data.set(
+        'openai',
+        Buffer.from('encrypted:stale-encrypted-material').toString('base64'),
+      );
+      vi.mocked(keytar.getPassword).mockRejectedValue(new Error('keychain temporarily unreadable'));
+
+      await expect(settings.getApiKey('openai'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+      expect(storeRefs.secure?._data.has('openai')).toBe(true);
+    });
+
     it('retains legacy plaintext when secure migration cannot be verified', async () => {
       storeRefs.secure?._data.set('plaintext:openai', 'legacy-key-material');
       vi.mocked(keytar.setPassword).mockRejectedValue(new Error('write failed'));

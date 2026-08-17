@@ -452,7 +452,10 @@ export class SettingsManager implements ISettingsManager {
       return await keytar.getPassword(KEYTAR_SERVICE, service);
     } catch {
       console.warn(`[SettingsManager] Could not read keychain credential for ${service}.`);
-      return null;
+      // Absence and unreadability have different authority semantics. Falling
+      // through here could activate an older fallback credential while a
+      // newer keychain entry merely happens to be temporarily unreadable.
+      throw new SecureStorageUnavailableError();
     }
   }
 

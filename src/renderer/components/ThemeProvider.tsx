@@ -195,7 +195,12 @@ export function ThemeProvider({
     };
     const handleSettingsUpdate = (event: Event) => {
       const updateType = (event as CustomEvent<{ type?: string }>).detail?.type;
-      if (updateType === 'appearance' || updateType === 'import' || updateType === 'reset') {
+      if (
+        updateType === 'appearance'
+        || updateType === 'import'
+        || updateType === 'reset'
+        || updateType === 'partial-reset'
+      ) {
         void syncFromSettings();
       }
     };

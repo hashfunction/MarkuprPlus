@@ -120,6 +120,7 @@ export function CrashRecoveryDialog({
 }: CrashRecoveryDialogProps): React.ReactElement {
   const [isRecovering, setIsRecovering] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState<'recover' | 'discard' | null>(null);
   const { colors } = useTheme();
@@ -138,20 +139,24 @@ export function CrashRecoveryDialog({
 
   const handleRecover = useCallback(async () => {
     setIsRecovering(true);
+    setOperationError(null);
     try {
       await onRecover();
     } catch (error) {
       console.error('Recovery failed:', error);
+      setOperationError(error instanceof Error ? error.message : 'Recovery failed.');
       setIsRecovering(false);
     }
   }, [onRecover]);
 
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
+    setOperationError(null);
     try {
       await onDiscard();
     } catch (error) {
       console.error('Discard failed:', error);
+      setOperationError(error instanceof Error ? error.message : 'Discard failed.');
       setIsDiscarding(false);
     }
   }, [onDiscard]);
@@ -479,6 +484,19 @@ export function CrashRecoveryDialog({
           </p>
         </div>
 
+        {operationError && (
+          <p role="alert" style={{
+            margin: '0 0 16px',
+            padding: 10,
+            borderRadius: 8,
+            color: colors.status.error,
+            backgroundColor: colors.status.errorSubtle,
+            fontSize: 12,
+          }}>
+            {operationError}
+          </p>
+        )}
+
         {/* Actions */}
         <div className="ff-contained-dialog__actions" style={{ display: 'flex', gap: 12 }}>
           <button
@@ -659,7 +677,10 @@ export function useCrashRecovery(): UseCrashRecoveryReturn {
   };
 
   const discardSession = async () => {
-    await window.markuprx?.crashRecovery.discard();
+    const result = await window.markuprx?.crashRecovery.discard();
+    if (!result?.success) {
+      throw new Error(result?.error || 'Recovery artifacts could not be removed.');
+    }
     setIncompleteSession(null);
   };
 

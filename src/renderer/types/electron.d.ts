@@ -351,7 +351,7 @@ interface CrashRecoveryAPI {
     reviewSession?: ReviewSession;
     error?: string;
   }>;
-  discard: () => Promise<{ success: boolean }>;
+  discard: () => Promise<{ success: boolean; error?: string }>;
   getLogs: (limit?: number) => Promise<Array<{
     timestamp: string;
     error: { name: string; message: string; stack?: string };

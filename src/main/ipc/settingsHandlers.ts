@@ -63,6 +63,51 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function applyHotkeyTransaction(
+  requested: Partial<HotkeyConfig>,
+  persist: (liveConfig: HotkeyConfig) => PublicSettings,
+  requireEveryRegistration = false,
+): { config: HotkeyConfig; results: ReturnType<typeof hotkeyManager.updateConfig>; settings: PublicSettings } {
+  const previousConfig = hotkeyManager.getConfig();
+  let results: ReturnType<typeof hotkeyManager.updateConfig> = [];
+
+  try {
+    results = hotkeyManager.updateConfig(requested);
+    if (requireEveryRegistration && results.some((result) => !result.success)) {
+      throw new Error('One or more imported hotkeys could not be registered.');
+    }
+    const updatedConfig = hotkeyManager.getConfig();
+    const settings = persist(updatedConfig);
+    if (!hotkeyConfigsEqual(settings.hotkeys, updatedConfig)) {
+      throw new Error('Stored hotkey settings did not match the registered configuration.');
+    }
+    return { config: updatedConfig, results, settings };
+  } catch (persistenceError) {
+    const rollbackResults = hotkeyManager.updateConfig(previousConfig);
+    const rolledBackConfig = hotkeyManager.getConfig();
+    const rollbackFailed = rollbackResults.some((result) => !result.success) ||
+      !hotkeyConfigsEqual(rolledBackConfig, previousConfig);
+
+    if (rollbackFailed) {
+      console.error('[Main] Hotkey rollback failed; live state may differ.', {
+        persistenceError,
+        rollbackResults,
+        previousConfig,
+        liveConfig: rolledBackConfig,
+      });
+      throw new Error(
+        `Hotkey persistence failed (${errorMessage(persistenceError)}); ` +
+        'rollback failed and live state may differ.'
+      );
+    }
+
+    throw new Error(
+      `Failed to persist hotkey settings: ${errorMessage(persistenceError)}. ` +
+      'Live registration was rolled back.'
+    );
+  }
+}
+
 function shouldInjectHotkeyPersistenceFailure(): boolean {
   return isElectronTestHarnessAllowed({
     requested:
@@ -231,7 +276,17 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       const updates = { [key]: structuredClone(value) } as Partial<PublicSettings>;
       const manager = getSettingsManager();
       if (!manager) throw new Error('Settings are unavailable.');
-      return projectPublicSettings(manager.update(updates));
+      const settings = key === 'hotkeys'
+        ? applyHotkeyTransaction(
+            value as HotkeyConfig,
+            (liveHotkeys) => manager.update({ hotkeys: liveHotkeys }),
+            true,
+          ).settings
+        : manager.update(updates);
+      if (key === 'hasCompletedOnboarding') {
+        setHasCompletedOnboarding(value as boolean);
+      }
+      return projectPublicSettings(settings);
     }
   );
 
@@ -389,10 +444,32 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         addFailure({ kind: 'recovery' });
       }
 
+      let settingsReset = false;
       try {
         settingsManager.reset();
+        settingsReset = true;
+        setHasCompletedOnboarding(false);
       } catch {
         addFailure({ kind: 'settings' });
+      }
+
+      if (settingsReset) {
+        try {
+          const results = hotkeyManager.updateConfig(DEFAULT_SETTINGS.hotkeys);
+          const liveHotkeys = hotkeyManager.getConfig();
+          const persisted = settingsManager.update({ hotkeys: liveHotkeys });
+          if (results.some((result) => !result.success)
+            || !hotkeyConfigsEqual(persisted.hotkeys, liveHotkeys)) {
+            addFailure({ kind: 'settings' });
+          }
+        } catch {
+          addFailure({ kind: 'settings' });
+          try {
+            settingsManager.update({ hotkeys: hotkeyManager.getConfig() });
+          } catch {
+            addFailure({ kind: 'settings' });
+          }
+        }
       }
 
       if (failures.length > 0 && outputDirectory) {
@@ -469,9 +546,18 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         properties: ['openFile'],
         filters: [{ name: 'JSON', extensions: ['json'] }],
       };
-      const result = mainWindow
-        ? await dialog.showOpenDialog(mainWindow, options)
-        : await dialog.showOpenDialog(options);
+      const testImportPath = electronTestOverride('MARKUPRX_E2E_SETTINGS_IMPORT_PATH');
+      const testOutputRoot = electronTestOverride('MARKUPRX_E2E_OUTPUT_ROOT');
+      const safeTestImportPath = testImportPath && testOutputRoot
+        && isAbsolute(testImportPath)
+        && isPathInside(dirname(testOutputRoot), testImportPath)
+        ? testImportPath
+        : null;
+      const result = safeTestImportPath
+        ? { canceled: false, filePaths: [safeTestImportPath] }
+        : mainWindow
+          ? await dialog.showOpenDialog(mainWindow, options)
+          : await dialog.showOpenDialog(options);
 
       if (result.canceled || result.filePaths.length === 0) {
         return null;
@@ -485,7 +571,20 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       }
 
       const sanitized = parseSettingsImport(parsed);
-      return projectPublicSettings(settingsManager.update(sanitized));
+      const imported = sanitized.hotkeys
+        ? applyHotkeyTransaction(
+            sanitized.hotkeys,
+            (liveHotkeys) => settingsManager.update({
+              ...sanitized,
+              hotkeys: liveHotkeys,
+            }),
+            true,
+          ).settings
+        : settingsManager.update(sanitized);
+      if (sanitized.hasCompletedOnboarding !== undefined) {
+        setHasCompletedOnboarding(sanitized.hasCompletedOnboarding);
+      }
+      return projectPublicSettings(imported);
     } catch {
       console.error('[Main] Settings import was rejected.');
       return null;
@@ -506,15 +605,17 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     }
     const manager = getSettingsManager();
     if (!manager) throw new Error('Settings are unavailable.');
-    const settings = projectPublicSettings(manager.update(typedSettings));
+    const updated = typedSettings.hotkeys
+      ? applyHotkeyTransaction(
+          typedSettings.hotkeys,
+          (liveHotkeys) => manager.update({ ...typedSettings, hotkeys: liveHotkeys }),
+          true,
+        ).settings
+      : manager.update(typedSettings);
+    const settings = projectPublicSettings(updated);
 
-    if (typedSettings.hotkeys) {
-      const results = hotkeyManager.updateConfig(typedSettings.hotkeys);
-      console.log('[Main] Hotkeys updated:', results);
-    }
-
-    if (typedSettings.hasCompletedOnboarding) {
-      setHasCompletedOnboarding(true);
+    if (typedSettings.hasCompletedOnboarding !== undefined) {
+      setHasCompletedOnboarding(typedSettings.hasCompletedOnboarding);
     }
 
     return settings;
@@ -653,50 +754,14 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       } catch {
         throw new Error('Invalid hotkey configuration.');
       }
-      const previousConfig = hotkeyManager.getConfig();
-      let results: ReturnType<typeof hotkeyManager.updateConfig> = [];
-
-      try {
-        results = hotkeyManager.updateConfig(validatedConfig);
-        const updatedConfig = hotkeyManager.getConfig();
+      return applyHotkeyTransaction(validatedConfig, (updatedConfig) => {
         if (shouldInjectHotkeyPersistenceFailure()) {
           throw new Error('Injected hotkey persistence failure after registration');
         }
-
         const settingsManager = getSettingsManager();
-        if (!settingsManager) {
-          throw new Error('Settings manager is unavailable.');
-        }
-        const persisted = settingsManager.update({ hotkeys: updatedConfig });
-        if (!hotkeyConfigsEqual(persisted.hotkeys, updatedConfig)) {
-          throw new Error('Stored hotkey settings did not match the registered configuration.');
-        }
-      } catch (persistenceError) {
-        const rollbackResults = hotkeyManager.updateConfig(previousConfig);
-        const rolledBackConfig = hotkeyManager.getConfig();
-        const rollbackFailed = rollbackResults.some((result) => !result.success) ||
-          !hotkeyConfigsEqual(rolledBackConfig, previousConfig);
-
-        if (rollbackFailed) {
-          console.error('[Main] Hotkey rollback failed; live state may differ.', {
-            persistenceError,
-            rollbackResults,
-            previousConfig,
-            liveConfig: rolledBackConfig,
-          });
-          throw new Error(
-            `Hotkey persistence failed (${errorMessage(persistenceError)}); ` +
-            'rollback failed and live state may differ.'
-          );
-        }
-
-        throw new Error(
-          `Failed to persist hotkey settings: ${errorMessage(persistenceError)}. ` +
-          'Live registration was rolled back.'
-        );
-      }
-
-      return { config: hotkeyManager.getConfig(), results };
+        if (!settingsManager) throw new Error('Settings manager is unavailable.');
+        return settingsManager.update({ hotkeys: updatedConfig });
+      });
     }
   );
 
@@ -732,6 +797,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
       try {
       const artifacts = getMarkedIssueArtifactStore();
+      await artifacts.migrateLegacySession(session.id);
       const recovered = await saveRecoveredSession(session, {
         saveSession: (controllerSession, document) =>
           fileManager.saveSession(controllerSession, document),
@@ -781,7 +847,23 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     return operation;
   });
 
-  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_DISCARD, () => {
+  ipcMain.handle(IPC_CHANNELS.CRASH_RECOVERY_DISCARD, async () => {
+    const session = crashRecovery.getIncompleteSession();
+    if (!session) return { success: true };
+
+    const results = await Promise.allSettled([
+      audioCapture.clearRecoveryBuffers(),
+      getMarkedIssueArtifactStore().cleanupSession(session.id),
+      clearScreenRecordingArtifacts(),
+      clearLegacyCaptureArtifacts(),
+    ]);
+    if (results.some((result) => result.status === 'rejected')) {
+      return {
+        success: false,
+        error: 'Some recovery artifacts could not be removed. Retry Discard.',
+      };
+    }
+
     crashRecovery.discardIncompleteSession();
     return { success: true };
   });

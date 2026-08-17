@@ -150,6 +150,29 @@ describe('MarkedIssueArtifactStore', () => {
     ]);
   });
 
+  it('migrates a previous-version staged candidate before recovery promotion', async () => {
+    const root = await temporaryRoot();
+    const staging = join(root, 'staging');
+    const legacy = join(root, 'legacy-marked');
+    const legacySession = join(legacy, SESSION_ID);
+    await mkdir(legacySession, { recursive: true });
+    await writeFile(join(legacySession, 'candidate-7.png'), PNG);
+    const store = new MarkedIssueArtifactStore(staging, legacy);
+
+    await store.migrateLegacySession(SESSION_ID);
+    store.markCommitted(SESSION_ID, 7, 1);
+    const [promoted] = await store.promoteIssues(
+      SESSION_ID,
+      [issue(1, 7)],
+      join(root, 'output', SESSION_ID),
+    );
+
+    expect(promoted.screenshotPath).toBe('screenshots/marked-issue-001.png');
+    expect(new Uint8Array(await readFile(join(root, 'output', SESSION_ID, promoted.screenshotPath))))
+      .toEqual(PNG);
+    await expect(lstat(legacySession)).rejects.toThrow();
+  });
+
   it('leaves a missing candidate for video fallback without dropping the issue', async () => {
     const root = await temporaryRoot();
     const store = new MarkedIssueArtifactStore(join(root, 'staging'));
@@ -215,7 +238,7 @@ describe('MarkedIssueArtifactStore', () => {
     expect((await lstat(staging)).isSymbolicLink()).toBe(true);
   });
 
-  it('rejects session directories containing symlinks and preserves unrelated entries', async () => {
+  it('rejects session directories containing symlinks while clearing later app-owned entries', async () => {
     const root = await temporaryRoot();
     const staging = join(root, 'staging');
     const sessionDir = join(staging, SESSION_ID);
@@ -232,8 +255,8 @@ describe('MarkedIssueArtifactStore', () => {
 
     expect((await lstat(join(sessionDir, 'candidate-1.png'))).isSymbolicLink()).toBe(true);
     await expect(readFile(join(external, 'keep.txt'), 'utf8')).resolves.toBe('keep');
-    await expect(stat(join(staging, 'unrelated-cache'))).resolves.toBeDefined();
-    await expect(readFile(join(staging, 'README.txt'), 'utf8')).resolves.toBe('unrelated');
+    await expect(stat(join(staging, 'unrelated-cache'))).rejects.toThrow();
+    await expect(readFile(join(staging, 'README.txt'), 'utf8')).rejects.toThrow();
   });
 
   it('rejects a non-directory staging root', async () => {

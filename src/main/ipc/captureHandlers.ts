@@ -5,7 +5,7 @@
  * persisted screen recording (start/chunk/stop), and audio device management.
  */
 
-import { ipcMain, desktopCapturer } from 'electron';
+import { ipcMain, desktopCapturer, app } from 'electron';
 import * as fs from 'fs/promises';
 import { join } from 'path';
 import { sessionController } from '../SessionController';
@@ -27,6 +27,7 @@ import { probeCaptureContext } from '../capture/CaptureContextProbe';
 import { captureOverlayManager } from '../capture/CaptureOverlayManager';
 import { MarkedIssueArtifactStore } from '../capture/MarkedIssueArtifactStore';
 import {
+  clearPrivateCaptureFiles,
   ensurePrivateCaptureArea,
   privateCaptureAreaPath,
 } from '../security/PrivateCaptureStorage';
@@ -34,6 +35,7 @@ import { randomUUID } from 'node:crypto';
 
 const markedIssueArtifactStore = new MarkedIssueArtifactStore(
   privateCaptureAreaPath('marked-issues'),
+  join(app.getPath('temp'), 'markuprx-marked-issues'),
 );
 
 export function getMarkedIssueArtifactStore(): MarkedIssueArtifactStore {
@@ -178,8 +180,6 @@ export function getFinalizedScreenRecordings(): Map<string, FinalizedRecordingAr
   return finalizedScreenRecordings;
 }
 
-const RECORDING_ARTIFACT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?\.(?:mov|mp4|webm)$/iu;
-
 /** Remove every app-owned temporary screen recording and surface any failure. */
 export async function clearScreenRecordingArtifacts(): Promise<void> {
   const pendingWrites = [...activeScreenRecordings.values()].map((recording) => recording.writeChain);
@@ -189,17 +189,7 @@ export async function clearScreenRecordingArtifacts(): Promise<void> {
     throw new Error('A screen recording write is still incomplete.');
   }
 
-  const recordingsDir = await ensurePrivateCaptureArea('recordings');
-  const entries = await fs.readdir(recordingsDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!RECORDING_ARTIFACT_PATTERN.test(entry.name)) continue;
-    const candidate = join(recordingsDir, entry.name);
-    const stats = await fs.lstat(candidate);
-    if (!stats.isFile() && !stats.isSymbolicLink()) {
-      throw new Error('Screen recording artifact is not removable.');
-    }
-    await fs.unlink(candidate);
-  }
+  await clearPrivateCaptureFiles('recordings', 'Screen recording root');
   activeScreenRecordings.clear();
   finalizedScreenRecordings.clear();
 }

@@ -27,6 +27,14 @@ function errorCode(error: unknown): string | undefined {
     : undefined;
 }
 
+function throwCollectedErrors(errors: unknown[], message: string): void {
+  if (errors.length === 0) return;
+  const reasons = errors
+    .map((error) => error instanceof Error ? error.message : String(error))
+    .join(' ');
+  throw new AggregateError(errors, `${message} ${reasons}`);
+}
+
 /** Create or verify one real, private directory without following its final component. */
 export async function ensurePrivateDirectory(
   directory: string,
@@ -58,6 +66,35 @@ export async function ensurePrivateCaptureArea(area: PrivateCaptureArea): Promis
   await ensurePrivateDirectory(app.getPath('userData'), 'Application data root');
   await ensurePrivateDirectory(dirname(areaPath), 'Capture recovery root');
   return ensurePrivateDirectory(areaPath, `${area} capture root`);
+}
+
+/**
+ * Remove every selected file/link from an app-owned capture area. Directories
+ * and special entries are reported, but never stop later removable entries
+ * from being attempted.
+ */
+export async function clearPrivateCaptureFiles(
+  area: PrivateCaptureArea,
+  label: string,
+  select: (name: string) => boolean = () => true,
+): Promise<void> {
+  const root = await ensurePrivateCaptureArea(area);
+  const entries = await readdir(root, { withFileTypes: true });
+  const errors: unknown[] = [];
+  for (const entry of entries) {
+    if (!select(entry.name)) continue;
+    const candidate = join(root, entry.name);
+    try {
+      const stats = await lstat(candidate);
+      if (!stats.isFile() && !stats.isSymbolicLink()) {
+        throw new Error(`${label} contains an artifact that is not removable as a file.`);
+      }
+      await unlink(candidate);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') errors.push(error);
+    }
+  }
+  throwCollectedErrors(errors, `${label} could not be fully cleared.`);
 }
 
 async function assertTreeHasNoAliases(directory: string, label: string): Promise<void> {
@@ -133,15 +170,21 @@ async function removeLegacyFiles(
   label: string,
 ): Promise<void> {
   const entries = await readdir(root, { withFileTypes: true });
+  const errors: unknown[] = [];
   for (const entry of entries) {
     if (!pattern.test(entry.name)) continue;
     const candidate = join(root, entry.name);
-    const stats = await lstat(candidate);
-    if (!stats.isFile() && !stats.isSymbolicLink()) {
-      throw new Error(`${label} contains a non-file artifact.`);
+    try {
+      const stats = await lstat(candidate);
+      if (!stats.isFile() && !stats.isSymbolicLink()) {
+        throw new Error(`${label} contains a non-file artifact.`);
+      }
+      await unlink(candidate);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') errors.push(error);
     }
-    await unlink(candidate);
   }
+  throwCollectedErrors(errors, `${label} could not be fully cleared.`);
 }
 
 async function removeLegacyRootIfEmpty(root: string): Promise<void> {
@@ -158,44 +201,52 @@ async function removeLegacyRootIfEmpty(root: string): Promise<void> {
  * are unlinked without following them.
  */
 export async function clearLegacyCaptureArtifacts(): Promise<void> {
-  const audioRoot = await resolveLegacyCaptureRoot('markuprx-audio', 'Legacy audio root');
-  if (audioRoot) {
-    await removeLegacyFiles(audioRoot, /^audio-.+\.raw$/iu, 'Legacy audio root');
-    await removeLegacyRootIfEmpty(audioRoot);
-  }
-
-  const recordingsRoot = await resolveLegacyCaptureRoot(
-    'markuprx-recordings',
-    'Legacy recording root',
+  const operations = [
+    async () => {
+      const root = await resolveLegacyCaptureRoot('markuprx-audio', 'Legacy audio root');
+      if (!root) return;
+      await removeLegacyFiles(root, /^audio-.+\.raw$/iu, 'Legacy audio root');
+      await removeLegacyRootIfEmpty(root);
+    },
+    async () => {
+      const root = await resolveLegacyCaptureRoot(
+        'markuprx-recordings',
+        'Legacy recording root',
+      );
+      if (!root) return;
+      await removeLegacyFiles(root, LEGACY_RECORDING_PATTERN, 'Legacy recording root');
+      await removeLegacyRootIfEmpty(root);
+    },
+    async () => {
+      const root = await resolveLegacyCaptureRoot(
+        'markuprx-marked-issues',
+        'Legacy marked screenshot root',
+      );
+      if (!root) return;
+      const entries = await readdir(root, { withFileTypes: true });
+      const errors: unknown[] = [];
+      for (const entry of entries) {
+        if (!LEGACY_SESSION_ID_PATTERN.test(entry.name)) continue;
+        const candidate = join(root, entry.name);
+        try {
+          const stats = await lstat(candidate);
+          if (stats.isSymbolicLink()) await unlink(candidate);
+          else if (stats.isDirectory()) {
+            await removePrivateDirectoryTree(root, candidate, 'Legacy marked screenshot session');
+          } else {
+            throw new Error('Legacy marked screenshot root contains an invalid session artifact.');
+          }
+        } catch (error) {
+          if (errorCode(error) !== 'ENOENT') errors.push(error);
+        }
+      }
+      await removeLegacyRootIfEmpty(root);
+      throwCollectedErrors(errors, 'Legacy marked screenshots could not be fully cleared.');
+    },
+  ];
+  const results = await Promise.allSettled(operations.map((operation) => operation()));
+  throwCollectedErrors(
+    results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []),
+    'Legacy capture artifacts could not be fully cleared.',
   );
-  if (recordingsRoot) {
-    await removeLegacyFiles(
-      recordingsRoot,
-      LEGACY_RECORDING_PATTERN,
-      'Legacy recording root',
-    );
-    await removeLegacyRootIfEmpty(recordingsRoot);
-  }
-
-  const markedRoot = await resolveLegacyCaptureRoot(
-    'markuprx-marked-issues',
-    'Legacy marked screenshot root',
-  );
-  if (!markedRoot) return;
-
-  const entries = await readdir(markedRoot, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!LEGACY_SESSION_ID_PATTERN.test(entry.name)) continue;
-    const candidate = join(markedRoot, entry.name);
-    const stats = await lstat(candidate);
-    if (stats.isSymbolicLink()) {
-      await unlink(candidate);
-      continue;
-    }
-    if (!stats.isDirectory()) {
-      throw new Error('Legacy marked screenshot root contains an invalid session artifact.');
-    }
-    await removePrivateDirectoryTree(markedRoot, candidate, 'Legacy marked screenshot session');
-  }
-  await removeLegacyRootIfEmpty(markedRoot);
 }

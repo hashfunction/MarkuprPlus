@@ -526,6 +526,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     try {
       const result = await window.markuprx.settings.clearAllData();
       setSettings(result.settings);
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+        detail: { type: result.success ? 'reset' : 'partial-reset' },
+      }));
       if (!result.success) {
         const count = result.failures.length;
         const message = `Clear All Data is incomplete. ${count} ${count === 1 ? 'item needs' : 'items need'} attention. Retry when ready.`;
@@ -550,7 +553,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setAnalysisProviderStatuses([]);
       setSaveError(null);
       setSaveStatus('saved');
-      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'reset' } }));
     } catch {
       const message = 'Clear All Data could not finish. Nothing is reported as complete; retry when ready.';
       setClearDataError(message);

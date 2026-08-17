@@ -171,8 +171,13 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   useEffect(() => {
-    const handleSettingsUpdated = () => {
-      void refreshSettings();
+    const handleSettingsUpdated = (event: Event) => {
+      const updateType = (event as CustomEvent<{ type?: string }>).detail?.type;
+      void refreshSettings().then((loadedSettings) => {
+        if (updateType === 'reset' && loadedSettings && !loadedSettings.hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
+      });
       void refreshAnalysisProviderStatus();
     };
     window.addEventListener('markuprx:settings-updated', handleSettingsUpdated);

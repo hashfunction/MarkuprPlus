@@ -23,6 +23,7 @@ import {
   clearScreenRecordingArtifacts,
   registerCaptureHandlers,
 } from '../../src/main/ipc/captureHandlers';
+import { MarkedIssueArtifactStore } from '../../src/main/capture/MarkedIssueArtifactStore';
 import { sessionController } from '../../src/main/SessionController';
 import { IPC_CHANNELS } from '../../src/shared/types';
 
@@ -101,6 +102,19 @@ describe('private capture storage', () => {
     await expect(stat(blocker)).resolves.toBeDefined();
   });
 
+  it('removes every app-owned audio artifact and continues after an early blocker', async () => {
+    await temporaryUserData();
+    const audio = await ensurePrivateCaptureArea('audio');
+    const blocker = join(audio, 'audio-000.raw');
+    const orphan = join(audio, 'orphan-narration.bin');
+    await mkdir(blocker);
+    await writeFile(orphan, 'private narration');
+    const service = new AudioCaptureServiceImpl();
+
+    await expect(service.clearRecoveryBuffers()).rejects.toThrow();
+    await expect(lstat(orphan)).rejects.toThrow();
+  });
+
   it('clears recording links without following them and reports non-file blockers', async () => {
     const userData = await temporaryUserData();
     const recordings = await ensurePrivateCaptureArea('recordings');
@@ -119,6 +133,30 @@ describe('private capture storage', () => {
     await mkdir(blocker);
     await expect(clearScreenRecordingArtifacts()).rejects.toThrow(/not removable/i);
     await expect(stat(blocker)).resolves.toBeDefined();
+  });
+
+  it('removes unrecognized artifacts from the private recording root', async () => {
+    await temporaryUserData();
+    const recordings = await ensurePrivateCaptureArea('recordings');
+    const orphan = join(recordings, 'orphan-recording.bin');
+    await writeFile(orphan, 'private recording');
+
+    await expect(clearScreenRecordingArtifacts()).resolves.toBeUndefined();
+    await expect(lstat(orphan)).rejects.toThrow();
+  });
+
+  it('removes unrecognized sessions from the private marked screenshot root', async () => {
+    const userData = await temporaryUserData();
+    const marked = await ensurePrivateCaptureArea('marked-issues');
+    const orphan = join(marked, 'orphan-session');
+    await mkdir(orphan);
+    await writeFile(join(orphan, 'candidate.png'), 'private screenshot');
+    const store = new MarkedIssueArtifactStore(
+      join(userData, 'capture-recovery', 'marked-issues'),
+    );
+
+    await expect(store.cleanupStaleSessions([])).resolves.toBeUndefined();
+    await expect(lstat(orphan)).rejects.toThrow();
   });
 
   it('creates screen recordings exclusively with private file permissions', async () => {
@@ -195,8 +233,13 @@ describe('private capture storage', () => {
     ]);
     await writeFile(join(external, 'keep.raw'), 'external');
     await symlink(external, join(legacyTemp, 'markuprx-audio'), 'dir');
+    const recordings = join(legacyTemp, 'markuprx-recordings');
+    const laterArtifact = join(recordings, '123e4567-e89b-42d3-a456-426614174000.webm');
+    await mkdir(recordings);
+    await writeFile(laterArtifact, 'legacy video');
 
     await expect(clearLegacyCaptureArtifacts()).rejects.toThrow(/legacy audio root/i);
     await expect(readFile(join(external, 'keep.raw'), 'utf8')).resolves.toBe('external');
+    await expect(lstat(laterArtifact)).rejects.toThrow();
   });
 });

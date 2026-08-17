@@ -4,7 +4,9 @@ import {
   chmod,
   lstat,
   mkdir,
+  readFile,
   readdir,
+  realpath,
   rename,
   rm,
   writeFile,
@@ -18,6 +20,7 @@ import {
   ensurePrivateDirectory,
   removePrivateDirectoryTree,
 } from '../security/PrivateCaptureStorage';
+import { isPathInside } from '../security/pathContainment';
 
 const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -75,7 +78,10 @@ export class MarkedIssueArtifactStore {
   private readonly sessionChains = new Map<string, Promise<void>>();
   private readonly committedRevisions = new Map<string, Map<number, number>>();
 
-  constructor(private readonly stagingRoot: string) {}
+  constructor(
+    private readonly stagingRoot: string,
+    private readonly legacyStagingRoot?: string,
+  ) {}
 
   private async ensureStagingRoot(): Promise<string> {
     await ensurePrivateDirectory(dirname(this.stagingRoot), 'Capture recovery root');
@@ -96,6 +102,72 @@ export class MarkedIssueArtifactStore {
     }
     await chmod(sessionDir, 0o700);
     return sessionDir;
+  }
+
+  /** Move previous-version staged evidence into the private store on demand. */
+  async migrateLegacySession(sessionId: string): Promise<void> {
+    validateSessionId(sessionId);
+    if (!this.legacyStagingRoot) return;
+
+    let rootStats;
+    try {
+      rootStats = await lstat(this.legacyStagingRoot);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+    if (rootStats.isSymbolicLink() || !rootStats.isDirectory()) {
+      throw new Error('Legacy marked screenshot root is not a real directory.');
+    }
+    if (typeof process.getuid === 'function' && rootStats.uid !== process.getuid()) {
+      throw new Error('Legacy marked screenshot root is not owned by the current user.');
+    }
+
+    const legacyRoot = await realpath(this.legacyStagingRoot);
+    const legacySession = join(legacyRoot, sessionId);
+    let sessionStats;
+    try {
+      sessionStats = await lstat(legacySession);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+    if (sessionStats.isSymbolicLink() || !sessionStats.isDirectory()) {
+      throw new Error('Legacy marked screenshot session is not a real directory.');
+    }
+    if (typeof process.getuid === 'function' && sessionStats.uid !== process.getuid()) {
+      throw new Error('Legacy marked screenshot session is not owned by the current user.');
+    }
+    const realSession = await realpath(legacySession);
+    if (!isPathInside(legacyRoot, realSession)) {
+      throw new Error('Legacy marked screenshot session escapes its root.');
+    }
+
+    const entries = await readdir(realSession, { withFileTypes: true });
+    for (const entry of entries) {
+      const match = CANDIDATE_PATTERN.exec(entry.name);
+      if (!match) continue;
+      const source = join(realSession, entry.name);
+      const stats = await lstat(source);
+      if (stats.isSymbolicLink() || !stats.isFile()) {
+        throw new Error('Legacy marked screenshot candidate is not a regular file.');
+      }
+      if (typeof process.getuid === 'function' && stats.uid !== process.getuid()) {
+        throw new Error('Legacy marked screenshot candidate is not owned by the current user.');
+      }
+      if (stats.size > MAX_MARKED_SCREENSHOT_BYTES) {
+        throw new Error('Legacy marked screenshot exceeds the size limit.');
+      }
+      const bytes = new Uint8Array(await readFile(source));
+      validatePng(bytes);
+      await this.stageCandidate(sessionId, Number(match[1]), bytes);
+    }
+
+    await removePrivateDirectoryTree(
+      legacyRoot,
+      realSession,
+      'Legacy marked screenshot session',
+    );
   }
 
   async stageCandidate(
@@ -226,14 +298,32 @@ export class MarkedIssueArtifactStore {
     await Promise.allSettled([...this.sessionChains.values()]);
     const root = await this.ensureStagingRoot();
     const entries = await readdir(root, { withFileTypes: true });
+    const errors: unknown[] = [];
     for (const entry of entries) {
-      if (!SESSION_ID_PATTERN.test(entry.name) || preserved.has(entry.name)) continue;
-      await removePrivateDirectoryTree(
-        root,
-        join(root, entry.name),
-        'Marked screenshot session',
+      if (preserved.has(entry.name)) continue;
+      const candidate = join(root, entry.name);
+      try {
+        const stats = await lstat(candidate);
+        if (stats.isSymbolicLink() || stats.isFile()) {
+          await rm(candidate, { force: true });
+        } else if (stats.isDirectory()) {
+          await removePrivateDirectoryTree(root, candidate, 'Marked screenshot session');
+        } else {
+          throw new Error('Marked screenshot root contains an unsupported artifact.');
+        }
+        if (SESSION_ID_PATTERN.test(entry.name)) this.committedRevisions.delete(entry.name);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') errors.push(error);
+      }
+    }
+    if (errors.length > 0) {
+      const reasons = errors
+        .map((error) => error instanceof Error ? error.message : String(error))
+        .join(' ');
+      throw new AggregateError(
+        errors,
+        `Marked screenshot staging could not be fully cleared. ${reasons}`,
       );
-      this.committedRevisions.delete(entry.name);
     }
   }
 
