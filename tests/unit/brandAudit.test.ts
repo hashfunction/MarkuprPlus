@@ -105,6 +105,17 @@ describe('repository brand audit', () => {
     })).toContain('electron-builder.yml:1: legacy packaging display name');
   });
 
+  it.each(['MarkuprX', 'MarkuprPlus'])(
+    'rejects a hardcoded %s Windows publisher instead of guessing the certificate subject',
+    async (publisherName) => {
+      expect(await scan({
+        'electron-builder.yml': `publisherName: "${publisherName}"`,
+      })).toContain(
+        'electron-builder.yml:1: publisherName must derive from the signing certificate',
+      );
+    },
+  );
+
   it('rejects the legacy public wordmark in active public documentation', async () => {
     const legacyWordmark = ['mark', 'upr'].join('');
 

@@ -46,7 +46,6 @@ describe('public packaging identity', () => {
         artifactName: 'markuprplus-${version}-${arch}.dmg',
       },
       win: {
-        publisherName: 'MarkuprX',
         fileAssociations: [{
           ext: 'markuprx',
           name: 'MarkuprPlus Session',
@@ -59,6 +58,11 @@ describe('public packaging identity', () => {
       },
       linux: { icon: 'build/icon.png' },
     });
+    expect((builderConfig as { win: Record<string, unknown> }).win)
+      .not.toHaveProperty('publisherName');
+    expect(builder).toContain(
+      '# Publisher identity is derived from the signing certificate common name.',
+    );
     expect(builder).not.toContain('- "**/*"');
   });
 
@@ -89,10 +93,7 @@ describe('public packaging identity', () => {
       'scripts/verify-brand.mjs',
       'scripts/verify-package.mjs',
     ];
-    const stale = activePackagingFiles.filter((file) => {
-      const content = read(file).replace('publisherName: "MarkuprX"', '');
-      return content.includes('MarkuprX');
-    });
+    const stale = activePackagingFiles.filter((file) => read(file).includes('MarkuprX'));
 
     expect(stale).toEqual([]);
   });
@@ -112,6 +113,10 @@ describe('public packaging identity', () => {
     );
     expect(changelog).toContain(
       '- Added a portrait-first taskbar popover experience and new README screenshot gallery.',
+    );
+    expect(changelog).toContain(
+      '- Windows publisher identity is derived from the signing certificate; '
+      + 'signed releases must verify the actual certificate subject.',
     );
     expect(changelog.indexOf('## Unreleased — MarkuprPlus')).toBeLessThan(
       changelog.indexOf('## 3.0.0'),

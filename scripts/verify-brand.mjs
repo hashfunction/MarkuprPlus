@@ -62,11 +62,13 @@ export function findBrandViolations(files, readFile, packageJson) {
     const lines = content.split(/\r?\n/);
     lines.forEach((line, index) => {
       if (previousBrand.test(line)) violations.push(`${file}:${index + 1}`);
-      if (activePackagingFiles.has(file)
-        && line.includes(legacyDisplayName)
-        && !(file === 'electron-builder.yml'
-          && line.trim() === `publisherName: "${legacyDisplayName}"`)) {
+      if (activePackagingFiles.has(file) && line.includes(legacyDisplayName)) {
         violations.push(`${file}:${index + 1}: legacy packaging display name`);
+      }
+      if (file === 'electron-builder.yml' && /^\s*publisherName\s*:/.test(line)) {
+        violations.push(
+          `${file}:${index + 1}: publisherName must derive from the signing certificate`,
+        );
       }
       for (const forbiddenReference of forbiddenRepositoryReferences) {
         if (forbiddenReference.test(line)) {

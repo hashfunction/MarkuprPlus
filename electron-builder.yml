@@ -100,8 +100,8 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
-  # Authenticode certificate subject; keep aligned with the actual signing identity.
-  publisherName: "MarkuprX"
+  # Publisher identity is derived from the signing certificate common name.
+  # Signed release validation must inspect the actual Authenticode certificate subject.
   verifyUpdateCodeSignature: false
   # File associations
   fileAssociations:

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rebranded the public desktop experience and documentation as MarkuprPlus.
 - Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.
 - Added a portrait-first taskbar popover experience and new README screenshot gallery.
+- Windows publisher identity is derived from the signing certificate; signed releases must verify the actual certificate subject.
 
 ### Fixed
 
