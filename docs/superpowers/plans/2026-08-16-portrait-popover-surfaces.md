@@ -17,9 +17,9 @@
 - Preserve the current MarkuprX visual tokens and add no runtime dependency.
 - Top-level surfaces are not modal; only transient decisions use aria-modal and focus trapping.
 - Keep left-click tray behavior unchanged.
-- Help opens https://markuprx.com.
-- Contact opens mailto:hello@markuprx.com?subject=MarkuprX%20Support.
-- Use Quit MarkuprX on macOS and Exit MarkuprX on Windows/Linux.
+- Help opens https://markuprplus.com.
+- Contact opens https://github.com/hashfunction/MarkuprPlus/issues/new.
+- Use Quit MarkuprPlus on macOS and Exit MarkuprPlus on Windows/Linux.
 - Write a failing focused test before each production behavior change.
 - Commit and push each independently passing task to origin/main.
 
@@ -1739,13 +1739,13 @@ Expected: PASS.
 
         clickable(template, 'Help')();
         clickable(template, 'Contact')();
-        clickable(template, 'Quit MarkuprX')();
+        clickable(template, 'Quit MarkuprPlus')();
         await Promise.resolve();
 
         expect(openExternal).toHaveBeenNthCalledWith(1, HELP_URL);
         expect(openExternal).toHaveBeenNthCalledWith(2, CONTACT_URL);
         expect(quit).toHaveBeenCalledOnce();
-        expect(template.some((item) => item.label === 'Exit MarkuprX')).toBe(false);
+        expect(template.some((item) => item.label === 'Exit MarkuprPlus')).toBe(false);
       });
 
       it('uses Exit on Windows and disables recording while processing', () => {
@@ -1761,7 +1761,7 @@ Expected: PASS.
           },
         });
         expect(template.find((item) => item.label === 'Start Recording')?.enabled).toBe(false);
-        expect(template.some((item) => item.label === 'Exit MarkuprX')).toBe(true);
+        expect(template.some((item) => item.label === 'Exit MarkuprPlus')).toBe(true);
       });
 
       it('reports external launch failures without throwing', async () => {
@@ -1795,9 +1795,9 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
     import type { TrayState } from '../shared/types';
 
     export const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
-    export const HELP_URL = 'https://markuprx.com';
+    export const HELP_URL = 'https://markuprplus.com';
     export const CONTACT_URL =
-      'mailto:hello@markuprx.com?subject=MarkuprX%20Support';
+      'https://github.com/hashfunction/MarkuprPlus/issues/new';
 
     export interface TrayMenuActions {
       toggleRecording: () => void;
@@ -1862,10 +1862,10 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
           click: externalAction('contact', CONTACT_URL, actions),
         },
         { type: 'separator' },
-        { label: 'About MarkuprX', role: 'about' },
+        { label: 'About MarkuprPlus', role: 'about' },
         { type: 'separator' },
         {
-          label: platform === 'darwin' ? 'Quit MarkuprX' : 'Exit MarkuprX',
+          label: platform === 'darwin' ? 'Quit MarkuprPlus' : 'Exit MarkuprPlus',
           accelerator: 'CmdOrCtrl+Q',
           click: actions.quit,
         },
@@ -2077,7 +2077,7 @@ Run: npm run test:package-smoke
 
 Expected: packaged MarkuprX launches and exits successfully.
 
-Manually launch the packaged app, left-click the tray icon, visit every portrait surface, right-click the tray icon, open Help and Contact, then choose Quit MarkuprX. Confirm Help reaches markuprx.com, Contact opens the addressed support draft, and the app exits.
+Manually launch the packaged app, left-click the tray icon, visit every portrait surface, right-click the tray icon, open Help and Contact, then choose Quit MarkuprPlus. Confirm Help reaches markuprplus.com, Contact opens the MarkuprPlus GitHub issue form, and the app exits.
 
 - [ ] **Step 6: Inspect the final diff and commit verification assets**
 
