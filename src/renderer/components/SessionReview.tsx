@@ -915,7 +915,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
       <PortraitSurface
         title="Review Editor"
         titleId="markuprx-review-title"
-        backLabel="Back to report"
+        backLabel={`Back to ${PUBLIC_BRAND_NAME}`}
         onBack={onClose}
         subtitle={hasChanges ? 'Unsaved changes' : `${items.length} feedback items`}
         className="ff-review-surface"

@@ -7,8 +7,10 @@ import {
   type Page,
 } from '@playwright/test';
 import axe from 'axe-core';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import { utils as playwrightCoreUtils } from 'playwright-core/lib/coreBundle';
 import sharp from 'sharp';
 import {
   createElectronHarnessEnvironment,
@@ -16,6 +18,29 @@ import {
 } from '../fixtures/electronHarness';
 
 const applicationRoot = resolve(import.meta.dirname, '../..');
+const publicScreenshotRoot = join(applicationRoot, 'docs', 'images', 'markuprplus');
+const publicScreenshotProofRoot = join(
+  applicationRoot,
+  'test-results',
+  'playwright',
+  'public-screenshot-captures',
+);
+const publicScreenshotNames = [
+  'settings.png',
+  'session-history.png',
+  'keyboard-shortcuts.png',
+  'review-editor.png',
+  'onboarding.png',
+] as const;
+const updatePublicScreenshots = process.env.MARKUPRPLUS_UPDATE_PUBLIC_SCREENSHOTS === '1';
+
+function pinPublicScreenshotEnvironment(harness: ElectronHarnessEnvironment): void {
+  Object.assign(harness.env, {
+    LANG: 'en_US.UTF-8',
+    LC_ALL: 'en_US.UTF-8',
+    TZ: 'UTC',
+  });
+}
 
 interface InputSequence {
   next(options?: {
@@ -49,8 +74,8 @@ async function launchApplication(
   return { application, mainWindow };
 }
 
-async function expectNoLegacyBrandInVisibleCopy(page: Page): Promise<void> {
-  const publicCopy = await page.evaluate(() => {
+async function visibleAccessibleCopy(page: Page): Promise<string> {
+  return page.evaluate(() => {
     const attributes = [
       'aria-label',
       'aria-description',
@@ -70,7 +95,16 @@ async function expectNoLegacyBrandInVisibleCopy(page: Page): Promise<void> {
         .filter((value): value is string => Boolean(value)));
     return [document.title, document.body.innerText, ...accessibilityCopy].join('\n');
   });
+}
 
+async function expectNoLegacyBrandInVisibleCopy(page: Page): Promise<void> {
+  const publicCopy = await visibleAccessibleCopy(page);
+  expect(publicCopy).not.toContain('MarkuprX');
+}
+
+async function expectMarkuprPlusPublicCopy(page: Page): Promise<void> {
+  const publicCopy = await visibleAccessibleCopy(page);
+  expect(publicCopy).toContain('MarkuprPlus');
   expect(publicCopy).not.toContain('MarkuprX');
 }
 
@@ -241,8 +275,32 @@ async function seedSessionHistory(
   outputRoot: string,
   count: number,
 ): Promise<void> {
+  const fixtures = [
+    ['Account Recovery Flow', 'Clarify the recovery options for locked accounts.'],
+    ['Billing Summary', 'Keep invoice totals aligned with their billing periods.'],
+    ['Notification Preferences', 'Group delivery choices by urgency and channel.'],
+    ['Search Results', 'Keep applied filters visible while results update.'],
+    ['Profile Editor', 'Preserve unsaved profile changes during avatar selection.'],
+    ['Workspace Switcher', 'Make the current workspace easier to identify.'],
+    ['File Upload', 'Explain which file types and sizes are accepted.'],
+    ['Comment Composer', 'Keep formatting controls reachable on smaller screens.'],
+    ['Activity Feed', 'Separate automated events from team comments.'],
+    ['Team Directory', 'Make role and availability details easier to scan.'],
+    ['Dashboard Filters', 'Retain selected filters between dashboard views.'],
+    ['Audit Log', 'Clarify who performed each recorded action.'],
+    ['Report Builder', 'Show the selected date range beside the report title.'],
+    ['Mobile Navigation', 'Keep primary destinations reachable with one hand.'],
+    ['Export Settings', 'Explain the selected file format and destination.'],
+    ['Access Requests', 'Make approval status easier to scan.'],
+    ['Team Invitations', 'Keep role details visible while invitations are pending.'],
+    ['Checkout Preferences', 'Show the final total before the purchase action.'],
+  ] as const;
   for (let index = 0; index < count; index += 1) {
     const ordinal = String(index + 1).padStart(2, '0');
+    const [sourceName, summary] = fixtures[index] ?? [
+      `Product Walkthrough ${ordinal}`,
+      `Review the deterministic product walkthrough ${ordinal}.`,
+    ];
     const sessionDir = join(outputRoot, `portrait-fixture-${ordinal}`);
     await mkdir(sessionDir, { recursive: true });
     await writeFile(
@@ -255,7 +313,7 @@ async function seedSessionHistory(
         screenshotCount: index % 4,
         source: {
           id: `window:portrait:${ordinal}`,
-          name: `Portrait Fixture ${ordinal}`,
+          name: sourceName,
         },
         environment: { os: 'test', version: '1' },
       }),
@@ -263,7 +321,7 @@ async function seedSessionHistory(
     );
     await writeFile(
       join(sessionDir, 'feedback-report.md'),
-      `> Portrait history fixture ${ordinal}\n`,
+      `> ${summary}\n`,
       'utf8',
     );
   }
@@ -877,16 +935,136 @@ async function expectNormalizedPortraitMetrics(
   expect(actionBox!.height).toBeGreaterThanOrEqual(40);
 }
 
-async function expectPortraitScreenshot(
+async function pngPixelDigest(input: Buffer | string): Promise<{
+  digest: string;
+  height: number;
+  width: number;
+}> {
+  const { data, info } = await sharp(input)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return {
+    digest: createHash('sha256').update(data).digest('hex'),
+    height: info.height,
+    width: info.width,
+  };
+}
+
+function expectPerceptuallyIdenticalPng(actual: Buffer, expected: Buffer): void {
+  const comparePng = playwrightCoreUtils.getComparator('image/png');
+  const comparison = comparePng(actual, expected, { maxDiffPixelRatio: 0 });
+  expect(comparison?.errorMessage).toBeUndefined();
+}
+
+async function expectPublicPortraitScreenshot(
   page: Page,
-  filename: string,
-  mask: Locator[] = [],
+  publicFilename: typeof publicScreenshotNames[number],
+  snapshotFilename: string,
+  masks: Array<{ locator: Locator; expectedCount: number }> = [],
 ): Promise<void> {
-  await expect(page).toHaveScreenshot(filename, {
+  for (const { locator, expectedCount } of masks) {
+    await expect(locator).toHaveCount(expectedCount);
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.mouse.move(459, 679);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    await new Promise<void>((resolveFrame) => requestAnimationFrame(() => resolveFrame()));
+    await new Promise<void>((resolveFrame) => requestAnimationFrame(() => resolveFrame()));
+  });
+  await expect.poll(() => page.evaluate(() => document.getAnimations()
+    .filter((animation) => animation.playState === 'running').length)).toBe(0);
+  const focusState = await page.evaluate(() => ({
+    activeElement: document.activeElement?.tagName.toLowerCase() ?? null,
+    focusVisible: Array.from(document.querySelectorAll<HTMLElement>(':focus-visible')).map(
+      (element) => ({
+        ariaLabel: element.getAttribute('aria-label'),
+        className: element.className,
+        tag: element.tagName.toLowerCase(),
+        text: element.textContent?.trim().slice(0, 60) ?? '',
+      }),
+    ),
+  }));
+  expect(focusState).toEqual({ activeElement: 'body', focusVisible: [] });
+  await expectNoHorizontalDocumentOverflow(page);
+  await expectMarkuprPlusPublicCopy(page);
+  const runtime = await page.evaluate(() => ({
+    fontStatus: document.fonts.status,
+    height: innerHeight,
+    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+    reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    scale: visualViewport?.scale ?? 0,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    width: innerWidth,
+  }));
+  expect(runtime).toEqual({
+    fontStatus: 'loaded',
+    height: 680,
+    locale: 'en-US',
+    reducedMotion: true,
+    scale: 1,
+    timeZone: 'UTC',
+    width: 460,
+  });
+
+  const publicCopy = await visibleAccessibleCopy(page);
+  expect(publicCopy).not.toMatch(/markuprx-electron-ui-|\/Users\/[^/\s]+|\/var\/folders\/|[A-Z]:\\Users\\/i);
+  expect(publicCopy).not.toMatch(/\b(?:sk-|ghp_|github_pat_|xox[baprs]-)[A-Za-z0-9_-]{8,}\b/);
+  expect(publicCopy).not.toMatch(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/);
+
+  const screenshot = await page.screenshot({
     animations: 'disabled',
     caret: 'hide',
-    mask,
+    scale: 'css',
+    mask: masks.map(({ locator }) => locator),
+    maskColor: '#e5e7eb',
   });
+  const metadata = await sharp(screenshot).metadata();
+  expect({
+    comments: metadata.comments,
+    exif: metadata.exif,
+    format: metadata.format,
+    height: metadata.height,
+    iptc: metadata.iptc,
+    width: metadata.width,
+    xmp: metadata.xmp,
+  }).toEqual({
+    comments: undefined,
+    exif: undefined,
+    format: 'png',
+    height: 680,
+    iptc: undefined,
+    width: 460,
+    xmp: undefined,
+  });
+  await expect(screenshot).toMatchSnapshot(snapshotFilename, {
+    maxDiffPixelRatio: 0,
+  });
+
+  if (updatePublicScreenshots) {
+    expect(process.platform).toBe('darwin');
+    await mkdir(publicScreenshotRoot, { recursive: true });
+    await writeFile(join(publicScreenshotRoot, publicFilename), screenshot);
+  }
+
+  await mkdir(publicScreenshotProofRoot, { recursive: true });
+  await writeFile(join(publicScreenshotProofRoot, `${publicFilename}.actual.png`), screenshot);
+  const actualPixels = await pngPixelDigest(screenshot);
+
+  if (process.platform === 'darwin') {
+    const expectedPublic = await readFile(join(publicScreenshotRoot, publicFilename));
+    expectPerceptuallyIdenticalPng(screenshot, expectedPublic);
+  } else {
+    expect(updatePublicScreenshots).toBe(false);
+  }
+
+  await writeFile(
+    join(publicScreenshotProofRoot, `${publicFilename}.sha256`),
+    `${actualPixels.digest}\n`,
+    'utf8',
+  );
 }
 
 async function expectContainedDialog(page: Page, dialogName: string | RegExp): Promise<Locator> {
@@ -922,6 +1100,42 @@ async function expectContainedDialog(page: Page, dialogName: string | RegExp): P
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewportWidth);
   return dialog;
+}
+
+async function expectSingleContainedDialogScroller(dialog: Locator): Promise<Locator> {
+  const metrics = await dialog.evaluate((element) => {
+    const renderedVerticalScrollers = Array.from(element.querySelectorAll<HTMLElement>('*'))
+      .filter((candidate) => {
+        const style = getComputedStyle(candidate);
+        const box = candidate.getBoundingClientRect();
+        return (style.overflowY === 'auto' || style.overflowY === 'scroll')
+          && style.display !== 'none'
+          && style.visibility !== 'hidden'
+          && box.width > 0
+          && box.height > 0;
+      });
+    return renderedVerticalScrollers.map((candidate) => {
+      const box = candidate.getBoundingClientRect();
+      return {
+        className: candidate.className,
+        height: box.height,
+        horizontalOverflow: candidate.scrollWidth > candidate.clientWidth,
+        left: box.left,
+        right: box.right,
+        width: box.width,
+      };
+    });
+  });
+  expect(metrics).toHaveLength(1);
+  expect(metrics[0]).toMatchObject({
+    className: 'ff-contained-dialog__body',
+    horizontalOverflow: false,
+  });
+  expect(metrics[0].width).toBeGreaterThan(0);
+  expect(metrics[0].height).toBeGreaterThan(0);
+  expect(metrics[0].left).toBeGreaterThanOrEqual(0);
+  expect(metrics[0].right).toBeLessThanOrEqual(460);
+  return dialog.locator('.ff-contained-dialog__body');
 }
 
 async function measureReviewContrast(
@@ -1301,8 +1515,9 @@ test.describe('MarkuprPlus desktop application', () => {
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
-  test('scrolls a long portrait session history', async () => {
+  test('scrolls a long portrait session history @public-screenshot', async () => {
     await seedSessionHistory(harness.outputRoot, 18);
+    pinPublicScreenshotEnvironment(harness);
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -1324,15 +1539,20 @@ test.describe('MarkuprPlus desktop application', () => {
       history.getByRole('button', { name: 'Open session' }).first(),
     );
 
-    await expectPortraitScreenshot(window, 'history-portrait.png', [
-      history.getByText(
-        /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}$/,
-      ),
-      history.getByAltText('Session thumbnail'),
+    await expectActionsWithinPortrait([
+      history.getByRole('button', { name: 'Open session' }).first(),
+      history.getByRole('button', { name: 'More actions for session' }).first(),
     ]);
+    await scroller.evaluate((element) => { element.scrollTop = 0; });
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectPublicPortraitScreenshot(
+      window,
+      'session-history.png',
+      'history-portrait.png',
+    );
 
     const newestSession = history.getByRole('listitem').filter({
-      hasText: 'Portrait Fixture 18',
+      hasText: 'Checkout Preferences',
     });
     await newestSession.click();
     await expectActionsWithinPortrait([
@@ -1344,7 +1564,7 @@ test.describe('MarkuprPlus desktop application', () => {
       element.scrollTop = element.scrollHeight;
     });
     const oldestSession = history.getByRole('listitem').filter({
-      hasText: 'Portrait Fixture 01',
+      hasText: 'Account Recovery Flow',
     });
     await expect(oldestSession).toBeVisible();
     await oldestSession.click();
@@ -1544,9 +1764,10 @@ test.describe('MarkuprPlus desktop application', () => {
     });
   });
 
-  test('guides first-run users through multi-issue annotation and remembers completion', async () => {
+  test('guides first-run users through multi-issue annotation and remembers completion @public-screenshot', async () => {
     await harness.cleanup();
     harness = await createElectronHarnessEnvironment({ showOnboarding: true });
+    pinPublicScreenshotEnvironment(harness);
     let launched = await launchApplication(harness);
     application = launched.application;
     let window = launched.mainWindow;
@@ -1587,7 +1808,11 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(getStarted).toBeFocused();
     await expectWizardA11yInBothThemes();
     await expectActionsWithinPortrait([skipSetup, getStarted]);
-    await expectPortraitScreenshot(window, 'onboarding-portrait.png');
+    await setRendererTheme(window, 'light');
+    const onboardingScroller = await expectSingleContainedDialogScroller(wizard);
+    await onboardingScroller.evaluate((element) => { element.scrollTop = 0; });
+    await expect.poll(() => onboardingScroller.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectPublicPortraitScreenshot(window, 'onboarding.png', 'onboarding-portrait.png');
 
     await getStarted.click();
     await expect(window.getByRole('heading', { name: 'Microphone Access' })).toBeVisible();
@@ -2232,7 +2457,8 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(aiSetup).toBeFocused();
   });
 
-  test('renders Settings as the approved portrait surface', async () => {
+  test('renders Settings as the approved portrait surface @public-screenshot', async () => {
+    pinPublicScreenshotEnvironment(harness);
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -2247,7 +2473,7 @@ test.describe('MarkuprPlus desktop application', () => {
 
     const settings = window.getByRole('region', { name: 'Settings', exact: true });
     await expect(settings).toBeVisible();
-    await expectSinglePortraitScroller(window, 'Settings');
+    const settingsScroller = await expectSinglePortraitScroller(window, 'Settings');
     await expectStablePortraitSurface(window, 'Settings', 'light');
     await expectNormalizedPortraitMetrics(
       window,
@@ -2318,18 +2544,41 @@ test.describe('MarkuprPlus desktop application', () => {
       name: 'Show more settings sections',
       exact: true,
     })).toHaveAttribute('data-direction', 'forward');
-    await generalBeforeScreenshot.focus();
-    await expect(generalBeforeScreenshot).toBeFocused();
     await expect(generalBeforeScreenshot).toHaveAttribute('aria-selected', 'true');
     await expectStablePortraitSurface(window, 'Settings', 'light');
 
-    await expectPortraitScreenshot(window, 'settings-portrait.png', [
-      settings.getByRole('textbox', { name: 'Output Directory', exact: true }),
-    ]);
     await expectActionsWithinPortrait([
       settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }),
       settings.getByRole('button', { name: 'Reset All to Defaults', exact: true }),
     ]);
+
+    const appearanceForScreenshot = rail.getByRole('tab', {
+      name: 'Appearance',
+      exact: true,
+    });
+    await appearanceForScreenshot.click();
+    await expect(appearanceForScreenshot).toHaveAttribute('aria-selected', 'true');
+    expect(await rail.locator('[role="tab"][aria-selected="false"]').evaluateAll((tabs) =>
+      tabs.map((tab) => ({
+        borderColor: getComputedStyle(tab).borderColor,
+        inlineBorderColor: (tab as HTMLElement).style.borderColor,
+        label: tab.textContent?.trim(),
+      })))).toEqual([
+      { borderColor: 'rgba(0, 0, 0, 0)', inlineBorderColor: 'transparent', label: 'General' },
+      { borderColor: 'rgba(0, 0, 0, 0)', inlineBorderColor: 'transparent', label: 'Recording' },
+      { borderColor: 'rgba(0, 0, 0, 0)', inlineBorderColor: 'transparent', label: 'Hotkeys' },
+      { borderColor: 'rgba(0, 0, 0, 0)', inlineBorderColor: 'transparent', label: 'Advanced' },
+    ]);
+    await expect(window.getByLabel('Theme Mode')).toHaveValue('light');
+    await expect(window.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(settings.getByText(/MarkuprPlus v\d+\.\d+\.\d+/)).toBeVisible();
+    await settingsScroller.evaluate((element) => { element.scrollTop = 0; });
+    await expect.poll(() => settingsScroller.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectActionsWithinPortrait([
+      settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }),
+      window.getByLabel('Theme Mode'),
+    ]);
+    await expectPublicPortraitScreenshot(window, 'settings.png', 'settings-portrait.png');
 
     const general = rail.getByRole('tab', { name: 'General', exact: true });
     await general.focus();
@@ -2341,7 +2590,8 @@ test.describe('MarkuprPlus desktop application', () => {
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
-  test('renders Keyboard Shortcuts as a portrait surface', async () => {
+  test('renders Keyboard Shortcuts as a portrait surface @public-screenshot', async () => {
+    pinPublicScreenshotEnvironment(harness);
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -2372,7 +2622,6 @@ test.describe('MarkuprPlus desktop application', () => {
     }));
     expect(scrollLayout.scrollHeight).toBeGreaterThan(scrollLayout.clientHeight);
     expect(scrollLayout.scrollWidth).toBeLessThanOrEqual(scrollLayout.clientWidth);
-    await expectPortraitScreenshot(window, 'shortcuts-portrait.png');
     await expectActionsWithinPortrait([
       shortcuts.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }),
       shortcuts.getByRole('button', {
@@ -2380,6 +2629,13 @@ test.describe('MarkuprPlus desktop application', () => {
         exact: true,
       }),
     ]);
+    await scroller.evaluate((element) => { element.scrollTop = 0; });
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectPublicPortraitScreenshot(
+      window,
+      'keyboard-shortcuts.png',
+      'shortcuts-portrait.png',
+    );
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
@@ -3222,10 +3478,11 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
   });
 
-  test('records three separately narrated marked issues and generates complete evidence', async () => {
+  test('records three separately narrated marked issues and generates complete evidence @public-screenshot', async () => {
     test.setTimeout(90_000);
     await harness.cleanup();
     harness = await createElectronHarnessEnvironment({ reviewSaveDelayMs: 500 });
+    pinPublicScreenshotEnvironment(harness);
     const launched = await launchApplication(harness);
     application = launched.application;
     const mainWindow = launched.mainWindow;
@@ -3237,17 +3494,17 @@ test.describe('MarkuprPlus desktop application', () => {
       {
         tool: 'Pen' as const,
         color: '#ff3b30',
-        comment: 'The primary action needs more contrast.',
+        comment: 'Acme Checkout should show the final total before purchase.',
       },
       {
         tool: 'Circle' as const,
         color: '#ffcc00',
-        comment: 'This card spacing is inconsistent.',
+        comment: 'Northstar profile cards shift when the status badge wraps.',
       },
       {
         tool: 'Highlight' as const,
         color: '#34c759',
-        comment: 'The confirmation state needs a clearer label.',
+        comment: 'The demo confirmation message needs a clear recovery action.',
       },
     ];
 
@@ -3366,7 +3623,7 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeHidden();
     await expect(mainWindow.getByRole('heading', { name: 'Recent Captures' })).toBeHidden();
     await expectPortraitWindow(application, mainWindow);
-    await expectSinglePortraitScroller(mainWindow, 'Review Editor');
+    const reviewScroller = await expectSinglePortraitScroller(mainWindow, 'Review Editor');
     await expectStablePortraitSurface(mainWindow, 'Review Editor', 'light');
     await expectNormalizedPortraitMetrics(
       mainWindow,
@@ -3382,15 +3639,36 @@ test.describe('MarkuprPlus desktop application', () => {
     }));
     expect(reviewLayout.scrollWidth).toBeLessThanOrEqual(reviewLayout.clientWidth);
     expect(reviewLayout.hasVerticalScroll).toBe(true);
-    await expectPortraitScreenshot(mainWindow, 'review-portrait.png', [
-      review.getByRole('img', { name: /Screenshot \d+/ }),
-    ]);
+    await expect(review.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }))
+      .toBeVisible();
+    await expect(review.getByRole('img', { name: /Screenshot \d+/ })).toHaveCount(0);
+    await expect(review.getByTitle('Click to view full size')).toHaveCount(3);
+
+    const secondReviewItem = feedbackRegion.getByRole('listitem').nth(1);
+    await secondReviewItem.getByRole('button', { name: 'UX Issue', exact: true }).click();
+    await secondReviewItem.getByRole('button', { name: 'Bug', exact: true }).click();
+    await secondReviewItem.getByRole('button', { name: 'Medium', exact: true }).click();
+    await secondReviewItem.getByRole('button', { name: 'High', exact: true }).click();
+    const thirdReviewItem = feedbackRegion.getByRole('listitem').nth(2);
+    await thirdReviewItem.getByRole('button', { name: 'UX Issue', exact: true }).click();
+    await thirdReviewItem.getByRole('button', { name: 'Suggestion', exact: true }).click();
+    await thirdReviewItem.getByRole('button', { name: 'Medium', exact: true }).click();
+    await thirdReviewItem.getByRole('button', { name: 'Low', exact: true }).click();
+    const publicReviewSave = review.getByRole('button', { name: 'Save', exact: true });
+    await expect(publicReviewSave).toBeEnabled();
+    await publicReviewSave.click();
+    await expect(publicReviewSave).toBeDisabled();
+    await expect(review.getByText('Unsaved changes', { exact: true })).toBeHidden();
+    await expect(review.getByText('3 feedback items', { exact: true })).toBeVisible();
     await expectActionsWithinPortrait([
       review.getByRole('button', { name: 'Open Folder', exact: true }),
       review.getByRole('button', { name: 'Copy', exact: true }),
       review.getByRole('button', { name: 'Save', exact: true }),
       review.getByRole('button', { name: 'Close', exact: true }),
     ]);
+    await reviewScroller.evaluate((element) => { element.scrollTop = 0; });
+    await expect.poll(() => reviewScroller.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectPublicPortraitScreenshot(mainWindow, 'review-editor.png', 'review-portrait.png');
 
     const navigationDraftComment = 'Draft retained while visiting session history.';
     await review.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
@@ -3884,5 +4162,48 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(failedSaveAlert.getByRole('button', { name: 'Retry save' })).toBeEnabled();
     await expect(mainWindow.getByText(unsavedComment, { exact: true })).toBeVisible();
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
+  });
+
+  test('writes five MarkuprPlus README screenshots at portrait dimensions @public-screenshot', async () => {
+    const entries = await readdir(publicScreenshotRoot).catch(() => []);
+    expect(entries.sort()).toEqual([...publicScreenshotNames].sort());
+    const proofEntries = await readdir(publicScreenshotProofRoot).catch(() => []);
+    expect(proofEntries.sort()).toEqual(
+      publicScreenshotNames.flatMap((name) => [
+        `${name}.actual.png`,
+        `${name}.sha256`,
+      ]).sort(),
+    );
+
+    for (const name of publicScreenshotNames) {
+      const path = join(publicScreenshotRoot, name);
+      const metadata = await sharp(path).metadata();
+      expect({
+        comments: metadata.comments,
+        exif: metadata.exif,
+        format: metadata.format,
+        height: metadata.height,
+        iptc: metadata.iptc,
+        width: metadata.width,
+        xmp: metadata.xmp,
+      }).toEqual({
+        comments: undefined,
+        exif: undefined,
+        format: 'png',
+        height: 680,
+        iptc: undefined,
+        width: 460,
+        xmp: undefined,
+      });
+      const expectedDigest = (await readFile(
+        join(publicScreenshotProofRoot, `${name}.sha256`),
+        'utf8',
+      )).trim();
+      const actualCapture = await readFile(
+        join(publicScreenshotProofRoot, `${name}.actual.png`),
+      );
+      expect((await pngPixelDigest(actualCapture)).digest).toBe(expectedDigest);
+      expectPerceptuallyIdenticalPng(actualCapture, await readFile(path));
+    }
   });
 });
