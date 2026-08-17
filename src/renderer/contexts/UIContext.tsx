@@ -6,7 +6,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AnalysisProviderStatus, AppSettings, SessionState } from '../../shared/types';
+import type { AnalysisProviderStatus, AppSettings, HotkeyConfig, SessionState } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
 import { getPopoverSizeForView } from '../../shared/popoverLayout';
 import { getAnalysisProviderViewState, type AnalysisProviderViewState } from '../components/settings/analysisProviderViewState';
@@ -35,6 +35,7 @@ export interface UIContextValue {
 
   // Settings
   settings: AppSettings | null;
+  applyHotkeyConfig: (hotkeys: HotkeyConfig) => void;
   analysisProviderViewState: AnalysisProviderViewState;
   countdownDuration: number;
 
@@ -138,6 +139,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
     void loadInitialSettings();
   }, [refreshAnalysisProviderStatus]);
+
+  const applyHotkeyConfig = useCallback((hotkeys: HotkeyConfig) => {
+    setSettings((current) => ({ ...(current ?? DEFAULT_SETTINGS), hotkeys }));
+  }, []);
 
   // Re-check provider readiness when returning to the main view from settings.
   useEffect(() => {
@@ -304,6 +309,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       showExportDialog,
       setShowExportDialog,
       settings,
+      applyHotkeyConfig,
       analysisProviderViewState,
       countdownDuration,
       isHudMode,
@@ -325,6 +331,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       showCountdown,
       showExportDialog,
       settings,
+      applyHotkeyConfig,
       analysisProviderViewState,
       countdownDuration,
       isHudMode,

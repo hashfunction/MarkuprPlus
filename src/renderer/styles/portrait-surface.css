@@ -186,6 +186,12 @@
   border-color: var(--border-default);
 }
 
+.ff-shortcut-row.is-customizable:focus-visible {
+  border-color: var(--accent-default);
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+}
+
 .ff-shortcut-row.is-editing {
   border-color: var(--accent-muted);
   background: var(--accent-subtle);
@@ -231,6 +237,14 @@
   color: var(--status-warning);
 }
 
+.ff-shortcut-row__copy .ff-shortcut-row__error {
+  color: var(--status-error);
+}
+
+.ff-shortcut-row__copy .ff-shortcut-row__notice {
+  color: var(--status-info);
+}
+
 .ff-shortcut-row__controls {
   display: flex;
   flex-wrap: wrap;
@@ -267,6 +281,11 @@
 .ff-shortcut-row__controls button:hover {
   background: var(--surface-inset);
   color: var(--text-primary);
+}
+
+.ff-shortcut-row__controls button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .ff-shortcut-key {

@@ -508,7 +508,10 @@ test.describe('MarkuprX desktop application', () => {
     await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
     await expectPortraitWindow(application, window);
     await expect(window.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toHaveCount(0);
-    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts' });
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    await expect(shortcuts).toHaveCount(1);
+    await expect(window.getByRole('region', { name: 'Keyboard shortcuts list', exact: true }))
+      .toBeVisible();
     await expect(shortcuts.getByPlaceholder('Search shortcuts...')).toBeVisible();
     await expect(shortcuts.getByRole('heading', { name: 'Recording' })).toBeVisible();
     const scroller = window.locator('.ff-portrait-surface__scroller');
@@ -523,7 +526,73 @@ test.describe('MarkuprX desktop application', () => {
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
-  test('preserves shortcut search and rebind interactions in the portrait surface', async () => {
+  test('makes customizable shortcut rows keyboard accessible', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    const rebind = shortcuts.getByRole('button', {
+      name: 'Rebind Start/Stop Recording',
+      exact: true,
+    });
+    await expect(rebind).toBeVisible();
+    await shortcuts.getByPlaceholder('Search shortcuts...').focus();
+    await window.keyboard.press('Tab');
+    await expect(rebind).toBeFocused();
+    const focusStyle = await rebind.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    });
+    expect(focusStyle.outlineStyle).not.toBe('none');
+    expect(Number.parseFloat(focusStyle.outlineWidth)).toBeGreaterThan(0);
+
+    await rebind.press('Enter');
+    await expect(shortcuts.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    await expect(shortcuts.getByRole('button', {
+      name: 'Rebind Start/Stop Recording',
+      exact: true,
+    })).toHaveCount(0);
+    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    await shortcuts.getByRole('button', { name: 'Cancel' }).click();
+
+    const rebindWithSpace = shortcuts.getByRole('button', {
+      name: 'Rebind Start/Stop Recording',
+      exact: true,
+    });
+    await rebindWithSpace.focus();
+    await rebindWithSpace.press('Space');
+    await expect(shortcuts.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  });
+
+  test('Escape cancels active shortcut capture without closing Shortcuts', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    const recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    expect(await recordingRow.locator('kbd').allTextContents()).toEqual([primaryKey, '⇧', 'F']);
+
+    await recordingRow.click();
+    await window.keyboard.press('Control+Alt+J');
+    await expect(shortcuts.getByRole('button', { name: 'Save' })).toBeVisible();
+    await window.keyboard.press('Escape');
+
+    await expect(shortcuts).toBeVisible();
+    await expect(shortcuts.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+    expect(await recordingRow.locator('kbd').allTextContents()).toEqual([primaryKey, '⇧', 'F']);
+  });
+
+  test('registers and persists a shortcut rebind from the app surface', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -532,7 +601,133 @@ test.describe('MarkuprX desktop application', () => {
     await expect(homeAction).toBeVisible();
     await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
 
-    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts' });
+    let shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    let recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    await recordingRow.click();
+    await window.keyboard.press('Control+Alt+J');
+    await shortcuts.getByRole('button', { name: 'Save' }).click();
+
+    const expectedAccelerator = 'CommandOrControl+Alt+J';
+    await expect.poll(() => window.evaluate(async () => {
+      const [registered, persisted] = await Promise.all([
+        window.markuprx.hotkeys.getConfig(),
+        window.markuprx.settings.get('hotkeys'),
+      ]);
+      return {
+        registered: registered.toggleRecording,
+        persisted: persisted.toggleRecording,
+      };
+    })).toEqual({
+      registered: expectedAccelerator,
+      persisted: expectedAccelerator,
+    });
+
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    await expect.poll(() => recordingRow.locator('kbd').allTextContents())
+      .toEqual([primaryKey, '⌥', 'J']);
+
+    await window.keyboard.press('Escape');
+    await expect(homeAction).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+    shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    expect(await recordingRow.locator('kbd').allTextContents())
+      .toEqual([primaryKey, '⌥', 'J']);
+  });
+
+  test('reports and displays the actual fallback when a requested shortcut is unavailable', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    const reserved = await application.evaluate(({ globalShortcut }) => (
+      globalShortcut.register('CommandOrControl+Alt+J', () => {})
+    ));
+    expect(reserved).toBe(true);
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    const recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    await recordingRow.click();
+    await window.keyboard.press('Control+Alt+J');
+    await shortcuts.getByRole('button', { name: 'Save' }).click();
+
+    const expectedFallback = 'CommandOrControl+Shift+R';
+    await expect.poll(() => window.evaluate(async () => {
+      const [registered, persisted] = await Promise.all([
+        window.markuprx.hotkeys.getConfig(),
+        window.markuprx.settings.get('hotkeys'),
+      ]);
+      return {
+        registered: registered.toggleRecording,
+        persisted: persisted.toggleRecording,
+      };
+    })).toEqual({
+      registered: expectedFallback,
+      persisted: expectedFallback,
+    });
+    await expect(shortcuts.getByRole('status'))
+      .toContainText(/requested shortcut.*unavailable.*using.*shift.*r/i);
+    await expect(shortcuts.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    expect(await recordingRow.locator('kbd').allTextContents())
+      .toEqual([primaryKey, '⇧', 'R']);
+  });
+
+  test('keeps a failed shortcut rebind visible and retryable', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ failHotkeyUpdate: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await expect(window.getByRole('button', { name: /start session/i })).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
+    const recordingRow = shortcuts.locator('.ff-shortcut-row')
+      .filter({ hasText: 'Start/Stop Recording' });
+    await recordingRow.click();
+    await window.keyboard.press('Control+Alt+J');
+    const save = shortcuts.getByRole('button', { name: 'Save' });
+    await save.click();
+
+    await expect(shortcuts.getByRole('alert')).toContainText(/unable|shortcut|hotkey/i);
+    await expect(save).toBeEnabled();
+    const primaryKey = process.platform === 'darwin' ? '⌘' : 'Ctrl';
+    expect(await recordingRow.locator('kbd').allTextContents())
+      .toEqual([primaryKey, '⌥', 'J']);
+
+    const unchanged = await window.evaluate(async () => {
+      const [registered, persisted] = await Promise.all([
+        window.markuprx.hotkeys.getConfig(),
+        window.markuprx.settings.get('hotkeys'),
+      ]);
+      return {
+        registered: registered.toggleRecording,
+        persisted: persisted.toggleRecording,
+      };
+    });
+    expect(unchanged).toEqual({
+      registered: 'CommandOrControl+Shift+F',
+      persisted: 'CommandOrControl+Shift+F',
+    });
+  });
+
+  test('preserves shortcut search in the portrait surface', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const homeAction = window.getByRole('button', { name: /start session/i });
+    await expect(homeAction).toBeVisible();
+    await clickApplicationMenuItem(application, 'Help', 'Keyboard Shortcuts');
+
+    const shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
     const search = shortcuts.getByPlaceholder('Search shortcuts...');
     await expect(search).toBeFocused();
     await search.fill('pause');
@@ -551,11 +746,6 @@ test.describe('MarkuprX desktop application', () => {
     await expect(shortcuts.getByText('Conflicts with: Take Screenshot', { exact: true }))
       .toBeVisible();
     await shortcuts.getByRole('button', { name: 'Cancel' }).click();
-    await expect(shortcuts.getByText('Press keys...', { exact: true })).toHaveCount(0);
-
-    await recordingRow.click();
-    await window.keyboard.press('Control+Shift+J');
-    await shortcuts.getByRole('button', { name: 'Save' }).click();
     await expect(shortcuts.getByText('Press keys...', { exact: true })).toHaveCount(0);
 
     await window.keyboard.press('Escape');

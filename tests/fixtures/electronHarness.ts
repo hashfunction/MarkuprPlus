@@ -13,6 +13,7 @@ export interface ElectronHarnessEnvironment {
 export async function createElectronHarnessEnvironment(options: {
   showOnboarding?: boolean;
   failSettingsKey?: string;
+  failHotkeyUpdate?: boolean;
   processingDelayMs?: number;
 } = {}): Promise<ElectronHarnessEnvironment> {
   const root = await mkdtemp(join(tmpdir(), 'markuprx-electron-ui-'));
@@ -39,6 +40,7 @@ export async function createElectronHarnessEnvironment(options: {
       MARKUPRX_E2E_DOCUMENTS_DIR: documentsDir,
       MARKUPRX_E2E_SKIP_ONBOARDING: options.showOnboarding ? '0' : '1',
       MARKUPRX_E2E_FAIL_SETTINGS_KEY: options.failSettingsKey ?? '',
+      MARKUPRX_E2E_FAIL_HOTKEY_UPDATE: options.failHotkeyUpdate ? '1' : '0',
       MARKUPRX_E2E_PROCESSING_DELAY_MS: String(options.processingDelayMs ?? 0),
     },
     logs,

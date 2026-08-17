@@ -436,6 +436,13 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
   ipcMain.handle(
     IPC_CHANNELS.HOTKEY_UPDATE,
     (_, newConfig: Partial<HotkeyConfig>) => {
+      if (
+        process.env.MARKUPRX_E2E === '1' &&
+        process.env.MARKUPRX_E2E_FAIL_HOTKEY_UPDATE === '1'
+      ) {
+        throw new Error('Injected hotkey update failure.');
+      }
+
       const results = hotkeyManager.updateConfig(newConfig);
       getSettingsManager()?.update({ hotkeys: hotkeyManager.getConfig() });
       return { config: hotkeyManager.getConfig(), results };

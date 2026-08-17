@@ -32,8 +32,14 @@ type ShortcutCategory = 'Recording' | 'Navigation' | 'Editing' | 'Annotation' | 
 interface KeyboardShortcutsProps {
   isOpen: boolean;
   onClose: () => void;
-  onRebind?: (shortcutId: string, newKeys: string) => void;
+  onRebind?: (shortcutId: string, newKeys: string) => Promise<ShortcutRebindResult>;
   customBindings?: Partial<Record<string, string>>;
+}
+
+interface ShortcutRebindResult {
+  success: boolean;
+  error?: string;
+  notice?: string;
 }
 
 // ============================================================================
@@ -295,6 +301,16 @@ function formatKeys(keys: string, isMac: boolean): string[] {
   });
 }
 
+function normalizeShortcutForComparison(keys: string): string {
+  return keys
+    .split('+')
+    .map((part) => {
+      const normalized = part.trim().toLowerCase();
+      return normalized === 'commandorcontrol' ? 'cmdorctrl' : normalized;
+    })
+    .join('+');
+}
+
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -319,9 +335,12 @@ interface ShortcutRowProps {
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onSaveEdit: (newKeys: string) => void;
+  onSaveEdit: (newKeys: string) => Promise<void>;
   recordedKeys: string | null;
   conflict: string | null;
+  saveError: string | null;
+  saveNotice: string | null;
+  isSaving: boolean;
 }
 
 function ShortcutRow({
@@ -333,17 +352,32 @@ function ShortcutRow({
   onSaveEdit,
   recordedKeys,
   conflict,
+  saveError,
+  saveNotice,
+  isSaving,
 }: ShortcutRowProps) {
   const keyParts = formatKeys(recordedKeys || shortcut.keys, isMac);
+  const canStartEdit = shortcut.customizable && !isEditing;
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canStartEdit || !['Enter', ' ', 'Spacebar'].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onStartEdit();
+  };
 
   return (
     <div
       className={
         'ff-shortcut-row' +
         (isEditing ? ' is-editing' : '') +
-        (shortcut.customizable ? ' is-customizable' : '')
+        (canStartEdit ? ' is-customizable' : '')
       }
-      onClick={shortcut.customizable && !isEditing ? onStartEdit : undefined}
+      role={canStartEdit ? 'button' : undefined}
+      tabIndex={canStartEdit ? 0 : undefined}
+      aria-label={canStartEdit ? `Rebind ${shortcut.label}` : undefined}
+      onClick={canStartEdit ? onStartEdit : undefined}
+      onKeyDown={canStartEdit ? handleRowKeyDown : undefined}
     >
       <div className="ff-shortcut-row__copy">
         <div className="ff-shortcut-row__title">
@@ -365,6 +399,16 @@ function ShortcutRow({
             Conflicts with: {conflict}
           </p>
         )}
+        {isEditing && saveError && (
+          <p className="ff-shortcut-row__error" role="alert">
+            {saveError}
+          </p>
+        )}
+        {!isEditing && saveNotice && (
+          <p className="ff-shortcut-row__notice" role="status">
+            {saveNotice}
+          </p>
+        )}
       </div>
 
       <div className="ff-shortcut-row__controls">
@@ -383,6 +427,7 @@ function ShortcutRow({
               )}
             </div>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onCancelEdit();
@@ -396,12 +441,15 @@ function ShortcutRow({
             </button>
             {recordedKeys && !conflict && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSaveEdit(recordedKeys);
+                  void onSaveEdit(recordedKeys);
                 }}
                 className="p-1 text-green-400 hover:text-green-300"
-                title="Save"
+                disabled={isSaving}
+                aria-label={isSaving ? 'Saving shortcut' : 'Save'}
+                title={isSaving ? 'Saving shortcut' : 'Save'}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M2 7l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -433,8 +481,16 @@ export function KeyboardShortcuts({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordedKeys, setRecordedKeys] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<{
+    shortcutId: string;
+    message: string;
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const editingIdRef = useRef<string | null>(editingId);
+  editingIdRef.current = editingId;
   const isMac = useMemo(() => isMacOS(), []);
 
   // Merge default shortcuts with custom bindings
@@ -476,9 +532,10 @@ export function KeyboardShortcuts({
 
   // Check for key conflicts
   const checkConflict = useCallback((newKeys: string, excludeId: string): string | null => {
+    const normalizedKeys = normalizeShortcutForComparison(newKeys);
     const conflict = shortcuts.find(s =>
       s.id !== excludeId &&
-      s.keys.toLowerCase() === newKeys.toLowerCase()
+      normalizeShortcutForComparison(s.keys) === normalizedKeys
     );
     return conflict?.label || null;
   }, [shortcuts]);
@@ -488,6 +545,18 @@ export function KeyboardShortcuts({
     if (!editingId) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingIdRef.current !== editingId) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setEditingId(null);
+        setRecordedKeys(null);
+        setConflict(null);
+        setSaveError(null);
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -514,6 +583,7 @@ export function KeyboardShortcuts({
         const newKeys = parts.join('+');
         setRecordedKeys(newKeys);
         setConflict(checkConflict(newKeys, editingId));
+        setSaveError(null);
       }
     };
 
@@ -521,26 +591,20 @@ export function KeyboardShortcuts({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [editingId, checkConflict]);
 
-  // Handle escape to close or cancel editing
+  // Close the surface on Escape whenever shortcut capture is inactive.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (editingId) {
-          setEditingId(null);
-          setRecordedKeys(null);
-          setConflict(null);
-        } else {
-          onClose();
-        }
+      if (e.key === 'Escape' && !editingIdRef.current) {
+        onClose();
       }
     };
 
-    if (isOpen && !editingId) {
+    if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
 
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, editingId, onClose]);
+  }, [isOpen, onClose]);
 
   // Focus search on open
   useEffect(() => {
@@ -556,6 +620,9 @@ export function KeyboardShortcuts({
       setEditingId(null);
       setRecordedKeys(null);
       setConflict(null);
+      setSaveError(null);
+      setSaveNotice(null);
+      setIsSaving(false);
     }
   }, [isOpen]);
 
@@ -564,21 +631,41 @@ export function KeyboardShortcuts({
     setEditingId(id);
     setRecordedKeys(null);
     setConflict(null);
+    setSaveError(null);
+    setSaveNotice(null);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setRecordedKeys(null);
     setConflict(null);
+    setSaveError(null);
   };
 
-  const handleSaveEdit = (shortcutId: string, newKeys: string) => {
-    if (onRebind && !conflict) {
-      onRebind(shortcutId, newKeys);
+  const handleSaveEdit = async (shortcutId: string, newKeys: string) => {
+    if (conflict) return;
+    if (!onRebind) {
+      setSaveError('Shortcut saving is unavailable.');
+      return;
     }
-    setEditingId(null);
-    setRecordedKeys(null);
-    setConflict(null);
+
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const result = await onRebind(shortcutId, newKeys);
+      if (!result.success) {
+        setSaveError(result.error || 'Unable to save this shortcut.');
+        return;
+      }
+      setEditingId(null);
+      setRecordedKeys(null);
+      setConflict(null);
+      setSaveNotice(result.notice ? { shortcutId, message: result.notice } : null);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save this shortcut.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -590,7 +677,7 @@ export function KeyboardShortcuts({
       backLabel="Back to MarkuprX"
       onBack={onClose}
       subtitle="Select a customizable shortcut to rebind it"
-      contentLabel="Keyboard shortcuts"
+      contentLabel="Keyboard shortcuts list"
     >
       <div className="ff-shortcuts">
         <div className="ff-shortcuts__search">
@@ -647,6 +734,9 @@ export function KeyboardShortcuts({
                         onSaveEdit={(newKeys) => handleSaveEdit(shortcut.id, newKeys)}
                         recordedKeys={editingId === shortcut.id ? recordedKeys : null}
                         conflict={editingId === shortcut.id ? conflict : null}
+                        saveError={editingId === shortcut.id ? saveError : null}
+                        saveNotice={saveNotice?.shortcutId === shortcut.id ? saveNotice.message : null}
+                        isSaving={editingId === shortcut.id && isSaving}
                       />
                     ))}
                   </div>

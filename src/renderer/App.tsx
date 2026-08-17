@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
-import type { SessionState } from '../shared/types';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import type { HotkeyConfig, SessionState } from '../shared/types';
 import {
   CrashRecoveryDialog,
   Onboarding,
@@ -71,6 +71,43 @@ function mapPopoverState(state: SessionState): 'idle' | 'recording' | 'processin
   return 'idle';
 }
 
+const SHORTCUT_HOTKEY_KEYS: Readonly<Record<string, keyof HotkeyConfig>> = {
+  'toggle-recording': 'toggleRecording',
+  'manual-screenshot': 'manualScreenshot',
+  'pause-resume': 'pauseResume',
+};
+
+interface HotkeyRegistrationResult {
+  success: boolean;
+  action: keyof HotkeyConfig;
+  accelerator: string;
+  fallbackUsed?: string;
+  error?: string;
+}
+
+function findHotkeyRegistrationResult(
+  results: unknown[],
+  action: keyof HotkeyConfig,
+): HotkeyRegistrationResult | null {
+  const result = results.find((candidate) => (
+    typeof candidate === 'object' &&
+    candidate !== null &&
+    'action' in candidate &&
+    candidate.action === action
+  ));
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    !('success' in result) ||
+    typeof result.success !== 'boolean' ||
+    !('accelerator' in result) ||
+    typeof result.accelerator !== 'string'
+  ) {
+    return null;
+  }
+  return result as unknown as HotkeyRegistrationResult;
+}
+
 // ============================================================================
 // App Component
 // ============================================================================
@@ -79,6 +116,7 @@ const App: React.FC = () => {
   const recording = useRecording();
   const processing = useProcessing();
   const ui = useUI();
+  const applyHotkeyConfig = ui.applyHotkeyConfig;
 
   // ---------------------------------------------------------------------------
   // HUD mode body class
@@ -120,6 +158,56 @@ const App: React.FC = () => {
   const handleCountdownSkip = useCallback(() => {
     ui.setShowCountdown(false);
   }, [ui.setShowCountdown]);
+
+  const shortcutBindings = useMemo<Partial<Record<string, string>>>(() => ({
+    'toggle-recording': ui.settings?.hotkeys.toggleRecording,
+    'manual-screenshot': ui.settings?.hotkeys.manualScreenshot,
+    'pause-resume': ui.settings?.hotkeys.pauseResume,
+  }), [
+    ui.settings?.hotkeys.toggleRecording,
+    ui.settings?.hotkeys.manualScreenshot,
+    ui.settings?.hotkeys.pauseResume,
+  ]);
+
+  const handleShortcutRebind = useCallback(async (shortcutId: string, newKeys: string) => {
+    const hotkeyKey = SHORTCUT_HOTKEY_KEYS[shortcutId];
+    if (!hotkeyKey) {
+      return { success: false, error: 'This shortcut cannot be customized.' };
+    }
+
+    try {
+      const update = await window.markuprx.hotkeys.updateConfig({ [hotkeyKey]: newKeys });
+      const registration = findHotkeyRegistrationResult(update.results, hotkeyKey);
+      const savedAccelerator = update.config[hotkeyKey];
+      applyHotkeyConfig(update.config);
+
+      if (update.results.length > 0 && !registration) {
+        return { success: false, error: 'The hotkey registration result was invalid.' };
+      }
+      if (registration?.success === false) {
+        return {
+          success: false,
+          error: registration.error || 'Unable to register this shortcut.',
+        };
+      }
+      if (registration?.fallbackUsed) {
+        return {
+          success: true,
+          notice: `The requested shortcut was unavailable. Using ${savedAccelerator}.`,
+        };
+      }
+      if (!savedAccelerator || (registration && registration.accelerator !== savedAccelerator)) {
+        return { success: false, error: 'The registered shortcut did not match the saved setting.' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unable to save this shortcut.',
+      };
+    }
+  }, [applyHotkeyConfig]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -178,7 +266,12 @@ const App: React.FC = () => {
           />
         )}
         {ui.currentView === 'shortcuts' && (
-          <KeyboardShortcuts isOpen onClose={ui.closeOverlay} />
+          <KeyboardShortcuts
+            isOpen
+            onClose={ui.closeOverlay}
+            customBindings={shortcutBindings}
+            onRebind={handleShortcutRebind}
+          />
         )}
 
         {ui.currentView === 'main' && (
