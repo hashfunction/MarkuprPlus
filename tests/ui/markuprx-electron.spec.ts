@@ -3,6 +3,7 @@ import {
   expect,
   test,
   type ElectronApplication,
+  type Locator,
   type Page,
 } from '@playwright/test';
 import axe from 'axe-core';
@@ -246,6 +247,105 @@ async function expectPortraitWindow(
   expect(overflow.viewportHeight).toBe(680);
   expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
   expect(overflow.bodyWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+}
+
+async function measureReviewContrast(
+  review: Locator,
+  bodyText: string,
+): Promise<{
+  shellMatchesTheme: boolean;
+  shellOpaque: boolean;
+  bodyContrast: number;
+  footerContrast: number;
+}> {
+  return review.evaluate((surface, expectedBodyText) => {
+    interface Rgba {
+      r: number;
+      g: number;
+      b: number;
+      a: number;
+    }
+
+    const parseColor = (value: string): Rgba => {
+      const normalized = value.trim();
+      const hex = normalized.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
+      if (hex) {
+        return {
+          r: Number.parseInt(hex[1], 16),
+          g: Number.parseInt(hex[2], 16),
+          b: Number.parseInt(hex[3], 16),
+          a: 1,
+        };
+      }
+      const channels = normalized.match(/^rgba?\(([^)]+)\)$/i)?.[1]
+        .split(',')
+        .map((channel) => Number.parseFloat(channel.trim()));
+      if (!channels || channels.length < 3) {
+        throw new Error(`Unsupported computed color: ${value}`);
+      }
+      return {
+        r: channels[0],
+        g: channels[1],
+        b: channels[2],
+        a: channels[3] ?? 1,
+      };
+    };
+    const composite = (foreground: Rgba, background: Rgba): Rgba => ({
+      r: foreground.r * foreground.a + background.r * (1 - foreground.a),
+      g: foreground.g * foreground.a + background.g * (1 - foreground.a),
+      b: foreground.b * foreground.a + background.b * (1 - foreground.a),
+      a: 1,
+    });
+    const luminance = (color: Rgba): number => {
+      const linearize = (channel: number): number => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045
+          ? normalized / 12.92
+          : ((normalized + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * linearize(color.r)
+        + 0.7152 * linearize(color.g)
+        + 0.0722 * linearize(color.b);
+    };
+    const contrast = (foreground: Rgba, background: Rgba): number => {
+      const first = luminance(foreground);
+      const second = luminance(background);
+      const lighter = Math.max(first, second);
+      const darker = Math.min(first, second);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+
+    const shell = surface.closest('.ff-review-shell');
+    const body = [...surface.querySelectorAll('p')]
+      .find((candidate) => candidate.textContent?.trim() === expectedBodyText);
+    const footer = [...surface.querySelectorAll('.ff-review-actions button')]
+      .find((candidate) => candidate.textContent?.trim() === 'Open Folder');
+    if (!shell || !body || !footer) {
+      throw new Error('Review contrast fixtures were not found.');
+    }
+
+    const shellColor = parseColor(getComputedStyle(shell).backgroundColor);
+    const themeColor = parseColor(
+      getComputedStyle(document.documentElement).getPropertyValue('--bg-primary'),
+    );
+    const transparentCanvas = { r: 0, g: 0, b: 0, a: 1 };
+    const shellBackground = composite(shellColor, transparentCanvas);
+    const footerStyle = getComputedStyle(footer);
+    const footerBackground = composite(
+      parseColor(footerStyle.backgroundColor),
+      shellBackground,
+    );
+    const closeEnough = (left: number, right: number) => Math.abs(left - right) < 1;
+
+    return {
+      shellMatchesTheme: closeEnough(shellColor.r, themeColor.r)
+        && closeEnough(shellColor.g, themeColor.g)
+        && closeEnough(shellColor.b, themeColor.b),
+      shellOpaque: shellColor.a === 1,
+      bodyContrast: contrast(parseColor(getComputedStyle(body).color), shellBackground),
+      footerContrast: contrast(parseColor(footerStyle.color), footerBackground),
+    };
+  }, bodyText);
 }
 
 async function clickApplicationMenuItem(
@@ -1463,6 +1563,14 @@ test.describe('MarkuprX desktop application', () => {
     await expect(mainWindow.getByText('Latest Report Path')).toBeVisible();
     await expect(mainWindow.getByText(reportPath, { exact: true })).toBeVisible();
 
+    await mainWindow.getByRole('button', { name: 'Open Settings' }).click();
+    await mainWindow.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await mainWindow.getByLabel('Theme Mode').selectOption('light');
+    await expect.poll(() => mainWindow.evaluate(() =>
+      document.documentElement.getAttribute('data-theme'))).toBe('light');
+    await mainWindow.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
+
     // Exercise the completed-session editor against the already-saved report.
     // The update must happen in place without losing marked evidence or media.
     await mainWindow.getByRole('button', { name: 'Open Review Editor' }).click();
@@ -1480,6 +1588,111 @@ test.describe('MarkuprX desktop application', () => {
     }));
     expect(reviewLayout.scrollWidth).toBeLessThanOrEqual(reviewLayout.clientWidth);
     expect(reviewLayout.hasVerticalScroll).toBe(true);
+
+    await clickApplicationMenuItem(application, 'File', 'Session History');
+    const historyFromReview = mainWindow.getByRole('region', { name: 'Session History' });
+    await expect(historyFromReview).toBeVisible();
+    await expect(review).toHaveCount(0);
+    await expect(mainWindow.locator('.ff-portrait-surface')).toHaveCount(1);
+    await expect(mainWindow.getByRole('region', { name: 'Keyboard Shortcuts', exact: true }))
+      .toHaveCount(0);
+    await historyFromReview.getByRole('button', { name: 'Back to MarkuprX' }).click();
+    await expect(review).toBeVisible();
+    await expect(mainWindow.locator('.ff-portrait-surface')).toHaveCount(1);
+
+    const lightContrast = await measureReviewContrast(review, cases[0].comment);
+    expect(lightContrast.shellOpaque).toBe(true);
+    expect(lightContrast.shellMatchesTheme).toBe(true);
+    expect(lightContrast.bodyContrast).toBeGreaterThanOrEqual(4.5);
+    expect(lightContrast.footerContrast).toBeGreaterThanOrEqual(4.5);
+    await expect.poll(() => review.locator('.ff-list-item-enter').last().evaluate((element) =>
+      getComputedStyle(element).opacity)).toBe('1');
+    expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
+
+    const feedbackItems = review.getByRole('listitem');
+    await expect(feedbackItems).toHaveCount(3);
+    const firstFeedback = feedbackItems.nth(0);
+    await firstFeedback.focus();
+    await expect(firstFeedback).toBeFocused();
+    await expect(firstFeedback).toHaveAttribute('aria-current', 'true');
+    const focusAppearance = await firstFeedback.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    });
+    expect(focusAppearance).toEqual({ outlineStyle: 'solid', outlineWidth: '2px' });
+
+    const firstMore = firstFeedback.getByRole('button', {
+      name: 'More actions for feedback FB-001',
+    });
+    await expect(firstMore).toBeVisible();
+    await firstMore.focus();
+    await mainWindow.keyboard.press('Enter');
+    let feedbackMenu = firstFeedback.getByRole('menu', { name: 'Feedback actions for FB-001' });
+    await expect(feedbackMenu).toBeVisible();
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Move Up' })).toBeDisabled();
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Move Down' })).toBeEnabled();
+    const feedbackMenuBox = await feedbackMenu.boundingBox();
+    expect(feedbackMenuBox).not.toBeNull();
+    expect(feedbackMenuBox!.x).toBeGreaterThanOrEqual(0);
+    expect(feedbackMenuBox!.x + feedbackMenuBox!.width).toBeLessThanOrEqual(460);
+    expect(feedbackMenuBox!.y).toBeGreaterThanOrEqual(0);
+    expect(feedbackMenuBox!.y + feedbackMenuBox!.height).toBeLessThanOrEqual(680);
+    await mainWindow.keyboard.press('End');
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Delete' })).toBeFocused();
+    await mainWindow.keyboard.press('Home');
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+    await mainWindow.keyboard.press('ArrowUp');
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Delete' })).toBeFocused();
+    await mainWindow.keyboard.press('ArrowDown');
+    await expect(feedbackMenu.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+    await mainWindow.keyboard.press('Escape');
+    await expect(feedbackMenu).toBeHidden();
+    await expect(firstMore).toBeFocused();
+
+    await firstMore.press('Enter');
+    feedbackMenu = firstFeedback.getByRole('menu', { name: 'Feedback actions for FB-001' });
+    await feedbackMenu.getByRole('menuitem', { name: 'Move Down' }).click();
+    await expect(feedbackItems.nth(0)).toContainText(cases[1].comment);
+    await expect(feedbackItems.nth(1)).toContainText(cases[0].comment);
+    await expect(feedbackItems.nth(1)).toHaveAttribute('aria-current', 'true');
+
+    const movedMore = feedbackItems.nth(1).getByRole('button', {
+      name: 'More actions for feedback FB-002',
+    });
+    await movedMore.click();
+    await feedbackItems.nth(1)
+      .getByRole('menu', { name: 'Feedback actions for FB-002' })
+      .getByRole('menuitem', { name: 'Move Up' })
+      .click();
+    await expect(feedbackItems.nth(0)).toContainText(cases[0].comment);
+    await expect(feedbackItems.nth(0)).toHaveAttribute('aria-current', 'true');
+
+    await feedbackItems.nth(0)
+      .getByRole('button', { name: 'More actions for feedback FB-001' })
+      .click();
+    await feedbackItems.nth(0)
+      .getByRole('menu', { name: 'Feedback actions for FB-001' })
+      .getByRole('menuitem', { name: 'Edit' })
+      .click();
+    await expect(mainWindow.getByPlaceholder('Enter feedback text...')).toBeFocused();
+    await mainWindow.keyboard.press('Escape');
+    await expect(mainWindow.getByText(cases[0].comment, { exact: true })).toBeVisible();
+
+    const thirdFeedback = feedbackItems.nth(2);
+    await thirdFeedback
+      .getByRole('button', { name: 'More actions for feedback FB-003' })
+      .click();
+    await thirdFeedback
+      .getByRole('menu', { name: 'Feedback actions for FB-003' })
+      .getByRole('menuitem', { name: 'Delete' })
+      .click();
+    await expect(feedbackItems).toHaveCount(2);
+    await expect(mainWindow.getByText('Deleted FB-003', { exact: true })).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(feedbackItems).toHaveCount(3);
+    await expect(feedbackItems.nth(2)).toContainText(cases[2].comment);
+
     await expect(mainWindow.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     const reviewActions = await Promise.all(
       ['Open Folder', 'Copy', 'Save', 'Close'].map(async (name) => {
@@ -1513,6 +1726,8 @@ test.describe('MarkuprX desktop application', () => {
     await expect(lightbox.getByRole('button', { name: 'Close screenshot preview' })).toBeFocused();
     await mainWindow.keyboard.press('Escape');
     await expect(lightbox).toBeHidden();
+    await expect.poll(() => review.locator('.ff-list-item-enter').last().evaluate((element) =>
+      getComputedStyle(element).opacity)).toBe('1');
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
     await mainWindow.locator('p').filter({ hasText: cases[0].comment }).first().dblclick();
     const editor = mainWindow.getByPlaceholder('Enter feedback text...');

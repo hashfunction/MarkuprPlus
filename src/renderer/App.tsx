@@ -213,6 +213,7 @@ const App: React.FC = () => {
   // Render
   // ---------------------------------------------------------------------------
   const showReviewSurface =
+    ui.currentView === 'main' &&
     recording.state === 'complete' &&
     Boolean(recording.reviewSession) &&
     recording.showReviewEditor;

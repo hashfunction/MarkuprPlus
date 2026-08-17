@@ -91,6 +91,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  background: var(--bg-primary);
   color: var(--text-primary);
 }
 
@@ -124,6 +125,82 @@
 
 .ff-review-items > * {
   min-width: 0;
+}
+
+.ff-review-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ff-review-item {
+  min-width: 0;
+}
+
+.ff-review-item:focus {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+}
+
+.ff-review-item__more {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 32px;
+  margin-left: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.ff-review-item__more[aria-expanded='true'] {
+  border-color: var(--accent-default);
+  color: var(--text-primary);
+}
+
+.ff-review-item__menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.ff-review-item__menu button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+}
+
+.ff-review-item__menu button:focus-visible {
+  border-color: var(--accent-default);
+  outline: 2px solid var(--accent-default);
+  outline-offset: 1px;
+  color: var(--text-primary);
+}
+
+.ff-review-item__menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ff-review-item__menu button.is-destructive {
+  color: var(--status-error);
 }
 
 .ff-review-actions {
@@ -170,7 +247,7 @@
   border: 1px solid color-mix(in srgb, var(--status-error) 42%, transparent);
   border-radius: 10px;
   background: var(--status-error-subtle);
-  color: var(--status-error);
+  color: var(--text-primary);
   font-size: 12px;
 }
 
