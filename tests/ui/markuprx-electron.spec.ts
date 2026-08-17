@@ -348,6 +348,18 @@ async function measureReviewContrast(
   }, bodyText);
 }
 
+async function reviewItemFocusState(item: Locator): Promise<{
+  focused: boolean;
+  ariaCurrent: string | null;
+  tabIndex: number;
+}> {
+  return item.evaluate((element) => ({
+    focused: document.activeElement === element,
+    ariaCurrent: element.getAttribute('aria-current'),
+    tabIndex: (element as HTMLElement).tabIndex,
+  }));
+}
+
 async function clickApplicationMenuItem(
   application: ElectronApplication,
   menuLabel: string,
@@ -1627,8 +1639,14 @@ test.describe('MarkuprX desktop application', () => {
     const restoredInlineEditor = mainWindow.getByPlaceholder('Enter feedback text...');
     await expect(restoredInlineEditor).toHaveValue(inlineDraftComment);
     await restoredInlineEditor.press('Escape');
+    const restoredInlineCard = review.getByRole('listitem').filter({ hasText: cases[1].comment });
     await expect(mainWindow.getByText(cases[1].comment, { exact: true })).toBeVisible();
     await expect(mainWindow.getByText(inlineDraftComment, { exact: true })).toBeHidden();
+    expect(await reviewItemFocusState(restoredInlineCard)).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
 
     const lightContrast = await measureReviewContrast(review, navigationDraftComment);
     expect(lightContrast.shellOpaque).toBe(true);
@@ -1692,6 +1710,11 @@ test.describe('MarkuprX desktop application', () => {
     await expect(feedbackItems.nth(0)).toContainText(cases[1].comment);
     await expect(feedbackItems.nth(1)).toContainText(navigationDraftComment);
     await expect(feedbackItems.nth(1)).toHaveAttribute('aria-current', 'true');
+    expect(await reviewItemFocusState(feedbackItems.nth(1))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
 
     const movedMore = feedbackItems.nth(1).getByRole('button', {
       name: 'More actions for feedback FB-002',
@@ -1703,6 +1726,11 @@ test.describe('MarkuprX desktop application', () => {
       .click();
     await expect(feedbackItems.nth(0)).toContainText(navigationDraftComment);
     await expect(feedbackItems.nth(0)).toHaveAttribute('aria-current', 'true');
+    expect(await reviewItemFocusState(feedbackItems.nth(0))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
 
     await feedbackItems.nth(0)
       .getByRole('button', { name: 'More actions for feedback FB-001' })
@@ -1714,6 +1742,11 @@ test.describe('MarkuprX desktop application', () => {
     await expect(mainWindow.getByPlaceholder('Enter feedback text...')).toBeFocused();
     await mainWindow.keyboard.press('Escape');
     await expect(mainWindow.getByText(navigationDraftComment, { exact: true })).toBeVisible();
+    expect(await reviewItemFocusState(feedbackItems.nth(0))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
 
     const thirdFeedback = feedbackItems.nth(2);
     await thirdFeedback
@@ -1724,10 +1757,77 @@ test.describe('MarkuprX desktop application', () => {
       .getByRole('menuitem', { name: 'Delete' })
       .click();
     await expect(feedbackItems).toHaveCount(2);
+    expect(await reviewItemFocusState(feedbackItems.nth(1))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
     await expect(mainWindow.getByText('Deleted FB-003', { exact: true })).toBeVisible();
     await mainWindow.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(feedbackItems).toHaveCount(3);
     await expect(feedbackItems.nth(2)).toContainText(cases[2].comment);
+    expect(await reviewItemFocusState(feedbackItems.nth(2))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
+
+    // Keyboard deletion follows the same nearest-neighbor focus contract.
+    await mainWindow.keyboard.press('Delete');
+    await expect(feedbackItems).toHaveCount(2);
+    expect(await reviewItemFocusState(feedbackItems.nth(1))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
+    await mainWindow.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(feedbackItems).toHaveCount(3);
+    expect(await reviewItemFocusState(feedbackItems.nth(2))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
+
+    // Deleting the first item chooses the next item at the same index.
+    await feedbackItems.nth(0).focus();
+    await mainWindow.keyboard.press('Delete');
+    await expect(feedbackItems).toHaveCount(2);
+    expect(await reviewItemFocusState(feedbackItems.nth(0))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
+    await mainWindow.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(feedbackItems).toHaveCount(3);
+    expect(await reviewItemFocusState(feedbackItems.nth(0))).toEqual({
+      focused: true,
+      ariaCurrent: 'true',
+      tabIndex: 0,
+    });
+
+    // With no surviving cards, focus falls back to a safe Review control.
+    await mainWindow.keyboard.press('Delete');
+    await expect(feedbackItems).toHaveCount(2);
+    await feedbackItems.nth(0).focus();
+    await mainWindow.keyboard.press('Delete');
+    await expect(feedbackItems).toHaveCount(1);
+    await feedbackItems.nth(0).focus();
+    await mainWindow.keyboard.press('Delete');
+    await expect(feedbackItems).toHaveCount(0);
+    expect(await review.getByRole('button', { name: 'Preview', exact: true }).evaluate(
+      (element) => document.activeElement === element,
+    )).toBe(true);
+
+    for (const expectedCount of [1, 2, 3]) {
+      await mainWindow.getByRole('button', { name: 'Undo', exact: true }).last().click();
+      await expect(feedbackItems).toHaveCount(expectedCount);
+      const restoredItem = feedbackItems.nth(0);
+      expect(await reviewItemFocusState(restoredItem)).toEqual({
+        focused: true,
+        ariaCurrent: 'true',
+        tabIndex: 0,
+      });
+    }
 
     await expect(mainWindow.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     const reviewActions = await Promise.all(

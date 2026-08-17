@@ -13,7 +13,14 @@
  * - Full keyboard navigation (Up/Down, Delete, Enter)
  */
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import type {
   ReviewFeedbackItem as FeedbackItem,
   ReviewFeedbackCategory as FeedbackCategory,
@@ -717,6 +724,22 @@ const SessionReview: React.FC<SessionReviewProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const reviewFocusFallbackRef = useRef<HTMLButtonElement>(null);
+  const pendingFocusRef = useRef<{ itemId: string | null } | null>(null);
+
+  const requestPostUpdateFocus = useCallback((itemId: string | null) => {
+    pendingFocusRef.current = { itemId };
+  }, []);
+
+  useLayoutEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (!pending) return;
+    pendingFocusRef.current = null;
+    const target = pending.itemId
+      ? cardRefs.current.get(pending.itemId)
+      : reviewFocusFallbackRef.current;
+    (target ?? reviewFocusFallbackRef.current)?.focus();
+  }, [draft.editing, items]);
 
   const handleOpenLightbox = useCallback((
     imagePath: string,
@@ -749,13 +772,34 @@ const SessionReview: React.FC<SessionReviewProps> = ({
 
   // Handlers
   const handleDelete = useCallback((itemId: string) => {
+    const itemIndex = items.findIndex((item) => item.id === itemId);
+    const nextItemId = itemIndex < 0
+      ? null
+      : items[itemIndex + 1]?.id ?? items[itemIndex - 1]?.id ?? null;
+    requestPostUpdateFocus(nextItemId);
     onDraftAction({
       type: 'delete-item',
       itemId,
       expiresAt: Date.now() + UNDO_DURATION_MS,
     });
+    onDraftAction({ type: 'select-item', itemId: nextItemId });
     setOpenMenuItemId(null);
-  }, [onDraftAction]);
+  }, [items, onDraftAction, requestPostUpdateFocus]);
+
+  const handleUndo = useCallback((itemId: string) => {
+    requestPostUpdateFocus(itemId);
+    onDraftAction({ type: 'undo-delete', itemId });
+  }, [onDraftAction, requestPostUpdateFocus]);
+
+  const handleCommitEdit = useCallback((itemId: string) => {
+    requestPostUpdateFocus(itemId);
+    onDraftAction({ type: 'commit-edit' });
+  }, [onDraftAction, requestPostUpdateFocus]);
+
+  const handleCancelEdit = useCallback((itemId: string) => {
+    requestPostUpdateFocus(itemId);
+    onDraftAction({ type: 'cancel-edit' });
+  }, [onDraftAction, requestPostUpdateFocus]);
 
   // Handle keyboard navigation (must be after handleDelete is defined)
   useEffect(() => {
@@ -831,9 +875,10 @@ const SessionReview: React.FC<SessionReviewProps> = ({
   );
 
   const handleMove = useCallback((itemId: string, toIndex: number) => {
+    requestPostUpdateFocus(itemId);
     onDraftAction({ type: 'move-item', itemId, toIndex });
     setOpenMenuItemId(null);
-  }, [onDraftAction]);
+  }, [onDraftAction, requestPostUpdateFocus]);
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -875,6 +920,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
         className="ff-review-surface"
         headerActions={(
           <button
+            ref={reviewFocusFallbackRef}
             type="button"
             className="ff-review-preview-toggle"
             aria-expanded={showPreview}
@@ -951,8 +997,8 @@ const SessionReview: React.FC<SessionReviewProps> = ({
                     onSelect={() => onDraftAction({ type: 'select-item', itemId: item.id })}
                     onStartEdit={() => onDraftAction({ type: 'start-edit', itemId: item.id })}
                     onEditTextChange={(text) => onDraftAction({ type: 'update-edit', text })}
-                    onSaveEdit={() => onDraftAction({ type: 'commit-edit' })}
-                    onCancelEdit={() => onDraftAction({ type: 'cancel-edit' })}
+                    onSaveEdit={() => handleCommitEdit(item.id)}
+                    onCancelEdit={() => handleCancelEdit(item.id)}
                     onDelete={() => handleDelete(item.id)}
                     onCategoryChange={(cat) => handleCategoryChange(item.id, cat)}
                     onSeverityChange={(sev) => handleSeverityChange(item.id, sev)}
@@ -997,7 +1043,7 @@ const SessionReview: React.FC<SessionReviewProps> = ({
             <DeleteUndoToast
               key={deleted.item.id}
               itemId={`FB-${(deleted.index + 1).toString().padStart(3, '0')}`}
-              onUndo={() => onDraftAction({ type: 'undo-delete', itemId: deleted.item.id })}
+              onUndo={() => handleUndo(deleted.item.id)}
               progress={Math.max(
                 0,
                 Math.min(100, ((deleted.expiresAt - undoNow) / UNDO_DURATION_MS) * 100),
