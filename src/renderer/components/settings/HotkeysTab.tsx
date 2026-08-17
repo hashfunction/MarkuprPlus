@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react';
 import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
-import type { AppSettings, HotkeyConfig } from '../../../shared/types';
+import type { HotkeyConfig, PublicSettings } from '../../../shared/types';
 import { SettingsSection, KeyRecorder } from '../primitives';
 import { HotkeyHint } from '../HotkeyHint';
 import { styles } from './settingsStyles';
 
 export const HotkeysTab: React.FC<{
-  settings: AppSettings;
+  settings: PublicSettings;
   onHotkeyChange: (key: keyof HotkeyConfig, value: string) => void;
   onResetSection: () => void;
 }> = ({ settings, onHotkeyChange, onResetSection }) => {

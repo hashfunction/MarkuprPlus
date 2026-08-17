@@ -10,6 +10,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ipcMain, safeStorage } from 'electron';
+import * as keytar from 'keytar';
 
 // =============================================================================
 // Hoisted mocks — vi.hoisted runs before vi.mock factory hoisting
@@ -78,6 +80,7 @@ vi.mock('electron', () => ({
   },
   safeStorage: {
     isEncryptionAvailable: vi.fn(() => true),
+    getSelectedStorageBackend: vi.fn(() => 'keychain'),
     encryptString: vi.fn((s: string) => Buffer.from(`encrypted:${s}`)),
     decryptString: vi.fn((b: Buffer) => b.toString().replace('encrypted:', '')),
   },
@@ -132,6 +135,14 @@ import {
   CURRENT_KEYTAR_SERVICE,
   LEGACY_KEYTAR_SERVICES,
 } from '../../src/main/migration/LegacyBrandMigration';
+import { IPC_CHANNELS } from '../../src/shared/types';
+
+function registeredHandler(channel: string): (...args: unknown[]) => unknown {
+  const registration = vi.mocked(ipcMain.handle).mock.calls
+    .find(([name]) => name === channel);
+  if (!registration) throw new Error(`Handler not registered for ${channel}`);
+  return registration[1] as (...args: unknown[]) => unknown;
+}
 
 // =============================================================================
 // Tests
@@ -143,6 +154,26 @@ describe('Settings E2E', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockKeychain.clear();
+    vi.mocked(keytar.getPassword).mockImplementation((service: string, account: string) => (
+      Promise.resolve(mockKeychain.get(`${service}:${account}`) || null)
+    ));
+    vi.mocked(keytar.setPassword).mockImplementation((service: string, account: string, password: string) => {
+      mockKeychain.set(`${service}:${account}`, password);
+      return Promise.resolve();
+    });
+    vi.mocked(keytar.deletePassword).mockImplementation((service: string, account: string) => {
+      const had = mockKeychain.has(`${service}:${account}`);
+      mockKeychain.delete(`${service}:${account}`);
+      return Promise.resolve(had);
+    });
+    vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(true);
+    vi.mocked(safeStorage.getSelectedStorageBackend).mockReturnValue('keychain');
+    vi.mocked(safeStorage.encryptString).mockImplementation((value: string) => (
+      Buffer.from(`encrypted:${value}`)
+    ));
+    vi.mocked(safeStorage.decryptString).mockImplementation((value: Buffer) => (
+      value.toString().replace('encrypted:', '')
+    ));
     settings = new SettingsManager();
   });
 
@@ -198,8 +229,7 @@ describe('Settings E2E', () => {
 
   describe('Validation', () => {
     it('should reject pauseThreshold outside 500-3000', () => {
-      settings.set('pauseThreshold', 100); // Too low
-      // Invalid values are silently rejected
+      expect(() => settings.set('pauseThreshold', 100)).toThrow('Invalid settings request.');
       expect(settings.get('pauseThreshold')).not.toBe(100);
     });
 
@@ -209,10 +239,10 @@ describe('Settings E2E', () => {
     });
 
     it('should reject imageQuality outside 1-100', () => {
-      settings.set('imageQuality', 0); // Too low
+      expect(() => settings.set('imageQuality', 0)).toThrow('Invalid settings request.');
       expect(settings.get('imageQuality')).not.toBe(0);
 
-      settings.set('imageQuality', 101); // Too high
+      expect(() => settings.set('imageQuality', 101)).toThrow('Invalid settings request.');
       expect(settings.get('imageQuality')).not.toBe(101);
     });
 
@@ -229,7 +259,7 @@ describe('Settings E2E', () => {
     });
 
     it('should reject invalid defaultCountdown values', () => {
-      settings.set('defaultCountdown', 2 as any);
+      expect(() => settings.set('defaultCountdown', 2 as any)).toThrow('Invalid settings request.');
       expect(settings.get('defaultCountdown')).not.toBe(2);
     });
 
@@ -242,7 +272,7 @@ describe('Settings E2E', () => {
     });
 
     it('should reject invalid imageFormat', () => {
-      settings.set('imageFormat', 'gif' as any);
+      expect(() => settings.set('imageFormat', 'gif' as any)).toThrow('Invalid settings request.');
       expect(settings.get('imageFormat')).not.toBe('gif');
     });
 
@@ -254,7 +284,7 @@ describe('Settings E2E', () => {
     });
 
     it('should reject invalid theme', () => {
-      settings.set('theme', 'midnight' as any);
+      expect(() => settings.set('theme', 'midnight' as any)).toThrow('Invalid settings request.');
       expect(settings.get('theme')).not.toBe('midnight');
     });
 
@@ -264,17 +294,17 @@ describe('Settings E2E', () => {
     });
 
     it('should reject invalid accentColor', () => {
-      settings.set('accentColor', 'not-a-color');
+      expect(() => settings.set('accentColor', 'not-a-color')).toThrow('Invalid settings request.');
       expect(settings.get('accentColor')).not.toBe('not-a-color');
     });
 
     it('should reject maxImageWidth outside 800-2400', () => {
-      settings.set('maxImageWidth', 400); // Too low
+      expect(() => settings.set('maxImageWidth', 400)).toThrow('Invalid settings request.');
       expect(settings.get('maxImageWidth')).not.toBe(400);
     });
 
     it('should reject minTimeBetweenCaptures outside 300-2000', () => {
-      settings.set('minTimeBetweenCaptures', 100); // Too low
+      expect(() => settings.set('minTimeBetweenCaptures', 100)).toThrow('Invalid settings request.');
       expect(settings.get('minTimeBetweenCaptures')).not.toBe(100);
     });
   });
@@ -317,6 +347,20 @@ describe('Settings E2E', () => {
       expect(mockKeychain.has(`${LEGACY_KEYTAR_SERVICES[0]}:openai`)).toBe(false);
     });
 
+    it('retains and retries legacy keychain cleanup after verified migration', async () => {
+      const legacyLocation = `${LEGACY_KEYTAR_SERVICES[0]}:openai`;
+      mockKeychain.set(legacyLocation, 'legacy-keychain-material');
+      vi.mocked(keytar.deletePassword).mockRejectedValueOnce(new Error('cleanup unavailable'));
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-keychain-material');
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`))
+        .toBe('legacy-keychain-material');
+      expect(mockKeychain.get(legacyLocation)).toBe('legacy-keychain-material');
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-keychain-material');
+      expect(mockKeychain.has(legacyLocation)).toBe(false);
+    });
+
     it('should check if API key exists', async () => {
       expect(await settings.hasApiKey('openai')).toBe(false);
 
@@ -335,6 +379,183 @@ describe('Settings E2E', () => {
       await settings.deleteApiKey('openai');
       expect(await settings.getApiKey('openai')).toBeNull();
       expect(await settings.getApiKey('anthropic')).toBe('sk-anthropic-key');
+    });
+
+    it('falls back to genuinely protected safeStorage after a keychain failure', async () => {
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error('keychain unavailable'));
+
+      await settings.setApiKey('openai', 'test-key-material');
+
+      expect(storeRefs.secure?._data.get('openai')).toBe(
+        Buffer.from('encrypted:test-key-material').toString('base64'),
+      );
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+      expect(JSON.stringify(settings.getAll())).not.toContain('test-key-material');
+    });
+
+    it('does not overwrite an unreadable keychain entry before using protected fallback', async () => {
+      vi.mocked(keytar.getPassword).mockRejectedValue(new Error('keychain read unavailable'));
+
+      await settings.setApiKey('openai', 'test-key-material');
+
+      expect(keytar.setPassword).not.toHaveBeenCalled();
+      expect(storeRefs.secure?._data.get('openai')).toBe(
+        Buffer.from('encrypted:test-key-material').toString('base64'),
+      );
+    });
+
+    it('fails closed when keychain and protected safeStorage are unavailable', async () => {
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error('keychain unavailable'));
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(false);
+
+      await expect(settings.setApiKey('openai', 'new-key-material'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+
+      expect(storeRefs.secure?._data.has('openai')).toBe(false);
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+      expect(JSON.stringify(storeRefs.main?.store)).not.toContain('new-key-material');
+    });
+
+    it('rejects Linux basic_text even when Electron reports encryption available', async () => {
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error('keychain unavailable'));
+      vi.mocked(safeStorage.getSelectedStorageBackend).mockReturnValue('basic_text');
+
+      await expect(settings.setApiKey('openai', 'new-key-material'))
+        .rejects.toMatchObject({ name: 'SecureStorageUnavailableError' });
+      expect(safeStorage.encryptString).not.toHaveBeenCalled();
+      expect(storeRefs.secure?._data.size).toBe(0);
+    });
+
+    it('migrates an existing basic_text fallback to a verified keychain write', async () => {
+      vi.mocked(safeStorage.getSelectedStorageBackend).mockReturnValue('basic_text');
+      storeRefs.secure?._data.set(
+        'openai',
+        Buffer.from('encrypted:legacy-basic-text-material').toString('base64'),
+      );
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-basic-text-material');
+
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`))
+        .toBe('legacy-basic-text-material');
+      expect(storeRefs.secure?._data.has('openai')).toBe(false);
+    });
+
+    it('migrates direct legacy plaintext only after a verified secure write', async () => {
+      storeRefs.secure?._data.set('plaintext:openai', 'legacy-key-material');
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-key-material');
+
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`)).toBe('legacy-key-material');
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+    });
+
+    it('migrates the legacy settings-map plaintext location without exposing it', async () => {
+      storeRefs.main?._data.set('__plaintext_fallback__', { openai: 'legacy-map-material' });
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-map-material');
+
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`)).toBe('legacy-map-material');
+      expect((storeRefs.main?._data.get('__plaintext_fallback__') as Record<string, string>)?.openai)
+        .toBeUndefined();
+      expect(JSON.stringify(settings.getAll())).not.toContain('legacy-map-material');
+    });
+
+    it('removes both legacy plaintext locations after one verified migration', async () => {
+      storeRefs.secure?._data.set('plaintext:openai', 'legacy-direct-material');
+      storeRefs.main?._data.set('__plaintext_fallback__', {
+        openai: 'older-map-material',
+        anthropic: 'unrelated-provider-material',
+      });
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-direct-material');
+
+      expect(mockKeychain.get(`${CURRENT_KEYTAR_SERVICE}:openai`))
+        .toBe('legacy-direct-material');
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+      expect((storeRefs.main?._data.get('__plaintext_fallback__') as Record<string, string>))
+        .toEqual({ anthropic: 'unrelated-provider-material' });
+    });
+
+    it('cleans every stale fallback for a service after reading a verified current key', async () => {
+      mockKeychain.set(`${CURRENT_KEYTAR_SERVICE}:openai`, 'current-key-material');
+      mockKeychain.set(`${LEGACY_KEYTAR_SERVICES[0]}:openai`, 'stale-keychain-material');
+      storeRefs.secure?._data.set(
+        'openai',
+        Buffer.from('encrypted:stale-encrypted-material').toString('base64'),
+      );
+      storeRefs.secure?._data.set('plaintext:openai', 'stale-direct-material');
+      storeRefs.main?._data.set('__plaintext_fallback__', { openai: 'stale-map-material' });
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('current-key-material');
+
+      expect(storeRefs.secure?._data.has('openai')).toBe(false);
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+      expect(storeRefs.main?._data.has('__plaintext_fallback__')).toBe(false);
+      expect(mockKeychain.has(`${LEGACY_KEYTAR_SERVICES[0]}:openai`)).toBe(false);
+    });
+
+    it('retains legacy plaintext when secure migration cannot be verified', async () => {
+      storeRefs.secure?._data.set('plaintext:openai', 'legacy-key-material');
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error('write failed'));
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(false);
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-key-material');
+
+      expect(storeRefs.secure?._data.get('plaintext:openai')).toBe('legacy-key-material');
+    });
+
+    it('retains and retries legacy cleanup when source deletion fails', async () => {
+      storeRefs.secure?._data.set('plaintext:openai', 'legacy-key-material');
+      const originalDelete = storeRefs.secure?.delete.getMockImplementation();
+      storeRefs.secure?.delete.mockImplementationOnce(() => {
+        throw new Error('cleanup failed');
+      });
+
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-key-material');
+      expect(storeRefs.secure?._data.get('plaintext:openai')).toBe('legacy-key-material');
+
+      storeRefs.secure?.delete.mockImplementation(originalDelete ?? (() => false));
+      await expect(settings.getApiKey('openai')).resolves.toBe('legacy-key-material');
+      expect(storeRefs.secure?._data.has('plaintext:openai')).toBe(false);
+    });
+
+    it('attempts every credential location and returns value-free deletion failures', async () => {
+      mockKeychain.set(`${CURRENT_KEYTAR_SERVICE}:openai`, 'key-material');
+      storeRefs.secure?._data.set('openai', 'encrypted-material');
+      storeRefs.secure?._data.set('plaintext:openai', 'legacy-material');
+      storeRefs.main?._data.set('__plaintext_fallback__', { openai: 'legacy-map-material' });
+      vi.mocked(keytar.deletePassword).mockRejectedValue(new Error('key-material leaked in error'));
+      storeRefs.secure?.delete.mockImplementation(() => {
+        throw new Error('legacy-material leaked in error');
+      });
+
+      const result = await settings.deleteApiKey('openai');
+
+      expect(keytar.deletePassword).toHaveBeenCalledTimes(1 + LEGACY_KEYTAR_SERVICES.length);
+      expect(storeRefs.secure?.delete).toHaveBeenCalledWith('openai');
+      expect(storeRefs.secure?.delete).toHaveBeenCalledWith('plaintext:openai');
+      expect(result.success).toBe(false);
+      expect(JSON.stringify(result)).not.toContain('material');
+    });
+
+    it('reports cleanup failure when a credential backend claims deletion but retains data', async () => {
+      mockKeychain.set(`${CURRENT_KEYTAR_SERVICE}:openai`, 'retained-key-material');
+      storeRefs.secure?._data.set('openai', 'retained-encrypted-material');
+      const originalSecureDelete = storeRefs.secure?.delete.getMockImplementation();
+      vi.mocked(keytar.deletePassword).mockResolvedValue(false);
+      storeRefs.secure?.delete.mockImplementation(() => false);
+
+      const result = await settings.deleteApiKey('openai');
+
+      expect(result).toEqual({
+        success: false,
+        failures: [
+          { location: 'keychain' },
+          { location: 'encrypted-fallback' },
+        ],
+      });
+      expect(JSON.stringify(result)).not.toContain('material');
+      storeRefs.secure?.delete.mockImplementation(originalSecureDelete ?? (() => false));
     });
   });
 
@@ -492,6 +713,50 @@ describe('Settings E2E', () => {
       );
 
       warnSpy.mockRestore();
+    });
+
+    it('projects raw legacy data and rejects dangerous keys in deprecated handlers', async () => {
+      storeRefs.main?._data.set('__plaintext_fallback__', { openai: 'IPC-SECRET-CANARY' });
+      storeRefs.main?._data.set('unknownLegacyKey', 'IPC-SECRET-CANARY');
+      settings.registerIpcHandlers();
+
+      const all = await registeredHandler(IPC_CHANNELS.SETTINGS_GET_ALL)({});
+      expect(JSON.stringify(all)).not.toContain('IPC-SECRET-CANARY');
+      expect(all).not.toHaveProperty('__plaintext_fallback__');
+      expect(all).not.toHaveProperty('unknownLegacyKey');
+
+      for (const key of ['__proto__', 'constructor', 'theme.value', '_version']) {
+        await expect(Promise.resolve().then(() => (
+          registeredHandler(IPC_CHANNELS.SETTINGS_GET)({}, key)
+        ))).rejects.toThrow('Invalid settings request.');
+        await expect(Promise.resolve().then(() => (
+          registeredHandler(IPC_CHANNELS.SETTINGS_SET)({}, key, 'IPC-SECRET-CANARY')
+        ))).rejects.toThrow('Invalid settings request.');
+      }
+      await expect(registeredHandler(IPC_CHANNELS.SETTINGS_GET_API_KEY)({}, 'openai'))
+        .resolves.toBeNull();
+
+      const setResult = await registeredHandler(IPC_CHANNELS.SETTINGS_SET)({}, 'theme', 'light');
+      expect(setResult).toMatchObject({ theme: 'light' });
+      expect(JSON.stringify(setResult)).not.toContain('IPC-SECRET-CANARY');
+    });
+
+    it('never logs credential material when storage and deletion fail', async () => {
+      const canary = 'LOG-SECRET-CANARY';
+      const logs: unknown[][] = [];
+      const capture = (...args: unknown[]) => logs.push(args);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(capture);
+      const error = vi.spyOn(console, 'error').mockImplementation(capture);
+      vi.mocked(keytar.setPassword).mockRejectedValue(new Error(canary));
+      vi.mocked(keytar.deletePassword).mockRejectedValue(new Error(canary));
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(false);
+
+      await expect(settings.setApiKey('openai', canary)).rejects.toBeInstanceOf(Error);
+      await settings.deleteApiKey('openai');
+
+      expect(JSON.stringify(logs)).not.toContain(canary);
+      warn.mockRestore();
+      error.mockRestore();
     });
   });
 });

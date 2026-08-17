@@ -16,6 +16,7 @@ import { Menu, app, shell, BrowserWindow, MenuItemConstructorOptions } from 'ele
 import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../shared/publicBrand';
 import { sessionController } from './SessionController';
 import { getSettingsManager } from './settings/SettingsManager';
+import type { PublicSettings } from '../shared/types';
 
 // =============================================================================
 // Types
@@ -407,9 +408,9 @@ export class MenuManager {
   /**
    * Get a setting value with fallback
    */
-  private getSetting<K extends keyof import('./settings/SettingsManager').AppSettings>(
+  private getSetting<K extends keyof PublicSettings>(
     key: K
-  ): import('./settings/SettingsManager').AppSettings[K] {
+  ): PublicSettings[K] {
     try {
       return getSettingsManager().get(key);
     } catch {
@@ -419,16 +420,16 @@ export class MenuManager {
         showAudioWaveform: true,
         theme: 'system',
       };
-      return defaults[key] as import('./settings/SettingsManager').AppSettings[K];
+      return defaults[key] as PublicSettings[K];
     }
   }
 
   /**
    * Set a setting and rebuild menu
    */
-  private setSetting<K extends keyof import('./settings/SettingsManager').AppSettings>(
+  private setSetting<K extends keyof PublicSettings>(
     key: K,
-    value: import('./settings/SettingsManager').AppSettings[K]
+    value: PublicSettings[K]
   ): void {
     try {
       getSettingsManager().set(key, value);

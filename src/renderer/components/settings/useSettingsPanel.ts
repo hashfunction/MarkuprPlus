@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type {
   AnalysisProviderStatus,
-  AppSettings,
+  PublicSettings,
   AudioDevice,
   HotkeyConfig,
   ModelAnalysisProvider,
@@ -56,7 +56,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMes
 export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTab: SettingsTab = 'general') {
   // State
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<PublicSettings>(DEFAULT_SETTINGS);
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [openAiApiKey, setOpenAiApiKey] = useState<ApiKeyState>({
     value: '', visible: false, testing: false, valid: null, error: null,
@@ -72,6 +72,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const [whisperModelStatus, setWhisperModelStatus] = useState<WhisperModelCheckResult | null>(null);
   const [isRepairingLocalTranscription, setIsRepairingLocalTranscription] = useState(false);
   const [localTranscriptionError, setLocalTranscriptionError] = useState<string | null>(null);
+  const [isClearingData, setIsClearingData] = useState(false);
+  const [clearDataError, setClearDataError] = useState<string | null>(null);
   const getApiKeyPresence = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
     try {
       const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
@@ -109,7 +111,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     const loadSettings = async () => {
       try {
         const allSettings = await window.markuprx.settings.getAll();
-        const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
+        const loadedSettings = allSettings;
         setSettings(loadedSettings);
 
         const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus] = await Promise.all([
@@ -153,7 +155,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   // ---------------------------------------------------------------------------
 
   const handleSettingChange = useCallback(
-    async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    async <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
       setSaveStatus('saving');
       setSaveError(null);
@@ -253,27 +255,17 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const handleTestOpenAiApiKey = useCallback(async () => {
     setOpenAiApiKey((prev) => ({ ...prev, testing: true, error: null }));
     try {
-      let candidateKey = openAiApiKey.value.trim();
-      if (candidateKey === MASKED_API_KEY_PLACEHOLDER) {
-        const storedKey = await window.markuprx.settings.getApiKey('openai');
-        if (!storedKey) {
-          setOpenAiApiKey((prev) => ({
-            ...prev, valid: false,
-            error: 'No saved OpenAI key found. Paste your key and test again.',
-          }));
-          return;
-        }
-        candidateKey = storedKey.trim();
-      }
+      const candidateKey = openAiApiKey.value.trim();
+      const usingStoredKey = candidateKey === MASKED_API_KEY_PLACEHOLDER;
       const validation = await withTimeout(
-        window.markuprx.settings.testApiKey('openai', candidateKey),
+        window.markuprx.settings.testApiKey('openai', usingStoredKey ? undefined : candidateKey),
         API_TEST_TIMEOUT_MS,
         'OpenAI API test timed out. Please try again.'
       );
       if (validation.valid) {
         setSaveStatus('saving');
         setSaveError(null);
-        const saved = await withTimeout(
+        const saved = usingStoredKey || await withTimeout(
           window.markuprx.settings.setApiKey('openai', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving OpenAI key timed out. Please try again.'
@@ -288,7 +280,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
           }));
           return;
         }
-        setOpenAiApiKey((prev) => ({ ...prev, valid: true }));
+        setOpenAiApiKey((prev) => ({
+          ...prev,
+          value: MASKED_API_KEY_PLACEHOLDER,
+          visible: false,
+          valid: true,
+        }));
         window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'openai' } }));
         setSaveStatus('saved');
       } else {
@@ -324,27 +321,17 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const handleTestAnthropicApiKey = useCallback(async () => {
     setAnthropicApiKey((prev) => ({ ...prev, testing: true, error: null }));
     try {
-      let candidateKey = anthropicApiKey.value.trim();
-      if (candidateKey === MASKED_API_KEY_PLACEHOLDER) {
-        const storedKey = await window.markuprx.settings.getApiKey('anthropic');
-        if (!storedKey) {
-          setAnthropicApiKey((prev) => ({
-            ...prev, valid: false,
-            error: 'No saved Anthropic key found. Paste your key and test again.',
-          }));
-          return;
-        }
-        candidateKey = storedKey.trim();
-      }
+      const candidateKey = anthropicApiKey.value.trim();
+      const usingStoredKey = candidateKey === MASKED_API_KEY_PLACEHOLDER;
       const validation = await withTimeout(
-        window.markuprx.settings.testApiKey('anthropic', candidateKey),
+        window.markuprx.settings.testApiKey('anthropic', usingStoredKey ? undefined : candidateKey),
         API_TEST_TIMEOUT_MS,
         'Anthropic API test timed out. Please try again.'
       );
       if (validation.valid) {
         setSaveStatus('saving');
         setSaveError(null);
-        const saved = await withTimeout(
+        const saved = usingStoredKey || await withTimeout(
           window.markuprx.settings.setApiKey('anthropic', candidateKey),
           API_SAVE_TIMEOUT_MS,
           'Saving Anthropic key timed out. Please try again.'
@@ -360,7 +347,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
           return;
         }
         await refreshAnalysisProviders(true);
-        setAnthropicApiKey((prev) => ({ ...prev, valid: true }));
+        setAnthropicApiKey((prev) => ({
+          ...prev,
+          value: MASKED_API_KEY_PLACEHOLDER,
+          visible: false,
+          valid: true,
+        }));
         window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'api-key', provider: 'anthropic' } }));
         setSaveStatus('saved');
       } else {
@@ -400,7 +392,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setSaveError(null);
     try {
       for (const [key, value] of Object.entries(defaults)) {
-        await window.markuprx.settings.set(key as keyof AppSettings, value);
+        await window.markuprx.settings.set(key as keyof PublicSettings, value);
       }
       setSaveStatus('saved');
       return true;
@@ -429,7 +421,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setSaveError(null);
     try {
       for (const [key, value] of Object.entries(defaults)) {
-        await window.markuprx.settings.set(key as keyof AppSettings, value);
+        await window.markuprx.settings.set(key as keyof PublicSettings, value);
       }
       setSaveStatus('saved');
       return true;
@@ -454,7 +446,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setSaveError(null);
     try {
       for (const [key, value] of Object.entries(defaults)) {
-        await window.markuprx.settings.set(key as keyof AppSettings, value);
+        await window.markuprx.settings.set(key as keyof PublicSettings, value);
       }
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
         detail: { type: 'appearance' },
@@ -506,7 +498,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setSaveError(null);
     try {
       for (const [key, value] of Object.entries(defaults)) {
-        await window.markuprx.settings.set(key as keyof AppSettings, value);
+        await window.markuprx.settings.set(key as keyof PublicSettings, value);
       }
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'analysis-provider', provider: defaults.analysisProvider } }));
       await refreshAnalysisProviders(true);
@@ -528,17 +520,48 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   // ---------------------------------------------------------------------------
 
   const handleClearAllData = useCallback(async () => {
+    if (isClearingData) return;
+    setIsClearingData(true);
+    setClearDataError(null);
+    setSaveStatus('saving');
     try {
-      await window.markuprx.settings.clearAllData();
-      setSettings(DEFAULT_SETTINGS);
+      const result = await window.markuprx.settings.clearAllData();
+      setSettings(result.settings);
+      if (!result.success) {
+        const count = result.failures.length;
+        const message = `Clear All Data is incomplete. ${count} ${count === 1 ? 'item needs' : 'items need'} attention. Retry when ready.`;
+        setClearDataError(message);
+        setSaveError(message);
+        setSaveStatus('error');
+        const presence = await getApiKeyPresence();
+        setOpenAiApiKey((previous) => ({
+          ...previous,
+          value: presence.hasOpenAiKey ? MASKED_API_KEY_PLACEHOLDER : '',
+          valid: presence.hasOpenAiKey ? true : null,
+        }));
+        setAnthropicApiKey((previous) => ({
+          ...previous,
+          value: presence.hasAnthropicKey ? MASKED_API_KEY_PLACEHOLDER : '',
+          valid: presence.hasAnthropicKey ? true : null,
+        }));
+        return;
+      }
       setOpenAiApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnthropicApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnalysisProviderStatuses([]);
+      setSaveError(null);
+      setSaveStatus('saved');
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'reset' } }));
-    } catch (error) {
-      console.error('Failed to clear data:', error);
+    } catch {
+      const message = 'Clear All Data could not finish. Nothing is reported as complete; retry when ready.';
+      setClearDataError(message);
+      setSaveError(message);
+      setSaveStatus('error');
+      console.error('Failed to clear application data.');
+    } finally {
+      setIsClearingData(false);
     }
-  }, []);
+  }, [getApiKeyPresence, isClearingData]);
 
   const handleExportSettings = useCallback(async () => {
     try {
@@ -552,7 +575,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     try {
       const imported = await window.markuprx.settings.import();
       if (imported) {
-        setSettings({ ...DEFAULT_SETTINGS, ...imported });
+        setSettings(imported);
         window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
           detail: { type: 'import' },
         }));
@@ -604,6 +627,8 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     whisperModelStatus,
     isRepairingLocalTranscription,
     localTranscriptionError,
+    isClearingData,
+    clearDataError,
     analysisProviderViewState,
 
     // Setting handlers

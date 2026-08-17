@@ -6,7 +6,8 @@
  */
 
 import type {
-  AppSettings,
+  PublicSettings,
+  ClearApplicationDataResult,
   CaptureSource,
   CaptureSelectionMode,
   AudioDevice,
@@ -194,18 +195,18 @@ interface ProcessingAPI {
  * Settings API
  */
 interface SettingsAPI {
-  get: <K extends keyof AppSettings>(key: K) => Promise<AppSettings[K]>;
-  getAll: () => Promise<AppSettings>;
-  set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<AppSettings>;
+  get: <K extends keyof PublicSettings>(key: K) => Promise<PublicSettings[K]>;
+  getAll: () => Promise<PublicSettings>;
+  set: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => Promise<PublicSettings>;
   getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
-  testApiKey: (service: 'openai' | 'anthropic', key: string) => Promise<ApiKeyValidationResult>;
+  testApiKey: (service: 'openai' | 'anthropic', key?: string) => Promise<ApiKeyValidationResult>;
   selectDirectory: () => Promise<string | null>;
-  clearAllData: () => Promise<void>;
+  clearAllData: () => Promise<ClearApplicationDataResult>;
   export: () => Promise<void>;
-  import: () => Promise<AppSettings | null>;
+  import: () => Promise<PublicSettings | null>;
 }
 
 /**
@@ -449,8 +450,8 @@ export interface MarkuprXAPI {
   // Legacy API (backwards compatibility)
   startSession: () => Promise<{ success: boolean; sessionId?: string }>;
   stopSession: () => Promise<{ success: boolean }>;
-  getSettings: () => Promise<AppSettings>;
-  setSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
+  getSettings: () => Promise<PublicSettings>;
+  setSettings: (settings: Partial<PublicSettings>) => Promise<PublicSettings>;
   copyToClipboard: (text: string) => Promise<{ success: boolean }>;
   onSessionStatus: (callback: (status: { action: string; status?: SessionStatusPayload }) => void) => Unsubscribe;
   onTranscriptionUpdate: (callback: (data: { text: string; isFinal: boolean }) => void) => Unsubscribe;

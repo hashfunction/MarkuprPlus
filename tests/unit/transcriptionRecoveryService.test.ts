@@ -154,37 +154,168 @@ describe('recoverTranscript outcomes', () => {
     });
   });
 
-  it('uses local Whisper successfully after OpenAI fails', async () => {
+  it('uses local Whisper first and never reads a key or calls cloud after local success', async () => {
     const event = transcriptEvent('The save button overlaps the footer.');
+    const getOpenAIApiKey = vi.fn(async () => 'configured');
+    const recoverWithOpenAI = vi.fn(async () => success([transcriptEvent('cloud')]));
+    const recoverWithWhisper = vi.fn(async () => success([event]));
     const result = await recoverTranscript(
       sessionStartSec,
       encodedAudio(),
       dependencies({
+        getOpenAIApiKey,
+        recoverWithOpenAI,
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper,
+      })
+    );
+
+    expect(result).toEqual({ events: [event] });
+    expect(recoverWithWhisper).toHaveBeenCalledOnce();
+    expect(getOpenAIApiKey).not.toHaveBeenCalled();
+    expect(recoverWithOpenAI).not.toHaveBeenCalled();
+  });
+
+  it('uses a configured OpenAI key only after local Whisper fails', async () => {
+    const event = transcriptEvent('The navigation label is unclear.');
+    const calls: string[] = [];
+    const result = await recoverTranscript(
+      sessionStartSec,
+      encodedAudio(),
+      dependencies({
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async () => {
+          calls.push('local');
+          return { events: [], outcome: 'provider-error', error: 'model failed' };
+        },
+        getOpenAIApiKey: async () => {
+          calls.push('key');
+          return 'configured';
+        },
+        recoverWithOpenAI: async () => {
+          calls.push('cloud');
+          return success([event]);
+        },
+      })
+    );
+
+    expect(result).toEqual({ events: [event] });
+    expect(calls).toEqual(['local', 'key', 'cloud']);
+  });
+
+  it('uses configured cloud fallback after local is unavailable', async () => {
+    const event = transcriptEvent('Cloud fallback transcript.');
+    const getOpenAIApiKey = vi.fn(async () => 'configured');
+    const recoverWithOpenAI = vi.fn(async () => success([event]));
+
+    const result = await recoverTranscript(
+      sessionStartSec,
+      encodedAudio(),
+      dependencies({ getOpenAIApiKey, recoverWithOpenAI }),
+    );
+
+    expect(result).toEqual({ events: [event] });
+    expect(getOpenAIApiKey).toHaveBeenCalledOnce();
+    expect(recoverWithOpenAI).toHaveBeenCalledOnce();
+  });
+
+  it('does not call cloud after local failure when no key is configured', async () => {
+    const recoverWithOpenAI = vi.fn(async () => success([transcriptEvent('unexpected cloud')]));
+    const result = await recoverTranscript(
+      sessionStartSec,
+      encodedAudio(),
+      dependencies({
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async () => ({
+          events: [],
+          outcome: 'provider-error',
+          error: 'model failed',
+        }),
+        getOpenAIApiKey: async () => null,
+        recoverWithOpenAI,
+      }),
+    );
+
+    expect(recoverWithOpenAI).not.toHaveBeenCalled();
+    expect(result.failure).toEqual({
+      code: 'whisper-failed',
+      message: 'Local Whisper transcription failed: model failed',
+    });
+  });
+
+  it('reports local then configured cloud failures in their actual order', async () => {
+    const result = await recoverTranscript(
+      sessionStartSec,
+      encodedAudio(),
+      dependencies({
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async () => ({
+          events: [],
+          outcome: 'provider-error',
+          error: 'model failed',
+        }),
         getOpenAIApiKey: async () => 'configured',
         recoverWithOpenAI: async () => ({
           events: [],
           outcome: 'provider-error',
-          error: 'service unavailable',
+          error: 'request timed out',
         }),
-        isLocalModelAvailable: () => true,
-        recoverWithWhisper: async () => success([event]),
-      })
+      }),
     );
 
-    expect(result).toEqual({ events: [event] });
+    expect(result.failure).toEqual({
+      code: 'openai-failed',
+      message: 'Local Whisper transcription failed: model failed. OpenAI fallback failed: request timed out',
+    });
   });
 
-  it('returns OpenAI events without a failure', async () => {
-    const event = transcriptEvent('The navigation label is unclear.');
+  it('contains thrown local and cloud failures without skipping the configured fallback order', async () => {
+    const calls: string[] = [];
     const result = await recoverTranscript(
       sessionStartSec,
       encodedAudio(),
       dependencies({
-        getOpenAIApiKey: async () => 'configured',
-        recoverWithOpenAI: async () => success([event]),
-      })
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async () => {
+          calls.push('local');
+          throw new Error('sensitive local details');
+        },
+        getOpenAIApiKey: async () => {
+          calls.push('key');
+          return 'configured';
+        },
+        recoverWithOpenAI: async () => {
+          calls.push('cloud');
+          throw new Error('sensitive cloud details');
+        },
+      }),
     );
 
-    expect(result).toEqual({ events: [event] });
+    expect(calls).toEqual(['local', 'key', 'cloud']);
+    expect(result.failure).toEqual({
+      code: 'openai-failed',
+      message: 'Local Whisper transcription failed: local recovery failed. OpenAI fallback failed: request failed',
+    });
+    expect(JSON.stringify(result)).not.toContain('sensitive');
+  });
+
+  it('never reads a cloud key when encoded audio is absent', async () => {
+    const getOpenAIApiKey = vi.fn(async () => 'configured');
+    const result = await recoverTranscript(
+      sessionStartSec,
+      { capturedAudioAsset: null, capturedAudioBuffer: Buffer.alloc(16, 1) },
+      dependencies({
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async () => ({
+          events: [],
+          outcome: 'provider-error',
+          error: 'model failed',
+        }),
+        getOpenAIApiKey,
+      }),
+    );
+
+    expect(getOpenAIApiKey).not.toHaveBeenCalled();
+    expect(result.failure?.code).toBe('whisper-failed');
   });
 });

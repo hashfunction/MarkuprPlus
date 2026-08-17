@@ -8,7 +8,7 @@ import {
 } from '@playwright/test';
 import axe from 'axe-core';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { utils as playwrightCoreUtils } from 'playwright-core/lib/coreBundle';
 import sharp from 'sharp';
@@ -243,6 +243,10 @@ async function findOnlySessionDirectory(outputRoot: string): Promise<string> {
   const directories = entries.filter((entry) => entry.isDirectory());
   expect(directories).toHaveLength(1);
   return join(outputRoot, directories[0].name);
+}
+
+async function pathExists(pathname: string): Promise<boolean> {
+  return stat(pathname).then(() => true, () => false);
 }
 
 async function seedPortraitSession(
@@ -1299,7 +1303,7 @@ test.describe('MarkuprPlus desktop application', () => {
     harness = await createElectronHarnessEnvironment();
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async (_fixtures, testInfo) => {
     if (testInfo.status !== testInfo.expectedStatus) {
       if (harness.logs.length > 0) {
         await testInfo.attach('electron.log', {
@@ -2413,6 +2417,154 @@ test.describe('MarkuprPlus desktop application', () => {
     await expectNoHorizontalDocumentOverflow(window);
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
     await window.emulateMedia({ reducedMotion: 'no-preference', forcedColors: 'none' });
+  });
+
+  test('redacts persisted canaries and retries a contained partial Clear All Data operation', async () => {
+    const secretCanary = 'ELECTRON-SECRET-CANARY-MUST-STAY-IN-MAIN';
+    const enteredKeyCanary = 'electron-entered-key-must-be-forgotten';
+    const failedSessionName = 'owned-session-needs-retry';
+    const removedSessionName = 'owned-session-removable';
+    const failedSession = join(harness.outputRoot, failedSessionName);
+    const removedSession = join(harness.outputRoot, removedSessionName);
+    const unrelatedDirectory = join(harness.outputRoot, 'personal-files');
+    const externalDirectory = join(dirname(harness.outputRoot), 'external-canary');
+    const settingsExportPath = join(dirname(harness.outputRoot), 'public-settings.json');
+
+    await writeFile(join(harness.userDataDir, 'settings.json'), JSON.stringify({
+      _version: 3,
+      theme: 'light',
+      unknownLegacySetting: secretCanary,
+      __plaintext_fallback__: { unusedLegacyProvider: secretCanary },
+    }));
+    for (const [directory, id] of [
+      [failedSession, 'retry-session-id'],
+      [removedSession, 'removable-session-id'],
+    ] as const) {
+      await mkdir(directory, { recursive: true });
+      await writeFile(join(directory, '.markuprx-session.json'), JSON.stringify({
+        version: 1,
+        sessionId: id,
+      }));
+    }
+    await mkdir(unrelatedDirectory);
+    await writeFile(join(harness.outputRoot, 'root-canary.txt'), 'keep root');
+    await writeFile(join(unrelatedDirectory, 'keep.txt'), 'keep unrelated');
+    await mkdir(externalDirectory);
+    await writeFile(join(externalDirectory, 'keep.txt'), 'keep external');
+    await symlink(externalDirectory, join(harness.outputRoot, 'external-link'));
+    Object.assign(harness.env, {
+      MARKUPRX_E2E_SETTINGS_EXPORT_PATH: settingsExportPath,
+      MARKUPRX_E2E_FAIL_CLEAR_SESSION_NAME: failedSessionName,
+      MARKUPRX_E2E_CLEAR_DATA_DELAY_MS: '300',
+    });
+
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    const ipcResults = await window.evaluate(async () => ({
+      current: await window.markuprx.settings.getAll(),
+      legacy: await window.markuprx.getSettings(),
+    }));
+    expect(JSON.stringify(ipcResults)).not.toContain(secretCanary);
+    expect(ipcResults.current).not.toHaveProperty('unknownLegacySetting');
+    expect(ipcResults.legacy).not.toHaveProperty('__plaintext_fallback__');
+
+    await window.evaluate(() => window.markuprx.settings.export());
+    const exported = await readFile(settingsExportPath, 'utf8');
+    expect(exported).not.toContain(secretCanary);
+    expect(JSON.parse(exported)).not.toHaveProperty('unknownLegacySetting');
+    expect(JSON.parse(exported)).not.toHaveProperty('__plaintext_fallback__');
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const advanced = window.getByRole('tab', { name: 'Advanced', exact: true });
+    await advanced.click();
+    await application.evaluate(() => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => (
+        String(input).startsWith('https://api.openai.com/')
+          ? Promise.resolve(new Response('', { status: 400 }))
+          : originalFetch(input, init)
+      )) as typeof globalThis.fetch;
+    });
+    const openAiInput = window.getByPlaceholder('Enter your OpenAI API key');
+    await openAiInput.fill(enteredKeyCanary);
+    await window.getByRole('button', { name: 'Test Connection', exact: true }).first().click();
+    await expect(openAiInput).toHaveValue('********');
+    await expect(openAiInput).toHaveAttribute('type', 'password');
+    await expect(window.getByText('API key verified and saved securely.').first()).toBeVisible();
+    await expect(window.evaluate(() => window.markuprx.settings.getApiKey('openai')))
+      .resolves.toBeNull();
+    const clear = window.getByRole('button', { name: 'Clear All Data', exact: true });
+    await clear.click();
+    await window.getByRole('button', { name: 'Click to confirm deletion', exact: true }).click();
+    const guardedStart = await window.evaluate(() => window.markuprx.session.start(
+      'screen:e2e-clear-guard',
+      'Clear guard fixture',
+    ));
+    expect(guardedStart).toMatchObject({
+      success: false,
+      error: 'Wait for Clear All Data to finish before starting a recording.',
+    });
+    await expect(window.getByText(/Clear All Data is incomplete\./).last())
+      .toContainText('Clear All Data is incomplete.');
+
+    const retryResult = await window.evaluate(() => window.markuprx.settings.clearAllData());
+    expect(retryResult).toMatchObject({
+      success: false,
+      deletedSessions: 0,
+      failures: [{ kind: 'session' }],
+      settings: { outputDirectory: harness.outputRoot },
+    });
+    expect(await pathExists(harness.outputRoot)).toBe(true);
+    expect(await pathExists(failedSession)).toBe(true);
+    expect(await pathExists(removedSession)).toBe(false);
+    await expect(readFile(join(harness.outputRoot, 'root-canary.txt'), 'utf8')).resolves.toBe('keep root');
+    await expect(readFile(join(unrelatedDirectory, 'keep.txt'), 'utf8')).resolves.toBe('keep unrelated');
+    await expect(readFile(join(externalDirectory, 'keep.txt'), 'utf8')).resolves.toBe('keep external');
+
+    expect(JSON.stringify(retryResult)).not.toContain(secretCanary);
+    expect(JSON.stringify(retryResult.failures)).not.toContain(harness.outputRoot);
+    expect(await window.locator('body').innerText()).not.toContain(harness.outputRoot);
+    expect(harness.logs.join('\n')).not.toContain(secretCanary);
+    expect(harness.logs.join('\n')).not.toContain(enteredKeyCanary);
+  });
+
+  test('keeps local-success transcription off the OpenAI network with a saved key', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ localTranscriptionRecovery: true });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    expect(await mainWindow.evaluate(() => (
+      window.markuprx.settings.setApiKey('openai', 'electron-local-first-canary')
+    ))).toBe(true);
+    await application.evaluate(() => {
+      const state = globalThis as typeof globalThis & { __markuprxOpenAIRequestCount?: number };
+      const originalFetch = globalThis.fetch;
+      state.__markuprxOpenAIRequestCount = 0;
+      globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+        if (String(input).startsWith('https://api.openai.com/')) {
+          state.__markuprxOpenAIRequestCount = (state.__markuprxOpenAIRequestCount ?? 0) + 1;
+          return Promise.resolve(new Response('', { status: 503 }));
+        }
+        return originalFetch(input, init);
+      }) as typeof globalThis.fetch;
+    });
+
+    await selectDeterministicWindow(application, mainWindow);
+    await mainWindow.waitForTimeout(500);
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 60_000 });
+
+    expect(await application.evaluate(() => (
+      globalThis as typeof globalThis & { __markuprxOpenAIRequestCount?: number }
+    ).__markuprxOpenAIRequestCount)).toBe(0);
+    const sessionDirectory = await findOnlySessionDirectory(harness.outputRoot);
+    const report = await readFile(join(sessionDirectory, 'feedback-report.md'), 'utf8');
+    expect(report).toContain('Local recovery stayed on this device.');
+    expect(await pathExists(join(sessionDirectory, 'session-audio.webm'))).toBe(true);
   });
 
   test('reveals an automatically selected Advanced tab without stealing heading focus', async () => {

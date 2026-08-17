@@ -55,36 +55,40 @@ const originalProjectRepository = [
 const canonicalRepository = 'https://github.com/hashfunction/MarkuprPlus';
 const credentialStorageGuidance = new Map([
   ['README.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
-    ['hosted-key avoidance guidance', /(?:omit|do not save|avoid saving) (?:hosted|cloud) API keys/iu],
+    ['fail-closed credential write guidance', /new (?:API-key|credential) (?:saves|writes)[\s\S]*?(?:fail closed|save fails)[\s\S]*?no plaintext/iu],
+    ['legacy migration guidance', /older profiles[\s\S]*?migrat[\s\S]*?verif[\s\S]*?(?:clean|remov)/iu],
+    ['public settings projection guidance', /(?:renderer|Settings Export)[\s\S]*?(?:allowlisted|public settings projection)[\s\S]*?(?:exclude|never)[\s\S]*?(?:secret|credential)/iu],
+    ['local-first transcription guidance', /local Whisper[\s\S]*?first[\s\S]*?OpenAI[\s\S]*?(?:only|fallback)/iu],
   ]],
   ['SECURITY.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
-    ['fallback credential filename', /`secure-keys\.json`/u],
-    ['hosted-key avoidance guidance', /(?:omit|do not save|avoid saving) (?:hosted|cloud) API keys/iu],
-    ['settings-export sensitivity warning', /Settings Export[\s\S]*?(?:legacy|older)[\s\S]*?secret/iu],
+    ['fail-closed credential write guidance', /new (?:API-key|credential) (?:saves|writes)[\s\S]*?(?:fail closed|save fails)[\s\S]*?no plaintext/iu],
+    ['legacy migration guidance', /legacy[\s\S]*?migrat[\s\S]*?verif[\s\S]*?(?:clean|remov)/iu],
+    ['public settings projection guidance', /(?:renderer|Settings Export)[\s\S]*?(?:allowlisted|public settings projection)[\s\S]*?(?:exclude|never)[\s\S]*?(?:secret|credential)/iu],
+    ['contained Clear All guidance', /Clear All Data[\s\S]*?app-owned[\s\S]*?(?:preserv|leav)[\s\S]*?(?:root|unrelated)/iu],
   ]],
   ['docs/CONFIGURATION.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
-    ['fallback credential filename', /`secure-keys\.json`/u],
-    ['hosted-key avoidance guidance', /(?:omit|do not save|avoid saving) (?:hosted|cloud) API keys/iu],
-    ['settings-export sensitivity warning', /Export Settings[\s\S]*?(?:legacy|older)[\s\S]*?secret/iu],
+    ['fail-closed credential write guidance', /new (?:API-key|credential) (?:saves|writes)[\s\S]*?(?:fail closed|save fails)[\s\S]*?no plaintext/iu],
+    ['legacy migration guidance', /legacy[\s\S]*?migrat[\s\S]*?verif[\s\S]*?(?:clean|remov)/iu],
+    ['public settings projection guidance', /(?:Export Settings|Settings Export)[\s\S]*?(?:allowlisted|public settings projection)[\s\S]*?(?:exclude|never)[\s\S]*?(?:secret|credential)/iu],
   ]],
   ['docs/ARCHITECTURE.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
+    ['fail-closed credential write guidance', /new (?:API-key|credential) (?:saves|writes)[\s\S]*?(?:fail closed|save fails)[\s\S]*?no plaintext/iu],
+    ['local-first transcription guidance', /local Whisper[\s\S]*?first[\s\S]*?OpenAI[\s\S]*?(?:only|fallback)/iu],
+    ['contained Clear All guidance', /Clear All Data[\s\S]*?app-owned[\s\S]*?(?:preserv|leav)[\s\S]*?(?:root|unrelated)/iu],
   ]],
   ['docs/AI_PIPELINE_DESIGN.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
+    ['fail-closed credential write guidance', /new (?:API-key|credential) (?:saves|writes)[\s\S]*?(?:fail closed|save fails)[\s\S]*?no plaintext/iu],
+    ['local-first transcription guidance', /local Whisper[\s\S]*?first[\s\S]*?OpenAI[\s\S]*?(?:only|fallback)/iu],
   ]],
   ['docs/TROUBLESHOOTING.md', [
-    ['owner-only plaintext credential fallback disclosure', /owner-only plaintext/iu],
-    ['fallback credential filename', /`secure-keys\.json`/u],
-    ['safe fallback cleanup guidance', /Clear All Data/u],
+    ['verified migration and retry guidance', /legacy[\s\S]*?migrat[\s\S]*?verif[\s\S]*?retr(?:y|ied)/iu],
+    ['contained Clear All guidance', /Clear All Data[\s\S]*?app-owned[\s\S]*?(?:preserv|leav)[\s\S]*?(?:root|unrelated)/iu],
     ['secret-excluding backup guidance', /back up only[\s\S]*?exclud(?:e|ing)[\s\S]*?(?:settings|secure-keys)/iu],
   ]],
   ['docs/API.md', [
-    ['raw-settings legacy-secret warning', /raw persisted[\s\S]*?legacy[\s\S]*?secret/iu],
-    ['unknown-key validation limitation', /unknown setting keys[\s\S]*?(?:accepted|not rejected)/iu],
+    ['explicit public settings projection', /(?:allowlisted|explicit) public settings projection/iu],
+    ['strict key and value validation', /unknown[\s\S]*?dotted[\s\S]*?internal[\s\S]*?keys[\s\S]*?reject[\s\S]*?values/iu],
+    ['atomic import guidance', /import[\s\S]*?validat[\s\S]*?atomically/iu],
   ]],
 ]);
 const privateContactGuidance = new Map([
@@ -213,9 +217,12 @@ export function auditPublicText(file, content) {
     if (/\bnpm\s+run\s+release\b/u.test(line)) {
       findings.push(`${file}:${index + 1}: nonexistent npm script`);
     }
-    if (/\bsecure credential storage\b/iu.test(line)
-      || /\b(?:with|and|otherwise)\s+(?:the\s+)?(?:existing\s+)?(?:an\s+)?encrypted(?:\s+compatibility)?\s+fallback\b/iu.test(line)) {
-      findings.push(`${file}:${index + 1}: credential storage overclaim`);
+    if (/(?:can|may|will)\s+(?:still\s+)?(?:write|store)[^\n]*?plaintext/iu.test(line)
+      && !/(?:legacy|older|previous|historical)/iu.test(line)) {
+      findings.push(`${file}:${index + 1}: new plaintext credential claim`);
+    }
+    if (/(?:Settings Export|Export Settings)[^\n]*?(?:may|can|could)[^\n]*?(?:raw|secret)/iu.test(line)) {
+      findings.push(`${file}:${index + 1}: stale raw-settings exposure claim`);
     }
     if (/\bhandlers validate (?:the )?senders?\b/iu.test(line)
       || /\bhardened IPC(?:\/navigation)? boundar/iu.test(line)) {
@@ -224,18 +231,12 @@ export function auditPublicText(file, content) {
     if (/\beddie@efsanjuan\.com\b/iu.test(line)) {
       findings.push(`${file}:${index + 1}: stale upstream maintainer contact`);
     }
-    if (/output deletion[\s\S]*?only on validated contained targets/iu.test(line)) {
-      findings.push(`${file}:${index + 1}: destructive output-path containment overclaim`);
+    if (/Clear All Data[^\n]*?(?:recursively\s+)?removes?[^\n]*?(?:configured\s+)?output (?:directory|root)/iu.test(line)) {
+      findings.push(`${file}:${index + 1}: stale destructive output-root claim`);
     }
     if (/Clear All Data[^\n]*?\bdeletes?\b[^\n]*?(?:keychain|credential)[^\n]*?entr(?:y|ies)/iu.test(line)
       && !/Clear All Data[^\n]*?attempt/iu.test(line)) {
       findings.push(`${file}:${index + 1}: credential-cleanup guarantee overclaim`);
-    }
-    if (/\bordinary settings are schema-validated\b/iu.test(line)) {
-      findings.push(`${file}:${index + 1}: settings schema-validation overclaim`);
-    }
-    if (/\bAPI keys are not returned (?:in|by) `?getAll/iu.test(line)) {
-      findings.push(`${file}:${index + 1}: settings secret-exposure overclaim`);
     }
   });
   if (file.startsWith('examples/github-action-examples/')

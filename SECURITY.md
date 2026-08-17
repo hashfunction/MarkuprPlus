@@ -25,20 +25,20 @@ After a maintainer establishes a private channel, be ready to provide:
 
 Ordinary bugs and feature requests belong in [GitHub Issues](https://github.com/hashfunction/MarkuprPlus/issues).
 
-## Credential-storage limitation
+## Credential and settings boundary
 
-API-key storage attempts the OS credential service first and Electron `safeStorage` encryption second. If both fail, the current compatibility path can store a key in owner-only plaintext inside `secure-keys.json`; the file permission is tightened to mode `0600` on a best-effort basis, but that is not encryption.
+New API-key saves try the OS credential service first and genuinely protected Electron `safeStorage` second. New credential writes fail closed if neither is available, and no plaintext credential is written. On Linux, Electron's unprotected `basic_text` backend is not accepted as secure storage. Local Whisper and Local Rules do not need hosted keys; Ollama/LM Studio can use local services. CLI providers use their own authentication and may still communicate with their configured service.
 
-Omit hosted API keys from MarkuprPlus when neither supported storage mechanism is available. Local Whisper and Local Rules do not need hosted keys; Ollama/LM Studio can use local services. CLI providers use their own authentication and may still communicate with their configured service.
+Legacy profiles can contain credential material from previous plaintext or unprotected fallback formats. MarkuprPlus migrates a legacy value only after writing and reading it back through a protected destination. It then attempts to remove the legacy source; if cleanup fails, the source is retained and migration cleanup is retried on a later credential access. Never open, print, attach, or back up legacy credential files while diagnosing storage.
 
-Do not open, print, attach, or back up the fallback file while diagnosing storage. To request removal of stored OpenAI/Anthropic credentials without exposing their values, first back up any sessions you need, then use Settings → Advanced → Clear All Data. That action is intentionally destructive: it removes the configured output directory, attempts current/legacy keychain and fallback cleanup, and resets settings. Cleanup failures are best-effort and can be logged without failing the overall action, so completion is not proof that every credential backend erased its entry. [Troubleshooting](docs/TROUBLESHOOTING.md) explains how to locate the fallback and the legacy storage boundary safely.
+Renderer settings responses and Settings Export use an allowlisted public settings projection that excludes secrets, encrypted blobs, and unknown/internal persisted fields. Settings import rejects unknown or internal keys and validates the complete file before applying any value.
 
-Treat Settings Export as potentially sensitive. The current raw settings projection can carry legacy secret material from an older fallback path; do not publish, attach, or use an exported settings file as a general backup until that limitation is removed and independently verified.
+Settings → Advanced → Clear All Data removes only verified app-owned session directories and leaves the configured root, unrelated children, and symlink targets intact. It still attempts every current and legacy credential backend, recovery cleanup, and settings reset even if one step fails. The result reports a stable partial-failure category and permits retry; completion is not proof that every OS credential backend erased its entry. Back up needed session output first. [Troubleshooting](docs/TROUBLESHOOTING.md) explains safe cleanup and compatibility paths.
 
 ## Scope examples
 
 - capture/session/audio/transcript disclosure;
-- credential/keychain/fallback-store exposure;
+- credential/keychain/legacy-store exposure;
 - XSS, command injection, unsafe generated HTML/PDF, or arbitrary file access;
 - IPC/preload/navigation/permission-policy bypass;
 - path traversal, symlink escape, unsafe deletion, or settings-import abuse;

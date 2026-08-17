@@ -47,7 +47,11 @@ vi.mock('os', () => ({
 // Import module under test (after mocks)
 // ============================================================================
 
-import { runDoctorChecks, type DoctorResult } from '../../src/cli/doctor';
+import {
+  meetsNodeEngineFloor,
+  runDoctorChecks,
+  type DoctorResult,
+} from '../../src/cli/doctor';
 
 // ============================================================================
 // Helpers
@@ -96,7 +100,18 @@ describe('doctor', () => {
   // --------------------------------------------------------------------------
 
   describe('Node.js version check', () => {
-    it('passes when Node.js >= 18', async () => {
+    it.each([
+      ['20.8.9', false],
+      ['20.9.0', true],
+      ['20.10.0', true],
+      ['21.0.0', true],
+      ['19.99.99', false],
+      ['not-semver', false],
+    ])('checks %s against the exact package engine floor', (version, supported) => {
+      expect(meetsNodeEngineFloor(version)).toBe(supported);
+    });
+
+    it('reports the package engine floor of Node.js 20.9', async () => {
       // process.version is read-only, but the check uses it directly.
       // In test, Node.js is always >= 18, so this should always pass.
       mockExecFileHandler(() => ({ error: null, stdout: '', stderr: '' }));
@@ -108,7 +123,7 @@ describe('doctor', () => {
 
       expect(check).toBeDefined();
       expect(check!.status).toBe('pass');
-      expect(check!.message).toContain('>= 18.0.0');
+      expect(check!.message).toContain('>= 20.9.0');
     });
   });
 
@@ -299,31 +314,6 @@ describe('doctor', () => {
       expect(check!.status).toBe('warn');
     });
 
-    it('passes when OPENAI_API_KEY is set', async () => {
-      process.env.OPENAI_API_KEY = 'sk-test-openai';
-      mockExecFileHandler(() => ({ error: null, stdout: '', stderr: '' }));
-      mockExistsSync.mockReturnValue(false);
-      mockStat.mockResolvedValue({});
-
-      const result = await runDoctorChecks();
-      const check = findCheck(result, 'OpenAI API key');
-
-      expect(check).toBeDefined();
-      expect(check!.status).toBe('pass');
-    });
-
-    it('warns when OPENAI_API_KEY is not set', async () => {
-      delete process.env.OPENAI_API_KEY;
-      mockExecFileHandler(() => ({ error: null, stdout: '', stderr: '' }));
-      mockExistsSync.mockReturnValue(false);
-      mockStat.mockResolvedValue({});
-
-      const result = await runDoctorChecks();
-      const check = findCheck(result, 'OpenAI API key');
-
-      expect(check).toBeDefined();
-      expect(check!.status).toBe('warn');
-    });
   });
 
   // --------------------------------------------------------------------------
@@ -403,14 +393,14 @@ describe('doctor', () => {
 
       const result = await runDoctorChecks();
 
-      // Should have 7 checks total
-      expect(result.checks).toHaveLength(7);
-      expect(result.passed + result.warned + result.failed).toBe(7);
+      // Should have 6 checks total
+      expect(result.checks).toHaveLength(6);
+      expect(result.passed + result.warned + result.failed).toBe(6);
       // ffmpeg + ffprobe should fail
       expect(result.failed).toBeGreaterThanOrEqual(2);
     });
 
-    it('returns all 7 checks', async () => {
+    it('returns all supported checks without advertising dead OpenAI CLI wiring', async () => {
       mockExecFileHandler(() => ({ error: null, stdout: '', stderr: '' }));
       mockExistsSync.mockReturnValue(false);
       mockStat.mockResolvedValue({});
@@ -423,7 +413,7 @@ describe('doctor', () => {
       expect(checkNames).toContain('ffprobe');
       expect(checkNames).toContain('Whisper model');
       expect(checkNames).toContain('Anthropic API key');
-      expect(checkNames).toContain('OpenAI API key');
+      expect(checkNames).not.toContain('OpenAI API key');
       expect(checkNames).toContain('Disk space');
     });
   });

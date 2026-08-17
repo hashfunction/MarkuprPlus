@@ -11,7 +11,6 @@ import { join } from 'path';
 import { sessionController } from '../SessionController';
 import {
   IPC_CHANNELS,
-  DEFAULT_SETTINGS,
   type CaptureSource,
   type AudioDevice,
   type FocusedElementHint,
@@ -21,6 +20,7 @@ import {
   MAX_MARKED_SCREENSHOT_BYTES,
   type MarkedIssueCandidatePayload,
 } from '../../shared/types';
+import { isValidPublicSettingValue } from '../../shared/publicSettings';
 import { sameCaptureTarget } from '../../shared/captureGeometry';
 import type { IpcContext } from './types';
 import { probeCaptureContext } from '../capture/CaptureContextProbe';
@@ -435,10 +435,12 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
     return [];
   });
 
-  ipcMain.handle(IPC_CHANNELS.AUDIO_SET_DEVICE, async (_, deviceId: string) => {
+  ipcMain.handle(IPC_CHANNELS.AUDIO_SET_DEVICE, async (_, deviceId: unknown) => {
+    if (!isValidPublicSettingValue('audioDeviceId', deviceId)) {
+      return { success: false, error: 'Invalid audio device.' };
+    }
     const settingsManager = ctx.getSettingsManager();
-    const settings = settingsManager?.getAll() || DEFAULT_SETTINGS;
-    settingsManager?.update({ ...settings, preferredAudioDevice: deviceId });
+    settingsManager?.update({ audioDeviceId: deviceId });
     ctx.getMainWindow()?.webContents.send(IPC_CHANNELS.AUDIO_SET_DEVICE, deviceId);
     return { success: true };
   });

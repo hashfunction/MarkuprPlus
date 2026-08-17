@@ -7,7 +7,7 @@
 
 import { ipcMain, dialog, app } from 'electron';
 import * as fs from 'fs/promises';
-import { join } from 'path';
+import { basename, dirname, isAbsolute, join } from 'path';
 import { sessionController } from '../SessionController';
 import { hotkeyManager } from '../HotkeyManager';
 import { crashRecovery } from '../CrashRecovery';
@@ -19,13 +19,26 @@ import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 import {
   IPC_CHANNELS,
   DEFAULT_SETTINGS,
-  type AppSettings,
   type HotkeyConfig,
   type PermissionType,
   type PermissionStatus,
   type ApiKeyValidationResult,
+  type ClearApplicationDataFailure,
+  type ClearApplicationDataResult,
+  type PublicSettings,
 } from '../../shared/types';
+import {
+  isPublicSettingKey,
+  isValidPublicSettingValue,
+  parsePublicSettingsPatch,
+  projectPublicSettings,
+} from '../../shared/publicSettings';
 import type { IpcContext, SessionActions } from './types';
+import {
+  beginApplicationDataClear,
+  clearOwnedApplicationData,
+} from '../settings/clearApplicationData';
+import { isPathInside } from '../security/pathContainment';
 
 // =============================================================================
 // API Key Validation
@@ -52,13 +65,30 @@ function shouldInjectHotkeyPersistenceFailure(): boolean {
   });
 }
 
+function electronTestOverride(name: string): string | null {
+  const value = process.env[name];
+  return value && isElectronTestHarnessAllowed({
+    requested: process.env.MARKUPRX_E2E === '1',
+    isPackaged: app.isPackaged,
+  }) ? value : null;
+}
+
+function electronTestDelay(name: string, maximumMs = 2_000): number {
+  const raw = electronTestOverride(name);
+  if (!raw || !/^\d{1,5}$/u.test(raw)) return 0;
+  const milliseconds = Number(raw);
+  return Number.isSafeInteger(milliseconds) && milliseconds <= maximumMs
+    ? milliseconds
+    : 0;
+}
+
 async function validateProviderApiKey(
   service: ApiKeyProvider,
   key: string,
 ): Promise<ApiKeyValidationResult> {
   const trimmedKey = typeof key === 'string' ? key.trim() : '';
 
-  if (trimmedKey.length < 10) {
+  if (trimmedKey.length < 10 || trimmedKey.length > 20_000) {
     return {
       valid: false,
       error: 'Please enter a valid API key.',
@@ -156,22 +186,45 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
   // Settings Channels
   // -------------------------------------------------------------------------
 
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: keyof AppSettings) => {
-    return getSettingsManager()?.get(key) ?? DEFAULT_SETTINGS[key];
+  const getPublicSettings = (): PublicSettings => projectPublicSettings(
+    getSettingsManager()?.getAll() ?? DEFAULT_SETTINGS,
+  );
+  const getPublicSettingsOrDefaults = (): PublicSettings => {
+    try {
+      return getPublicSettings();
+    } catch {
+      return projectPublicSettings(DEFAULT_SETTINGS);
+    }
+  };
+  let clearInFlight: Promise<ClearApplicationDataResult> | null = null;
+
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: unknown) => {
+    if (!isPublicSettingKey(key)) {
+      throw new Error('Invalid settings request.');
+    }
+    const value = getSettingsManager()?.get(key) ?? DEFAULT_SETTINGS[key];
+    return isValidPublicSettingValue(key, value)
+      ? structuredClone(value)
+      : structuredClone(DEFAULT_SETTINGS[key]);
   });
 
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_ALL, (): AppSettings => {
-    return getSettingsManager()?.getAll() ?? { ...DEFAULT_SETTINGS };
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_ALL, (): PublicSettings => {
+    return getPublicSettings();
   });
 
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_SET,
-    (_, key: keyof AppSettings, value: unknown): AppSettings => {
-      if (process.env.MARKUPRX_E2E === '1' && process.env.MARKUPRX_E2E_FAIL_SETTINGS_KEY === key) {
-        throw new Error(`Injected settings save failure for ${key}.`);
+    (_, key: unknown, value: unknown): PublicSettings => {
+      if (!isPublicSettingKey(key) || !isValidPublicSettingValue(key, value)) {
+        throw new Error('Invalid settings request.');
       }
-      const updates = { [key]: value } as Partial<AppSettings>;
-      return getSettingsManager()?.update(updates) ?? { ...DEFAULT_SETTINGS, ...updates };
+      if (process.env.MARKUPRX_E2E === '1' && process.env.MARKUPRX_E2E_FAIL_SETTINGS_KEY === key) {
+        throw new Error('Injected settings save failure.');
+      }
+      const updates = { [key]: structuredClone(value) } as Partial<PublicSettings>;
+      const manager = getSettingsManager();
+      if (!manager) throw new Error('Settings are unavailable.');
+      return projectPublicSettings(manager.update(updates));
     }
   );
 
@@ -191,26 +244,149 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
     }
 
     const selected = result.filePaths[0];
-    getSettingsManager()?.update({ outputDirectory: selected });
+    getSettingsManager()?.update(parsePublicSettingsPatch({ outputDirectory: selected }));
     return selected;
   });
 
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA, async (): Promise<void> => {
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA, (): Promise<ClearApplicationDataResult> => {
+    if (clearInFlight) return clearInFlight;
     const settingsManager = getSettingsManager();
     if (!settingsManager) {
-      return;
+      return Promise.resolve({
+        success: false,
+        deletedSessions: 0,
+        failures: [{ kind: 'settings' }],
+        settings: projectPublicSettings(DEFAULT_SETTINGS),
+      });
+    }
+    const releaseClearLock = beginApplicationDataClear();
+    if (!releaseClearLock) {
+      return Promise.resolve({
+        success: false,
+        deletedSessions: 0,
+        failures: [{ kind: 'settings' }],
+        settings: getPublicSettingsOrDefaults(),
+      });
     }
 
-    const outputDirectory = settingsManager.get('outputDirectory');
-    await fs.rm(outputDirectory, { recursive: true, force: true }).catch(() => {});
+    const clear = async (): Promise<ClearApplicationDataResult> => {
+      const failures: ClearApplicationDataFailure[] = [];
+      const addFailure = (failure: ClearApplicationDataFailure): void => {
+        if (!failures.some((existing) => (
+          existing.kind === failure.kind && existing.provider === failure.provider
+        ))) failures.push(failure);
+      };
+      try {
+        if (sessionController.getState() !== 'idle') {
+          return {
+            success: false,
+            deletedSessions: 0,
+            failures: [{ kind: 'settings' }],
+            settings: getPublicSettingsOrDefaults(),
+          };
+        }
+      } catch {
+        return {
+          success: false,
+          deletedSessions: 0,
+          failures: [{ kind: 'settings' }],
+          settings: getPublicSettingsOrDefaults(),
+        };
+      }
 
-    await settingsManager.deleteApiKey('openai').catch(() => {});
-    await settingsManager.deleteApiKey('anthropic').catch(() => {});
+      let outputDirectory: string | null = null;
+      try {
+        outputDirectory = settingsManager.get('outputDirectory');
+      } catch {
+        addFailure({ kind: 'settings' });
+      }
 
-    settingsManager.reset();
-    crashRecovery.discardIncompleteSession();
-    crashRecovery.clearCrashLogs();
-    sessionController.reset();
+      const sessionResult = outputDirectory
+        ? await clearOwnedApplicationData({
+            outputRoot: outputDirectory,
+            listOwnedSessions: async () => {
+              const testDelayMs = electronTestDelay('MARKUPRX_E2E_CLEAR_DATA_DELAY_MS');
+              if (testDelayMs > 0) {
+                await new Promise((resolve) => setTimeout(resolve, testDelayMs));
+              }
+              // Keep the file service synchronized with persisted settings
+              // before it enumerates candidates. It never receives a
+              // renderer-provided path.
+              fileManager.setOutputDirectory(outputDirectory as string);
+              return fileManager.listOwnedSessionDirectoriesForDeletion();
+            },
+            removePath: async (path) => {
+              const injectedFailureName = electronTestOverride(
+                'MARKUPRX_E2E_FAIL_CLEAR_SESSION_NAME',
+              );
+              if (injectedFailureName && basename(path) === injectedFailureName) {
+                throw new Error('Injected owned-session removal failure.');
+              }
+              await fs.rm(path, { recursive: true, force: true });
+            },
+          })
+        : { deletedSessions: 0, failedSessions: 0 };
+      for (let index = 0; index < sessionResult.failedSessions; index++) {
+        failures.push({ kind: 'session' });
+      }
+
+      for (const provider of ['openai', 'anthropic'] as const) {
+        try {
+          const deletion = await settingsManager.deleteApiKey(provider);
+          if (deletion && !deletion.success) addFailure({ kind: 'credential', provider });
+        } catch {
+          addFailure({ kind: 'credential', provider });
+        }
+      }
+
+      try {
+        crashRecovery.discardIncompleteSession();
+      } catch {
+        addFailure({ kind: 'recovery' });
+      }
+      try {
+        crashRecovery.clearCrashLogs();
+      } catch {
+        addFailure({ kind: 'recovery' });
+      }
+      try {
+        sessionController.reset();
+      } catch {
+        addFailure({ kind: 'recovery' });
+      }
+
+      try {
+        settingsManager.reset();
+      } catch {
+        addFailure({ kind: 'settings' });
+      }
+
+      if (failures.length > 0 && outputDirectory) {
+        try {
+          settingsManager.update({ outputDirectory });
+        } catch {
+          addFailure({ kind: 'settings' });
+        }
+      }
+      try {
+        fileManager.setOutputDirectory(settingsManager.get('outputDirectory'));
+      } catch {
+        addFailure({ kind: 'settings' });
+      }
+
+      return {
+        success: failures.length === 0,
+        deletedSessions: sessionResult.deletedSessions,
+        failures,
+        settings: getPublicSettingsOrDefaults(),
+      };
+    };
+
+    clearInFlight = clear().finally(() => {
+      releaseClearLock();
+      clearInFlight = null;
+    });
+    return clearInFlight;
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_EXPORT, async (): Promise<void> => {
@@ -225,19 +401,28 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       defaultPath: join(app.getPath('documents'), `${PUBLIC_BRAND_NAME}-settings.json`),
       filters: [{ name: 'JSON', extensions: ['json'] }],
     };
-    const result = mainWindow
-      ? await dialog.showSaveDialog(mainWindow, options)
-      : await dialog.showSaveDialog(options);
+    const testExportPath = electronTestOverride('MARKUPRX_E2E_SETTINGS_EXPORT_PATH');
+    const testOutputRoot = electronTestOverride('MARKUPRX_E2E_OUTPUT_ROOT');
+    const safeTestExportPath = testExportPath && testOutputRoot
+      && isAbsolute(testExportPath)
+      && isPathInside(dirname(testOutputRoot), testExportPath)
+      ? testExportPath
+      : null;
+    const result = safeTestExportPath
+      ? { canceled: false, filePath: safeTestExportPath }
+      : mainWindow
+        ? await dialog.showSaveDialog(mainWindow, options)
+        : await dialog.showSaveDialog(options);
 
     if (result.canceled || !result.filePath) {
       return;
     }
 
-    const payload = JSON.stringify(settingsManager.getAll(), null, 2);
+    const payload = JSON.stringify(projectPublicSettings(settingsManager.getAll()), null, 2);
     await fs.writeFile(result.filePath, payload, 'utf-8');
   });
 
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_IMPORT, async (): Promise<AppSettings | null> => {
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_IMPORT, async (): Promise<PublicSettings | null> => {
     try {
       const settingsManager = getSettingsManager();
       if (!settingsManager) {
@@ -265,43 +450,29 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         return null;
       }
 
-      const entries = Object.entries(parsed as Record<string, unknown>);
-      const allowedKeys = new Set(Object.keys(DEFAULT_SETTINGS));
-      const sanitized: Partial<AppSettings> = {};
-
-      for (const [key, value] of entries) {
-        if (!allowedKeys.has(key)) {
-          continue;
-        }
-        // Skip __proto__ and constructor to prevent prototype pollution
-        if (key === '__proto__' || key === 'constructor') {
-          continue;
-        }
-        (sanitized as Record<string, unknown>)[key] = value;
-      }
-
-      return settingsManager.update(sanitized);
-    } catch (error) {
-      console.error('[Main] Failed to import settings:', error);
+      const sanitized = parsePublicSettingsPatch(parsed);
+      return projectPublicSettings(settingsManager.update(sanitized));
+    } catch {
+      console.error('[Main] Settings import was rejected.');
       return null;
     }
   });
 
   // Legacy settings handlers
   ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, () => {
-    return getSettingsManager()?.getAll() ?? { ...DEFAULT_SETTINGS };
+    return getPublicSettings();
   });
 
   ipcMain.handle(IPC_CHANNELS.SET_SETTINGS, (_, newSettings: unknown) => {
-    if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) {
-      return getSettingsManager()?.getAll() ?? { ...DEFAULT_SETTINGS };
+    let typedSettings: Partial<PublicSettings>;
+    try {
+      typedSettings = parsePublicSettingsPatch(newSettings);
+    } catch {
+      throw new Error('Invalid settings request.');
     }
-
-    const typedSettings = newSettings as Partial<AppSettings>;
-    const settings = getSettingsManager()?.update(typedSettings) ?? {
-      ...DEFAULT_SETTINGS,
-      ...typedSettings,
-    };
+    const manager = getSettingsManager();
+    if (!manager) throw new Error('Settings are unavailable.');
+    const settings = projectPublicSettings(manager.update(typedSettings));
 
     if (typedSettings.hotkeys) {
       const results = hotkeyManager.updateConfig(typedSettings.hotkeys);
@@ -323,11 +494,10 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_GET_API_KEY,
-    async (_, service: string): Promise<string | null> => {
-      if (!ALLOWED_API_SERVICES.has(service)) {
-        return null;
-      }
-      return getSettingsManager()?.getApiKey(service) ?? null;
+    async (): Promise<null> => {
+      // Renderer code can query presence and validate a saved key without ever
+      // receiving the credential itself.
+      return null;
     }
   );
 
@@ -344,28 +514,9 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
       try {
         await settingsManager.setApiKey(service, key);
-
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const persisted = await settingsManager.getApiKey(service);
-          if (persisted && persisted.trim().length > 0) {
-            return true;
-          }
-
-          if (attempt < 2) {
-            await new Promise((resolve) => setTimeout(resolve, 120 * (attempt + 1)));
-          }
-        }
-
-        if (key.trim().length > 0) {
-          console.warn(
-            `[Main] ${service} API key write verification timed out; accepting write success.`
-          );
-          return true;
-        }
-
-        return false;
-      } catch (error) {
-        console.error(`[Main] Failed to store ${service} API key:`, error);
+        return true;
+      } catch {
+        console.error(`[Main] Failed to store ${service} API key securely.`);
         return false;
       }
     }
@@ -382,8 +533,8 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
         return false;
       }
 
-      await settingsManager.deleteApiKey(service);
-      return true;
+      const result = await settingsManager.deleteApiKey(service);
+      return result.success;
     }
   );
 
@@ -399,7 +550,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_TEST_API_KEY,
-    async (_, service: ApiKeyProvider, key: string): Promise<ApiKeyValidationResult> => {
+    async (_, service: ApiKeyProvider, key?: unknown): Promise<ApiKeyValidationResult> => {
       if (service !== 'openai' && service !== 'anthropic') {
         return {
           valid: false,
@@ -408,13 +559,18 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
       }
 
       try {
-        return await validateProviderApiKey(service, key);
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : 'Unknown validation error';
-        console.error(`[Main] API key validation failed for ${service}:`, error);
+        const candidate = key === undefined
+          ? await getSettingsManager()?.getApiKey(service)
+          : key;
+        if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+          return { valid: false, error: `No saved ${service === 'openai' ? 'OpenAI' : 'Anthropic'} key found.` };
+        }
+        return await validateProviderApiKey(service, candidate);
+      } catch {
+        console.error(`[Main] API key validation failed for ${service}.`);
         return {
           valid: false,
-          error: `Unable to validate ${service} API key (${detail}).`,
+          error: `Unable to validate ${service} API key.`,
         };
       }
     }

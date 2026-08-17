@@ -114,15 +114,18 @@ describe('public documentation brand audit', () => {
     ]);
   });
 
-  it('rejects credential-storage claims that hide the plaintext last resort', () => {
-    expect(auditPublicText('README.md', 'Includes secure credential storage.')).toEqual([
-      'README.md:1: credential storage overclaim',
+  it('rejects claims that new credentials or settings can still cross insecure boundaries', () => {
+    expect(auditPublicText(
+      'README.md',
+      'If protected storage fails, MarkuprPlus can write an owner-only plaintext key.',
+    )).toEqual([
+      'README.md:1: new plaintext credential claim',
     ]);
     expect(auditPublicText(
       'docs/CONFIGURATION.md',
-      'Secrets use the OS credential service when available and an encrypted fallback otherwise.',
+      'Settings Export may include secret values from the raw settings store.',
     )).toEqual([
-      'docs/CONFIGURATION.md:1: credential storage overclaim',
+      'docs/CONFIGURATION.md:1: stale raw-settings exposure claim',
     ]);
   });
 
@@ -141,28 +144,18 @@ describe('public documentation brand audit', () => {
     ]);
   });
 
-  it('rejects destructive-path and credential-cleanup guarantees the runtime does not enforce', () => {
+  it('rejects stale destructive-root behavior and credential-cleanup guarantees', () => {
     expect(auditPublicText(
       'docs/ARCHITECTURE.md',
-      'Output deletion and export operate only on validated contained targets.',
+      'Clear All Data recursively removes the configured output directory.',
     )).toEqual([
-      'docs/ARCHITECTURE.md:1: destructive output-path containment overclaim',
+      'docs/ARCHITECTURE.md:1: stale destructive output-root claim',
     ]);
     expect(auditPublicText(
       'SECURITY.md',
       'Clear All Data deletes keychain and fallback entries.',
     )).toEqual([
       'SECURITY.md:1: credential-cleanup guarantee overclaim',
-    ]);
-    expect(auditPublicText(
-      'docs/API.md',
-      [
-        'Ordinary settings are schema-validated.',
-        'API keys are not returned in getAll().',
-      ].join('\n'),
-    )).toEqual([
-      'docs/API.md:1: settings schema-validation overclaim',
-      'docs/API.md:2: settings secret-exposure overclaim',
     ]);
   });
 
@@ -190,28 +183,31 @@ describe('public documentation brand audit', () => {
     ]);
   });
 
-  it('requires the public security guides to disclose and locate the plaintext fallback', () => {
+  it('requires the public security guides to describe fail-closed storage and safe migration', () => {
     expect(auditCredentialStorageGuidance(
       'README.md',
       'The app tries the OS credential service.',
     )).toEqual([
-      'README.md: missing owner-only plaintext credential fallback disclosure',
-      'README.md: missing hosted-key avoidance guidance',
+      'README.md: missing fail-closed credential write guidance',
+      'README.md: missing legacy migration guidance',
+      'README.md: missing public settings projection guidance',
+      'README.md: missing local-first transcription guidance',
     ]);
     expect(auditCredentialStorageGuidance(
       'docs/TROUBLESHOOTING.md',
-      'The owner-only plaintext fallback is possible.',
+      'An older profile may retain a legacy credential.',
     )).toEqual([
-      'docs/TROUBLESHOOTING.md: missing fallback credential filename',
-      'docs/TROUBLESHOOTING.md: missing safe fallback cleanup guidance',
+      'docs/TROUBLESHOOTING.md: missing verified migration and retry guidance',
+      'docs/TROUBLESHOOTING.md: missing contained Clear All guidance',
       'docs/TROUBLESHOOTING.md: missing secret-excluding backup guidance',
     ]);
     expect(auditCredentialStorageGuidance(
       'docs/API.md',
       'Settings are exposed to the renderer.',
     )).toEqual([
-      'docs/API.md: missing raw-settings legacy-secret warning',
-      'docs/API.md: missing unknown-key validation limitation',
+      'docs/API.md: missing explicit public settings projection',
+      'docs/API.md: missing strict key and value validation',
+      'docs/API.md: missing atomic import guidance',
     ]);
   });
 

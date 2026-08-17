@@ -13,6 +13,14 @@ import { app, shell } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { Session, Screenshot } from '../SessionController';
+import { resolveContainedExistingPath } from '../security/pathContainment';
+
+export const SESSION_OWNERSHIP_SENTINEL = '.markuprx-session.json';
+
+interface SessionOwnershipSentinel {
+  version: 1;
+  sessionId: string;
+}
 
 /**
  * Result of saving a session to disk
@@ -59,6 +67,63 @@ interface StoredSessionMetadata {
   };
   captureContexts?: Session['metadata']['captureContexts'];
   markedIssues?: Session['metadata']['markedIssues'];
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 500;
+}
+
+function isStoredSessionMetadata(value: unknown): value is StoredSessionMetadata {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const metadata = value as Record<string, unknown>;
+  const source = metadata.source as Record<string, unknown> | undefined;
+  const environment = metadata.environment as Record<string, unknown> | undefined;
+  return isNonEmptyString(metadata.sessionId)
+    && typeof metadata.startTime === 'number'
+    && Number.isFinite(metadata.startTime)
+    && typeof metadata.itemCount === 'number'
+    && Number.isInteger(metadata.itemCount)
+    && metadata.itemCount >= 0
+    && typeof metadata.screenshotCount === 'number'
+    && Number.isInteger(metadata.screenshotCount)
+    && metadata.screenshotCount >= 0
+    && Boolean(source)
+    && isNonEmptyString(source?.id)
+    && Boolean(environment)
+    && isNonEmptyString(environment?.os)
+    && isNonEmptyString(environment?.version);
+}
+
+async function readRegularJson(pathname: string): Promise<unknown | null> {
+  try {
+    const stats = await fs.lstat(pathname);
+    if (!stats.isFile() || stats.isSymbolicLink()) return null;
+    return JSON.parse(await fs.readFile(pathname, 'utf8')) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function isRegularFile(pathname: string): Promise<boolean> {
+  try {
+    const stats = await fs.lstat(pathname);
+    return stats.isFile() && !stats.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+async function isOwnedSessionDirectory(directory: string): Promise<boolean> {
+  const sentinel = await readRegularJson(path.join(directory, SESSION_OWNERSHIP_SENTINEL));
+  if (sentinel && typeof sentinel === 'object' && !Array.isArray(sentinel)) {
+    const record = sentinel as Partial<SessionOwnershipSentinel>;
+    if (record.version === 1 && isNonEmptyString(record.sessionId)) return true;
+  }
+
+  const metadata = await readRegularJson(path.join(directory, 'metadata.json'));
+  if (!isStoredSessionMetadata(metadata)) return false;
+  return (await isRegularFile(path.join(directory, 'feedback-report.md')))
+    && (await isRegularFile(path.join(directory, 'feedback-summary.md')));
 }
 
 /**
@@ -276,6 +341,33 @@ export class FileManager {
   }
 
   /**
+   * Fail-closed discovery for the destructive Clear All Data operation.
+   * Unlike listSessions(), filesystem errors are not converted into an empty
+   * success result and only directories with app-owned evidence are returned.
+   */
+  async listOwnedSessionDirectoriesForDeletion(): Promise<string[]> {
+    try {
+      await fs.access(this.outputDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    }
+
+    const entries = await fs.readdir(this.outputDirectory, { withFileTypes: true });
+    const owned: string[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const candidate = path.join(this.outputDirectory, entry.name);
+      const realCandidate = await resolveContainedExistingPath(this.outputDirectory, candidate);
+      if (!realCandidate) continue;
+      const stats = await fs.lstat(candidate);
+      if (!stats.isDirectory() || stats.isSymbolicLink()) continue;
+      if (await isOwnedSessionDirectory(realCandidate)) owned.push(realCandidate);
+    }
+    return owned.sort();
+  }
+
+  /**
    * Create a unique session directory
    */
   private async createSessionDirectory(session: Session): Promise<string> {
@@ -313,6 +405,17 @@ export class FileManager {
     }
 
     await fs.mkdir(sessionDir, { recursive: true });
+    try {
+      const sentinel: SessionOwnershipSentinel = { version: 1, sessionId: session.id };
+      await fs.writeFile(
+        path.join(sessionDir, SESSION_OWNERSHIP_SENTINEL),
+        JSON.stringify(sentinel),
+        { encoding: 'utf8', flag: 'wx', mode: 0o600 },
+      );
+    } catch (error) {
+      await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => undefined);
+      throw error;
+    }
     return sessionDir;
   }
 

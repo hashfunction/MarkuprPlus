@@ -195,6 +195,8 @@ export function isValidAnalysisModelSelections(
   value: unknown,
 ): value is AnalysisModelSelections {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
   return Object.entries(value).every(([provider, model]) =>
     MODEL_ANALYSIS_PROVIDERS.has(provider as ModelAnalysisProvider)
     && typeof model === 'string'
@@ -224,12 +226,13 @@ export interface AnalysisProviderStatus {
 }
 
 /**
- * Application settings (v2 - expanded schema)
+ * Settings that may cross the main/renderer boundary or be exported.
  *
- * Note: API keys are NOT stored in settings.
- * Use SettingsManager.getApiKey('<service>') for secure storage via keytar.
+ * This is intentionally an explicit interface rather than an index signature.
+ * Persisted migration metadata and credential-storage records are never public
+ * settings, even when an older settings file contains them.
  */
-export interface AppSettings {
+export interface PublicSettings {
   // General
   outputDirectory: string;
   launchAtLogin: boolean;
@@ -270,6 +273,16 @@ export interface AppSettings {
 
   // Onboarding
   hasCompletedOnboarding: boolean;
+}
+
+/**
+ * Complete persisted application settings shape.
+ *
+ * New code must use PublicSettings at renderer/export boundaries. The optional
+ * fields below exist only so older profiles can be migrated without renaming
+ * long-lived machine identifiers.
+ */
+export interface AppSettings extends PublicSettings {
 
   // Legacy fields (for migration compatibility)
   /** @deprecated Use imageQuality instead */
@@ -293,10 +306,25 @@ export interface ApiKeyValidationResult {
   status?: number;
 }
 
+export type CredentialProvider = 'openai' | 'anthropic';
+
+export interface ClearApplicationDataFailure {
+  kind: 'session' | 'credential' | 'recovery' | 'settings';
+  provider?: CredentialProvider;
+}
+
+/** Stable, path-free result exposed to the renderer after Clear All Data. */
+export interface ClearApplicationDataResult {
+  success: boolean;
+  deletedSessions: number;
+  failures: ClearApplicationDataFailure[];
+  settings: PublicSettings;
+}
+
 /**
  * Default settings
  */
-export const DEFAULT_SETTINGS: AppSettings = {
+export const DEFAULT_SETTINGS: PublicSettings = {
   // General
   outputDirectory: '', // Set dynamically by SettingsManager
   launchAtLogin: false,

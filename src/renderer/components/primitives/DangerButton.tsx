@@ -8,11 +8,14 @@ export const DangerButton: React.FC<{
   buttonText: string;
   onConfirm: () => void;
   confirmText?: string;
-}> = ({ label, description, buttonText, onConfirm, confirmText }) => {
+  disabled?: boolean;
+  busy?: boolean;
+}> = ({ label, description, buttonText, onConfirm, confirmText, disabled = false, busy = false }) => {
   const [confirming, setConfirming] = useState(false);
   const { colors } = useTheme();
 
   const handleClick = useCallback(() => {
+    if (disabled) return;
     if (confirming) {
       onConfirm();
       setConfirming(false);
@@ -21,7 +24,7 @@ export const DangerButton: React.FC<{
       // Auto-reset after 3 seconds
       setTimeout(() => setConfirming(false), 3000);
     }
-  }, [confirming, onConfirm]);
+  }, [confirming, disabled, onConfirm]);
 
   return (
     <div style={styles.settingRow}>
@@ -37,6 +40,8 @@ export const DangerButton: React.FC<{
           borderColor: confirming ? colors.status.error : colors.status.errorSubtle,
         }}
         onClick={handleClick}
+        disabled={disabled}
+        aria-busy={busy || undefined}
       >
         {confirming ? confirmText || 'Click again to confirm' : buttonText}
       </button>

@@ -8,7 +8,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AnalysisProviderStatus,
-  AppSettings,
+  PublicSettings,
   HotkeyConfig,
   ReviewExportOptions,
   ReviewExportResult,
@@ -43,7 +43,7 @@ export interface UIContextValue {
   isExportInFlight: boolean;
 
   // Settings
-  settings: AppSettings | null;
+  settings: PublicSettings | null;
   applyHotkeyConfig: (hotkeys: HotkeyConfig) => void;
   analysisProviderViewState: AnalysisProviderViewState;
   countdownDuration: number;
@@ -115,19 +115,18 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // ---------------------------------------------------------------------------
   // Settings
   // ---------------------------------------------------------------------------
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [analysisProviderStatuses, setAnalysisProviderStatuses] = useState<AnalysisProviderStatus[]>([]);
   const hasEvaluatedInitialOnboarding = useRef(false);
 
-  const refreshSettings = useCallback(async (): Promise<AppSettings | null> => {
+  const refreshSettings = useCallback(async (): Promise<PublicSettings | null> => {
     if (!window.markuprx?.settings) {
       return null;
     }
     try {
       const loadedSettings = await window.markuprx.settings.getAll();
-      const mergedSettings = { ...DEFAULT_SETTINGS, ...loadedSettings };
-      setSettings(mergedSettings);
-      return mergedSettings;
+      setSettings(loadedSettings);
+      return loadedSettings;
     } catch {
       return null;
     }

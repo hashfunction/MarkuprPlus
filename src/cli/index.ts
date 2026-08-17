@@ -112,7 +112,6 @@ program
   .option('--audio <file>', 'Separate audio file (if not embedded in video)')
   .option('--output <dir>', 'Output directory', './markuprx-output')
   .option('--whisper-model <path>', 'Path to Whisper model file')
-  .option('--openai-key <key>', 'OpenAI API key for cloud transcription (prefer OPENAI_API_KEY env var)')
   .option('--no-frames', 'Skip frame extraction')
   .option('--template <name>', `Output template (${templateRegistry.list().join(', ')})`, 'markdown')
   .option('--verbose', 'Verbose output', false)
@@ -120,7 +119,6 @@ program
     audio?: string;
     output: string;
     whisperModel?: string;
-    openaiKey?: string;
     frames: boolean;
     template: string;
     verbose: boolean;
@@ -130,15 +128,6 @@ program
     const outputDir = resolve(options.output);
     const audioPath = options.audio ? resolve(options.audio) : undefined;
     const whisperModelPath = options.whisperModel ? resolve(options.whisperModel) : undefined;
-    let openaiKey: string | undefined;
-    if (options.openaiKey) {
-      console.warn('  WARNING: Passing API keys via CLI args is insecure (visible in ps, shell history).');
-      console.warn('  Use OPENAI_API_KEY env var instead.');
-      console.warn();
-      openaiKey = options.openaiKey;
-    } else if (process.env.OPENAI_API_KEY) {
-      openaiKey = process.env.OPENAI_API_KEY;
-    }
     if (!existsSync(videoPath)) {
       fail(`Video file not found: ${videoPath}`);
       process.exit(EXIT_USER_ERROR);
@@ -170,7 +159,6 @@ program
         audioPath,
         outputDir,
         whisperModelPath,
-        openaiKey,
         skipFrames: !options.frames,
         template: options.template,
         verbose: options.verbose,
@@ -230,27 +218,16 @@ program
   .argument('[directory]', 'Directory to watch for recordings', '.')
   .option('--output <dir>', 'Output directory (default: <watched-dir>/markuprx-output)')
   .option('--whisper-model <path>', 'Path to Whisper model file')
-  .option('--openai-key <key>', 'OpenAI API key for cloud transcription (prefer OPENAI_API_KEY env var)')
   .option('--no-frames', 'Skip frame extraction')
   .option('--verbose', 'Verbose output', false)
   .action(async (directory: string, options: {
     output?: string;
     whisperModel?: string;
-    openaiKey?: string;
     frames: boolean;
     verbose: boolean;
   }) => {
     banner();
     const watchDir = resolve(directory);
-    let openaiKey: string | undefined;
-    if (options.openaiKey) {
-      console.warn('  WARNING: Passing API keys via CLI args is insecure (visible in ps, shell history).');
-      console.warn('  Use OPENAI_API_KEY env var instead.');
-      console.warn();
-      openaiKey = options.openaiKey;
-    } else if (process.env.OPENAI_API_KEY) {
-      openaiKey = process.env.OPENAI_API_KEY;
-    }
     if (!existsSync(watchDir)) {
       fail(`Directory not found: ${watchDir}`);
       process.exit(EXIT_USER_ERROR);
@@ -260,7 +237,6 @@ program
         watchDir,
         outputDir: options.output ? resolve(options.output) : undefined,
         whisperModelPath: options.whisperModel ? resolve(options.whisperModel) : undefined,
-        openaiKey,
         skipFrames: !options.frames,
         verbose: options.verbose,
       },

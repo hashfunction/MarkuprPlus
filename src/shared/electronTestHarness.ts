@@ -17,6 +17,7 @@ export const ELECTRON_TEST_CHANNELS = {
 export interface ElectronTestConfig {
   enabled: true;
   outputRoot: string;
+  localTranscriptionRecovery: boolean;
   video: {
     width: number;
     height: number;

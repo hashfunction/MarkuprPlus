@@ -24,10 +24,10 @@ The renderer does not receive raw Electron/Node authority. Many privileged handl
 - `SessionController`: bounded recording state machine and orchestration.
 - `TrayManager` / `MenuManager`: native tray/taskbar and application menus.
 - Capture managers: source selection, recording lifecycle, overlays, manual cues, and marked-issue accumulation.
-- Audio/transcription services: recorded audio plus post-session local Whisper/OpenAI recovery.
+- Audio/transcription services: recorded audio plus local-first post-session Whisper/OpenAI recovery.
 - Pipeline services: frame extraction, evidence correlation, analysis-provider selection, validation, and Local Rules fallback.
 - Output services: deterministic report generation, trusted-media handling, Review export, session listing/deletion, clipboard/folder actions.
-- `SettingsManager`: schema-validated settings and credential-store access.
+- `SettingsManager`: explicit public-settings projection, schema-validated mutations, and credential-store access.
 - Crash recovery: persisted in-progress evidence and recovery/discard workflow.
 - Permission/error handlers: OS permission guidance, bounded diagnostics, and user-visible failure states.
 
@@ -74,18 +74,19 @@ The accumulator commits each marked issue once and keeps evidence separate. Outp
 
 ## Transcription and analysis
 
-Post-session transcription uses a downloaded local Whisper model when available, with an optional configured OpenAI recovery path. Analysis selects exactly one of Local Rules, Ollama, LM Studio, Codex CLI, Claude Code CLI, or Anthropic API. All enhanced output passes through a shared validator. Invalid/unavailable enhanced analysis falls back to Local Rules with a recorded reason rather than another hidden provider.
+Post-session transcription tries a downloaded local Whisper model first. Local success returns without reading a saved key or creating an OpenAI request. OpenAI is considered only as a configured fallback after local Whisper is unavailable or fails and encoded audio exists; without a key there is no network attempt. Analysis selects exactly one of Local Rules, Ollama, LM Studio, Codex CLI, Claude Code CLI, or Anthropic API. All enhanced output passes through a shared validator. Invalid/unavailable enhanced analysis falls back to Local Rules with a recorded reason rather than another hidden provider.
 
 See [AI pipeline design](AI_PIPELINE_DESIGN.md) for data-flow details.
 
 ## Persistence
 
 - Settings: `settings.json` in the preserved Electron user-data directory.
-- Secrets: OS credential store first, then Electron `safeStorage` encryption; if both fail, current compatibility behavior can use an owner-only plaintext `secure-keys.json` entry. Mode `0600` is best-effort access restriction, not encryption.
+- Secrets: new credential writes use the OS credential store first and genuinely protected Electron `safeStorage` second. They fail closed if neither works, with no plaintext write and no acceptance of Linux `basic_text`. Legacy values migrate only after a verified protected write; source cleanup can be retried.
+- Renderer settings: an explicit allowlisted projection of public keys; mutation/import reject unknown, dotted, prototype, internal, and invalid values before applying anything.
 - Sessions: configured output directory, default `~/Documents/markuprx`.
 - Recovery: atomic, bounded in-progress metadata/evidence.
 
-Session/export operations validate supported media bytes and constrain generated or copied evidence destinations. Clear All Data is a separate destructive path: after confirmation it recursively removes the currently configured output directory, and that setting is not re-contained at deletion time. Back up needed sessions and verify the configured path before invoking it.
+Session/export operations validate supported media bytes and constrain generated or copied evidence destinations. Clear All Data enumerates only verified app-owned session directories beneath a canonicalized output root, rejects symlinks and traversal, and preserves the root and unrelated content. It continues independent credential/recovery/settings cleanup after a failure and returns a path-free partial result for retry.
 
 ## Exports and integrations
 

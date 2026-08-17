@@ -8,7 +8,7 @@
 - Git
 - platform build tools needed by Electron native dependencies
 
-No provider key is required to run unit tests or use Local Rules. Local Whisper requires a downloaded model. OpenAI transcription and Anthropic analysis are optional cloud paths; Codex/Claude CLIs and Ollama/LM Studio require their own installations.
+No provider key is required to run unit tests or use Local Rules. Local Whisper requires a downloaded model. OpenAI is a saved-key cloud fallback attempted only after local transcription is unavailable or fails; Anthropic analysis is an optional cloud path. Codex/Claude CLIs and Ollama/LM Studio require their own installations.
 
 ## Install and run
 
@@ -66,7 +66,7 @@ Analysis adapters implement discovery/readiness, model options, cancellation, ti
 
 Never silently fail over to a different paid/cloud provider. Invalid/unavailable enhanced analysis records a reason and uses Local Rules.
 
-Transcription work must preserve the explicit distinction between downloaded local Whisper and configured OpenAI cloud recovery.
+Transcription work must preserve the local-first ordering: a successful downloaded local Whisper recovery must not read a saved key or construct a cloud request; configured OpenAI is considered only after local recovery is unavailable or fails.
 
 ## Desktop testing
 
@@ -76,7 +76,7 @@ Portrait surfaces are 460 × 680 with one primary scroller. HUD sizes are intent
 
 ## Security checklist
 
-- Validate IPC sender/origin and arguments.
+- Validate IPC arguments, and add sender/origin authorization where the registration requires it; do not assume it exists globally.
 - Validate filesystem containment and symlink behavior.
 - Decode/validate media bytes rather than trusting MIME declarations.
 - Keep generated HTML escaped and BrowserWindow preferences constrained.

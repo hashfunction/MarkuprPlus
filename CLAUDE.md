@@ -17,7 +17,7 @@ Public product copy is **MarkuprPlus**. Preserve machine compatibility identifie
 
 - React 18 renderer, Electron 28 main/preload boundary, TypeScript 5.3.
 - Styling is repository CSS and CSS variables; Tailwind and a `cn()` utility are not installed.
-- Transcription is post-session local Whisper with optional OpenAI cloud recovery.
+- Transcription recovery is post-session and local-first: OpenAI is an explicit saved-key fallback only after local Whisper is unavailable or fails.
 - Analysis providers are Local Rules, Ollama, LM Studio, Codex CLI, Claude Code CLI, and Anthropic API.
 - There is no paid/premium tier, hosted-key proxy, macOS Dictation tier, or silence-triggered capture.
 - Desktop Review exports Markdown/PDF/HTML/JSON; CLI templates are markdown/json/github-issue/linear/jira.
@@ -36,7 +36,7 @@ Public product copy is **MarkuprPlus**. Preserve machine compatibility identifie
 - `tests/unit`, `tests/integration`, `tests/e2e`: Vitest.
 - `tests/ui`: real-Electron Playwright.
 
-Do not expose raw `ipcRenderer`, filesystem, shell, or arbitrary channels to renderer code. Privileged boundaries must validate senders, paths, inputs, and media.
+Do not expose raw `ipcRenderer`, filesystem, shell, or arbitrary channels to renderer code. Privileged boundaries must validate paths, inputs, and media. Do not claim blanket sender/origin authorization where a handler has not implemented it.
 
 ## Commands
 
@@ -67,7 +67,7 @@ Build/package commands are defined in `package.json`. There is no generic releas
 
 ## Data flow
 
-Local Whisper and Local Rules run on the machine. Ollama/LM Studio use local loopback. Codex/Claude CLIs use their configured accounts. Anthropic/OpenAI, screen description, GitHub, and Linear may receive selected content when invoked. MarkuprPlus adds no telemetry, but that does not make every provider local.
+Local Whisper and Local Rules run on the machine. Transcription tries local Whisper before considering the saved-key OpenAI fallback. Ollama/LM Studio use local loopback. Codex/Claude CLIs use their configured accounts. Anthropic/OpenAI, screen description, GitHub, and Linear may receive selected content when invoked. MarkuprPlus adds no telemetry, but that does not make every provider local.
 
 ## Model downloads
 

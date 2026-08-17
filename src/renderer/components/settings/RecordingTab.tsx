@@ -1,12 +1,12 @@
 import React from 'react';
-import type { AppSettings, AudioDevice } from '../../../shared/types';
+import type { AudioDevice, PublicSettings } from '../../../shared/types';
 import { SettingsSection, ToggleSetting, DropdownSetting, SliderSetting } from '../primitives';
 import { styles } from './settingsStyles';
 
 export const RecordingTab: React.FC<{
-  settings: AppSettings;
+  settings: PublicSettings;
   audioDevices: AudioDevice[];
-  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onSettingChange: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => void;
   onResetSection: () => void;
 }> = ({ settings, audioDevices, onSettingChange, onResetSection }) => (
   <div style={styles.tabContent}>

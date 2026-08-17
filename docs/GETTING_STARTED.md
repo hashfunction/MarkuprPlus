@@ -48,7 +48,7 @@ On macOS, screen-recording permission changes can require restarting the app. Ac
 2. Select Local Rules, Ollama, or LM Studio for report analysis.
 3. If using Ollama/LM Studio, start the local service and choose a compatible model.
 
-Local Whisper and Local Rules need no cloud request. Ollama/LM Studio remain local only when configured on the local machine.
+Local Whisper and Local Rules need no cloud request. Post-session recovery tries local Whisper first; only if it is unavailable or fails can a previously saved OpenAI key enable the cloud fallback. Ollama/LM Studio remain local only when configured on the local machine.
 
 ### CLI-backed analysis
 
@@ -56,7 +56,7 @@ Install and authenticate Codex CLI or Claude Code CLI, then select it in Setting
 
 ### Cloud processing
 
-OpenAI transcription and Anthropic analysis require their respective keys. MarkuprPlus tries the OS credential service first, but has documented encrypted and last-resort plaintext compatibility fallbacks; review [Configuration](CONFIGURATION.md#storage-and-migration) before saving a hosted key. Selected audio/report content is sent to the chosen provider.
+OpenAI transcription and Anthropic analysis require their respective keys. New key saves use the OS credential service or protected Electron storage and fail closed rather than writing plaintext when secure storage is unavailable; review [Configuration](CONFIGURATION.md#storage-and-migration) before saving a hosted key. OpenAI receives encoded audio only after local recovery is unavailable or fails. Anthropic receives selected report content when chosen for analysis.
 
 ## Record a session
 

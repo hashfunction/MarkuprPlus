@@ -154,6 +154,16 @@ class AudioCaptureRenderer {
         this.latestRms = amplitude / Math.sqrt(2);
         this.latestLevel = 0.72;
         this.sendPcmChunkToMain(samples, performance.now());
+        if (testConfig.localTranscriptionRecovery) {
+          // A deterministic encoded companion proves the cloud fallback was
+          // eligible while the unpackaged Electron harness exercises local-first.
+          this.sendEncodedChunkToMain(
+            new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]),
+            performance.now(),
+            this.config.chunkDurationMs,
+            'audio/webm',
+          );
+        }
       };
       emitSamples();
       this.electronTestAudioInterval = window.setInterval(

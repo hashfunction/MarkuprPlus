@@ -22,8 +22,6 @@ export interface WatchModeOptions {
   outputDir?: string;
   /** Whisper model path override */
   whisperModelPath?: string;
-  /** OpenAI API key for cloud transcription */
-  openaiKey?: string;
   /** Skip frame extraction */
   skipFrames: boolean;
   /** Verbose logging */
@@ -305,7 +303,6 @@ export class WatchMode {
       videoPath: filePath,
       outputDir: this.resolvedOutputDir,
       whisperModelPath: this.options.whisperModelPath,
-      openaiKey: this.options.openaiKey,
       skipFrames: this.options.skipFrames,
       verbose: this.options.verbose,
     };

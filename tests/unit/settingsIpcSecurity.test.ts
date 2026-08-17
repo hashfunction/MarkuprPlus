@@ -1,0 +1,364 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { dialog, ipcMain } from 'electron';
+import { registerSettingsHandlers } from '../../src/main/ipc/settingsHandlers';
+import { registerCaptureHandlers } from '../../src/main/ipc/captureHandlers';
+import { fileManager } from '../../src/main/output';
+import { sessionController } from '../../src/main/SessionController';
+import { crashRecovery } from '../../src/main/CrashRecovery';
+import type { IpcContext, SessionActions } from '../../src/main/ipc/types';
+import {
+  DEFAULT_SETTINGS,
+  IPC_CHANNELS,
+  type AppSettings,
+} from '../../src/shared/types';
+import {
+  PUBLIC_SETTING_KEYS,
+  parsePublicSettingsPatch,
+  projectPublicSettings,
+} from '../../src/shared/publicSettings';
+import { isApplicationDataClearInProgress } from '../../src/main/settings/clearApplicationData';
+
+const temporaryRoots: string[] = [];
+const SECRET_CANARY = 'SECRET-CANARY-MUST-NOT-CROSS-IPC';
+
+function registeredHandler(channel: string): (...args: unknown[]) => unknown {
+  const registration = vi.mocked(ipcMain.handle).mock.calls.find(([name]) => name === channel);
+  if (!registration) throw new Error(`Handler not registered for ${channel}`);
+  return registration[1] as (...args: unknown[]) => unknown;
+}
+
+function makeManager(rawOverrides: Record<string, unknown> = {}) {
+  let raw: Record<string, unknown> = {
+    ...DEFAULT_SETTINGS,
+    theme: 'dark',
+    unknownLegacySetting: SECRET_CANARY,
+    __plaintext_fallback__: { openai: SECRET_CANARY },
+    'plaintext:openai': SECRET_CANARY,
+    _version: 3,
+    ...rawOverrides,
+  };
+
+  return {
+    get: vi.fn((key: keyof AppSettings) => raw[key]),
+    getAll: vi.fn(() => raw as unknown as AppSettings),
+    update: vi.fn((updates: Partial<AppSettings>) => {
+      raw = { ...raw, ...updates };
+      return raw as unknown as AppSettings;
+    }),
+    reset: vi.fn(() => {
+      raw = { ...DEFAULT_SETTINGS };
+    }),
+    getApiKey: vi.fn(async () => SECRET_CANARY),
+    setApiKey: vi.fn(async () => undefined),
+    deleteApiKey: vi.fn(async () => ({ success: true, failures: [] })),
+    hasApiKey: vi.fn(async () => true),
+  };
+}
+
+function context(manager: ReturnType<typeof makeManager>): IpcContext {
+  return {
+    getMainWindow: () => null,
+    getPopover: () => null,
+    getSettingsManager: () => manager as never,
+    getWindowsTaskbar: () => null,
+    getHasCompletedOnboarding: () => true,
+    setHasCompletedOnboarding: vi.fn(),
+  };
+}
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+});
+
+afterEach(async () => {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, {
+    recursive: true,
+    force: true,
+  })));
+});
+
+describe('public settings contract', () => {
+  it('projects only the explicit DEFAULT_SETTINGS key surface', () => {
+    const projected = projectPublicSettings({
+      ...DEFAULT_SETTINGS,
+      theme: 'dark',
+      unknownLegacySetting: SECRET_CANARY,
+      __plaintext_fallback__: { openai: SECRET_CANARY },
+      encryptedOpenAiKey: SECRET_CANARY,
+      _version: 3,
+    });
+
+    expect(Object.keys(projected).sort()).toEqual([...PUBLIC_SETTING_KEYS].sort());
+    expect(projected.theme).toBe('dark');
+    expect(JSON.stringify(projected)).not.toContain(SECRET_CANARY);
+    expect(projected).not.toHaveProperty('__plaintext_fallback__');
+    expect(projected).not.toHaveProperty('_version');
+  });
+
+  it('validates a patch as one atomic value without accepting unknown or dangerous keys', () => {
+    expect(parsePublicSettingsPatch({ theme: 'light', imageQuality: 72 })).toEqual({
+      theme: 'light',
+      imageQuality: 72,
+    });
+    expect(() => parsePublicSettingsPatch({ theme: 'light', imageQuality: 0 }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ theme: 'light', unknown: SECRET_CANARY }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch(JSON.parse('{"__proto__":{"polluted":true}}')))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ constructor: { prototype: { polluted: true } } }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ 'theme.value': 'dark' }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ outputDirectory: '' }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ outputDirectory: '../relative-output' }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({ analysisModelsByProvider: new Date(0) }))
+      .toThrow('Invalid settings payload.');
+    expect(() => parsePublicSettingsPatch({
+      analysisModelsByProvider: Object.create({ ollama: 'inherited-model' }),
+    })).toThrow('Invalid settings payload.');
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+});
+
+describe('settings IPC security boundary', () => {
+  it('returns projections for current and legacy get-all channels', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    for (const channel of [IPC_CHANNELS.SETTINGS_GET_ALL, IPC_CHANNELS.GET_SETTINGS]) {
+      const result = await registeredHandler(channel)({});
+      expect(Object.keys(result as object).sort()).toEqual([...PUBLIC_SETTING_KEYS].sort());
+      expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+    }
+  });
+
+  it('rejects unknown, dotted, prototype, and internal get keys before manager access', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const get = registeredHandler(IPC_CHANNELS.SETTINGS_GET);
+
+    for (const key of ['unknown', 'theme.value', '__proto__', 'constructor', '_version']) {
+      await expect(Promise.resolve().then(() => get({}, key)))
+        .rejects.toThrow('Invalid settings request.');
+    }
+    expect(manager.get).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid set keys and values before mutation and returns a projected result', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const set = registeredHandler(IPC_CHANNELS.SETTINGS_SET);
+
+    for (const [key, value] of [
+      ['unknown', SECRET_CANARY],
+      ['theme.value', 'dark'],
+      ['__proto__', { polluted: true }],
+      ['constructor', { prototype: { polluted: true } }],
+      ['_version', 99],
+      ['imageQuality', 0],
+    ]) {
+      await expect(Promise.resolve().then(() => set({}, key, value)))
+        .rejects.toThrow('Invalid settings request.');
+    }
+    expect(manager.update).not.toHaveBeenCalled();
+
+    const result = await set({}, 'theme', 'light');
+    expect(manager.update).toHaveBeenCalledWith({ theme: 'light' });
+    expect(result).toMatchObject({ theme: 'light' });
+    expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+  });
+
+  it('validates legacy bulk settings atomically and never applies a valid prefix', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const setLegacy = registeredHandler(IPC_CHANNELS.SET_SETTINGS);
+
+    await expect(Promise.resolve().then(() => setLegacy({}, {
+      theme: 'light',
+      imageQuality: 0,
+      unknown: SECRET_CANARY,
+    }))).rejects.toThrow('Invalid settings request.');
+    expect(manager.update).not.toHaveBeenCalled();
+
+    const result = await setLegacy({}, { theme: 'light', imageQuality: 72 });
+    expect(manager.update).toHaveBeenCalledWith({ theme: 'light', imageQuality: 72 });
+    expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+  });
+
+  it('validates imports atomically and exports only the public projection', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'markuprplus-settings-security-'));
+    temporaryRoots.push(root);
+    const importPath = join(root, 'import.json');
+    const exportPath = join(root, 'export.json');
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: [importPath] });
+    vi.mocked(dialog.showSaveDialog).mockResolvedValue({ canceled: false, filePath: exportPath });
+
+    await writeFile(importPath, JSON.stringify({
+      theme: 'light',
+      imageQuality: 0,
+      unknownLegacySetting: SECRET_CANARY,
+    }));
+    const invalidResult = await registeredHandler(IPC_CHANNELS.SETTINGS_IMPORT)({});
+    expect(invalidResult).toBeNull();
+    expect(manager.update).not.toHaveBeenCalled();
+
+    await writeFile(importPath, JSON.stringify({ theme: 'light', imageQuality: 72 }));
+    const validResult = await registeredHandler(IPC_CHANNELS.SETTINGS_IMPORT)({});
+    expect(manager.update).toHaveBeenCalledWith({ theme: 'light', imageQuality: 72 });
+    expect(JSON.stringify(validResult)).not.toContain(SECRET_CANARY);
+
+    await registeredHandler(IPC_CHANNELS.SETTINGS_EXPORT)({});
+    const exported = await readFile(exportPath, 'utf8');
+    expect(Object.keys(JSON.parse(exported)).sort()).toEqual([...PUBLIC_SETTING_KEYS].sort());
+    expect(exported).not.toContain(SECRET_CANARY);
+  });
+
+  it('never returns stored key material to the renderer', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    await expect(registeredHandler(IPC_CHANNELS.SETTINGS_GET_API_KEY)({}, 'openai'))
+      .resolves.toBeNull();
+    expect(manager.getApiKey).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized credential input before constructing a provider request', async () => {
+    const manager = makeManager();
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const result = await registeredHandler(IPC_CHANNELS.SETTINGS_TEST_API_KEY)(
+      {},
+      'openai',
+      'x'.repeat(20_001),
+    );
+
+    expect(result).toEqual({ valid: false, error: 'Please enter a valid API key.' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns a path-free partial clear result and attempts later cleanup after failures', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'markuprplus-clear-ipc-'));
+    temporaryRoots.push(root);
+    const manager = makeManager({ outputDirectory: root });
+    manager.deleteApiKey.mockImplementation(async (provider: string) => (
+      provider === 'openai'
+        ? { success: false, failures: [{ location: 'keychain' }] }
+        : { success: true, failures: [] }
+    ));
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion').mockResolvedValue([]);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => {
+      throw new Error(`recovery failed at ${root}`);
+    });
+    const clearLogs = vi.spyOn(crashRecovery, 'clearCrashLogs').mockImplementation(() => undefined);
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    const result = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+
+    expect(manager.deleteApiKey).toHaveBeenCalledWith('openai');
+    expect(manager.deleteApiKey).toHaveBeenCalledWith('anthropic');
+    expect(clearLogs).toHaveBeenCalledOnce();
+    expect(manager.reset).toHaveBeenCalledOnce();
+    expect(manager.update).toHaveBeenCalledWith({ outputDirectory: root });
+    expect(result).toMatchObject({
+      success: false,
+      deletedSessions: 0,
+      failures: [
+        { kind: 'credential', provider: 'openai' },
+        { kind: 'recovery' },
+      ],
+    });
+    expect(JSON.stringify((result as { failures: unknown }).failures)).not.toContain(root);
+    expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+  });
+
+  it('does not mutate data while a session is active', async () => {
+    const manager = makeManager();
+    vi.spyOn(sessionController, 'getState').mockReturnValue('recording');
+    const listOwned = vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion');
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    const result = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+
+    expect(result).toMatchObject({ success: false, failures: [{ kind: 'settings' }] });
+    expect(listOwned).not.toHaveBeenCalled();
+    expect(manager.deleteApiKey).not.toHaveBeenCalled();
+    expect(manager.reset).not.toHaveBeenCalled();
+  });
+
+  it('returns a structured result and continues independent cleanup when the output setting fails', async () => {
+    const manager = makeManager();
+    manager.get.mockImplementation(() => {
+      throw new Error(`untrusted path ${SECRET_CANARY}`);
+    });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    vi.spyOn(crashRecovery, 'clearCrashLogs').mockImplementation(() => undefined);
+    const listOwned = vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion');
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+
+    const result = await registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA)({});
+
+    expect(listOwned).not.toHaveBeenCalled();
+    expect(manager.deleteApiKey).toHaveBeenCalledTimes(2);
+    expect(manager.reset).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      success: false,
+      deletedSessions: 0,
+      failures: [{ kind: 'settings' }],
+    });
+    expect(JSON.stringify(result)).not.toContain(SECRET_CANARY);
+  });
+
+  it('serializes concurrent clear requests into one destructive operation', async () => {
+    const manager = makeManager({ outputDirectory: join(tmpdir(), 'markuprplus-clear-lock') });
+    vi.spyOn(sessionController, 'getState').mockReturnValue('idle');
+    vi.spyOn(sessionController, 'reset').mockImplementation(() => undefined);
+    vi.spyOn(crashRecovery, 'discardIncompleteSession').mockImplementation(() => undefined);
+    vi.spyOn(crashRecovery, 'clearCrashLogs').mockImplementation(() => undefined);
+    let release: (() => void) | undefined;
+    const listOwned = vi.spyOn(fileManager, 'listOwnedSessionDirectoriesForDeletion')
+      .mockImplementation(() => new Promise<string[]>((resolve) => {
+        release = () => resolve([]);
+      }));
+    registerSettingsHandlers(context(manager), {} as SessionActions);
+    const clear = registeredHandler(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA);
+
+    const first = clear({}) as Promise<unknown>;
+    const second = clear({}) as Promise<unknown>;
+    expect(listOwned).toHaveBeenCalledOnce();
+    expect(isApplicationDataClearInProgress()).toBe(true);
+    release?.();
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(isApplicationDataClearInProgress()).toBe(false);
+    expect(listOwned).toHaveBeenCalledOnce();
+    expect(manager.reset).toHaveBeenCalledOnce();
+  });
+
+  it('updates only the validated public audioDeviceId field', async () => {
+    const manager = makeManager();
+    registerCaptureHandlers(context(manager));
+    const setDevice = registeredHandler(IPC_CHANNELS.AUDIO_SET_DEVICE);
+
+    await expect(setDevice({}, 'microphone-1')).resolves.toEqual({ success: true });
+    expect(manager.update).toHaveBeenCalledWith({ audioDeviceId: 'microphone-1' });
+    expect(manager.getAll).not.toHaveBeenCalled();
+
+    manager.update.mockClear();
+    await expect(setDevice({}, { device: SECRET_CANARY }))
+      .resolves.toEqual({ success: false, error: 'Invalid audio device.' });
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+});

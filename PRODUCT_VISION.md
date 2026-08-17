@@ -24,7 +24,7 @@ MarkuprPlus does not claim real-time transcription or automatic silence-triggere
 ### Process and review
 
 - Local Whisper can transcribe post-session audio after a model is downloaded.
-- OpenAI transcription is an optional configured cloud recovery path.
+- Recovery tries local Whisper first; OpenAI is an optional saved-key cloud fallback only after local transcription is unavailable or fails.
 - Local Rules always provides a deterministic report construction path.
 - Codex CLI, Claude Code CLI, Ollama, LM Studio, or Anthropic API can be selected for enhanced analysis.
 - The Review Editor supports multiple findings, editing, categories, severity, screenshots, reordering, and deletion.
@@ -57,7 +57,7 @@ The lower-case names are retained machine interfaces; public product surfaces us
 
 ## Current privacy boundary
 
-Capture media and reports are written to the configured output directory. Local Whisper and Local Rules run on the machine; Ollama and LM Studio use loopback services. Codex CLI and Claude Code CLI use their configured accounts and may send content to their service. Anthropic analysis, OpenAI transcription, GitHub delivery, Linear delivery, and screen-description providers send selected content externally when invoked.
+Capture media and reports are written to the configured output directory. Local Whisper and Local Rules run on the machine; transcription attempts local Whisper before any saved-key OpenAI fallback. Ollama and LM Studio use loopback services. Codex CLI and Claude Code CLI use their configured accounts and may send content to their service. Anthropic analysis, OpenAI transcription, GitHub delivery, Linear delivery, and screen-description providers send selected content externally when invoked.
 
 MarkuprPlus does not add application telemetry. That is separate from the data flow of a provider the user selects.
 

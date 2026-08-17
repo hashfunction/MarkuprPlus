@@ -7,7 +7,7 @@
 
 import { app, ipcMain, shell } from 'electron';
 import * as fs from 'fs/promises';
-import { join, basename, resolve } from 'path';
+import { join, basename } from 'path';
 import { sessionController } from '../SessionController';
 import {
   adaptSessionForReview,
@@ -32,6 +32,7 @@ import {
   type SaveResult,
 } from '../../shared/types';
 import type { IpcContext } from './types';
+import { resolveContainedExistingPath } from '../security/pathContainment';
 
 // =============================================================================
 // Session History Types and Helpers
@@ -309,10 +310,19 @@ export function registerOutputHandlers(ctx: IpcContext): void {
         return { success: false, error: 'Invalid directory path' };
       }
       const baseDir = fileManager.getOutputDirectory();
-      const dir = sessionDir || baseDir;
-      // Path containment: only allow opening paths within the output directory
-      const resolved = resolve(dir);
-      if (sessionDir && !resolved.startsWith(resolve(baseDir))) {
+      let trustedDirectory = baseDir;
+      if (sessionDir) {
+        const listed = await fileManager.listSessions();
+        const match = listed.find(({ dir }) => dir === sessionDir);
+        if (!match) return { success: false, error: 'Invalid directory path' };
+        trustedDirectory = match.dir;
+      }
+      const resolved = await resolveContainedExistingPath(
+        baseDir,
+        trustedDirectory,
+        !sessionDir,
+      );
+      if (!resolved) {
         return { success: false, error: 'Invalid directory path' };
       }
       await shell.openPath(resolved);
@@ -350,13 +360,13 @@ export function registerOutputHandlers(ctx: IpcContext): void {
       if (!session) {
         return { success: false, error: 'Session not found' };
       }
-      // Path containment: only delete folders within the output directory
       const baseDir = fileManager.getOutputDirectory();
-      if (!resolve(session.folder).startsWith(resolve(baseDir))) {
+      const resolvedSession = await resolveContainedExistingPath(baseDir, session.folder);
+      if (!resolvedSession) {
         return { success: false, error: 'Invalid session path' };
       }
 
-      await fs.rm(session.folder, { recursive: true, force: true });
+      await fs.rm(resolvedSession, { recursive: true, force: true });
       return { success: true };
     } catch (error) {
       console.error('[Main] Failed to delete session:', error);
@@ -386,13 +396,13 @@ export function registerOutputHandlers(ctx: IpcContext): void {
           continue;
         }
 
-        // Path containment: only delete folders within the output directory
-        if (!resolve(session.folder).startsWith(resolve(baseDir))) {
+        const resolvedSession = await resolveContainedExistingPath(baseDir, session.folder);
+        if (!resolvedSession) {
           failed.push(sessionId);
           continue;
         }
 
-        await fs.rm(session.folder, { recursive: true, force: true });
+        await fs.rm(resolvedSession, { recursive: true, force: true });
         deleted.push(sessionId);
       } catch {
         failed.push(sessionId);

@@ -106,10 +106,10 @@ describe('init', () => {
       expect(config.recording.skipFrames).toBe(false);
     });
 
-    it('references standard env var names for API keys', () => {
+    it('references only the API key consumed by generated CLI/MCP configuration', () => {
       const config = createDefaultConfig('./output');
       expect(config.apiKeys.anthropic).toBe('ANTHROPIC_API_KEY');
-      expect(config.apiKeys.openai).toBe('OPENAI_API_KEY');
+      expect(config.apiKeys.openai).toBeUndefined();
     });
   });
 

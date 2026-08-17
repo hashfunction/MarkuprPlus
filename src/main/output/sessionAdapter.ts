@@ -24,7 +24,7 @@ import { markdownGenerator } from './MarkdownGenerator';
 import { feedbackAnalyzer } from '../analysis';
 
 const NO_TRANSCRIPTION_PLACEHOLDER =
-  '[Narration was recorded but not transcribed. Add an OpenAI API key, or download a Tiny Whisper model for local fallback.]';
+  '[Narration was recorded but not transcribed. Download a Tiny Whisper model for local-first recovery, or save an OpenAI key for fallback after a local failure.]';
 
 /**
  * Map analyzer category labels to markdown report labels

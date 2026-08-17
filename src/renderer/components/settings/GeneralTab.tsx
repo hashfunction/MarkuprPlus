@@ -1,12 +1,12 @@
 import React from 'react';
 import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
-import type { AppSettings } from '../../../shared/types';
+import type { PublicSettings } from '../../../shared/types';
 import { SettingsSection, ToggleSetting, DirectoryPicker } from '../primitives';
 import { styles } from './settingsStyles';
 
 export const GeneralTab: React.FC<{
-  settings: AppSettings;
-  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  settings: PublicSettings;
+  onSettingChange: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => void;
   onResetSection: () => void;
 }> = ({ settings, onSettingChange, onResetSection }) => (
   <div style={styles.tabContent}>

@@ -40,7 +40,7 @@ Recording does not depend on live transcription. The main workflow stops capture
 
 ## Transcription
 
-Local Whisper is the primary local path after a model is downloaded. Model sizes range from 75 MB (tiny) to 3.1 GB (large), with a 142 MB base model. OpenAI transcription can be configured as a cloud recovery path.
+Recovery tries local Whisper first after a model is downloaded. Model sizes range from 75 MB (tiny) to 3.1 GB (large), with a 142 MB base model. A local success returns before a saved OpenAI key is read or a network client is used. OpenAI can run only as a configured fallback after local transcription is unavailable or fails, and only when encoded audio and a saved key exist.
 
 Failures are reported with provider-specific diagnostics. A missing model/key or a provider error does not justify inventing transcript content. Existing capture evidence remains recoverable.
 
@@ -84,7 +84,7 @@ GitHub and Linear delivery are separate explicit actions. They receive only the 
 
 - Renderer code reaches privileged operations only through the preload/IPC boundary.
 - Screenshot bytes are validated and normalized before export or provider use.
-- API keys first try the operating system credential store and then Electron `safeStorage`. If both fail, current compatibility behavior can use an owner-only plaintext `secure-keys.json` entry; users who cannot provide supported secure storage should omit hosted API keys.
+- New credential saves first try the operating-system credential store and then genuinely protected Electron `safeStorage`. New credential writes fail closed if both are unavailable, with no plaintext fallback; Linux `basic_text` is rejected. Legacy values migrate only after a verified protected write, with cleanup retried when removal fails.
 - Local Rules and local Whisper do not require a model-service request.
 - Ollama/LM Studio use local loopback services.
 - CLI providers follow the installed CLI/account configuration.

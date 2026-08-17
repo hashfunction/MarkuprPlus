@@ -2,8 +2,9 @@
  * TranscriptionRecoveryService
  *
  * Handles post-session transcription recovery when live transcription
- * produces no output. Tries OpenAI Whisper-1 API first, then falls back
- * to local Whisper. Extracted from SessionController for separation of concerns.
+ * produces no output. Tries local Whisper first and uses OpenAI only as an
+ * explicitly configured fallback. Extracted from SessionController for
+ * separation of concerns.
  */
 
 import type { CapturedAudioAsset } from '../audio/AudioCapture';
@@ -12,6 +13,8 @@ import { getSettingsManager } from '../settings';
 import { whisperService } from './WhisperService';
 import type { TranscriptEvent } from './types';
 import type { TranscriptionFailure } from '../../shared/types';
+import { app } from 'electron';
+import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 export type { TranscriptionFailure, TranscriptionFailureCode } from '../../shared/types';
 
 // =============================================================================
@@ -20,6 +23,15 @@ export type { TranscriptionFailure, TranscriptionFailureCode } from '../../share
 
 const WHISPER_RECOVERY_CHUNK_SECONDS = 30;
 const MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC = 8 * 60;
+
+function deterministicElectronLocalRecoveryAllowed(): boolean {
+  return isElectronTestHarnessAllowed({
+    requested:
+      process.env.MARKUPRX_E2E === '1'
+      && process.env.MARKUPRX_E2E_LOCAL_TRANSCRIPTION_RECOVERY === '1',
+    isPackaged: app.isPackaged,
+  });
+}
 
 // =============================================================================
 // Types
@@ -90,8 +102,8 @@ async function getOpenAIApiKey(): Promise<string | null> {
     const apiKey = await settings.getApiKey('openai');
     const normalized = apiKey?.trim();
     return normalized && normalized.length > 0 ? normalized : null;
-  } catch (error) {
-    console.warn('[TranscriptionRecovery] Failed to read OpenAI API key:', error);
+  } catch {
+    console.warn('[TranscriptionRecovery] Failed to read the optional OpenAI fallback key.');
     return null;
   }
 }
@@ -199,12 +211,11 @@ async function recoverWithOpenAI(
       );
       return { events: recoveredEvents, outcome: 'success' };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error && error.name === 'AbortError'
         ? 'request timed out'
         : 'request failed after retries';
       console.warn(
-        `[TranscriptionRecovery] OpenAI recovery attempt ${attempt}/${maxAttempts} failed: ${message}`,
+        `[TranscriptionRecovery] OpenAI recovery attempt ${attempt}/${maxAttempts} failed.`,
       );
 
       if (attempt < maxAttempts) {
@@ -274,11 +285,10 @@ async function recoverWithWhisper(
         `[TranscriptionRecovery] Recovered ${recoveredEvents.length} segments via Whisper (attempt ${attempt}/${maxAttempts}).`,
       );
       return { events: recoveredEvents, outcome: 'success' };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      lastError = message.trim().slice(0, 180) || 'local model failed after retries';
+    } catch {
+      lastError = 'local model failed after retries';
       console.warn(
-        `[TranscriptionRecovery] Whisper recovery attempt ${attempt}/${maxAttempts} failed: ${message}`,
+        `[TranscriptionRecovery] Whisper recovery attempt ${attempt}/${maxAttempts} failed.`,
       );
 
       if (attempt < maxAttempts) {
@@ -298,7 +308,8 @@ async function recoverWithWhisper(
 /**
  * Run post-session transcription recovery.
  *
- * Attempts OpenAI API first, then falls back to local Whisper.
+ * Attempts local Whisper first. A saved OpenAI key is read only after local
+ * recovery is unavailable or unsuccessful and encoded audio can be sent.
  * Returns recovered transcript events, or an empty array if all strategies fail.
  *
  * @param sessionStartSec - Session start time in epoch seconds
@@ -310,11 +321,25 @@ export async function recoverTranscript(
   audioData: RecoveryAudioData,
   dependencyOverrides: Partial<TranscriptionRecoveryDependencies> = {},
 ): Promise<TranscriptRecoveryResult> {
+  const useDeterministicElectronLocalRecovery = deterministicElectronLocalRecoveryAllowed();
   const dependencies: TranscriptionRecoveryDependencies = {
     getOpenAIApiKey,
     recoverWithOpenAI,
-    recoverWithWhisper,
-    isLocalModelAvailable: () => whisperService.isModelAvailable(),
+    recoverWithWhisper: useDeterministicElectronLocalRecovery
+      ? async (_audioSamples, startTime) => ({
+          events: [{
+            text: 'Local recovery stayed on this device.',
+            isFinal: true,
+            confidence: 0.99,
+            timestamp: startTime,
+            tier: 'whisper',
+          }],
+          outcome: 'success',
+        })
+      : recoverWithWhisper,
+    isLocalModelAvailable: useDeterministicElectronLocalRecovery
+      ? () => true
+      : () => whisperService.isModelAvailable(),
     ...dependencyOverrides,
   };
   const hasEncodedAudio = Boolean(
@@ -334,51 +359,95 @@ export async function recoverTranscript(
     };
   }
 
-  let openAiAttempt: RecoveryAttempt | undefined;
   let localAttempt: RecoveryAttempt | undefined;
-  const openAiApiKey = hasEncodedAudio ? await dependencies.getOpenAIApiKey() : null;
+  let localModelAvailable = false;
 
-  // Try OpenAI first (best quality)
-  if (hasEncodedAudio && audioData.capturedAudioAsset) {
-    if (openAiApiKey) {
-      openAiAttempt = await dependencies.recoverWithOpenAI(
-        audioData.capturedAudioAsset,
-        sessionStartSec,
-        openAiApiKey,
-        2,
-      );
-      if (openAiAttempt.events.length > 0) {
-        return { events: openAiAttempt.events };
-      }
-    } else {
-      console.warn('[TranscriptionRecovery] OpenAI recovery skipped: API key not configured.');
-    }
-  }
-
-  // Fall back to local Whisper (raw PCM only)
-  const localModelAvailable = dependencies.isLocalModelAvailable();
-  if (hasPcmAudio && audioData.capturedAudioBuffer && localModelAvailable) {
-    const audioSamples = new Float32Array(
-      audioData.capturedAudioBuffer.buffer,
-      audioData.capturedAudioBuffer.byteOffset,
-      audioData.capturedAudioBuffer.byteLength / 4,
-    );
-    const audioDurationSec = audioSamples.length / 16000;
-    if (audioDurationSec <= MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC) {
-      localAttempt = await dependencies.recoverWithWhisper(audioSamples, sessionStartSec, 3);
-      if (localAttempt.events.length > 0) {
-        return { events: localAttempt.events };
-      }
-    } else {
+  // Local raw PCM never leaves the device and is always the first strategy.
+  if (hasPcmAudio && audioData.capturedAudioBuffer) {
+    try {
+      localModelAvailable = dependencies.isLocalModelAvailable();
+    } catch {
       localAttempt = {
         events: [],
         outcome: 'provider-error',
-        error: `session is too long for local recovery (${Math.round(audioDurationSec)}s)`,
+        error: 'local model availability check failed',
       };
+    }
+
+    if (localModelAvailable) {
+      try {
+        if (audioData.capturedAudioBuffer.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) {
+          localAttempt = {
+            events: [],
+            outcome: 'provider-error',
+            error: 'captured PCM audio was malformed',
+          };
+        } else {
+          // Copy into an aligned buffer. Node Buffer slices can otherwise have
+          // a byteOffset that is invalid for a Float32Array view.
+          const alignedBytes = Uint8Array.from(audioData.capturedAudioBuffer);
+          const audioSamples = new Float32Array(alignedBytes.buffer);
+          const audioDurationSec = audioSamples.length / 16000;
+          if (audioDurationSec <= MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC) {
+            localAttempt = await dependencies.recoverWithWhisper(audioSamples, sessionStartSec, 3);
+          } else {
+            localAttempt = {
+              events: [],
+              outcome: 'provider-error',
+              error: `session is too long for local recovery (${Math.round(audioDurationSec)}s)`,
+            };
+          }
+        }
+      } catch {
+        localAttempt = {
+          events: [],
+          outcome: 'provider-error',
+          error: 'local recovery failed',
+        };
+      }
+      if (localAttempt?.events.length) {
+        return { events: localAttempt.events };
+      }
     }
   }
 
-  if (localAttempt?.outcome === 'no-speech' || openAiAttempt?.outcome === 'no-speech') {
+  // Cloud is an opt-in fallback: defer even reading the key until local has
+  // failed or could not run, and only when an encoded asset is available.
+  let openAiAttempt: RecoveryAttempt | undefined;
+  let openAiApiKey: string | null = null;
+  if (hasEncodedAudio && audioData.capturedAudioAsset) {
+    try {
+      openAiApiKey = await dependencies.getOpenAIApiKey();
+    } catch {
+      openAiAttempt = {
+        events: [],
+        outcome: 'provider-error',
+        error: 'credential lookup failed',
+      };
+    }
+    if (openAiApiKey) {
+      try {
+        openAiAttempt = await dependencies.recoverWithOpenAI(
+          audioData.capturedAudioAsset,
+          sessionStartSec,
+          openAiApiKey,
+          2,
+        );
+      } catch {
+        openAiAttempt = {
+          events: [],
+          outcome: 'provider-error',
+          error: 'request failed',
+        };
+      }
+      if (openAiAttempt.events.length > 0) {
+        return { events: openAiAttempt.events };
+      }
+    }
+  }
+
+  if (openAiAttempt?.outcome === 'no-speech'
+    || (!openAiAttempt && localAttempt?.outcome === 'no-speech')) {
     return {
       events: [],
       failure: {
@@ -388,12 +457,14 @@ export async function recoverTranscript(
     };
   }
 
-  if (localAttempt?.outcome === 'provider-error') {
+  if (localAttempt?.outcome === 'provider-error' && openAiAttempt?.outcome === 'provider-error') {
     return {
       events: [],
       failure: {
-        code: 'whisper-failed',
-        message: `Local Whisper transcription failed: ${localAttempt.error || 'local model failed'}`,
+        code: 'openai-failed',
+        message:
+          `Local Whisper transcription failed: ${localAttempt.error || 'local model failed'}. `
+          + `OpenAI fallback failed: ${openAiAttempt.error || 'request failed'}`,
       },
     };
   }
@@ -404,6 +475,16 @@ export async function recoverTranscript(
       failure: {
         code: 'openai-failed',
         message: `OpenAI transcription failed: ${openAiAttempt.error || 'request failed'}`,
+      },
+    };
+  }
+
+  if (localAttempt?.outcome === 'provider-error') {
+    return {
+      events: [],
+      failure: {
+        code: 'whisper-failed',
+        message: `Local Whisper transcription failed: ${localAttempt.error || 'local model failed'}`,
       },
     };
   }

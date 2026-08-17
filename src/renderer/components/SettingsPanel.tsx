@@ -171,6 +171,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             whisperModelStatus={s.whisperModelStatus}
             isRepairingLocalTranscription={s.isRepairingLocalTranscription}
             localTranscriptionError={s.localTranscriptionError}
+            isClearingData={s.isClearingData}
+            clearDataError={s.clearDataError}
             onSettingChange={s.handleSettingChange}
             onAnalysisModelChange={s.handleAnalysisModelChange}
             onRefreshAnalysisProviders={s.refreshAnalysisProviders}
@@ -194,6 +196,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     s.activeTab, s.settings, s.audioDevices, s.openAiApiKey, s.anthropicApiKey,
     s.analysisProviderStatuses, s.isScanningProviders, s.refreshAnalysisProviders,
     s.whisperModelStatus, s.isRepairingLocalTranscription, s.localTranscriptionError,
+    s.isClearingData, s.clearDataError,
     s.handleSettingChange, s.handleHotkeyChange,
     s.handleAnalysisModelChange, s.handleRepairLocalTranscription,
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,

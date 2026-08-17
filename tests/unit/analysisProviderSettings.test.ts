@@ -46,7 +46,8 @@ describe('analysis provider settings', () => {
     settings.set('analysisProvider', 'codex-cli');
     expect(settings.get('analysisProvider')).toBe('codex-cli');
 
-    settings.set('analysisProvider', 'unsupported' as never);
+    expect(() => settings.set('analysisProvider', 'unsupported' as never))
+      .toThrow('Invalid settings request.');
     expect(settings.get('analysisProvider')).toBe('codex-cli');
 
     settings.set('analysisProvider', 'rules');

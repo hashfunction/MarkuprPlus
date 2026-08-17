@@ -37,7 +37,7 @@ MarkuprPlus is a significantly enhanced evolution of [markupr](https://github.co
 - Local Whisper transcription with explicit local, CLI-backed, and hosted analysis-provider choices
 - Desktop export, clipboard/open-folder actions, plus GitHub and Linear delivery paths
 - Keyboard-first navigation, visible focus, reduced-motion and forced-colors support, and automated accessibility coverage
-- Context-isolated preload access, guarded navigation, input/path/media validation, explicit credential-fallback disclosure, and provider-specific privacy controls
+- Context-isolated preload access, guarded navigation, input/path/media validation, fail-closed credential storage, and provider-specific privacy controls
 
 ## Product tour
 
@@ -81,7 +81,7 @@ Default hotkeys are `CmdOrCtrl+Shift+F` for Start/Stop, `CmdOrCtrl+Shift+S` for 
 
 ### Transcription and analysis
 
-Local Whisper performs post-session transcription when a downloaded model is available. Available model downloads range from 75 MB (tiny) through 3.1 GB (large); the base model is 142 MB. OpenAI transcription is an optional cloud recovery path when configured.
+Post-session recovery tries a downloaded local Whisper model first. Available model downloads range from 75 MB (tiny) through 3.1 GB (large); the base model is 142 MB. Only when local transcription is unavailable or fails, encoded audio exists, and the user has explicitly saved an OpenAI key does MarkuprPlus use OpenAI as the cloud fallback. Local success does not read the key or make the OpenAI request.
 
 Report analysis is always backed by a Local Rules result and can use one selected provider:
 
@@ -122,7 +122,9 @@ See [README-MCP.md](README-MCP.md) and [docs/AI_AGENT_QUICKSTART.md](docs/AI_AGE
 
 Capture files, transcripts, screenshots, and reports are stored in the configured output directory. Local Whisper, Local Rules, Ollama, and LM Studio can keep the processing path on the machine when their services are local. Choosing OpenAI transcription, Anthropic API, Codex CLI, Claude Code CLI, GitHub, Linear, or screen-description tools can transmit selected audio, text, images, or report content according to that provider's behavior.
 
-MarkuprPlus does not add application telemetry or analytics. API-key storage first tries the operating system credential service, then Electron `safeStorage` encryption. If both are unavailable, the current compatibility behavior can write the key to an owner-only plaintext `secure-keys.json` fallback. Omit hosted API keys from MarkuprPlus unless the supported keychain or `safeStorage` is available; local Whisper and Local Rules require no hosted key. Renderer navigation is guarded, IPC is exposed through the preload boundary, and external links are opened through explicit handlers.
+MarkuprPlus does not add application telemetry or analytics. New API-key saves try the operating-system credential service and then genuinely protected Electron `safeStorage`; credential writes fail closed when neither is available, with no plaintext fallback. On Linux, the unprotected `basic_text` backend is rejected. Older profiles can contain legacy credential material: MarkuprPlus migrates it only after a verified secure write, then attempts cleanup, retaining the source for a later retry if cleanup fails.
+
+The renderer and Settings Export receive an allowlisted public settings projection that excludes secrets and unknown/internal persisted fields. Settings keys and values are validated at the main-process boundary, and imports are applied only after the complete file validates. Renderer navigation is guarded, IPC is exposed through enumerated preload methods, and external links are opened through explicit handlers; this is containment, not a claim that every IPC registration independently authorizes sender origin.
 
 See [SECURITY.md](SECURITY.md) before reporting a vulnerability.
 

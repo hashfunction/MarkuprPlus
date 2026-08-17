@@ -31,7 +31,6 @@ export interface CLIPipelineOptions {
   audioPath?: string;
   outputDir: string;
   whisperModelPath?: string;
-  openaiKey?: string;
   skipFrames: boolean;
   verbose: boolean;
   /** Output template name (default: 'markdown') */

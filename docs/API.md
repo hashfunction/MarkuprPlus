@@ -87,9 +87,11 @@ History batch export currently accepts Markdown, JSON, or PDF for one or more pe
 
 ## Settings and credentials
 
-Current limitation: individual known settings have per-key checks, but unknown setting keys are not rejected universally. `getAll()` and Settings Export currently read the raw persisted store, which can include legacy secret material left by an older fallback path. Treat those renderer results and exported files as sensitive; do not log, publish, attach, or use them as proof that credentials are absent. New credential operations should still use only the dedicated methods.
+`settings.getAll()`, the compatibility settings calls, and Settings Export return the same explicit public settings projection. It is allowlisted from the shared public contract and never exposes credential values, encrypted blobs, unknown persisted fields, or internal migration data. Credential reads/tests remain dedicated main-process operations; they do not return a stored key to the renderer.
 
-Settings export defaults to `MarkuprPlus-settings.json`. Import selects recognized keys from compatible older JSON files, but not every accepted value currently has a complete schema check.
+Unknown, dotted, prototype-like, and internal keys are rejected before reaching the settings store, and values are validated by key. Multi-key updates and import validate atomically: if any key or value is invalid, no setting is applied. The audio-device compatibility handler follows the same rule and updates only `audioDeviceId`.
+
+Settings export defaults to `MarkuprPlus-settings.json`. Import accepts compatible older filenames while applying the current allowlist and validation contract.
 
 ## Updates
 

@@ -6,7 +6,6 @@
  * - Whisper model (optional, for local transcription)
  * - Node.js version compatibility
  * - Anthropic API key (optional, for AI analysis)
- * - OpenAI API key (optional, for cloud transcription)
  * - Disk space (for recordings and output)
  */
 
@@ -102,6 +101,14 @@ function parseSemver(version: string): [number, number, number] | null {
   return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
 }
 
+/** Match the package.json runtime floor without accepting older Node 20 minors. */
+export function meetsNodeEngineFloor(version: string): boolean {
+  const parsed = parseSemver(version);
+  if (!parsed) return false;
+  const [major, minor] = parsed;
+  return major > 20 || (major === 20 && minor >= 9);
+}
+
 // ============================================================================
 // Check functions
 // ============================================================================
@@ -115,17 +122,15 @@ async function checkNodeVersion(): Promise<DoctorCheck> {
       name: 'Node.js',
       status: 'warn',
       message: `Unknown version: ${version}`,
-      hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 18.0.0`,
+      hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 20.9.0`,
     };
   }
 
-  const [major] = parsed;
-
-  if (major >= 18) {
+  if (meetsNodeEngineFloor(version)) {
     return {
       name: 'Node.js',
       status: 'pass',
-      message: `${version} (>= 18.0.0)`,
+      message: `${version} (>= 20.9.0)`,
     };
   }
 
@@ -133,7 +138,7 @@ async function checkNodeVersion(): Promise<DoctorCheck> {
     name: 'Node.js',
     status: 'fail',
     message: `${version} is too old`,
-    hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 18.0.0. Upgrade at https://nodejs.org`,
+    hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 20.9.0. Upgrade at https://nodejs.org`,
   };
 }
 
@@ -248,25 +253,6 @@ async function checkAnthropicKey(): Promise<DoctorCheck> {
   };
 }
 
-async function checkOpenAIKey(): Promise<DoctorCheck> {
-  const key = process.env.OPENAI_API_KEY;
-
-  if (!key) {
-    return {
-      name: 'OpenAI API key',
-      status: 'warn',
-      message: 'OPENAI_API_KEY not set',
-      hint: 'Optional. Set this env var for cloud transcription via Whisper-1 API',
-    };
-  }
-
-  return {
-    name: 'OpenAI API key',
-    status: 'pass',
-    message: 'OPENAI_API_KEY is set',
-  };
-}
-
 async function checkDiskSpace(): Promise<DoctorCheck> {
   // We check available space in the OS temp directory as a proxy
   // for whether recordings/output will fit
@@ -335,7 +321,6 @@ export async function runDoctorChecks(): Promise<DoctorResult> {
     checkFfprobe(),
     checkWhisperModel(),
     checkAnthropicKey(),
-    checkOpenAIKey(),
     checkDiskSpace(),
   ]);
 

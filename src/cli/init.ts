@@ -28,8 +28,8 @@ export interface MarkuprXConfig {
   apiKeys: {
     /** Env var name for the Anthropic API key */
     anthropic: string;
-    /** Env var name for the OpenAI API key */
-    openai: string;
+    /** Legacy config entry retained for backward-compatible reads. */
+    openai?: string;
   };
 }
 
@@ -70,7 +70,6 @@ export function createDefaultConfig(outputDir: string): MarkuprXConfig {
     },
     apiKeys: {
       anthropic: 'ANTHROPIC_API_KEY',
-      openai: 'OPENAI_API_KEY',
     },
   };
 }

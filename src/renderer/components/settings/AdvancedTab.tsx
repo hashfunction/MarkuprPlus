@@ -1,7 +1,7 @@
 import React from 'react';
 import type {
   AnalysisProviderStatus,
-  AppSettings,
+  PublicSettings,
   ModelAnalysisProvider,
   WhisperModelCheckResult,
 } from '../../../shared/types';
@@ -12,7 +12,7 @@ import { styles } from './settingsStyles';
 import { AnalysisProviderSelector } from './AnalysisProviderSelector';
 
 export const AdvancedTab: React.FC<{
-  settings: AppSettings;
+  settings: PublicSettings;
   openAiApiKey: ApiKeyState;
   anthropicApiKey: ApiKeyState;
   analysisProviderStatuses: AnalysisProviderStatus[];
@@ -20,7 +20,9 @@ export const AdvancedTab: React.FC<{
   whisperModelStatus: WhisperModelCheckResult | null;
   isRepairingLocalTranscription: boolean;
   localTranscriptionError: string | null;
-  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  isClearingData: boolean;
+  clearDataError: string | null;
+  onSettingChange: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => void;
   onAnalysisModelChange: (provider: ModelAnalysisProvider, modelId: string) => void;
   onRefreshAnalysisProviders: () => void;
   onRepairLocalTranscription: () => void;
@@ -43,6 +45,8 @@ export const AdvancedTab: React.FC<{
   whisperModelStatus,
   isRepairingLocalTranscription,
   localTranscriptionError,
+  isClearingData,
+  clearDataError,
   onSettingChange,
   onAnalysisModelChange,
   onRefreshAnalysisProviders,
@@ -116,14 +120,14 @@ export const AdvancedTab: React.FC<{
       description="Keys are stored locally and only used for their named service."
     >
       <div style={styles.settingDescription}>
-        OpenAI is an optional cloud transcription fallback. Report generation uses the provider and model selected above.
+        Local Whisper is tried first. OpenAI receives encoded audio only when local recovery is unavailable or fails and you have saved a key. Report generation uses the provider and model selected above.
       </div>
     </SettingsSection>
 
-    {/* OpenAI API Key (BYOK primary transcription fallback) */}
+    {/* OpenAI API Key (explicit cloud fallback after local recovery) */}
     <SettingsSection
       title="OpenAI API Key"
-      description="Optional cloud transcription"
+      description="Optional fallback after local Whisper"
     >
       <div style={styles.serviceInfo}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -139,7 +143,7 @@ export const AdvancedTab: React.FC<{
         <div>
           <span style={styles.serviceName}>OpenAI Audio Transcription</span>
           <span style={styles.serviceDescription}>
-            Used for reliable post-session narration transcription when local models are unavailable.
+            Used after local recovery is unavailable or fails; saving a key requires protected storage.
           </span>
         </div>
       </div>
@@ -222,12 +226,19 @@ export const AdvancedTab: React.FC<{
     </SettingsSection>
 
     <SettingsSection title="Danger Zone">
+      {clearDataError && (
+        <div role="alert" style={{ ...styles.settingDescription, color: colors.status.error }}>
+          {clearDataError}
+        </div>
+      )}
       <DangerButton
         label="Clear All Data"
-        description="Delete all sessions, screenshots, and reset settings"
-        buttonText="Clear All Data"
+        description="Delete app-owned sessions and screenshots, attempt credential cleanup, and reset settings. Unrelated files in the output folder are preserved."
+        buttonText={isClearingData ? 'Clearing…' : 'Clear All Data'}
         confirmText="Click to confirm deletion"
         onConfirm={onClearAllData}
+        disabled={isClearingData}
+        busy={isClearingData}
       />
     </SettingsSection>
   </div>

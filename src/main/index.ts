@@ -60,6 +60,8 @@ import { trayManager } from './TrayManager';
 import { wireTrayActionCallbacks } from './trayActionWiring';
 import { audioCapture } from './audio/AudioCapture';
 import { getSettingsManager, type SettingsManager } from './settings';
+import { synchronizeOutputDirectory } from './settings/synchronizeOutputDirectory';
+import { beginApplicationDataSessionStart } from './settings/clearApplicationData';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
@@ -984,6 +986,13 @@ async function startSession(sourceId?: CaptureTarget | string, sourceName?: stri
   cancelled?: boolean;
   error?: string;
 }> {
+  const releaseSessionStart = beginApplicationDataSessionStart();
+  if (!releaseSessionStart) {
+    return {
+      success: false,
+      error: 'Wait for Clear All Data to finish before starting a recording.',
+    };
+  }
   try {
     const [hasMicrophonePermission, hasScreenPermission] = await Promise.all([
       checkPermission('microphone'),
@@ -1065,6 +1074,8 @@ async function startSession(sourceId?: CaptureTarget | string, sourceName?: stri
       success: false,
       error: message,
     };
+  } finally {
+    releaseSessionStart();
   }
 }
 
@@ -1670,6 +1681,8 @@ function setupElectronTestHarnessIPC(): void {
   ipcMain.handle(ELECTRON_TEST_CHANNELS.GET_CONFIG, () => ({
     enabled: true,
     outputRoot: process.env.MARKUPRX_E2E_OUTPUT_ROOT,
+    localTranscriptionRecovery:
+      process.env.MARKUPRX_E2E_LOCAL_TRANSCRIPTION_RECOVERY === '1',
     video: { width: 960, height: 540, frameRate: 24 },
   }));
   ipcMain.handle(ELECTRON_TEST_CHANNELS.INJECT_INPUT, (_event, sample: unknown) => {
@@ -1873,8 +1886,8 @@ app.whenReady().then(async () => {
       hasCompletedOnboarding: process.env.MARKUPRX_E2E_SKIP_ONBOARDING === '1',
       checkForUpdates: false,
     });
-    fileManager.setOutputDirectory(outputRoot);
   }
+  synchronizeOutputDirectory(settingsManager, fileManager);
   console.log('[Main] Settings loaded');
 
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path

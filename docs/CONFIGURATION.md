@@ -49,7 +49,7 @@ Local Whisper requires a downloaded model. Available downloads are approximately
 | Medium | 1.5 GB |
 | Large | 3.1 GB |
 
-OpenAI transcription is an optional cloud recovery path when its key is configured. Audio selected for that path leaves the machine and is handled according to OpenAI's service terms.
+Post-session recovery tries local Whisper first when PCM audio and a downloaded model are available. Only after local transcription is unavailable or fails does it read a configured OpenAI key and, when encoded audio exists, use OpenAI as a cloud fallback. That audio leaves the machine and is handled according to OpenAI's service terms. Without a saved key, recovery makes no OpenAI request.
 
 ## Analysis
 
@@ -99,17 +99,18 @@ MarkuprPlus does not add telemetry. Provider requests and delivery integrations 
 
 Application settings are stored as `settings.json` under Electron's preserved compatibility user-data location. Sessions are written to the configured output directory.
 
-API-key storage attempts, in order:
+New API-key saves attempt, in order:
 
 1. the operating system credential service through keytar;
-2. an Electron `safeStorage`-encrypted entry in `secure-keys.json`;
-3. if both mechanisms fail, an owner-only plaintext entry in that same file.
+2. a genuinely protected Electron `safeStorage` entry.
 
-The last-resort file is chmod `0600` on a best-effort basis, which restricts ordinary access but does not encrypt the key. Omit hosted API keys when the OS credential service and `safeStorage` are unavailable. Local Whisper and Local Rules require no hosted key; local Ollama/LM Studio avoid an app-stored hosted key as well.
+New credential writes fail closed when neither mechanism is available, with no plaintext fallback. Linux `safeStorage` reporting the unprotected `basic_text` backend is rejected. Omit hosted API keys when supported secure storage is unavailable. Local Whisper and Local Rules require no hosted key; local Ollama/LM Studio avoid an app-stored hosted key as well.
 
-Do not inspect, print, attach, or casually back up `secure-keys.json`. Settings → Advanced → Clear All Data attempts current/legacy keychain and fallback cleanup, but it also removes the configured output directory and resets settings; back up needed sessions first. Credential-backend cleanup is best-effort, so a completed action is not proof that every entry was erased. See [Troubleshooting](TROUBLESHOOTING.md) for location and cleanup guidance.
+Legacy profiles can contain older credential material. Migration copies it only through a verified secure write and read-back, then attempts removal of the legacy source; cleanup failures retain the source for a later retry. Do not inspect, print, attach, or casually back up credential storage files.
 
-Export Settings creates `MarkuprPlus-settings.json`, but the current export reads the raw persisted store and can carry legacy secret material from an older fallback path. Treat the file as sensitive and do not share or use it as a general backup. Import accepts an existing compatible JSON file regardless of its old filename and selects recognized keys, but not every accepted value currently has a complete schema check.
+Settings → Advanced → Clear All Data removes only verified app-owned session directories, leaving the configured root and unrelated children intact. It attempts all credential stores, recovery cleanup, and settings reset even after a failure, then shows a stable partial result that can be retried. Credential-backend cleanup remains best-effort, so a completed action is not proof that every OS keychain entry was erased. See [Troubleshooting](TROUBLESHOOTING.md) for safe backup and cleanup guidance.
+
+Export Settings creates `MarkuprPlus-settings.json` from an allowlisted public settings projection that excludes secrets and unknown/internal persisted data. Import accepts a compatible older JSON filename, rejects unknown/dotted/internal keys and invalid values, and applies nothing unless the complete file validates atomically.
 
 Machine-facing names remain stable: `.markuprx.json`, `.markuprx`, `MARKUPRX_*`, `window.markuprx`, and `markuprx:` IPC identifiers are not public display branding.
 

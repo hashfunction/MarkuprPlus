@@ -14,7 +14,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   IPC_CHANNELS,
-  type AppSettings,
+  type PublicSettings,
+  type ClearApplicationDataResult,
   type CaptureSource,
   type CaptureSelectionMode,
   type AudioDevice,
@@ -536,21 +537,21 @@ const markuprxApi = {
     /**
      * Get a specific setting
      */
-    get: <K extends keyof AppSettings>(key: K): Promise<AppSettings[K]> => {
+    get: <K extends keyof PublicSettings>(key: K): Promise<PublicSettings[K]> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key);
     },
 
     /**
      * Get all settings
      */
-    getAll: (): Promise<AppSettings> => {
+    getAll: (): Promise<PublicSettings> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_ALL);
     },
 
     /**
      * Set a specific setting
      */
-    set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<AppSettings> => {
+    set: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]): Promise<PublicSettings> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value);
     },
 
@@ -587,7 +588,7 @@ const markuprxApi = {
      */
     testApiKey: (
       service: 'openai' | 'anthropic',
-      key: string
+      key?: string
     ): Promise<ApiKeyValidationResult> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_TEST_API_KEY, service, key);
     },
@@ -602,7 +603,7 @@ const markuprxApi = {
     /**
      * Clear app data and reset settings
      */
-    clearAllData: (): Promise<void> => {
+    clearAllData: (): Promise<ClearApplicationDataResult> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_CLEAR_ALL_DATA);
     },
 
@@ -616,7 +617,7 @@ const markuprxApi = {
     /**
      * Import settings from a JSON file
      */
-    import: (): Promise<AppSettings | null> => {
+    import: (): Promise<PublicSettings | null> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_IMPORT);
     },
   },
@@ -1074,11 +1075,11 @@ const markuprxApi = {
     return ipcRenderer.invoke(IPC_CHANNELS.STOP_SESSION);
   },
 
-  getSettings: (): Promise<AppSettings> => {
+  getSettings: (): Promise<PublicSettings> => {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS);
   },
 
-  setSettings: (settings: Partial<AppSettings>): Promise<AppSettings> => {
+  setSettings: (settings: Partial<PublicSettings>): Promise<PublicSettings> => {
     return ipcRenderer.invoke(IPC_CHANNELS.SET_SETTINGS, settings);
   },
 
