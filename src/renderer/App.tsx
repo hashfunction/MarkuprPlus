@@ -31,6 +31,7 @@ import {
   formatProcessingStep,
 } from './contexts';
 import './styles/app-shell.css';
+import { resolveGlobalOverlayVisibility } from './globalOverlayVisibility';
 
 // ============================================================================
 // Helpers
@@ -257,11 +258,18 @@ const App: React.FC = () => {
     recording.showReviewEditor;
   const showPrimarySurface = ui.currentView === 'main' && !showReviewSurface;
   const hasDedicatedPortraitSurface = ui.currentView !== 'main' || showReviewSurface;
+  const overlayVisibility = resolveGlobalOverlayVisibility({
+    hasRecovery: Boolean(recording.incompleteSession) && !recording.isCheckingRecovery,
+    showOnboarding: ui.showOnboarding,
+    showCountdown: ui.showCountdown,
+    countdownDuration: ui.countdownDuration,
+    showExport: ui.showExportDialog,
+  });
 
   return (
     <div className={`ff-shell ff-shell--${recording.state}${ui.isHudMode ? ' ff-shell--hud' : ''}`}>
       {/* === Global overlays === */}
-      {recording.incompleteSession && !recording.isCheckingRecovery && (
+      {overlayVisibility.recovery && recording.incompleteSession && (
         <CrashRecoveryDialog
           session={recording.incompleteSession}
           onRecover={recording.recoverSession}
@@ -269,14 +277,14 @@ const App: React.FC = () => {
         />
       )}
 
-      {ui.showOnboarding && (
+      {overlayVisibility.onboarding && (
         <Onboarding
           onComplete={ui.handleOnboardingComplete}
           onSkip={ui.handleOnboardingSkip}
         />
       )}
 
-      {ui.showCountdown && ui.countdownDuration > 0 && (
+      {overlayVisibility.countdown && (
         <CountdownTimer
           duration={ui.countdownDuration as 3 | 5}
           onComplete={handleCountdownComplete}
@@ -284,12 +292,22 @@ const App: React.FC = () => {
         />
       )}
 
-      {ui.showExportDialog && (
+      {overlayVisibility.exportDialog && (
         <ExportDialog
-          session={{ id: '', startTime: Date.now(), feedbackItems: [] }}
+          session={reviewDraft?.session ?? recording.reviewSession}
           isOpen={ui.showExportDialog}
           onClose={() => ui.setShowExportDialog(false)}
-          onExport={ui.handleExport}
+          onExport={(options) => {
+            const session = reviewDraft?.session ?? recording.reviewSession;
+            if (!session) {
+              return Promise.resolve({
+                success: false,
+                status: 'error',
+                error: 'Complete a feedback session before exporting.',
+              });
+            }
+            return ui.handleExport(session, options);
+          }}
         />
       )}
 

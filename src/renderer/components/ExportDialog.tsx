@@ -12,8 +12,13 @@
  * - Export progress indicator
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import type { ReviewSession as Session } from '../../shared/types';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import type {
+  ReviewExportFormat as ExportFormat,
+  ReviewExportOptions as ExportOptions,
+  ReviewExportResult,
+  ReviewSession as Session,
+} from '../../shared/types';
 import {
   isTopmostContainedDialog,
   useContainedDialogFocus,
@@ -24,21 +29,12 @@ import { getContrastColor, useTheme } from '../hooks/useTheme';
 // Types
 // ============================================================================
 
-type ExportFormat = 'markdown' | 'pdf' | 'html' | 'json';
-
 interface ExportDialogProps {
-  session: Session;
+  session: Session | null;
   isOpen: boolean;
   onClose: () => void;
-  onExport: (options: ExportOptions) => Promise<void>;
+  onExport: (options: ExportOptions) => Promise<ReviewExportResult>;
   defaultProjectName?: string;
-}
-
-interface ExportOptions {
-  format: ExportFormat;
-  projectName: string;
-  includeImages: boolean;
-  theme: 'dark' | 'light';
 }
 
 interface FormatCardData {
@@ -198,13 +194,16 @@ const FormatCard: React.FC<FormatCardProps> = ({ data, isSelected, onSelect }) =
 };
 
 interface PreviewPanelProps {
-  session: Session;
+  session: Session | null;
   format: ExportFormat;
   projectName: string;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({ session, format, projectName }) => {
   const preview = useMemo(() => {
+    if (!session) {
+      return 'Complete a feedback session to preview an export.';
+    }
     const items = session.feedbackItems.slice(0, 3); // Show first 3 items
 
     switch (format) {
@@ -305,21 +304,40 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const { colors } = useTheme();
   const [format, setFormat] = useState<ExportFormat>('markdown');
   const [projectName, setProjectName] = useState(
-    defaultProjectName || session.metadata?.sourceName || 'Feedback Report'
+    defaultProjectName || session?.metadata?.sourceName || 'Feedback Report'
   );
   const [includeImages, setIncludeImages] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isExporting, setIsExporting] = useState(false);
-  const [exportSuccess, setExportSuccess] = useState(false);
+  const [exportPath, setExportPath] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const exportInFlightRef = useRef(false);
+  const successCloseTimerRef = useRef<number | null>(null);
   const dialogRef = useContainedDialogFocus<HTMLDivElement>(isOpen);
+
+  const clearSuccessCloseTimer = useCallback(() => {
+    if (successCloseTimerRef.current !== null) {
+      window.clearTimeout(successCloseTimerRef.current);
+      successCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (exportInFlightRef.current) return;
+    clearSuccessCloseTimer();
+    onClose();
+  }, [clearSuccessCloseTimer, onClose]);
 
   // Reset state when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setExportSuccess(false);
+      setExportPath(null);
+      setExportError(null);
       setIsExporting(false);
+      exportInFlightRef.current = false;
     }
-  }, [isOpen]);
+    return clearSuccessCloseTimer;
+  }, [clearSuccessCloseTimer, isOpen]);
 
   // Handle escape key
   useEffect(() => {
@@ -327,36 +345,50 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
       if (
         e.key === 'Escape'
         && isOpen
-        && !isExporting
         && dialogRef.current
         && isTopmostContainedDialog(dialogRef.current)
       ) {
-        onClose();
+        requestClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isExporting, onClose, dialogRef]);
+  }, [isOpen, requestClose, dialogRef]);
 
   const handleExport = useCallback(async () => {
+    if (!session || exportInFlightRef.current) return;
+    exportInFlightRef.current = true;
+    clearSuccessCloseTimer();
+    setExportPath(null);
+    setExportError(null);
     setIsExporting(true);
     try {
-      await onExport({
+      const result = await onExport({
         format,
         projectName,
         includeImages,
         theme,
       });
-      setExportSuccess(true);
-      setTimeout(() => {
+      if (!result.success) {
+        setExportError(
+          result.status === 'cancelled'
+            ? 'Export was cancelled.'
+            : result.error || 'Unable to export the feedback session.',
+        );
+        return;
+      }
+      setExportPath(result.path);
+      successCloseTimerRef.current = window.setTimeout(() => {
+        successCloseTimerRef.current = null;
         onClose();
-      }, 1500);
+      }, 2200);
     } catch (error) {
-      console.error('Export failed:', error);
+      setExportError(error instanceof Error ? error.message : 'Unable to export the feedback session.');
     } finally {
+      exportInFlightRef.current = false;
       setIsExporting(false);
     }
-  }, [format, projectName, includeImages, theme, onExport, onClose]);
+  }, [clearSuccessCloseTimer, format, projectName, includeImages, theme, onExport, onClose, session]);
 
   if (!isOpen) return null;
 
@@ -365,7 +397,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const showImagesOption = format !== 'json';
 
   return (
-    <div className="ff-contained-dialog-layer" style={styles.overlay} onClick={onClose}>
+    <div className="ff-contained-dialog-layer" style={styles.overlay} onClick={requestClose}>
       {/* dialogEnter, spin, successPop keyframes provided by animations.css */}
 
       <div
@@ -384,7 +416,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           <button
             type="button"
             aria-label="Close export dialog"
-            onClick={onClose}
+            onClick={requestClose}
             style={styles.closeButton}
             disabled={isExporting}
           >
@@ -394,6 +426,22 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
         {/* Content */}
         <div className="ff-contained-dialog__body" style={styles.content}>
+          {!session && (
+            <div role="alert" style={styles.availabilityMessage}>
+              Complete a feedback session before exporting. Your finished report will be available here.
+            </div>
+          )}
+          {exportError && (
+            <div role="alert" style={styles.errorMessage}>
+              {exportError}
+            </div>
+          )}
+          {exportPath && (
+            <div role="status" style={styles.successMessage}>
+              <span>Exported to</span>
+              <code style={styles.resultPath}>{exportPath}</code>
+            </div>
+          )}
           {/* Left: Format Selection */}
           <div style={styles.leftPane}>
             <div style={styles.sectionTitle}>Choose Format</div>
@@ -496,7 +544,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         <div className="ff-contained-dialog__actions" style={styles.footer}>
           <div style={styles.footerInfo}>
             <span style={styles.footerItemCount}>
-              {session.feedbackItems.length} items
+              {session?.feedbackItems.length ?? 0} items
             </span>
             <span style={styles.footerDot}>*</span>
             <span style={styles.footerFormat}>
@@ -505,7 +553,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           </div>
 
           <div style={styles.footerActions}>
-            <button type="button" onClick={onClose} style={styles.cancelButton} disabled={isExporting}>
+            <button type="button" onClick={requestClose} style={styles.cancelButton} disabled={isExporting}>
               Cancel
             </button>
             <button
@@ -513,10 +561,10 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
               onClick={handleExport}
               style={{
                 ...styles.exportButton,
-                opacity: isExporting ? 0.7 : 1,
+                opacity: isExporting || !session ? 0.7 : 1,
                 color: getContrastColor(colors.accent.default),
               }}
-              disabled={isExporting}
+              disabled={isExporting || !session}
             >
               {isExporting ? (
                 <>
@@ -525,7 +573,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                   </span>
                   <span>Exporting...</span>
                 </>
-              ) : exportSuccess ? (
+              ) : exportError ? (
+                <span>Retry Export as {selectedFormat.name}</span>
+              ) : exportPath ? (
                 <>
                   <span style={{ animation: 'successPop 0.3s ease-out' }}>
                     <CheckIcon />
@@ -550,9 +600,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 // ============================================================================
 
 const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    zIndex: 1000,
-  },
+  overlay: {},
 
   dialog: {
     width: '100%',
@@ -605,6 +653,50 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 0,
     overflowX: 'hidden',
     overflowY: 'auto',
+  },
+
+  availabilityMessage: {
+    margin: '16px 16px 0',
+    padding: 12,
+    border: '1px solid var(--status-warning)',
+    borderRadius: 10,
+    backgroundColor: 'var(--status-warning-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    lineHeight: 1.5,
+    overflowWrap: 'anywhere',
+  },
+
+  errorMessage: {
+    margin: '16px 16px 0',
+    padding: 12,
+    border: '1px solid var(--status-error)',
+    borderRadius: 10,
+    backgroundColor: 'var(--status-error-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    lineHeight: 1.5,
+    overflowWrap: 'anywhere',
+  },
+
+  successMessage: {
+    display: 'grid',
+    gap: 6,
+    margin: '16px 16px 0',
+    padding: 12,
+    border: '1px solid var(--status-success)',
+    borderRadius: 10,
+    backgroundColor: 'var(--status-success-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+  },
+
+  resultPath: {
+    minWidth: 0,
+    color: 'var(--text-secondary)',
+    fontSize: 11,
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
   },
 
   leftPane: {

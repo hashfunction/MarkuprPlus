@@ -75,7 +75,7 @@ function finiteTimestamp(value: unknown, label: string): number {
   return Number(value);
 }
 
-function sanitizeReviewSession(input: ReviewSession): ReviewSession {
+export function sanitizeReviewSession(input: ReviewSession): ReviewSession {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('Invalid review session.');
   }

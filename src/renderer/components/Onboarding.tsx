@@ -1137,42 +1137,56 @@ const SuccessStep: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 // ============================================================================
 
 const STEPS: OnboardingStep[] = ['welcome', 'microphone', 'screen', 'openai', 'anthropic', 'success'];
+const PROGRESS_STEPS: Array<{ step: OnboardingStep; label: string }> = [
+  { step: 'microphone', label: 'Microphone access' },
+  { step: 'screen', label: 'Screen recording' },
+  { step: 'openai', label: 'OpenAI API key' },
+  { step: 'anthropic', label: 'Report generation' },
+];
 
 const ProgressDots: React.FC<{ currentStep: OnboardingStep }> = ({ currentStep }) => {
-  const currentIndex = STEPS.indexOf(currentStep);
+  const currentIndex = PROGRESS_STEPS.findIndex(({ step }) => step === currentStep);
   const { colors } = useTheme();
 
   return (
-    <div style={styles.progressContainer} role="navigation" aria-label="Setup progress">
-      {STEPS.filter((s) => s !== 'welcome' && s !== 'success').map((step) => {
-        const stepIndex = STEPS.indexOf(step);
+    <ol style={styles.progressContainer} aria-label="Setup progress">
+      {PROGRESS_STEPS.map(({ step, label }, stepIndex) => {
         const isActive = stepIndex === currentIndex;
         const isCompleted = stepIndex < currentIndex;
 
         return (
-          <div
+          <li
             key={step}
-            style={{
-              ...styles.progressDot,
-              backgroundColor: isCompleted ? colors.status.success : isActive ? colors.accent.default : colors.bg.tertiary,
-              transform: isActive ? 'scale(1.2)' : 'scale(1)',
-            }}
-            aria-label={`Step ${stepIndex}: ${step}${isCompleted ? ' (completed)' : isActive ? ' (current)' : ''}`}
+            style={styles.progressItem}
+            aria-current={isActive ? 'step' : undefined}
           >
-            {isCompleted && (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path
-                  d="M2 5l2 2 4-4"
-                  stroke={colors.text.inverse}
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            )}
-          </div>
+            <span style={styles.visuallyHidden}>
+              Step {stepIndex + 1} of {PROGRESS_STEPS.length}: {label}
+              {isCompleted ? ' (completed)' : isActive ? ' (current)' : ''}
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                ...styles.progressDot,
+                backgroundColor: isCompleted ? colors.status.success : isActive ? colors.accent.default : colors.bg.tertiary,
+                transform: isActive ? 'scale(1.2)' : 'scale(1)',
+              }}
+            >
+              {isCompleted && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path
+                    d="M2 5l2 2 4-4"
+                    stroke={colors.text.inverse}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
+            </span>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 };
 
@@ -1562,9 +1576,7 @@ type ExtendedCSSProperties = React.CSSProperties & {
 };
 
 const styles: Record<string, ExtendedCSSProperties> = {
-  overlay: {
-    zIndex: 50,
-  },
+  overlay: {},
 
   backdrop: {
     position: 'absolute',
@@ -1640,7 +1652,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   tagline: {
     fontSize: 15,
     lineHeight: 1.6,
-    color: 'var(--text-secondary)',
+    color: 'var(--text-primary)',
     marginBottom: 20,
     maxWidth: 360,
   },
@@ -1682,7 +1694,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   quickStepText: {
     fontSize: 13,
     lineHeight: 1.45,
-    color: 'var(--text-secondary)',
+    color: 'var(--text-primary)',
   },
 
   stepTitle: {
@@ -1724,7 +1736,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
     padding: '8px 16px',
     backgroundColor: 'transparent',
     border: 'none',
-    color: 'var(--text-tertiary)',
+    color: 'var(--text-primary)',
     fontSize: 13,
     cursor: 'pointer',
     transition: 'color 0.2s ease',
@@ -1735,7 +1747,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
     padding: '8px 16px',
     backgroundColor: 'transparent',
     border: 'none',
-    color: 'var(--text-tertiary)',
+    color: 'var(--text-primary)',
     fontSize: 13,
     cursor: 'pointer',
     transition: 'color 0.2s ease',
@@ -1991,7 +2003,10 @@ const styles: Record<string, ExtendedCSSProperties> = {
 
   link: {
     color: 'var(--text-link)',
-    textDecoration: 'none',
+    fontWeight: 600,
+    textDecoration: 'underline',
+    textDecorationThickness: '0.08em',
+    textUnderlineOffset: '0.16em',
   },
 
   // Progress
@@ -2001,6 +2016,14 @@ const styles: Record<string, ExtendedCSSProperties> = {
     gap: 8,
     paddingTop: 24,
     paddingBottom: 0,
+    margin: 0,
+    listStyle: 'none',
+  },
+
+  progressItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   progressDot: {
@@ -2011,6 +2034,18 @@ const styles: Record<string, ExtendedCSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     transition: 'all 0.3s ease',
+  },
+
+  visuallyHidden: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
   },
 
   // Spinner

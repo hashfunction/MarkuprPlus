@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const previousMachineName = ['mark', 'upr'].join('');
@@ -104,7 +104,7 @@ function listRepositoryFiles() {
       encoding: 'utf8',
       maxBuffer: 20 * 1024 * 1024,
     },
-  ).split('\0').filter(Boolean))];
+  ).split('\0').filter((file) => file && existsSync(file)))];
 }
 
 function runBrandAudit() {

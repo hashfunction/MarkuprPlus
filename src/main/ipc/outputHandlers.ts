@@ -10,17 +10,25 @@ import * as fs from 'fs/promises';
 import { join, basename, resolve } from 'path';
 import { sessionController } from '../SessionController';
 import {
+  adaptSessionForReview,
+  exportService,
   fileManager,
   outputManager,
   clipboardService,
   generateDocumentForFileManager,
 } from '../output';
+import {
+  prepareReviewExportDestination,
+  sanitizeReviewExportOptions,
+  trustedReviewExportSession,
+} from '../output/ReviewExportRequest';
 import { updateSavedReviewSession } from '../output/SavedReviewUpdater';
 import { getElectronTestReviewSaveDelay } from '../e2e/ElectronTestHarness';
 import { processSession as aiProcessSession } from '../ai';
 import {
   IPC_CHANNELS,
   type ReviewSession,
+  type ReviewExportResult,
   type SaveResult,
 } from '../../shared/types';
 import type { IpcContext } from './types';
@@ -231,6 +239,53 @@ export function registerOutputHandlers(ctx: IpcContext): void {
       return false;
     }
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.OUTPUT_EXPORT,
+    async (_, rendererSession: unknown, rendererOptions: unknown): Promise<ReviewExportResult> => {
+      try {
+        const options = sanitizeReviewExportOptions(rendererOptions);
+        const controllerSession = sessionController.getSession();
+        const mainOwnedReview = controllerSession
+          ? adaptSessionForReview(controllerSession)
+          : null;
+        const session = trustedReviewExportSession(
+          rendererSession as ReviewSession,
+          mainOwnedReview,
+        );
+        const outputPath = await prepareReviewExportDestination(
+          fileManager.getOutputDirectory(),
+          session,
+          options,
+        );
+        const result = await exportService.export(session, {
+          ...options,
+          outputPath,
+        });
+        if (!result.success) {
+          return {
+            success: false,
+            status: 'error',
+            error: result.error || 'Unable to export the feedback session.',
+          };
+        }
+        return {
+          success: true,
+          status: 'success',
+          path: result.outputPath,
+          format: result.format,
+          ...(result.fileSize === undefined ? {} : { fileSize: result.fileSize }),
+        };
+      } catch (error) {
+        console.error('[Main] Failed to export review session:', error);
+        return {
+          success: false,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unable to export the feedback session.',
+        };
+      }
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.OUTPUT_OPEN_FOLDER, async (_, sessionDir?: unknown) => {
     try {

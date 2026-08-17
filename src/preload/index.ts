@@ -50,6 +50,8 @@ import {
   type CaptureTarget,
   type MarkedIssueCandidatePayload,
   type ReviewSession,
+  type ReviewExportOptions,
+  type ReviewExportResult,
 } from '../shared/types';
 import { ELECTRON_TEST_CHANNELS } from '../shared/electronTestHarness';
 
@@ -699,6 +701,13 @@ const markuprxApi = {
   // Output API
   // ===========================================================================
   output: {
+    exportReview: (
+      session: ReviewSession,
+      options: ReviewExportOptions,
+    ): Promise<ReviewExportResult> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.OUTPUT_EXPORT, session, options);
+    },
+
     /**
      * Save the current session to disk
      */

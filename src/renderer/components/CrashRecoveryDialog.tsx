@@ -195,7 +195,6 @@ export function CrashRecoveryDialog({
   return (
     <div className="ff-contained-dialog-layer" style={{
       backgroundColor: colors.bg.overlay,
-      zIndex: 50,
     }}>
       {/* spin keyframe provided by animations.css */}
 

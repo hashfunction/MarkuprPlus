@@ -748,6 +748,35 @@ export interface ReviewSession {
   metadata?: ReviewSessionMetadata;
 }
 
+export type ReviewExportFormat = 'markdown' | 'pdf' | 'html' | 'json';
+export type ReviewExportTheme = 'dark' | 'light';
+
+export interface ReviewExportOptions {
+  format: ReviewExportFormat;
+  projectName: string;
+  includeImages: boolean;
+  theme: ReviewExportTheme;
+}
+
+export type ReviewExportResult =
+  | {
+      success: true;
+      status: 'success';
+      path: string;
+      format: ReviewExportFormat;
+      fileSize?: number;
+    }
+  | {
+      success: false;
+      status: 'cancelled';
+      cancelled: true;
+    }
+  | {
+      success: false;
+      status: 'error';
+      error: string;
+    };
+
 /**
  * Output ready payload
  */

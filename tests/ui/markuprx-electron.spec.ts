@@ -556,6 +556,17 @@ test.describe('MarkuprX desktop application', () => {
     const exportDialog = await expectContainedDialog(window, 'Export Feedback');
     const closeExport = exportDialog.getByRole('button', { name: 'Close export dialog' });
     await expect(closeExport).toBeFocused();
+    const countdownAndExportLayers = await window.evaluate(() => {
+      const countdown = document.querySelector<HTMLElement>('.ff-countdown-content')?.parentElement;
+      const exportLayer = document.querySelector<HTMLElement>(
+        '[data-contained-dialog-stack-index="0"]',
+      );
+      return {
+        countdown: Number(getComputedStyle(countdown!).zIndex),
+        exportDialog: Number(getComputedStyle(exportLayer!).zIndex),
+      };
+    });
+    expect(countdownAndExportLayers.exportDialog).toBeGreaterThan(countdownAndExportLayers.countdown);
     expect(await closeExport.evaluate((button) => {
       const box = button.getBoundingClientRect();
       const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
@@ -647,6 +658,15 @@ test.describe('MarkuprX desktop application', () => {
     await clickApplicationMenuItem(application, 'File', 'Export...');
     const stackedExport = await expectContainedDialog(window, 'Export Feedback');
     await expect(stackedExport.getByRole('button', { name: 'Close export dialog' })).toBeFocused();
+    await expect(confirmation.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '0');
+    await expect(stackedExport.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '1');
+    expect(await stackedExport.locator('..').evaluate((exportLayer) => {
+      const confirmationLayer = document.querySelector<HTMLElement>(
+        '.ff-contained-dialog-layer[data-contained-dialog-stack-index="0"]',
+      );
+      return Number(getComputedStyle(exportLayer).zIndex)
+        > Number(getComputedStyle(confirmationLayer!).zIndex);
+    })).toBe(true);
     await window.keyboard.press('Escape');
     await expect(stackedExport).toBeHidden();
     await expect(confirmation).toBeVisible();
@@ -661,6 +681,95 @@ test.describe('MarkuprX desktop application', () => {
     await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(confirmation).toBeHidden();
     await expect(session).toHaveCount(0);
+  });
+
+  test('blocks every History shortcut while Export owns the topmost modal layer', async () => {
+    await seedPortraitSession(harness.outputRoot, {
+      id: 'history-shortcut-first',
+      sourceName: 'History Shortcut First',
+    });
+    await seedPortraitSession(harness.outputRoot, {
+      id: 'history-shortcut-second',
+      sourceName: 'History Shortcut Second',
+    });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    const history = window.getByRole('region', { name: 'Session History' });
+    const rows = history.getByRole('listitem');
+    await expect(rows).toHaveCount(2);
+    const first = rows.first();
+    const second = rows.nth(1);
+    await first.click();
+    await first.focus();
+    await expect(first).toHaveAttribute('aria-current', 'true');
+    await expect(history.getByText('1 selected', { exact: true })).toBeVisible();
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const exportDialog = await expectContainedDialog(window, 'Export Feedback');
+    const preview = exportDialog.getByLabel('MARKDOWN export preview');
+    await preview.focus();
+    for (const key of ['ArrowDown', 'ArrowUp', 'Space', 'Delete', 'Backspace', 'Enter', 'ControlOrMeta+A']) {
+      await window.keyboard.press(key);
+      await expect(exportDialog).toBeVisible();
+      await expect(history).toBeVisible();
+      await expect(preview).toBeFocused();
+      await expect(first).toHaveAttribute('aria-current', 'true');
+      await expect(second).not.toHaveAttribute('aria-current', 'true');
+      await expect(history.getByText('1 selected', { exact: true })).toBeVisible();
+      await expect(window.getByRole('dialog', { name: /Delete .* session/ })).toHaveCount(0);
+    }
+  });
+
+  test('restores More-action deletion focus on cancel, Escape, surviving rows, and empty history', async () => {
+    await seedPortraitSession(harness.outputRoot, {
+      id: 'delete-focus-first',
+      sourceName: 'Delete Focus First',
+    });
+    await seedPortraitSession(harness.outputRoot, {
+      id: 'delete-focus-second',
+      sourceName: 'Delete Focus Second',
+    });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.getByRole('button', { name: 'Open Session History' }).click();
+    const history = window.getByRole('region', { name: 'Session History' });
+    const first = history.getByRole('listitem').filter({ hasText: 'Delete Focus First' });
+    const second = history.getByRole('listitem').filter({ hasText: 'Delete Focus Second' });
+
+    const openDeleteFromMore = async (row: Locator): Promise<Locator> => {
+      const trigger = row.getByRole('button', { name: 'More actions for session' });
+      await trigger.click();
+      await window.getByRole('menu', { name: 'Session actions' })
+        .getByRole('menuitem', { name: 'Delete' }).click();
+      return trigger;
+    };
+
+    let firstTrigger = await openDeleteFromMore(first);
+    let confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    await confirmation.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(firstTrigger).toBeFocused();
+
+    firstTrigger = await openDeleteFromMore(first);
+    confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    await window.keyboard.press('Escape');
+    await expect(confirmation).toBeHidden();
+    await expect(firstTrigger).toBeFocused();
+
+    await openDeleteFromMore(first);
+    confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(first).toHaveCount(0);
+    await expect(second).toBeFocused();
+
+    await openDeleteFromMore(second);
+    confirmation = await expectContainedDialog(window, /Delete 1 session/);
+    await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(second).toHaveCount(0);
+    await expect(history.getByPlaceholder('Search sessions...')).toBeFocused();
   });
 
   test('blocks renderer-initiated navigation away from the trusted application page', async () => {
@@ -709,6 +818,19 @@ test.describe('MarkuprX desktop application', () => {
       await expect(actions).toHaveCount(1);
       await expect(actions.getByRole('button', { name: actionName })).toBeVisible();
     };
+    const expectWizardA11yInBothThemes = async (): Promise<void> => {
+      for (const theme of ['dark', 'light'] as const) {
+        await window.evaluate(async (nextTheme) => {
+          await window.markuprx.settings.set('theme', nextTheme);
+          window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+            detail: { type: 'appearance' },
+          }));
+        }, theme);
+        await expect(window.locator('html')).toHaveAttribute('data-theme', theme);
+        await window.waitForTimeout(500);
+        expect(await seriousAccessibilityViolations(window)).toEqual([]);
+      }
+    };
     await expectWizardRegions('Get Started');
     const welcomeHeading = window.getByRole('heading', { name: 'Welcome to MarkuprX' });
     await expect(welcomeHeading).toBeVisible();
@@ -722,18 +844,39 @@ test.describe('MarkuprX desktop application', () => {
     await expect(skipSetup).toBeFocused();
     await window.keyboard.press('Tab');
     await expect(getStarted).toBeFocused();
-    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    await expectWizardA11yInBothThemes();
 
     await getStarted.click();
     await expect(window.getByRole('heading', { name: 'Microphone Access' })).toBeVisible();
     await expectWizardRegions('Continue');
+    let progress = wizard.getByRole('list', { name: 'Setup progress' });
+    await expect(progress.getByRole('listitem')).toHaveCount(4);
+    await expect(progress.getByRole('listitem').filter({ hasText: 'Microphone access' }))
+      .toHaveAttribute('aria-current', 'step');
+    await expectWizardA11yInBothThemes();
     await window.getByRole('button', { name: 'Continue' }).click();
     await expect(window.getByRole('heading', { name: 'Screen Recording' })).toBeVisible();
     await expectWizardRegions('Continue');
+    progress = wizard.getByRole('list', { name: 'Setup progress' });
+    await expect(progress.getByRole('listitem').filter({ hasText: 'Screen recording' }))
+      .toHaveAttribute('aria-current', 'step');
+    await expectWizardA11yInBothThemes();
     await window.getByRole('button', { name: 'Continue' }).click();
     await expectWizardRegions(/Skip for now/);
+    progress = wizard.getByRole('list', { name: 'Setup progress' });
+    await expect(progress.getByRole('listitem').filter({ hasText: 'OpenAI API key' }))
+      .toHaveAttribute('aria-current', 'step');
+    const openAiHelp = wizard.getByRole('link', { name: 'platform.openai.com' });
+    await expect(openAiHelp).toHaveCSS('text-decoration-line', 'underline');
+    await expectWizardA11yInBothThemes();
     await window.getByRole('button', { name: /Skip for now/ }).click();
     await expectWizardRegions(/Skip — configure report generation later/);
+    progress = wizard.getByRole('list', { name: 'Setup progress' });
+    await expect(progress.getByRole('listitem').filter({ hasText: 'Report generation' }))
+      .toHaveAttribute('aria-current', 'step');
+    const anthropicHelp = wizard.getByRole('link', { name: 'console.anthropic.com' });
+    await expect(anthropicHelp).toHaveCSS('text-decoration-line', 'underline');
+    await expectWizardA11yInBothThemes();
     await window.getByRole('button', { name: /Skip — configure report generation later/ }).click();
 
     await expect(window.getByRole('heading', { name: /You're All Set!/ })).toBeVisible();
@@ -745,7 +888,7 @@ test.describe('MarkuprX desktop application', () => {
     await expect(window.getByText('Each issue keeps its matching narration and screenshot'))
       .toBeVisible();
     await window.waitForTimeout(500);
-    expect(await seriousAccessibilityViolations(window)).toEqual([]);
+    await expectWizardA11yInBothThemes();
 
     await window.getByRole('button', { name: 'Start Your First Recording' }).click();
     await expect(wizard).toBeHidden();
@@ -769,24 +912,36 @@ test.describe('MarkuprX desktop application', () => {
     const wizard = await expectContainedDialog(window, 'Setup wizard');
     const getStarted = wizard.getByRole('button', { name: 'Get Started' });
     await expect(getStarted).toBeFocused();
+    await expect(wizard.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '0');
 
     await clickApplicationMenuItem(application, 'File', 'Export...');
     const exportDialog = await expectContainedDialog(window, 'Export Feedback');
     const closeExport = exportDialog.getByRole('button', { name: 'Close export dialog' });
     await expect(closeExport).toBeFocused();
+    await expect(wizard.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '0');
+    await expect(exportDialog.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '1');
+    const paintOrder = await window.evaluate(() => {
+      const layers = Array.from(document.querySelectorAll<HTMLElement>(
+        '.ff-contained-dialog-layer[data-contained-dialog-stack-index]',
+      ));
+      return layers.map((layer) => Number(getComputedStyle(layer).zIndex));
+    });
+    expect(paintOrder).toEqual([200, 201]);
 
     await getStarted.focus();
     await expect(closeExport).toBeFocused();
     await window.keyboard.press('Escape');
     await expect(exportDialog).toBeHidden();
     await expect(getStarted).toBeFocused();
+    await expect(wizard.locator('..')).toHaveAttribute('data-contained-dialog-stack-index', '0');
+    await expect(wizard.locator('..')).toHaveCSS('z-index', '200');
 
     const startAction = window.getByRole('button', { name: /start session/i });
     await startAction.focus();
     await expect(getStarted).toBeFocused();
   });
 
-  test('contains Export inside the portrait window and restores focus on close', async () => {
+  test('contains Export, explains the no-session state, and restores focus on close', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
     const window = launched.mainWindow;
@@ -800,6 +955,10 @@ test.describe('MarkuprX desktop application', () => {
     const exportButton = exportDialog.getByRole('button', { name: /Export as/ });
     await expect(closeButton).toBeFocused();
     await expect(exportButton).toBeVisible();
+    await expect(exportButton).toBeDisabled();
+    await expect(exportDialog.getByRole('alert')).toContainText(
+      'Complete a feedback session before exporting',
+    );
 
     const projectName = exportDialog.getByRole('textbox', { name: 'Project Name' });
     await startAction.focus();
@@ -859,7 +1018,7 @@ test.describe('MarkuprX desktop application', () => {
     await dynamicAction.evaluate((element) => element.remove());
     await closeButton.focus();
     await window.keyboard.press('Shift+Tab');
-    await expect(exportButton).toBeFocused();
+    await expect(exportDialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
     await exportDialog.evaluate((element) => {
       element.querySelectorAll('[data-dialog-decoy="true"]')
         .forEach((decoy) => decoy.remove());
@@ -869,6 +1028,129 @@ test.describe('MarkuprX desktop application', () => {
     await window.keyboard.press('Escape');
     await expect(exportDialog).toBeHidden();
     await expect(startAction).toBeFocused();
+  });
+
+  test('exports a genuine completed evidence session through the native File menu', async () => {
+    test.setTimeout(90_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    const annotation = await selectDeterministicWindow(application, mainWindow);
+    const input = createInputSequence(mainWindow);
+    const evidence = 'The exported checkout evidence keeps this exact narration.';
+    await input.next();
+    await drawAndCommitIssue({
+      annotation,
+      mainWindow,
+      input,
+      ordinal: 1,
+      tool: 'Circle',
+      color: '#ffcc00',
+      comment: evidence,
+    });
+
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 60_000 });
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const exportDialog = await expectContainedDialog(mainWindow, 'Export Feedback');
+    await exportDialog.getByRole('button', { name: /HTML/ }).click();
+    await exportDialog.getByRole('textbox', { name: 'Project Name' }).fill('Public Checkout Audit');
+    await exportDialog.getByRole('button', { name: 'Light', exact: true }).click();
+    await exportDialog.getByRole('button', { name: 'Include images' }).click();
+    const exportAction = exportDialog.getByRole('button', { name: 'Export as HTML' });
+    await expect(exportAction).toBeEnabled();
+    await exportAction.click();
+
+    const success = exportDialog.getByRole('status');
+    await expect(success).toContainText('Exported to', { timeout: 30_000 });
+    const exportsRoot = join(harness.outputRoot, 'exports');
+    await expect.poll(async () => readdir(exportsRoot).catch(() => []))
+      .toHaveLength(1);
+    const [artifactName] = await readdir(exportsRoot);
+    expect(artifactName).toMatch(/^public-checkout-audit-feedback-.*\.html$/);
+    const artifactPath = join(exportsRoot, artifactName);
+    const artifact = await readFile(artifactPath, 'utf8');
+    expect(resolve(artifactPath).startsWith(`${resolve(harness.outputRoot)}/exports/`)).toBe(true);
+    expect(artifact).toContain('<h1>Public Checkout Audit Feedback Report</h1>');
+    expect(artifact).toContain(evidence);
+    expect(artifact).toContain('<meta name="theme-color" content="#ffffff">');
+    expect(artifact).not.toContain('<img src=');
+  });
+
+  test('keeps Export guarded and retryable through delayed IPC failures', async () => {
+    test.setTimeout(90_000);
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const mainWindow = launched.mainWindow;
+    await selectDeterministicWindow(application, mainWindow);
+    expect(await mainWindow.evaluate(async () => {
+      if (!window.markuprx.e2e) throw new Error('Electron test bridge is unavailable.');
+      return window.markuprx.e2e.injectTranscript(
+        'A completed transcript makes the export dialog actionable.',
+        Date.now(),
+      );
+    })).toEqual({ success: true });
+    await mainWindow.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(mainWindow.getByRole('heading', { name: 'Report Ready' }))
+      .toBeVisible({ timeout: 60_000 });
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      (globalThis as typeof globalThis & { __markuprxExportCalls?: number })
+        .__markuprxExportCalls = 0;
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, async () => {
+        const state = globalThis as typeof globalThis & { __markuprxExportCalls?: number };
+        state.__markuprxExportCalls = (state.__markuprxExportCalls ?? 0) + 1;
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 650));
+        return { success: false, status: 'error', error: 'Injected export rejection.' };
+      });
+    }, 'markuprx:output:export');
+
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    const dialog = await expectContainedDialog(mainWindow, 'Export Feedback');
+    const exportAction = dialog.getByRole('button', { name: 'Export as Markdown' });
+    const closeAction = dialog.getByRole('button', { name: 'Close export dialog' });
+    const cancelAction = dialog.getByRole('button', { name: 'Cancel' });
+    await exportAction.evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
+    await expect(dialog.getByRole('button', { name: 'Exporting...' })).toBeDisabled();
+    await expect(closeAction).toBeDisabled();
+    await expect(cancelAction).toBeDisabled();
+    await dialog.locator('..').evaluate((layer) => (layer as HTMLElement).click());
+    await mainWindow.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('alert')).toContainText('Injected export rejection.');
+    await expect(dialog.getByRole('button', { name: 'Retry Export as Markdown' })).toBeEnabled();
+    expect(await application.evaluate(() => (
+      globalThis as typeof globalThis & { __markuprxExportCalls?: number }
+    ).__markuprxExportCalls)).toBe(1);
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => ({
+        success: true,
+        status: 'success',
+        path: `/test/${'long-export-path-'.repeat(30)}report.md`,
+        format: 'markdown',
+      }));
+    }, 'markuprx:output:export');
+    await dialog.getByRole('button', { name: 'Retry Export as Markdown' }).click();
+    await expect(dialog.getByRole('status')).toContainText('long-export-path-');
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, async () => {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 350));
+        return { success: false, status: 'error', error: 'Retry remains open.' };
+      });
+    }, 'markuprx:output:export');
+    await dialog.getByRole('button', { name: 'Exported!' }).click();
+    await expect(dialog.getByRole('alert')).toContainText('Retry remains open.');
+    await mainWindow.waitForTimeout(2_300);
+    await expect(dialog).toBeVisible();
   });
 
   test('has no serious accessibility violations on the home and settings surfaces', async () => {
@@ -1725,6 +2007,12 @@ test.describe('MarkuprX desktop application', () => {
     const showDetails = recoveryDialog.getByRole('button', { name: 'Show details' });
     const recoverAction = recoveryDialog.getByRole('button', { name: /Recover Session/ });
     await expect(showDetails).toBeFocused();
+    await expect(recoveryDialog.locator('..'))
+      .toHaveAttribute('data-contained-dialog-stack-index', '0');
+    await clickApplicationMenuItem(application, 'File', 'Export...');
+    await expect(mainWindow.getByRole('dialog', { name: 'Export Feedback' })).toHaveCount(0);
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(1);
+    await expect(showDetails).toBeFocused();
     await showDetails.focus();
     await mainWindow.keyboard.press('Shift+Tab');
     await expect(recoverAction).toBeFocused();
@@ -1740,6 +2028,7 @@ test.describe('MarkuprX desktop application', () => {
 
     await recoveryDialog.getByRole('button', { name: /Recover Session/ }).click();
     await expect(recoveryDialog).toBeHidden({ timeout: 30_000 });
+    await expect(mainWindow.getByRole('dialog', { name: 'Export Feedback' })).toHaveCount(0);
     await expect(mainWindow.getByRole('heading', { name: 'Report Ready' })).toBeVisible();
 
     const sessionDir = await findOnlySessionDirectory(harness.outputRoot);

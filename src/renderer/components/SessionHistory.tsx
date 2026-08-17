@@ -163,6 +163,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
   return (
     <div
       role="listitem"
+      aria-current={isFocused ? 'true' : undefined}
       tabIndex={0}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -299,9 +300,8 @@ const SearchInput: React.FC<{
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-}> = ({ value, onChange, placeholder = 'Search sessions...' }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-
+  inputRef: React.RefObject<HTMLInputElement>;
+}> = ({ value, onChange, placeholder = 'Search sessions...', inputRef }) => {
   return (
     <div style={styles.searchContainer}>
       <svg
@@ -711,7 +711,12 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   }>({ isOpen: false, sessionIds: [] });
 
   const listRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const menuTriggerRef = useRef<HTMLElement | null>(null);
+  const deleteFocusPlanRef = useRef<{
+    origin: HTMLElement | null;
+    preferredIndex: number;
+  } | null>(null);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -827,17 +832,60 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     [onOpenSession, onClose]
   );
 
-  const handleDeleteSessions = useCallback((sessionIds: string[]) => {
+  const handleDeleteSessions = useCallback((
+    sessionIds: string[],
+    origin = document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  ) => {
+    const indexes = sessionIds
+      .map((id) => filteredSessions.findIndex((session) => session.id === id))
+      .filter((index) => index >= 0);
+    deleteFocusPlanRef.current = {
+      origin,
+      preferredIndex: indexes.length > 0 ? Math.min(...indexes) : 0,
+    };
     setDeleteConfirm({ isOpen: true, sessionIds });
+  }, [filteredSessions]);
+
+  const focusAfterDeleteDialog = useCallback((deletedAny: boolean) => {
+    const plan = deleteFocusPlanRef.current;
+    deleteFocusPlanRef.current = null;
+    requestAnimationFrame(() => {
+      const currentFocus = document.activeElement;
+      if (
+        currentFocus instanceof HTMLElement
+        && currentFocus !== document.body
+        && currentFocus.isConnected
+      ) {
+        return;
+      }
+      if (!deletedAny && plan?.origin?.isConnected) {
+        plan.origin.focus();
+        return;
+      }
+      const rows = Array.from(
+        listRef.current?.querySelectorAll<HTMLElement>('[role="listitem"]') ?? [],
+      );
+      const nearest = rows.length > 0
+        ? rows[Math.min(plan?.preferredIndex ?? 0, rows.length - 1)]
+        : null;
+      (nearest ?? searchInputRef.current)?.focus();
+    });
   }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirm({ isOpen: false, sessionIds: [] });
+    focusAfterDeleteDialog(false);
+  }, [focusAfterDeleteDialog]);
 
   const handleConfirmDelete = useCallback(async () => {
     const { sessionIds } = deleteConfirm;
+    let deletedAny = false;
 
     try {
       // Call the IPC API to delete sessions
       if (window.markuprx?.output?.deleteSessions) {
         const result = await window.markuprx.output.deleteSessions(sessionIds);
+        deletedAny = result.deleted.length > 0;
         if (result.success) {
           // Remove successfully deleted sessions from state
           setSessions((prev) => prev.filter((s) => !result.deleted.includes(s.id)));
@@ -866,6 +914,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
           return newSet;
         });
         setActionError(null);
+        deletedAny = sessionIds.length > 0;
       }
     } catch (error) {
       console.error('Failed to delete sessions:', error);
@@ -873,7 +922,8 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     }
 
     setDeleteConfirm({ isOpen: false, sessionIds: [] });
-  }, [deleteConfirm]);
+    focusAfterDeleteDialog(deletedAny);
+  }, [deleteConfirm, focusAfterDeleteDialog]);
 
   const handleExportSessions = useCallback(async (sessionIds: string[]) => {
     try {
@@ -966,9 +1016,9 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (hasActiveContainedDialog()) return;
       // Close on Escape
       if (e.key === 'Escape') {
-        if (hasActiveContainedDialog()) return;
         if (contextMenu.visible) {
           setContextMenu((prev) => ({ ...prev, visible: false }));
         } else {
@@ -1082,7 +1132,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
               <button type="button" onClick={() => setActionError(null)}>Dismiss</button>
             </div>
           )}
-          <SearchInput value={search} onChange={setSearch} />
+          <SearchInput value={search} onChange={setSearch} inputRef={searchInputRef} />
           <div style={styles.portraitToolbar}>
             <SortDropdown
               sortBy={sortBy}
@@ -1148,7 +1198,9 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
           closeSessionMenu();
         }}
         onDelete={() => {
-          if (contextMenu.sessionId) handleDeleteSessions([contextMenu.sessionId]);
+          if (contextMenu.sessionId) {
+            handleDeleteSessions([contextMenu.sessionId], menuTriggerRef.current);
+          }
           closeSessionMenu();
         }}
         onSelectAll={() => {
@@ -1162,7 +1214,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         isOpen={deleteConfirm.isOpen}
         count={deleteConfirm.sessionIds.length}
         onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteConfirm({ isOpen: false, sessionIds: [] })}
+        onCancel={handleCancelDelete}
       />
     </>
   );
@@ -1540,9 +1592,7 @@ const styles: Record<string, ExtendedCSSProperties> = {
   },
 
   // Delete Dialog
-  dialogOverlay: {
-    zIndex: 300,
-  },
+  dialogOverlay: {},
 
   dialogBackdrop: {
     position: 'absolute',

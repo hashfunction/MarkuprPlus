@@ -97,7 +97,6 @@ src/
 │   │   ├── AudioWaveform.tsx        # Real-time audio level visualization
 │   │   ├── CrashRecoveryDialog.tsx  # Crash recovery UI
 │   │   ├── DonateButton.tsx         # Rotating donate messages
-│   │   ├── ModelDownloadDialog.tsx   # Whisper model download UI
 │   │   ├── Onboarding.tsx           # First-run experience
 │   │   ├── SessionHistory.tsx       # Session browser
 │   │   ├── SessionReview.tsx        # Post-recording review/edit

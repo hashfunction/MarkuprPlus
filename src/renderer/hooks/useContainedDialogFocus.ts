@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
+import { TRANSIENT_LAYER_SCALE } from '../styles/transientLayerScale';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -13,28 +14,85 @@ const FOCUSABLE_SELECTOR = [
 
 interface ActiveDialogEntry {
   dialog: HTMLElement;
+  ownsTopmost: boolean;
+  ownedTopmostWhenPruned: boolean;
 }
 
 const activeDialogs: ActiveDialogEntry[] = [];
 
-function topmostContainedDialog(): HTMLElement | null {
+function dialogLayer(dialog: HTMLElement): HTMLElement | null {
+  const parent = dialog.parentElement;
+  if (parent?.classList?.contains('ff-contained-dialog-layer')) return parent;
+  return dialog.closest?.('.ff-contained-dialog-layer') as HTMLElement | null;
+}
+
+function clearDialogLayer(dialog: HTMLElement): void {
+  const layer = dialogLayer(dialog);
+  if (!layer) return;
+  layer.style.zIndex = '';
+  delete layer.dataset.containedDialogStackIndex;
+}
+
+function syncDialogLayers(): void {
+  const connected = activeDialogs.filter(({ dialog }) => dialog.isConnected);
+  activeDialogs.forEach((entry) => {
+    entry.ownsTopmost = false;
+  });
+  connected.forEach((entry, index) => {
+    const { dialog } = entry;
+    if (!dialog.isConnected) return;
+    const layer = dialogLayer(dialog);
+    if (!layer) return;
+    layer.style.zIndex = String(TRANSIENT_LAYER_SCALE.containedDialogBase + index);
+    layer.dataset.containedDialogStackIndex = String(index);
+  });
+  const topmost = connected[connected.length - 1];
+  if (topmost) topmost.ownsTopmost = true;
+}
+
+function pruneDisconnectedDialogs(): void {
+  let changed = false;
   for (let index = activeDialogs.length - 1; index >= 0; index -= 1) {
+    if (activeDialogs[index].dialog.isConnected) continue;
     const entry = activeDialogs[index];
-    if (entry.dialog.isConnected) return entry.dialog;
+    entry.ownedTopmostWhenPruned = entry.ownsTopmost;
+    clearDialogLayer(entry.dialog);
+    activeDialogs.splice(index, 1);
+    changed = true;
   }
-  return null;
+  if (changed) syncDialogLayers();
+}
+
+function topmostContainedDialog(): HTMLElement | null {
+  pruneDisconnectedDialogs();
+  return activeDialogs[activeDialogs.length - 1]?.dialog ?? null;
 }
 
 export function registerContainedDialog(dialog: HTMLElement): () => boolean {
-  const entry = { dialog };
+  pruneDisconnectedDialogs();
+  const entry: ActiveDialogEntry = {
+    dialog,
+    ownsTopmost: false,
+    ownedTopmostWhenPruned: false,
+  };
   activeDialogs.push(entry);
+  syncDialogLayers();
   return () => {
+    pruneDisconnectedDialogs();
     const index = activeDialogs.lastIndexOf(entry);
-    if (index < 0) return false;
-    const wasTopmostRegistration = index === activeDialogs.length - 1;
+    if (index < 0) return entry.ownedTopmostWhenPruned;
+    const wasTopmostRegistration = entry.ownsTopmost;
     activeDialogs.splice(index, 1);
+    clearDialogLayer(dialog);
+    syncDialogLayers();
     return wasTopmostRegistration;
   };
+}
+
+export function getContainedDialogLayer(dialog: HTMLElement): number | null {
+  pruneDisconnectedDialogs();
+  const index = activeDialogs.findIndex((entry) => entry.dialog === dialog);
+  return index < 0 ? null : TRANSIENT_LAYER_SCALE.containedDialogBase + index;
 }
 
 export function isTopmostContainedDialog(dialog: HTMLElement): boolean {

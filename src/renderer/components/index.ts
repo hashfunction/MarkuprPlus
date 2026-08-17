@@ -62,9 +62,6 @@ export { SessionHistory } from './SessionHistory';
 export { TranscriptionPreview, TranscriptionPreviewAnimated } from './TranscriptionPreview';
 export type { TranscriptSegment, TranscriptionPreviewProps } from './TranscriptionPreview';
 
-// Model download dialog
-export { ModelDownloadDialog, useModelCheck } from './ModelDownloadDialog';
-
 // Type exports for external use
 export type { default as RecordingOverlayType } from './RecordingOverlay';
 export type { SessionReviewProps } from './SessionReview';

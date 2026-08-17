@@ -6,7 +6,15 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { AnalysisProviderStatus, AppSettings, HotkeyConfig, SessionState } from '../../shared/types';
+import type {
+  AnalysisProviderStatus,
+  AppSettings,
+  HotkeyConfig,
+  ReviewExportOptions,
+  ReviewExportResult,
+  ReviewSession,
+  SessionState,
+} from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
 import { getPopoverSizeForView } from '../../shared/popoverLayout';
 import { getAnalysisProviderViewState, type AnalysisProviderViewState } from '../components/settings/analysisProviderViewState';
@@ -52,7 +60,10 @@ export interface UIContextValue {
   // Handlers
   handleOnboardingComplete: () => void;
   handleOnboardingSkip: () => void;
-  handleExport: (options: { format: string; projectName: string; includeImages: boolean; theme: string }) => Promise<void>;
+  handleExport: (
+    session: ReviewSession,
+    options: ReviewExportOptions,
+  ) => Promise<ReviewExportResult>;
 }
 
 const UIContext = createContext<UIContextValue | null>(null);
@@ -178,8 +189,14 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const unsubSettings = nav.onShowSettings(() => setCurrentView('settings'));
     const unsubHistory = nav.onShowHistory(() => setCurrentView('history'));
     const unsubShortcuts = nav.onShowShortcuts(() => setCurrentView('shortcuts'));
-    const unsubOnboarding = nav.onShowOnboarding(() => setShowOnboarding(true));
-    const unsubExport = nav.onShowExport(() => setShowExportDialog(true));
+    const recoveryOwnsTransientUi = Boolean(recording.incompleteSession)
+      && !recording.isCheckingRecovery;
+    const unsubOnboarding = nav.onShowOnboarding(() => {
+      if (!recoveryOwnsTransientUi) setShowOnboarding(true);
+    });
+    const unsubExport = nav.onShowExport(() => {
+      if (!recoveryOwnsTransientUi) setShowExportDialog(true);
+    });
 
     return () => {
       unsubSettings();
@@ -188,7 +205,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       unsubOnboarding();
       unsubExport();
     };
-  }, []);
+  }, [recording.incompleteSession, recording.isCheckingRecovery]);
 
   // ---------------------------------------------------------------------------
   // Dismiss overlays when recording starts (driven by recording state)
@@ -299,8 +316,11 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     window.markuprx.setSettings({ hasCompletedOnboarding: true }).catch(() => {});
   }, []);
 
-  const handleExport = useCallback(async (_options: { format: string; projectName: string; includeImages: boolean; theme: string }) => {
-    setShowExportDialog(false);
+  const handleExport = useCallback(async (
+    session: ReviewSession,
+    options: ReviewExportOptions,
+  ): Promise<ReviewExportResult> => {
+    return window.markuprx.output.exportReview(session, options);
   }, []);
 
   // ---------------------------------------------------------------------------

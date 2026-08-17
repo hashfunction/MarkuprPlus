@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { hasActiveContainedDialog } from '../hooks/useContainedDialogFocus';
+import { TRANSIENT_LAYER_SCALE } from '../styles/transientLayerScale';
 import { useTheme } from '../hooks/useTheme';
 import { useReducedMotion } from '../hooks/useAnimation';
 
@@ -348,7 +349,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 100,
+          zIndex: TRANSIENT_LAYER_SCALE.countdown,
           animation: isExiting
             ? 'countdown-overlay-exit 0.3s ease-out forwards'
             : 'countdown-overlay-enter 0.3s ease-out forwards',

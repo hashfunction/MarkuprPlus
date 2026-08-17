@@ -41,6 +41,8 @@ import type {
   CaptureOverlayState,
   CaptureTarget,
   MarkedIssueCandidatePayload,
+  ReviewExportOptions,
+  ReviewExportResult,
   ReviewSession,
 } from '../../shared/types';
 import type { ElectronTestAPI } from '../../shared/electronTestHarness';
@@ -255,6 +257,7 @@ interface SessionHistoryItem {
  * Output API
  */
 interface OutputAPI {
+  exportReview: (session: ReviewSession, options: ReviewExportOptions) => Promise<ReviewExportResult>;
   save: (session?: ReviewSession, sessionDir?: string) => Promise<SaveResult>;
   copyClipboard: () => Promise<boolean>;
   openFolder: (sessionDir?: string) => Promise<{ success: boolean; error?: string }>;
