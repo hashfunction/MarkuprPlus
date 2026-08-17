@@ -42,6 +42,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     else if (rail.scrollLeft >= maximumScroll - 1) setRailDirection('backward');
   }, []);
 
+  const revealActiveTab = useCallback((tabId: SettingsTab) => {
+    const rail = tabListRef.current;
+    const control = railControlRef.current;
+    const button = tabRefs.current[tabId];
+    if (!rail || !control || !button) return;
+
+    const railBox = rail.getBoundingClientRect();
+    const controlBox = control.getBoundingClientRect();
+    const buttonBox = button.getBoundingClientRect();
+    const maximumScroll = rail.scrollWidth - rail.clientWidth;
+    const tabIndex = TABS.findIndex((tab) => tab.id === tabId);
+    let nextScroll = rail.scrollLeft;
+    if (tabIndex === 0) {
+      nextScroll = button.offsetLeft;
+    } else if (tabIndex === TABS.length - 1) {
+      nextScroll = maximumScroll;
+    } else if (buttonBox.left < railBox.left) {
+      nextScroll += buttonBox.left - railBox.left;
+    } else if (buttonBox.right > controlBox.left) {
+      nextScroll += buttonBox.right - controlBox.left;
+    }
+    rail.scrollLeft = Math.max(0, Math.min(nextScroll, maximumScroll));
+    updateRailAffordance();
+  }, [updateRailAffordance]);
+
   useLayoutEffect(() => {
     if (!isOpen) return undefined;
     const rail = tabListRef.current;
@@ -54,6 +79,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       observer.disconnect();
     };
   }, [isOpen, updateRailAffordance]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    revealActiveTab(s.activeTab);
+    const frame = requestAnimationFrame(() => revealActiveTab(s.activeTab));
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, revealActiveTab, s.activeTab]);
 
   const handleTabKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
@@ -71,8 +103,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       s.setActiveTab(nextTab.id);
       requestAnimationFrame(() => {
         const button = tabRefs.current[nextTab.id];
-        button?.focus();
-        button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        button?.focus({ preventScroll: true });
       });
     },
     [s],
@@ -99,11 +130,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
     s.setActiveTab(target.tab.id);
     requestAnimationFrame(() => {
-      target.button.focus();
-      target.button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      requestAnimationFrame(updateRailAffordance);
+      target.button.focus({ preventScroll: true });
     });
-  }, [railDirection, s, updateRailAffordance]);
+  }, [railDirection, s]);
 
   const handleResetAll = useCallback(async () => {
     const resetSections = [

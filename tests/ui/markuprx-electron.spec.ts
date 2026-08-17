@@ -424,6 +424,58 @@ async function expectActionsWithinPortrait(actions: Locator[]): Promise<void> {
   }
 }
 
+async function expectSettingsTabUnobscured(
+  settings: Locator,
+  tabName: string,
+  direction: 'forward' | 'backward',
+): Promise<void> {
+  const rail = settings.getByRole('tablist', { name: 'Settings sections' });
+  const tab = rail.getByRole('tab', { name: tabName, exact: true });
+  const affordance = settings.getByRole('button', {
+    name: direction === 'forward'
+      ? 'Show more settings sections'
+      : 'Show previous settings sections',
+    exact: true,
+  });
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await expect(affordance).toHaveAttribute('data-direction', direction);
+  const readLayout = () => tab.evaluate((element) => {
+    const railElement = element.closest<HTMLElement>('[role="tablist"]')!;
+    const control = railElement.parentElement!
+      .querySelector<HTMLElement>('.ff-settings-section-rail__more')!;
+    const tabBox = element.getBoundingClientRect();
+    const railBox = railElement.getBoundingClientRect();
+    const controlBox = control.getBoundingClientRect();
+    return {
+      leftVisible: tabBox.left >= railBox.left - 0.5,
+      rightVisible: tabBox.right <= controlBox.left + 0.5,
+      widthPositive: tabBox.width > 0,
+      heightPositive: tabBox.height > 0,
+      tabLeft: tabBox.left,
+      tabRight: tabBox.right,
+      railLeft: railBox.left,
+      controlLeft: controlBox.left,
+      scrollLeft: railElement.scrollLeft,
+      maximumScroll: railElement.scrollWidth - railElement.clientWidth,
+    };
+  });
+  if (process.env.PORTRAIT_VISUAL_DIAGNOSTICS === '1') {
+    console.log(`[settings-rail] ${tabName}: ${JSON.stringify(await readLayout())}`);
+  }
+  await expect.poll(readLayout).toEqual({
+    leftVisible: true,
+    rightVisible: true,
+    widthPositive: true,
+    heightPositive: true,
+    tabLeft: expect.any(Number),
+    tabRight: expect.any(Number),
+    railLeft: expect.any(Number),
+    controlLeft: expect.any(Number),
+    scrollLeft: expect.any(Number),
+    maximumScroll: expect.any(Number),
+  });
+}
+
 async function setRendererTheme(
   page: Page,
   theme: 'light' | 'dark',
@@ -2053,6 +2105,48 @@ test.describe('MarkuprX desktop application', () => {
     await window.emulateMedia({ reducedMotion: 'no-preference', forcedColors: 'none' });
   });
 
+  test('reveals an automatically selected Advanced tab without stealing heading focus', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.evaluate(() => window.markuprx.settings.set(
+      'analysisProvider',
+      'anthropic-api',
+    ));
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    const heading = settings.getByRole('heading', { name: 'Settings', exact: true });
+    await expect(settings.getByRole('tab', { name: 'Advanced', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
+    await expect(heading).toBeFocused();
+  });
+
+  test('reveals AI Setup selection while leaving focus on its initiating control', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.evaluate(() => window.markuprx.settings.set(
+      'analysisProvider',
+      'anthropic-api',
+    ));
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await expect(settings.getByRole('tab', { name: 'Advanced', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    const general = settings.getByRole('tab', { name: 'General', exact: true });
+    await general.click();
+    await expectSettingsTabUnobscured(settings, 'General', 'forward');
+
+    const aiSetup = settings.getByRole('button', { name: 'AI Setup', exact: true });
+    await aiSetup.focus();
+    await aiSetup.press('Enter');
+    await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
+    await expect(aiSetup).toBeFocused();
+  });
+
   test('renders Settings as the approved portrait surface', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
@@ -2113,18 +2207,18 @@ test.describe('MarkuprX desktop application', () => {
     const hotkeys = rail.getByRole('tab', { name: 'Hotkeys', exact: true });
     await expect(hotkeys).toBeFocused();
     await expect(hotkeys).toHaveAttribute('aria-selected', 'true');
-    const previousSections = settings.getByRole('button', {
-      name: 'Show previous settings sections',
+    await expectSettingsTabUnobscured(settings, 'Hotkeys', 'forward');
+    const moreSections = settings.getByRole('button', {
+      name: 'Show more settings sections',
       exact: true,
     });
-    await expect(previousSections).toHaveAttribute('data-direction', 'backward');
-    await previousSections.press('Enter');
-    const appearanceFromAffordance = rail.getByRole('tab', {
-      name: 'Appearance',
+    await moreSections.press('Enter');
+    const advancedFromAffordance = rail.getByRole('tab', {
+      name: 'Advanced',
       exact: true,
     });
-    await expect(appearanceFromAffordance).toBeFocused();
-    await expect(appearanceFromAffordance).toHaveAttribute('aria-selected', 'true');
+    await expect(advancedFromAffordance).toBeFocused();
+    await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
 
     await settings.getByRole('button', { name: 'Back to MarkuprX', exact: true }).click();
     await window.evaluate(() => {
@@ -2158,6 +2252,7 @@ test.describe('MarkuprX desktop application', () => {
     const advanced = rail.getByRole('tab', { name: 'Advanced', exact: true });
     await expect(advanced).toBeFocused();
     await expect(advanced).toHaveAttribute('aria-selected', 'true');
+    await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 

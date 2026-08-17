@@ -107,16 +107,11 @@
 }
 
 .ff-settings-section-rail {
-  scroll-snap-type: x mandatory;
   padding-right: 38px !important;
 }
 
 .ff-settings-section-rail::-webkit-scrollbar {
   display: none;
-}
-
-.ff-settings-section-tab {
-  scroll-snap-align: start;
 }
 
 .ff-settings-section-tab:nth-child(4) {
