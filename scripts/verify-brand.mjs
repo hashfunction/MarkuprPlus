@@ -84,8 +84,11 @@ export function findBrandViolations(files, readFile, packageJson) {
     if (!repositoryFileSet.has(requiredPath)) violations.push(`${requiredPath}: missing canonical file`);
   }
   for (const htmlPath of siteHtmlPaths) {
-    if (repositoryFileSet.has(htmlPath)
-      && readText(readFile, htmlPath, 'utf8').includes('markup<span')) {
+    if (!repositoryFileSet.has(htmlPath)) {
+      violations.push(`${htmlPath}: missing canonical file`);
+      continue;
+    }
+    if (readText(readFile, htmlPath, 'utf8').includes('markup<span')) {
       violations.push(`${htmlPath}: split legacy wordmark remains`);
     }
   }

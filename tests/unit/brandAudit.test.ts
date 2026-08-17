@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
 type BrandVerifier = {
@@ -29,7 +29,10 @@ const requiredFiles = {
   'site/whats-new-v2.5.0.html': '<html></html>',
 };
 
-async function scan(files: Record<string, string>): Promise<string[]> {
+async function scan(
+  files: Record<string, string>,
+  omittedFiles: string[] = [],
+): Promise<string[]> {
   const verifier = await import('../../scripts/verify-brand.mjs') as BrandVerifier;
 
   expect(
@@ -37,7 +40,9 @@ async function scan(files: Record<string, string>): Promise<string[]> {
     'the brand policy must be importable without invoking the CLI',
   ).toBeTypeOf('function');
 
-  const repositoryFiles = { ...requiredFiles, ...files };
+  const repositoryFiles: Record<string, string> = { ...requiredFiles, ...files };
+  for (const omittedFile of omittedFiles) delete repositoryFiles[omittedFile];
+
   return verifier.findBrandViolations!(
     Object.keys(repositoryFiles),
     (file) => repositoryFiles[file],
@@ -71,6 +76,47 @@ describe('repository brand audit', () => {
 
     expect(await scan({ 'src/main/index.ts': legacyWordmark }))
       .toContain('src/main/index.ts:1');
+  });
+
+  it('fails closed when canonical site pages are missing', async () => {
+    const violations = await scan({}, [
+      'site/index.html',
+      'site/launch.html',
+      'site/whats-new-v2.5.0.html',
+    ]);
+
+    expect(violations).toEqual([
+      'site/index.html: missing canonical file',
+      'site/launch.html: missing canonical file',
+      'site/whats-new-v2.5.0.html: missing canonical file',
+    ]);
+  });
+
+  it('can be imported without executing the command-line audit', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        "await import('./scripts/verify-brand.mjs')",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      },
+    );
+
+    expect({
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }).toEqual({
+      status: 0,
+      signal: null,
+      stdout: '',
+      stderr: '',
+    });
   });
 
   it('enforces canonical product and machine identities across repository files', () => {
