@@ -17,6 +17,7 @@ import type {
   ParsedFeedbackItem,
 } from './types';
 import { SEVERITY_TO_PRIORITY, CATEGORY_TO_LABEL } from './types';
+import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../../shared/publicBrand';
 
 const LINEAR_API_URL = 'https://api.linear.app/graphql';
 
@@ -237,7 +238,7 @@ export class LinearIssueCreator {
    * Build markdown description for a Linear issue from a feedback item.
    */
   private buildIssueDescription(item: ParsedFeedbackItem): string {
-    let desc = `## MarkuprX Feedback: ${item.id}\n\n`;
+    let desc = `## ${PUBLIC_BRAND_NAME} Feedback: ${item.id}\n\n`;
     desc += `**Severity:** ${item.severity}\n`;
     desc += `**Category:** ${item.category}\n`;
     desc += `**Timestamp:** ${item.timestamp}\n\n`;
@@ -255,7 +256,7 @@ export class LinearIssueCreator {
       }
     }
 
-    desc += `\n---\n*Created by [MarkuprX](https://markuprx.com)*`;
+    desc += `\n---\n*Created by [${PUBLIC_BRAND_NAME}](${PUBLIC_WEBSITE_URL})*`;
     return desc;
   }
 

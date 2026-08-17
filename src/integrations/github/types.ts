@@ -5,6 +5,7 @@
  */
 
 import type { FeedbackCategory, FeedbackSeverity } from '../../main/output/MarkdownGenerator';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 // ============================================================================
 // Auth
@@ -101,7 +102,7 @@ export const SEVERITY_LABELS: Record<FeedbackSeverity, GitHubLabelInput> = {
 };
 
 export const MARKUPRX_LABEL: GitHubLabelInput = {
-  name: 'MarkuprX',
+  name: PUBLIC_BRAND_NAME,
   color: '6f42c1',
-  description: 'Created from MarkuprX feedback session',
+  description: `Created from ${PUBLIC_BRAND_NAME} feedback session`,
 };

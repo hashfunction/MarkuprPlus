@@ -277,7 +277,7 @@ describe('Markdown Template', () => {
 
   it('renders header with session timestamp', () => {
     const output = markdownTemplate.render(makeContext());
-    expect(output.content).toContain('# MarkuprX Session');
+    expect(output.content).toContain('# MarkuprPlus Session');
     expect(output.content).toContain('Feb');
     expect(output.content).toContain('2026');
     expect(output.fileExtension).toBe('.md');
@@ -301,7 +301,7 @@ describe('Markdown Template', () => {
 
   it('renders footer', () => {
     const output = markdownTemplate.render(makeContext());
-    expect(output.content).toContain('markuprx.com');
+    expect(output.content).toContain('https://markuprplus.com');
     expect(output.content).toContain('Ko-fi');
   });
 
@@ -322,8 +322,8 @@ describe('Markdown Template', () => {
     const genOutput = generator.generateFromPostProcess(ctx.result, ctx.sessionDir);
 
     // Both should have the same structural elements
-    expect(templateOutput.content).toContain('# MarkuprX Session');
-    expect(genOutput).toContain('# MarkuprX Session');
+    expect(templateOutput.content).toContain('# MarkuprPlus Session');
+    expect(genOutput).toContain('# MarkuprPlus Session');
     expect(templateOutput.content).toContain('## Transcript');
     expect(genOutput).toContain('## Transcript');
     expect(templateOutput.content).toContain('[0:00]');
@@ -361,7 +361,7 @@ describe('JSON Template', () => {
     const output = jsonTemplate.render(makeContext());
     const parsed = JSON.parse(output.content);
     expect(parsed.version).toBe('1.0');
-    expect(parsed.generator).toBe('MarkuprX');
+    expect(parsed.generator).toBe('MarkuprPlus');
     expect(parsed.summary.segments).toBe(3);
     expect(parsed.summary.frames).toBe(2);
   });
@@ -428,10 +428,10 @@ describe('GitHub Issue Template', () => {
     expect(output.content).toContain('![Screenshot]');
   });
 
-  it('renders header with MarkuprX link', () => {
+  it('renders header with MarkuprPlus link', () => {
     const output = githubIssueTemplate.render(makeContext());
     expect(output.content).toContain('## Feedback Report');
-    expect(output.content).toContain('MarkuprX');
+    expect(output.content).toContain('[MarkuprPlus](https://markuprplus.com)');
   });
 
   it('handles empty input', () => {
@@ -524,7 +524,7 @@ describe('Jira Template', () => {
 
   it('renders Jira link syntax in footer', () => {
     const output = jiraTemplate.render(makeContext());
-    expect(output.content).toContain('[MarkuprX|https://markuprx.com]');
+    expect(output.content).toContain('[MarkuprPlus|https://markuprplus.com]');
   });
 
   it('handles empty input', () => {
@@ -570,6 +570,13 @@ describe('All Templates — Shared Contract', () => {
         const output2 = template.render(ctx);
         expect(output1.content).toBe(output2.content);
         expect(output1.fileExtension).toBe(output2.fileExtension);
+      });
+
+      it('uses only current public branding in generated artifacts', () => {
+        const content = template.render(makeContext()).content;
+        expect(content).toContain('MarkuprPlus');
+        expect(content).not.toContain('MarkuprX');
+        expect(content).not.toContain('markuprx.com');
       });
     });
   }

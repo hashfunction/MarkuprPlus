@@ -6,6 +6,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand.js';
 
 // Tool registrations
 import { register as registerCaptureScreenshot } from './tools/captureScreenshot.js';
@@ -28,7 +29,7 @@ const VERSION =
 
 export function createServer(): McpServer {
   const server = new McpServer({
-    name: 'MarkuprX',
+    name: PUBLIC_BRAND_NAME,
     version: VERSION,
   });
 

@@ -15,13 +15,14 @@ import {
   parseRepoString,
   pushToGitHub,
 } from '../../integrations/github/GitHubIssueCreator.js';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 
 export function register(server: McpServer): void {
   server.tool(
     'push_to_github',
-    'Create GitHub issues from a MarkuprX feedback report. Each feedback item becomes a separate issue with labels and structured markdown.',
+    `Create GitHub issues from a ${PUBLIC_BRAND_NAME} feedback report. Each feedback item becomes a separate issue with labels and structured markdown.`,
     {
-      reportPath: z.string().describe('Absolute path to the MarkuprX markdown report'),
+      reportPath: z.string().describe(`Absolute path to the ${PUBLIC_BRAND_NAME} markdown report`),
       repo: z.string().describe('Target GitHub repository in "owner/repo" format'),
       token: z.string().optional().describe('GitHub token (falls back to GITHUB_TOKEN env or gh CLI)'),
       items: z.array(z.string()).optional().describe('Specific FB-XXX item IDs to push (default: all)'),

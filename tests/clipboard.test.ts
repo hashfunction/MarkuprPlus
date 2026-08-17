@@ -2,7 +2,7 @@
  * ClipboardService Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock electron modules
 vi.mock('electron', () => ({
@@ -33,6 +33,10 @@ describe('ClipboardService', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('copy', () => {
     it('should copy text to clipboard', async () => {
       const result = await clipboardService.copy('test content');
@@ -49,6 +53,39 @@ describe('ClipboardService', () => {
       const result = await clipboardService.copy('test');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('copyWithNotification', () => {
+    it('uses MarkuprPlus for the default public notification title', async () => {
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      (clipboardService as unknown as { lastNotificationTime: number }).lastNotificationTime = 0;
+
+      await clipboardService.copyWithNotification('test content');
+
+      expect(log).toHaveBeenCalledWith(
+        '[Notification] (unsupported) MarkuprPlus: Summary copied to clipboard!'
+      );
+      expect(log.mock.calls.flat().join(' ')).not.toContain('MarkuprX');
+      log.mockRestore();
+    });
+
+    it('uses MarkuprPlus for a public copy-failure notification', async () => {
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.mocked(clipboard.writeText).mockImplementationOnce(() => {
+        throw new Error('Clipboard error');
+      });
+      (clipboardService as unknown as { lastNotificationTime: number }).lastNotificationTime = 0;
+
+      await clipboardService.copyWithNotification('test content');
+
+      expect(log).toHaveBeenCalledWith(
+        '[Notification] (unsupported) MarkuprPlus: Failed to copy'
+      );
+      expect(log.mock.calls.flat().join(' ')).not.toContain('MarkuprX');
+      log.mockRestore();
+      error.mockRestore();
     });
   });
 

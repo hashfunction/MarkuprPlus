@@ -24,6 +24,7 @@ import {
   MARKUPRX_LABEL,
 } from './types';
 import type { FeedbackCategory, FeedbackSeverity } from '../../main/output/MarkdownGenerator';
+import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../../shared/publicBrand';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -201,7 +202,7 @@ export function formatIssueBody(item: ParsedFeedbackItem, reportPath?: string): 
 
   if (item.screenshotPaths.length > 0) {
     body += `### Screenshots\n\n`;
-    body += `_${item.screenshotPaths.length} screenshot(s) captured — see the MarkuprX report for images._\n\n`;
+    body += `_${item.screenshotPaths.length} screenshot(s) captured — see the ${PUBLIC_BRAND_NAME} report for images._\n\n`;
   }
 
   if (item.suggestedAction) {
@@ -213,7 +214,7 @@ export function formatIssueBody(item: ParsedFeedbackItem, reportPath?: string): 
   if (reportPath) {
     body += `_Source: \`${reportPath}\`_\n`;
   }
-  body += `_Created by [MarkuprX](https://markuprx.com)_\n`;
+  body += `_Created by [${PUBLIC_BRAND_NAME}](${PUBLIC_WEBSITE_URL})_\n`;
 
   return body;
 }
@@ -380,7 +381,7 @@ export async function pushToGitHub(options: PushToGitHubOptions): Promise<PushTo
   let items = parseMarkuprXReport(markdown);
 
   if (items.length === 0) {
-    throw new Error('No feedback items found in the report. Is this a valid MarkuprX report?');
+    throw new Error(`No feedback items found in the report. Is this a valid ${PUBLIC_BRAND_NAME} report?`);
   }
 
   // Filter to specific items if requested

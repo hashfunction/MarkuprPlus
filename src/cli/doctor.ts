@@ -15,6 +15,7 @@ import { stat } from 'fs/promises';
 import { execFile as execFileCb } from 'child_process';
 import { join } from 'path';
 import { homedir, platform } from 'os';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 
 // ============================================================================
 // Types
@@ -114,7 +115,7 @@ async function checkNodeVersion(): Promise<DoctorCheck> {
       name: 'Node.js',
       status: 'warn',
       message: `Unknown version: ${version}`,
-      hint: 'MarkuprX requires Node.js >= 18.0.0',
+      hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 18.0.0`,
     };
   }
 
@@ -132,7 +133,7 @@ async function checkNodeVersion(): Promise<DoctorCheck> {
     name: 'Node.js',
     status: 'fail',
     message: `${version} is too old`,
-    hint: 'MarkuprX requires Node.js >= 18.0.0. Upgrade at https://nodejs.org',
+    hint: `${PUBLIC_BRAND_NAME} requires Node.js >= 18.0.0. Upgrade at https://nodejs.org`,
   };
 }
 
@@ -197,7 +198,7 @@ async function checkWhisperModel(): Promise<DoctorCheck> {
       name: 'Whisper model',
       status: 'warn',
       message: 'No models directory found',
-      hint: `Models directory: ${modelsDir}\nDownload a model via the MarkuprX desktop app, or manually place a ggml-*.bin file there`,
+      hint: `Models directory: ${modelsDir}\nDownload a model via the ${PUBLIC_BRAND_NAME} desktop app, or manually place a ggml-*.bin file there`,
     };
   }
 
@@ -208,7 +209,7 @@ async function checkWhisperModel(): Promise<DoctorCheck> {
       name: 'Whisper model',
       status: 'warn',
       message: 'No model files found',
-      hint: `Models directory: ${modelsDir}\nDownload a model via the MarkuprX desktop app, or manually place a ggml-*.bin file there`,
+      hint: `Models directory: ${modelsDir}\nDownload a model via the ${PUBLIC_BRAND_NAME} desktop app, or manually place a ggml-*.bin file there`,
     };
   }
 
@@ -290,7 +291,7 @@ async function checkDiskSpace(): Promise<DoctorCheck> {
                   name: 'Disk space',
                   status: 'warn',
                   message: `${availableGB.toFixed(1)} GB available (low)`,
-                  hint: 'MarkuprX recordings and output need disk space. Free up some space if you plan to record long sessions',
+                  hint: `${PUBLIC_BRAND_NAME} recordings and output need disk space. Free up some space if you plan to record long sessions`,
                 };
               }
               return {

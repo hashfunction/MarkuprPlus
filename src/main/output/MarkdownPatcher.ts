@@ -16,6 +16,7 @@ import type {
   MarkedIssuePayload,
   TranscriptionFailure,
 } from '../../shared/types';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 // =============================================================================
 // Text Normalization Helpers
@@ -198,7 +199,7 @@ export async function appendTranscriptionFailureToReport(
   const notice = [
     heading,
     '',
-    '> Narration was recorded, but MarkuprX could not transcribe it. Your recording and audio were saved.',
+    `> Narration was recorded, but ${PUBLIC_BRAND_NAME} could not transcribe it. Your recording and audio were saved.`,
     '',
     failure.message.trim(),
     '',

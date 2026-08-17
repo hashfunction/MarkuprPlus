@@ -7,6 +7,7 @@
 
 import type { OutputTemplate, TemplateContext, TemplateOutput } from './types';
 import { computeRelativeFramePath, computeSessionDuration, mapFramesToSegments } from './helpers';
+import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 
 export const jsonTemplate: OutputTemplate = {
   name: 'json',
@@ -21,7 +22,7 @@ export const jsonTemplate: OutputTemplate = {
 
     const output = {
       version: '1.0',
-      generator: 'MarkuprX',
+      generator: PUBLIC_BRAND_NAME,
       timestamp: new Date(timestamp ?? Date.now()).toISOString(),
       summary: {
         segments: transcriptSegments.length,

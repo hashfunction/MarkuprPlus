@@ -15,6 +15,7 @@ import { CLIPipeline } from '../../cli/CLIPipeline.js';
 import { templateRegistry } from '../../main/output/templates/index.js';
 import { captureContextSnapshot } from '../utils/CaptureContext.js';
 import type { CaptureContextSnapshot } from '../../shared/types.js';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 
 function toSharedCaptureContext(
   context: Awaited<ReturnType<typeof captureContextSnapshot>> | undefined
@@ -48,7 +49,7 @@ function toSharedCaptureContext(
 export function register(server: McpServer): void {
   server.tool(
     'capture_with_voice',
-    'Record screen and voice for a specified duration, then run the full MarkuprX pipeline to produce a structured feedback report.',
+    `Record screen and voice for a specified duration, then run the full ${PUBLIC_BRAND_NAME} pipeline to produce a structured feedback report.`,
     {
       duration: z.number().min(3).max(300).describe('Recording duration in seconds (3-300)'),
       outputDir: z.string().optional().describe('Output directory (default: session directory)'),

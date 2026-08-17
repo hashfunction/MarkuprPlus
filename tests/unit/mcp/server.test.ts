@@ -142,9 +142,9 @@ describe('MCP Server Factory', () => {
     expect(mockRegisterResources).toHaveBeenCalledWith(server);
   });
 
-  it('uses "MarkuprX" as the server name', () => {
+  it('uses the public MarkuprPlus server display name', () => {
     const server = createServer();
-    expect(server).toHaveProperty('name', 'MarkuprX');
+    expect(server).toHaveProperty('name', 'MarkuprPlus');
   });
 
   it('sets a version string on the server', () => {

@@ -262,6 +262,8 @@ describe('doctor', () => {
 
       expect(check).toBeDefined();
       expect(check!.status).toBe('warn');
+      expect(check!.hint).toContain('MarkuprPlus desktop app');
+      expect(check!.hint).not.toContain('MarkuprX');
     });
   });
 
@@ -372,6 +374,8 @@ describe('doctor', () => {
       expect(check).toBeDefined();
       expect(check!.status).toBe('warn');
       expect(check!.message).toContain('low');
+      expect(check!.hint).toContain('MarkuprPlus recordings and output');
+      expect(check!.hint).not.toContain('MarkuprX');
     });
   });
 

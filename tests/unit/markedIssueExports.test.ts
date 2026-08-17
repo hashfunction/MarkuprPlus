@@ -44,6 +44,10 @@ describe('marked issue session exports', () => {
     expect(html).toContain('MX-001');
     expect(html).toContain('The save button overlaps the footer.');
     expect(html.match(/marked-issue-001\.png/g)).toHaveLength(1);
+    expect(html).toContain('content="MarkuprPlus"');
+    expect(html).toContain('href="https://markuprplus.com"');
+    expect(html).not.toContain('MarkuprX');
+    expect(html).not.toContain('markuprx.com');
   });
 
   it('includes the complete finalized array in the JSON session schema', () => {
@@ -51,5 +55,6 @@ describe('marked issue session exports', () => {
     expect(json.session.markedIssues).toEqual([markedIssue]);
     expect(json.summary.itemCount).toBe(1);
     expect(json.summary.screenshotCount).toBe(1);
+    expect(json.generator).toBe('MarkuprPlus v3.0.0');
   });
 });

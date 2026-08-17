@@ -44,6 +44,8 @@ describe('transcription failure output', () => {
 
     const markdown = await readFile(reportPath, 'utf8');
     expect(markdown.match(/## Transcription Error/g)).toHaveLength(1);
+    expect(markdown).toContain('MarkuprPlus could not transcribe it');
+    expect(markdown).not.toContain('MarkuprX');
     expect(markdown).toContain('Your recording and audio were saved');
     expect(markdown).toContain(failure.message);
   });

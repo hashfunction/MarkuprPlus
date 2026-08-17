@@ -15,6 +15,7 @@ import {
   mapFramesToSegments,
 } from './helpers';
 import { renderMarkedIssuesMarkdown } from '../MarkedIssueReportBuilder';
+import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../../../shared/publicBrand';
 
 export const linearTemplate: OutputTemplate = {
   name: 'linear',
@@ -67,7 +68,7 @@ export const linearTemplate: OutputTemplate = {
       }
     }
 
-    md += `---\n_Captured by [MarkuprX](https://markuprx.com)_\n`;
+    md += `---\n_Captured by [${PUBLIC_BRAND_NAME}](${PUBLIC_WEBSITE_URL})_\n`;
 
     return { content: md, fileExtension: '.md' };
   },

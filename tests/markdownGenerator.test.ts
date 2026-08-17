@@ -332,6 +332,7 @@ describe('adaptFeedbackSession', () => {
     expect(session.id).toBe('test-123');
     expect(session.startTime).toBe(feedbackSession.startedAt);
     expect(session.endTime).toBe(feedbackSession.endedAt);
+    expect(session.metadata?.sourceName).toBe('MarkuprPlus Session');
     expect(session.feedbackItems.length).toBeGreaterThan(0);
   });
 

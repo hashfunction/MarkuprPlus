@@ -12,6 +12,7 @@
 import { clipboard, Notification, app, BrowserWindow } from 'electron';
 import path from 'path';
 import { Session, FeedbackItem } from '../SessionController';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 // =============================================================================
 // Types
@@ -74,13 +75,13 @@ class ClipboardServiceImpl implements ClipboardService {
 
     if (success) {
       this.showNotification(
-        title || 'MarkuprX',
+        title || PUBLIC_BRAND_NAME,
         'Summary copied to clipboard!',
         'Paste into your AI coding assistant.'
       );
     } else {
       this.showNotification(
-        'MarkuprX',
+        PUBLIC_BRAND_NAME,
         'Failed to copy',
         'Please try again or copy manually.'
       );

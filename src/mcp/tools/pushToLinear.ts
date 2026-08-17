@@ -11,15 +11,16 @@ import { z } from 'zod';
 import { stat } from 'fs/promises';
 import { LinearIssueCreator } from '../../integrations/linear/LinearIssueCreator.js';
 import { log } from '../utils/Logger.js';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 
 export function register(server: McpServer): void {
   server.tool(
     'push_to_linear',
-    'Push a MarkuprX feedback report to Linear. Creates one issue per feedback item with priority mapping, labels, and full context.',
+    `Push a ${PUBLIC_BRAND_NAME} feedback report to Linear. Creates one issue per feedback item with priority mapping, labels, and full context.`,
     {
       reportPath: z
         .string()
-        .describe('Absolute path to the MarkuprX markdown report'),
+        .describe(`Absolute path to the ${PUBLIC_BRAND_NAME} markdown report`),
       teamKey: z
         .string()
         .describe('Linear team key (e.g., "ENG", "DES")'),

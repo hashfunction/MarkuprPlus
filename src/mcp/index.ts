@@ -8,13 +8,14 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createServer } from './server.js';
 import { log } from './utils/Logger.js';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand.js';
 
 // Read version from package.json at build time (injected by esbuild)
 declare const __MARKUPRX_VERSION__: string;
 const VERSION =
   typeof __MARKUPRX_VERSION__ !== 'undefined' ? __MARKUPRX_VERSION__ : '0.0.0-dev';
 
-log(`MarkuprX MCP server v${VERSION} starting...`);
+log(`${PUBLIC_BRAND_NAME} MCP server v${VERSION} starting...`);
 
 process.on('uncaughtException', (error) => {
   log(`Uncaught exception: ${error instanceof Error ? error.message : String(error)}`);

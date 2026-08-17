@@ -28,6 +28,7 @@ import {
   decodeTrustedImageBase64,
   screenshotExtension,
 } from './TrustedImageMedia';
+import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
 
 /**
  * JSON export schema version. Bump when the schema changes:
@@ -671,7 +672,7 @@ class ExportServiceImpl {
 
     return {
       version: JSON_EXPORT_SCHEMA_VERSION,
-      generator: `MarkuprX v${app.getVersion()}`,
+      generator: `${PUBLIC_BRAND_NAME} v${app.getVersion()}`,
       exportedAt: new Date().toISOString(),
       session: {
         id: session.id,

@@ -29,6 +29,7 @@ import { WatchMode } from './WatchMode';
 import { runDoctorChecks } from './doctor';
 import { runInit, CONFIG_FILENAME } from './init';
 import { templateRegistry } from '../main/output/templates/index';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 
 // Read version from package.json at build time (injected by esbuild)
 declare const __MARKUPRX_VERSION__: string;
@@ -50,7 +51,7 @@ const SYMBOLS = {
 
 function banner(): void {
   console.log();
-  console.log(`  MarkuprX v${VERSION} ${SYMBOLS.bullet} CLI Mode`);
+  console.log(`  ${PUBLIC_BRAND_NAME} v${VERSION} ${SYMBOLS.bullet} CLI Mode`);
   console.log(`  ${SYMBOLS.line.repeat(40)}`);
   console.log();
 }
@@ -306,7 +307,7 @@ program
 
 program
   .command('doctor')
-  .description('Check your environment for MarkuprX dependencies and configuration')
+  .description(`Check your environment for ${PUBLIC_BRAND_NAME} dependencies and configuration`)
   .action(async () => {
     banner();
     step('Checking environment...');
@@ -331,12 +332,12 @@ program
     console.log(`  ${result.passed} passed, ${result.warned} warnings, ${result.failed} failed`);
     console.log();
     if (result.failed > 0) {
-      fail('Some required checks failed. Fix them to use MarkuprX.');
+      fail(`Some required checks failed. Fix them to use ${PUBLIC_BRAND_NAME}.`);
       process.exit(EXIT_USER_ERROR);
     } else if (result.warned > 0) {
-      success('MarkuprX is ready (some optional features are not configured).');
+      success(`${PUBLIC_BRAND_NAME} is ready (some optional features are not configured).`);
     } else {
-      success('MarkuprX is fully configured and ready to go!');
+      success(`${PUBLIC_BRAND_NAME} is fully configured and ready to go!`);
     }
     console.log();
   });
@@ -347,7 +348,7 @@ program
 
 program
   .command('init')
-  .description('Create a MarkuprX project config file (.markuprx.json) in the current project')
+  .description(`Create a ${PUBLIC_BRAND_NAME} project config file (.markuprx.json) in the current project`)
   .option('--output <dir>', 'Output directory for feedback sessions', './markuprx-output')
   .option('--no-gitignore', 'Skip updating .gitignore')
   .option('--force', 'Overwrite existing config file', false)
@@ -371,12 +372,12 @@ program
     }
     success(`Created ${result.configPath}`);
     if (result.gitignoreUpdated) {
-      success('Updated .gitignore with MarkuprX output directory');
+      success(`Updated .gitignore with ${PUBLIC_BRAND_NAME} output directory`);
     }
     console.log();
     step('Next steps:');
     console.log('    1. Run `markuprx doctor` to verify your environment');
-    console.log('    2. Record a session with the MarkuprX desktop app or screen recorder');
+    console.log(`    2. Record a session with the ${PUBLIC_BRAND_NAME} desktop app or screen recorder`);
     console.log('    3. Run `markuprx analyze <video-file>` to generate a feedback report');
     console.log();
   });
@@ -395,8 +396,8 @@ const pushCmd = program
 
 pushCmd
   .command('linear')
-  .description('Create Linear issues from a MarkuprX feedback report')
-  .argument('<report>', 'Path to the MarkuprX markdown report')
+  .description(`Create Linear issues from a ${PUBLIC_BRAND_NAME} feedback report`)
+  .argument('<report>', `Path to the ${PUBLIC_BRAND_NAME} markdown report`)
   .requiredOption('--team <key>', 'Linear team key (e.g., ENG, DES)')
   .option('--token <token>', 'Linear API key (prefer LINEAR_API_KEY env var)')
   .option('--project <name>', 'Linear project name to assign issues to')
@@ -486,8 +487,8 @@ pushCmd
 
 pushCmd
   .command('github')
-  .description('Create GitHub issues from a MarkuprX feedback report')
-  .argument('<report>', 'Path to the MarkuprX markdown report')
+  .description(`Create GitHub issues from a ${PUBLIC_BRAND_NAME} feedback report`)
+  .argument('<report>', `Path to the ${PUBLIC_BRAND_NAME} markdown report`)
   .requiredOption('--repo <owner/repo>', 'Target GitHub repository (e.g., myorg/myapp)')
   .option('--token <token>', 'GitHub token (prefer GITHUB_TOKEN env var or gh auth login)')
   .option('--items <ids...>', 'Specific FB-XXX item IDs to push (default: all)')
