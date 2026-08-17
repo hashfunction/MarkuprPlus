@@ -59,6 +59,7 @@ import { hotkeyManager, type HotkeyAction } from './HotkeyManager';
 import { formatHotkeyForDisplay } from '../shared/hotkeys';
 import { sessionController, type Session } from './SessionController';
 import { trayManager } from './TrayManager';
+import { wireTrayActionCallbacks } from './trayActionWiring';
 import { audioCapture } from './audio/AudioCapture';
 import { getSettingsManager, type SettingsManager } from './settings';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
@@ -1952,9 +1953,14 @@ app.whenReady().then(async () => {
   // Set permission manager main window
   permissionManager.setMainWindow(mainWindow!);
 
-  // 9. Wire up tray click to toggle popover
-  trayManager.onClick(handleTrayClick);
-  trayManager.onSettingsClick(handleSettingsClick);
+  // 9. Keep tray activation separate from native menu actions.
+  wireTrayActionCallbacks(trayManager, {
+    openPopover: handleTrayClick,
+    toggleRecording: () => {
+      void handleToggleRecording();
+    },
+    openSettings: handleSettingsClick,
+  });
 
   // 8b. Initialize menu manager (native macOS menu bar)
   menuManager.initialize(mainWindow!);

@@ -196,15 +196,24 @@ describe('TrayManager native integration', () => {
     );
   });
 
-  it('connects menu actions to existing manager callbacks and Electron APIs', async () => {
+  it('keeps left-click and the recording menu action isolated', async () => {
     const manager = createManager('darwin');
+    const openPopover = vi.fn();
     const toggleRecording = vi.fn();
     const openSettings = vi.fn();
-    manager.onClick(toggleRecording);
+    manager.onClick(openPopover);
+    manager.onRecordingClick(toggleRecording);
     manager.onSettingsClick(openSettings);
     manager.initialize();
 
     clickMenuItem(0, 'Start Recording');
+    expect(toggleRecording).toHaveBeenCalledOnce();
+    expect(openPopover).not.toHaveBeenCalled();
+
+    emitTrayEvent('click');
+    expect(openPopover).toHaveBeenCalledOnce();
+    expect(toggleRecording).toHaveBeenCalledOnce();
+
     clickMenuItem(0, 'Settings...');
     clickMenuItem(0, 'Help');
     clickMenuItem(0, 'Contact');
@@ -213,7 +222,6 @@ describe('TrayManager native integration', () => {
     await vi.waitFor(() => {
       expect(shell.openExternal).toHaveBeenCalledTimes(2);
     });
-    expect(toggleRecording).toHaveBeenCalledOnce();
     expect(openSettings).toHaveBeenCalledOnce();
     expect(shell.openExternal).toHaveBeenNthCalledWith(
       1,

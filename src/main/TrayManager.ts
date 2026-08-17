@@ -26,6 +26,7 @@ export interface ITrayManager {
   setTooltip(text: string): void;
   destroy(): void;
   onClick(callback: () => void): void;
+  onRecordingClick(callback: () => void): void;
   onSettingsClick(callback: () => void): void;
   getTray(): Tray | null;
 }
@@ -53,6 +54,7 @@ class TrayManagerImpl implements ITrayManager {
   private contextMenu: Menu | null = null;
   private currentState: TrayState = 'idle';
   private clickCallbacks: Array<() => void> = [];
+  private recordingCallbacks: Array<() => void> = [];
   private settingsCallbacks: Array<() => void> = [];
   private animationInterval: NodeJS.Timeout | null = null;
   private animationFrame: number = 0;
@@ -249,7 +251,7 @@ class TrayManagerImpl implements ITrayManager {
         state: this.currentState,
         actions: {
           toggleRecording: () => {
-            this.clickCallbacks.forEach((callback) => callback());
+            this.recordingCallbacks.forEach((callback) => callback());
           },
           openSettings: () => {
             this.settingsCallbacks.forEach((callback) => callback());
@@ -475,6 +477,13 @@ class TrayManagerImpl implements ITrayManager {
   }
 
   /**
+   * Register a Start/Stop Recording menu callback
+   */
+  onRecordingClick(callback: () => void): void {
+    this.recordingCallbacks.push(callback);
+  }
+
+  /**
    * Register a settings click callback
    */
   onSettingsClick(callback: () => void): void {
@@ -507,6 +516,7 @@ class TrayManagerImpl implements ITrayManager {
     this.contextMenu = null;
 
     this.clickCallbacks = [];
+    this.recordingCallbacks = [];
     this.settingsCallbacks = [];
 
     console.log('[TrayManager] Destroyed');
