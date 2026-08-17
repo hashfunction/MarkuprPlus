@@ -352,8 +352,14 @@ test.describe('MarkuprX desktop application', () => {
     await expectPortraitWindow(application, window);
     await expect(window.getByRole('dialog', { name: 'Session History' })).toHaveCount(0);
     const history = window.getByRole('region', { name: 'Session History' });
-    await expect(history.getByPlaceholder('Search sessions...')).toBeVisible();
+    const search = history.getByPlaceholder('Search sessions...');
+    await expect(search).toBeVisible();
     await expect(history.getByRole('button', { name: /Sort:/ })).toBeVisible();
+    await search.fill('temporary search');
+    const clearSearch = history.getByRole('button', { name: 'Clear session search' });
+    await expect(clearSearch).toBeVisible();
+    await clearSearch.click();
+    await expect(search).toHaveValue('');
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
   });
 
@@ -1139,8 +1145,11 @@ test.describe('MarkuprX desktop application', () => {
     await expect(historyRow).toBeVisible();
     await expect(historyRow.getByText(String(metadata.screenshotCount), { exact: true })).toBeVisible();
     await expect(historyRow.getByRole('button', { name: 'Open session' })).toBeVisible();
-    await historyRow.getByRole('button', { name: 'More actions for session' }).click();
+    const moreActions = historyRow.getByRole('button', { name: 'More actions for session' });
+    await moreActions.focus();
+    await mainWindow.keyboard.press('Enter');
     const actionMenu = mainWindow.getByRole('menu', { name: 'Session actions' });
+    await expect(history).toBeVisible();
     await expect(actionMenu.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
     await expect(actionMenu.getByRole('menuitem', { name: 'Open Folder' })).toBeVisible();
     await expect(actionMenu.getByRole('menuitem', { name: 'Export' })).toBeVisible();
@@ -1149,13 +1158,58 @@ test.describe('MarkuprX desktop application', () => {
     expect(menuBox).not.toBeNull();
     expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(460);
     expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(680);
-    await history.getByRole('button', { name: /Sort:/ }).click();
+    await mainWindow.keyboard.press('ArrowDown');
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open Folder' })).toBeFocused();
+    await mainWindow.keyboard.press('ArrowUp');
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
+    await mainWindow.keyboard.press('ArrowDown');
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open Folder' })).toBeFocused();
+    await mainWindow.keyboard.press('End');
+    await expect(actionMenu.getByRole('menuitem', { name: 'Delete' })).toBeFocused();
+    await mainWindow.keyboard.press('Home');
+    await expect(actionMenu.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
+    await mainWindow.keyboard.press('Escape');
     await expect(actionMenu).toBeHidden();
+    await expect(history).toBeVisible();
+    await expect(moreActions).toBeFocused();
     await historyRow.focus();
     await mainWindow.keyboard.press('Delete');
     const deleteConfirmation = mainWindow.getByRole('dialog', { name: /Delete 1 session/ });
     await expect(deleteConfirmation).toBeVisible();
     await deleteConfirmation.getByRole('button', { name: 'Cancel' }).click();
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => ({ success: false, error: 'Folder unavailable for test.' }));
+    }, 'markuprx:output:open-folder');
+    await moreActions.focus();
+    await mainWindow.keyboard.press('Enter');
+    await actionMenu.getByRole('menuitem', { name: 'Open Folder' }).click();
+    const actionError = history.getByRole('alert');
+    await expect(actionError).toContainText('Folder unavailable for test.');
+
+    await application.evaluate(({ ipcMain }, channel) => {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => ({ success: true }));
+    }, 'markuprx:output:open-folder');
+    await moreActions.focus();
+    await mainWindow.keyboard.press('Enter');
+    await actionMenu.getByRole('menuitem', { name: 'Open Folder' }).click();
+    await expect(actionError).toBeHidden();
+
+    await application.evaluate(({ ipcMain }, channels) => {
+      ipcMain.removeHandler(channels.openFolder);
+      ipcMain.handle(channels.openFolder, () => ({ success: false, error: 'Export folder unavailable for test.' }));
+      ipcMain.removeHandler(channels.exportSessions);
+      ipcMain.handle(channels.exportSessions, () => ({ success: true, path: '/tmp/exported-sessions.zip' }));
+    }, {
+      openFolder: 'markuprx:output:open-folder',
+      exportSessions: 'markuprx:output:export-sessions',
+    });
+    await moreActions.focus();
+    await mainWindow.keyboard.press('Enter');
+    await actionMenu.getByRole('menuitem', { name: 'Export' }).click();
+    await expect(actionError).toContainText('Export folder unavailable for test.');
     expect(await seriousAccessibilityViolations(mainWindow)).toEqual([]);
   });
 });

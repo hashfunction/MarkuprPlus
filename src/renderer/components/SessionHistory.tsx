@@ -99,7 +99,7 @@ interface SessionCardProps {
   onSelect: (shift: boolean, ctrl: boolean) => void;
   onOpen: () => void;
   onDelete: () => void;
-  onMoreActions: (anchor: DOMRect) => void;
+  onMoreActions: (anchor: DOMRect, trigger: HTMLButtonElement) => void;
   onContextMenu: (event: React.MouseEvent) => void;
 }
 
@@ -134,6 +134,8 @@ const SessionCard: React.FC<SessionCardProps> = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.target !== e.currentTarget) return;
+
       if (e.key === 'Enter') {
         e.preventDefault();
         onOpen();
@@ -266,7 +268,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
           style={styles.moreActionsButton}
           onClick={(event) => {
             event.stopPropagation();
-            onMoreActions(event.currentTarget.getBoundingClientRect());
+            onMoreActions(event.currentTarget.getBoundingClientRect(), event.currentTarget);
           }}
           aria-label="More actions for session"
         >
@@ -311,7 +313,9 @@ const SearchInput: React.FC<{
       />
       {value && (
         <button
+          type="button"
           style={styles.clearButton}
+          aria-label="Clear session search"
           onClick={() => {
             onChange('');
             inputRef.current?.focus();
@@ -418,7 +422,7 @@ const SortDropdown: React.FC<{
  */
 const ContextMenu: React.FC<{
   state: ContextMenuState;
-  onClose: () => void;
+  onClose: (restoreFocus?: boolean) => void;
   onOpen: () => void;
   onOpenFolder: () => void;
   onExport: () => void;
@@ -438,14 +442,42 @@ const ContextMenu: React.FC<{
   }, [onClose]);
 
   useEffect(() => {
+    if (!state.visible) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      const menuItems = Array.from(
+        menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
+      );
+      const currentIndex = menuItems.indexOf(document.activeElement as HTMLButtonElement);
+      const focusItem = (index: number) => {
+        menuItems[index]?.focus();
+      };
+
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onClose(true);
+      } else if (menuItems.length > 0 && e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        focusItem((currentIndex + 1 + menuItems.length) % menuItems.length);
+      } else if (menuItems.length > 0 && e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        focusItem((currentIndex - 1 + menuItems.length) % menuItems.length);
+      } else if (menuItems.length > 0 && e.key === 'Home') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        focusItem(0);
+      } else if (menuItems.length > 0 && e.key === 'End') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        focusItem(menuItems.length - 1);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [onClose, state.visible]);
 
   useEffect(() => {
     if (state.visible) {
@@ -643,6 +675,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   }>({ isOpen: false, sessionIds: [] });
 
   const listRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLElement | null>(null);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -814,8 +847,12 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         if (result.success && result.path) {
           console.log('Sessions exported to:', result.path);
           // Optionally open the folder containing the export
-          await window.markuprx.output.openFolder(result.path);
-          setActionError(null);
+          const openResult = await window.markuprx.output.openFolder(result.path);
+          if (openResult.success) {
+            setActionError(null);
+          } else {
+            setActionError(openResult.error ?? 'Unable to open the exported sessions folder.');
+          }
         } else if (result.error) {
           console.error('Export failed:', result.error);
           setActionError(result.error);
@@ -834,8 +871,12 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
 
   const handleOpenFolder = useCallback(async (session: SessionMetadata) => {
     try {
-      await window.markuprx.output.openFolder(session.folder);
-      setActionError(null);
+      const result = await window.markuprx.output.openFolder(session.folder);
+      if (result.success) {
+        setActionError(null);
+      } else {
+        setActionError(result.error ?? 'Unable to open the session folder.');
+      }
     } catch (error) {
       console.error('Failed to open folder:', error);
       setActionError('Unable to open the session folder.');
@@ -850,8 +891,18 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
     setSelected(new Set());
   }, []);
 
+  const closeSessionMenu = useCallback((restoreFocus = false) => {
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+    if (restoreFocus) {
+      const trigger = menuTriggerRef.current;
+      requestAnimationFrame(() => {
+        if (trigger?.isConnected) trigger.focus();
+      });
+    }
+  }, []);
+
   const openSessionMenu = useCallback(
-    (sessionId: string, x: number, y: number) => {
+    (sessionId: string, x: number, y: number, trigger: HTMLElement | null) => {
       const margin = 8;
       const menuWidth = 220;
       const menuHeight = 230;
@@ -861,6 +912,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         x: Math.max(margin, Math.min(x, window.innerWidth - menuWidth - margin)),
         y: Math.max(margin, Math.min(y, window.innerHeight - menuHeight - margin)),
       });
+      menuTriggerRef.current = trigger;
     },
     [],
   );
@@ -868,7 +920,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   const handleContextMenu = useCallback(
     (event: React.MouseEvent, sessionId: string) => {
       event.preventDefault();
-      openSessionMenu(sessionId, event.clientX, event.clientY);
+      openSessionMenu(sessionId, event.clientX, event.clientY, event.currentTarget as HTMLElement);
     },
     [openSessionMenu],
   );
@@ -1030,7 +1082,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
                 onSelect={(shift, ctrl) => handleSelectSession(session.id, shift, ctrl)}
                 onOpen={() => handleOpenSession(session)}
                 onDelete={() => handleDeleteSessions([session.id])}
-                onMoreActions={(anchor) => openSessionMenu(session.id, anchor.right - 220, anchor.bottom + 6)}
+                onMoreActions={(anchor, trigger) => openSessionMenu(session.id, anchor.right - 220, anchor.bottom + 6, trigger)}
                 onContextMenu={(event) => handleContextMenu(event, session.id)}
               />
             ))
@@ -1043,28 +1095,28 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
       {/* Context Menu */}
       <ContextMenu
         state={contextMenu}
-        onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+        onClose={closeSessionMenu}
         onOpen={() => {
           const session = filteredSessions.find((s) => s.id === contextMenu.sessionId);
           if (session) handleOpenSession(session);
-          setContextMenu((prev) => ({ ...prev, visible: false }));
+          closeSessionMenu();
         }}
         onOpenFolder={() => {
           const session = filteredSessions.find((s) => s.id === contextMenu.sessionId);
           if (session) handleOpenFolder(session);
-          setContextMenu((prev) => ({ ...prev, visible: false }));
+          closeSessionMenu();
         }}
         onExport={() => {
           if (contextMenu.sessionId) handleExportSessions([contextMenu.sessionId]);
-          setContextMenu((prev) => ({ ...prev, visible: false }));
+          closeSessionMenu();
         }}
         onDelete={() => {
           if (contextMenu.sessionId) handleDeleteSessions([contextMenu.sessionId]);
-          setContextMenu((prev) => ({ ...prev, visible: false }));
+          closeSessionMenu();
         }}
         onSelectAll={() => {
           handleSelectAll();
-          setContextMenu((prev) => ({ ...prev, visible: false }));
+          closeSessionMenu();
         }}
       />
 
