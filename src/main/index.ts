@@ -453,7 +453,7 @@ function handleSessionStateChange(state: SessionState, session: Session | null):
   // Update tray icon
   trayManager.setState(mapToTrayState(state));
   if (state === 'recording' && sessionController.isSessionPaused()) {
-    trayManager.setTooltip(`MarkuprX - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+    trayManager.setTooltip(`MarkuprPlus - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   }
 
   const keepVisibleOnBlur =
@@ -561,7 +561,7 @@ function handleSessionError(error: Error): void {
 
   // Update tray to error state
   trayManager.setState('error');
-  trayManager.setTooltip(`MarkuprX - Error: ${error.message}`);
+  trayManager.setTooltip(`MarkuprPlus - Error: ${error.message}`);
 
   // Notify renderer
   safeSendToRenderer(IPC_CHANNELS.SESSION_ERROR, {
@@ -801,7 +801,7 @@ function pauseSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is already paused.' };
   }
 
-  trayManager.setTooltip(`MarkuprX - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
+  trayManager.setTooltip(`MarkuprPlus - Paused (${formatHotkeyForDisplay('pauseResume')} to resume)`);
   return { success: true };
 }
 
@@ -815,7 +815,7 @@ function resumeSession(): { success: boolean; error?: string } {
     return { success: false, error: 'Session is not paused.' };
   }
 
-  trayManager.setTooltip(`MarkuprX - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
+  trayManager.setTooltip(`MarkuprPlus - Recording... (${formatHotkeyForDisplay('toggleRecording')} to stop)`);
   return { success: true };
 }
 

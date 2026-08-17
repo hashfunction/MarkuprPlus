@@ -15,6 +15,7 @@ import { Tray, Menu, nativeImage, app, NativeImage, shell } from 'electron';
 import { join } from 'path';
 import type { TrayState } from '../shared/types';
 import { formatHotkeyForDisplay } from '../shared/hotkeys';
+import { buildTrayContextMenuTemplate } from './trayContextMenu';
 
 /**
  * Interface for TrayManager operations
@@ -36,15 +37,13 @@ export interface ITrayManager {
 function buildStateTooltips(): Record<TrayState, string> {
   const toggleKey = formatHotkeyForDisplay('toggleRecording');
   return {
-    idle: `MarkuprX - Ready (${toggleKey})`,
-    recording: `MarkuprX - Recording... (${toggleKey} to stop)`,
-    processing: 'MarkuprX - Processing...',
-    complete: 'MarkuprX - Feedback captured!',
-    error: 'MarkuprX - Error (click for details)',
+    idle: `MarkuprPlus - Ready (${toggleKey})`,
+    recording: `MarkuprPlus - Recording... (${toggleKey} to stop)`,
+    processing: 'MarkuprPlus - Processing...',
+    complete: 'MarkuprPlus - Feedback captured!',
+    error: 'MarkuprPlus - Error (click for details)',
   };
 }
-
-const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
 
 /**
  * TrayManager implementation
@@ -60,12 +59,14 @@ class TrayManagerImpl implements ITrayManager {
   private iconCache: Map<string, NativeImage> = new Map();
   private completeTimeout: NodeJS.Timeout | null = null;
 
+  constructor(private readonly platform: NodeJS.Platform = process.platform) {}
+
   /**
    * Get the path to an icon asset
    * On macOS, uses Template images for automatic dark/light mode handling
    */
   private getIconPath(state: TrayState, frame?: number): string {
-    const isMac = process.platform === 'darwin';
+    const isMac = this.platform === 'darwin';
     const suffix = isMac ? 'Template' : '';
     const frameSuffix = frame !== undefined ? `-${frame}` : '';
 
@@ -105,9 +106,9 @@ class TrayManagerImpl implements ITrayManager {
     }
 
     // Resize for menu bar (16x16 on macOS, 16x16 or 32x32 on others)
-    const size = process.platform === 'darwin' ? 16 : 16;
+    const size = this.platform === 'darwin' ? 16 : 16;
     icon = icon.resize({ width: size, height: size });
-    if (process.platform === 'darwin') {
+    if (this.platform === 'darwin') {
       icon.setTemplateImage(true);
     }
 
@@ -219,16 +220,12 @@ class TrayManagerImpl implements ITrayManager {
     this.tray.setToolTip(buildStateTooltips().idle);
     this.updateContextMenu();
 
-    if (process.platform === 'darwin') {
-      // Use mouse-up so we can strictly separate left click (popover) and right click (context menu).
-      // This prevents the "menu + popover both open" behavior seen when macOS emits both click variants.
-      this.tray.on('mouse-up', (event) => {
-        const button = (event as { button?: number }).button;
-        if (button === 2) {
-          this.tray?.popUpContextMenu(this.contextMenu ?? undefined);
-          return;
-        }
+    if (this.platform === 'darwin') {
+      this.tray.on('click', () => {
         this.clickCallbacks.forEach((cb) => cb());
+      });
+      this.tray.on('right-click', () => {
+        this.tray?.popUpContextMenu(this.contextMenu ?? undefined);
       });
     } else {
       // On Windows/Linux, regular click opens/toggles app; right-click menu is handled by setContextMenu.
@@ -246,50 +243,29 @@ class TrayManagerImpl implements ITrayManager {
   private updateContextMenu(): void {
     if (!this.tray) return;
 
-    const isRecording = this.currentState === 'recording';
-    const isProcessing = this.currentState === 'processing';
-
-    const menu = Menu.buildFromTemplate([
-      {
-        label: 'Buy Developer a Coffee',
-        click: () => {
-          void shell.openExternal(DONATE_URL);
+    const menu = Menu.buildFromTemplate(
+      buildTrayContextMenuTemplate({
+        platform: this.platform,
+        state: this.currentState,
+        actions: {
+          toggleRecording: () => {
+            this.clickCallbacks.forEach((callback) => callback());
+          },
+          openSettings: () => {
+            this.settingsCallbacks.forEach((callback) => callback());
+          },
+          openExternal: (url) => shell.openExternal(url),
+          quit: () => app.quit(),
+          reportExternalError: (destination, error) => {
+            console.error(`[TrayManager] Failed to open ${destination}:`, error);
+          },
         },
-      },
-      { type: 'separator' },
-      {
-        label: isRecording ? 'Stop Recording' : 'Start Recording',
-        enabled: !isProcessing,
-        click: () => {
-          this.clickCallbacks.forEach((cb) => cb());
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Settings...',
-        accelerator: 'CmdOrCtrl+,',
-        click: () => {
-          this.settingsCallbacks.forEach((cb) => cb());
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'About MarkuprX',
-        role: 'about',
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit MarkuprX',
-        accelerator: 'CmdOrCtrl+Q',
-        click: () => {
-          app.quit();
-        },
-      },
-    ]);
+      }),
+    );
 
     this.contextMenu = menu;
 
-    if (process.platform === 'darwin') {
+    if (this.platform === 'darwin') {
       // Keep left-click dedicated to opening the popover.
       // Showing the menu is explicit via right-click.
       this.tray.setContextMenu(null);
@@ -327,7 +303,7 @@ class TrayManagerImpl implements ITrayManager {
     // Start animation based on state
     if (state === 'processing') {
       this.startProcessingAnimation();
-    } else if (state === 'recording' && process.platform !== 'darwin') {
+    } else if (state === 'recording' && this.platform !== 'darwin') {
       this.startRecordingAnimation();
     }
 
@@ -363,7 +339,7 @@ class TrayManagerImpl implements ITrayManager {
   private startRecordingAnimation(): void {
     if (!this.tray) return;
 
-    if (process.platform === 'darwin') {
+    if (this.platform === 'darwin') {
       // Template icons can disappear/flicker when rapidly swapped on macOS menu bar.
       // Keep a stable recording icon instead of pulsing.
       this.tray.setImage(this.loadIcon('recording'));
@@ -411,7 +387,7 @@ class TrayManagerImpl implements ITrayManager {
     const base64 = Buffer.from(svg.trim()).toString('base64');
     const dataUrl = `data:image/svg+xml;base64,${base64}`;
     const icon = nativeImage.createFromDataURL(dataUrl).resize({ width: 16, height: 16 });
-    if (process.platform === 'darwin') {
+    if (this.platform === 'darwin') {
       icon.setTemplateImage(true);
     }
 
@@ -461,7 +437,7 @@ class TrayManagerImpl implements ITrayManager {
     const base64 = Buffer.from(svg.trim()).toString('base64');
     const dataUrl = `data:image/svg+xml;base64,${base64}`;
     const icon = nativeImage.createFromDataURL(dataUrl).resize({ width: 16, height: 16 });
-    if (process.platform === 'darwin') {
+    if (this.platform === 'darwin') {
       icon.setTemplateImage(true);
     }
 
@@ -488,7 +464,7 @@ class TrayManagerImpl implements ITrayManager {
       console.warn('[TrayManager] Not initialized');
       return;
     }
-    this.tray.setToolTip(text);
+    this.tray.setToolTip(text.replace(/\bMarkuprX\b/g, 'MarkuprPlus'));
   }
 
   /**
@@ -537,8 +513,14 @@ class TrayManagerImpl implements ITrayManager {
   }
 }
 
+export function createTrayManager(
+  platform: NodeJS.Platform = process.platform,
+): ITrayManager {
+  return new TrayManagerImpl(platform);
+}
+
 // Export singleton instance
-export const trayManager = new TrayManagerImpl();
+export const trayManager = createTrayManager();
 
 // Export types and interface
 export type { TrayState };
