@@ -43,6 +43,7 @@ class AudioCaptureRenderer {
   private electronTestAudioInterval: number | null = null;
   private electronTestAudioPhase = 0;
   private captureGeneration = 0;
+  private pendingStartPromise: Promise<void> | null = null;
   private config: CaptureConfig = {
     deviceId: null,
     sampleRate: 16000,
@@ -73,18 +74,27 @@ class AudioCaptureRenderer {
     this.cleanupFunctions.push(cleanupDevices);
 
     const cleanupStart = api.audio.onStartCapture(async (config) => {
+      this.config = { ...this.config, ...config };
+      const starting = this.startCapture();
+      this.pendingStartPromise = starting;
       try {
-        this.config = { ...this.config, ...config };
-        await this.startCapture();
+        await starting;
         if (this.capturing) api.audio.notifyCaptureStarted();
       } catch (error) {
         if (error instanceof CaptureStartCancelledError) return;
         api.audio.sendCaptureError((error as Error).message);
+      } finally {
+        if (this.pendingStartPromise === starting) this.pendingStartPromise = null;
       }
     });
     this.cleanupFunctions.push(cleanupStart);
 
     const cleanupStop = api.audio.onStopCapture(async () => {
+      const pendingStart = this.pendingStartPromise;
+      await this.stopCapture();
+      if (pendingStart) await pendingStart.catch(() => undefined);
+      // A cancelled start can briefly acquire resources while unwinding. Run a
+      // final idempotent cleanup before acknowledging STOPPED to main.
       await this.stopCapture();
       api.audio.notifyCaptureStopped();
     });
@@ -204,6 +214,7 @@ class AudioCaptureRenderer {
       }
       this.mediaStream = mediaStream;
     } catch (error) {
+      if (error instanceof CaptureStartCancelledError) throw error;
       throw new Error(`Failed to access microphone: ${(error as Error).message}`);
     }
 

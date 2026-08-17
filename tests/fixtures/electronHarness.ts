@@ -20,6 +20,7 @@ export async function createElectronHarnessEnvironment(options: {
   localTranscriptionRecovery?: boolean;
   clearDataDelayMs?: number;
   audioStartDelayMs?: number;
+  audioPermissionDelayMs?: number;
 } = {}): Promise<ElectronHarnessEnvironment> {
   const root = await mkdtemp(join(tmpdir(), 'markuprx-electron-ui-'));
   const outputRoot = join(root, 'output');
@@ -54,6 +55,7 @@ export async function createElectronHarnessEnvironment(options: {
         options.localTranscriptionRecovery ? '1' : '0',
       MARKUPRX_E2E_CLEAR_DATA_DELAY_MS: String(options.clearDataDelayMs ?? 0),
       MARKUPRX_E2E_AUDIO_START_DELAY_MS: String(options.audioStartDelayMs ?? 0),
+      MARKUPRX_E2E_AUDIO_PERMISSION_DELAY_MS: String(options.audioPermissionDelayMs ?? 0),
     },
     logs,
     outputRoot,

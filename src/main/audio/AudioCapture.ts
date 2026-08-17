@@ -185,7 +185,16 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
     if (isElectronTestHarnessAllowed({
       requested: process.env.MARKUPRX_E2E === '1',
       isPackaged: app.isPackaged,
-    })) return true;
+    })) {
+      const requestedDelay = Number(process.env.MARKUPRX_E2E_AUDIO_PERMISSION_DELAY_MS);
+      const delay = Number.isFinite(requestedDelay)
+        ? Math.min(2_000, Math.max(0, Math.floor(requestedDelay)))
+        : 0;
+      if (delay > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      }
+      return true;
+    }
     if (process.platform !== 'darwin') {
       // Non-macOS platforms don't have system-level permission checks
       return true;
@@ -311,123 +320,152 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
       throw new Error('Audio capture start is already in progress');
     }
 
-    // Check permission first
-    const hasPermission = await this.checkPermission();
-    if (!hasPermission) {
-      const granted = await this.requestPermission();
-      if (!granted) {
-        const permError = new Error('Microphone permission denied');
-        errorHandler.handleAudioError(permError, {
+    let cancelled = false;
+    let rejectPendingStart: ((error: Error) => void) | null = null;
+    const cancellationError = () => new Error('Audio capture start cancelled');
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      rejectPendingStart?.(cancellationError());
+    };
+    const assertNotCancelled = () => {
+      if (cancelled) throw cancellationError();
+    };
+
+    // Cancellation must be observable before any permission or filesystem
+    // await. Otherwise quit can overtake start and the resumed continuation
+    // can still tell the renderer to begin capturing.
+    this.pendingStartCancel = cancel;
+
+    try {
+      const hasPermission = await this.checkPermission();
+      assertNotCancelled();
+      if (!hasPermission) {
+        const granted = await this.requestPermission();
+        assertNotCancelled();
+        if (!granted) {
+          const permError = new Error('Microphone permission denied');
+          errorHandler.handleAudioError(permError, {
+            component: 'AudioCapture',
+            operation: 'start',
+          });
+          throw permError;
+        }
+      }
+
+      if (!this.mainWindow) {
+        const windowError = new Error('Main window not set');
+        errorHandler.log('error', 'Cannot start audio - no main window', {
           component: 'AudioCapture',
           operation: 'start',
         });
-        throw permError;
+        throw windowError;
       }
-    }
 
-    if (!this.mainWindow) {
-      const windowError = new Error('Main window not set');
-      errorHandler.log('error', 'Cannot start audio - no main window', {
-        component: 'AudioCapture',
-        operation: 'start',
-      });
-      throw windowError;
-    }
+      // Claim the private recovery root before the renderer begins capture. A
+      // preplanted alias or non-directory must fail the whole start operation,
+      // not become an unhandled background rejection after recording begins.
+      this.recoveryBufferPath = await ensurePrivateCaptureArea('audio');
+      assertNotCancelled();
 
-    // Claim the private recovery root before the renderer begins capture. A
-    // preplanted alias or non-directory must fail the whole start operation,
-    // not become an unhandled background rejection after recording begins.
-    this.recoveryBufferPath = await ensurePrivateCaptureArea('audio');
-
-    return new Promise((resolve, reject) => {
-      let completionTimer: NodeJS.Timeout | null = null;
-      const cleanup = () => {
-        clearTimeout(timeout);
-        if (completionTimer) clearTimeout(completionTimer);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
-        if (this.pendingStartCancel === cancel) this.pendingStartCancel = null;
-      };
-      const rejectStart = (error: Error) => {
-        cleanup();
-        reject(error);
-      };
-      const cancel = () => rejectStart(new Error('Audio capture start cancelled'));
-      const timeout = setTimeout(() => {
-        rejectStart(new Error('Audio capture start timeout'));
-      }, 10000);
-
-      const successHandler = () => {
-        if (this.pendingStartCancel !== cancel) return;
-        clearTimeout(timeout);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
-        ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
-        const complete = () => {
-          if (this.pendingStartCancel !== cancel) return;
-          cleanup();
-          this.capturing = true;
-          this.stopRequested = false;
-          this.settleStopPromise();
-          if (this.stopFinalizeTimer) {
-            clearTimeout(this.stopFinalizeTimer);
-            this.stopFinalizeTimer = null;
-          }
-          this.paused = false;
-          this.sessionAudioChunks = [];
-          this.sessionAudioBytes = 0;
-          this.sessionAudioDurationMs = 0;
-          this.sessionAudioMimeType = 'audio/wav';
-          this.encodedAudioChunks = [];
-          this.encodedAudioBytes = 0;
-          this.encodedAudioDurationMs = 0;
-          this.encodedAudioMimeType = null;
-          this.sessionAudioCapWarningLogged = false;
-          this.startRecoveryBuffer();
-          console.log('[AudioCapture] Capture started');
-          resolve();
+      await new Promise<void>((resolve, reject) => {
+        let completionTimer: NodeJS.Timeout | null = null;
+        let timeout: NodeJS.Timeout | null = null;
+        const cleanup = () => {
+          if (timeout) clearTimeout(timeout);
+          if (completionTimer) clearTimeout(completionTimer);
+          ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
+          ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
+          rejectPendingStart = null;
+          if (this.pendingStartCancel === cancel) this.pendingStartCancel = null;
         };
-        const requestedDelay = isElectronTestHarnessAllowed({
-          requested: process.env.MARKUPRX_E2E === '1',
-          isPackaged: app.isPackaged,
-        }) ? Number(process.env.MARKUPRX_E2E_AUDIO_START_DELAY_MS) : 0;
-        const delay = Number.isFinite(requestedDelay)
-          ? Math.min(2_000, Math.max(0, Math.floor(requestedDelay)))
-          : 0;
-        if (delay > 0) completionTimer = setTimeout(complete, delay);
-        else complete();
-      };
+        const rejectStart = (error: Error) => {
+          cleanup();
+          reject(error);
+        };
+        rejectPendingStart = rejectStart;
 
-      const captureErrorHandler = (_event: Electron.IpcMainEvent, error: string) => {
-        if (this.pendingStartCancel === cancel) rejectStart(new Error(error));
-      };
+        const successHandler = () => {
+          if (this.pendingStartCancel !== cancel) return;
+          if (timeout) clearTimeout(timeout);
+          ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
+          ipcMain.removeListener(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
+          const complete = () => {
+            if (this.pendingStartCancel !== cancel) return;
+            cleanup();
+            this.capturing = true;
+            this.stopRequested = false;
+            this.settleStopPromise();
+            if (this.stopFinalizeTimer) {
+              clearTimeout(this.stopFinalizeTimer);
+              this.stopFinalizeTimer = null;
+            }
+            this.paused = false;
+            this.sessionAudioChunks = [];
+            this.sessionAudioBytes = 0;
+            this.sessionAudioDurationMs = 0;
+            this.sessionAudioMimeType = 'audio/wav';
+            this.encodedAudioChunks = [];
+            this.encodedAudioBytes = 0;
+            this.encodedAudioDurationMs = 0;
+            this.encodedAudioMimeType = null;
+            this.sessionAudioCapWarningLogged = false;
+            this.startRecoveryBuffer();
+            console.log('[AudioCapture] Capture started');
+            resolve();
+          };
+          const requestedDelay = isElectronTestHarnessAllowed({
+            requested: process.env.MARKUPRX_E2E === '1',
+            isPackaged: app.isPackaged,
+          }) ? Number(process.env.MARKUPRX_E2E_AUDIO_START_DELAY_MS) : 0;
+          const delay = Number.isFinite(requestedDelay)
+            ? Math.min(2_000, Math.max(0, Math.floor(requestedDelay)))
+            : 0;
+          if (delay > 0) completionTimer = setTimeout(complete, delay);
+          else complete();
+        };
 
-      this.pendingStartCancel = cancel;
-      ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
-      ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
+        const captureErrorHandler = (_event: Electron.IpcMainEvent, error: string) => {
+          if (this.pendingStartCancel === cancel) rejectStart(new Error(error));
+        };
 
-      // Send start command to renderer with config
-      this.mainWindow!.webContents.send(AUDIO_IPC_CHANNELS.START_CAPTURE, {
-        deviceId: this.currentDeviceId,
-        sampleRate: this.config.sampleRate,
-        channels: this.config.channels,
-        chunkDurationMs: this.config.chunkDurationMs,
+        if (cancelled) {
+          rejectStart(cancellationError());
+          return;
+        }
+        timeout = setTimeout(() => {
+          rejectStart(new Error('Audio capture start timeout'));
+        }, 10000);
+        ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_STARTED, successHandler);
+        ipcMain.once(AUDIO_IPC_CHANNELS.CAPTURE_ERROR, captureErrorHandler);
+
+        // Send start command to renderer with config.
+        this.mainWindow!.webContents.send(AUDIO_IPC_CHANNELS.START_CAPTURE, {
+          deviceId: this.currentDeviceId,
+          sampleRate: this.config.sampleRate,
+          channels: this.config.channels,
+          chunkDurationMs: this.config.chunkDurationMs,
+        });
       });
-    });
+    } finally {
+      rejectPendingStart = null;
+      if (this.pendingStartCancel === cancel) this.pendingStartCancel = null;
+    }
   }
 
   /**
    * Stop audio capture
    */
   async stop(): Promise<void> {
+    if (this.stopRequested && this.stopPromise) {
+      return this.stopPromise;
+    }
+
     const cancelPendingStart = this.pendingStartCancel;
     if (!this.capturing && !cancelPendingStart) {
       this.stopRequested = false;
       this.settleStopPromise();
       return;
-    }
-
-    if (this.stopRequested && this.stopPromise) {
-      return this.stopPromise;
     }
 
     const stopPromise = this.ensureStopPromise();

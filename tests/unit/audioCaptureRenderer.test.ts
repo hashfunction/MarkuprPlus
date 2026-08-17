@@ -173,12 +173,23 @@ describe('AudioCaptureRenderer', () => {
 
     const starting = startHandler?.({});
     await vi.waitFor(() => expect(resolveStream).toBeTypeOf('function'));
-    const stopping = stopHandler?.();
-    resolveStream?.(new MockMediaStream());
+    let stopSettled = false;
+    const stopping = stopHandler?.().then(() => {
+      stopSettled = true;
+    });
+    await Promise.resolve();
+
+    expect(stopSettled).toBe(false);
+    expect(audioApi.notifyCaptureStopped).not.toHaveBeenCalled();
+
+    const stream = new MockMediaStream();
+    resolveStream?.(stream);
     await Promise.all([starting, stopping]);
 
     expect(renderer.isCapturing()).toBe(false);
     expect(audioApi.notifyCaptureStarted).not.toHaveBeenCalled();
     expect(audioApi.notifyCaptureStopped).toHaveBeenCalledOnce();
+    expect(audioApi.sendCaptureError).not.toHaveBeenCalled();
+    expect(stream.getTracks()[0].stop).toHaveBeenCalledOnce();
   });
 });

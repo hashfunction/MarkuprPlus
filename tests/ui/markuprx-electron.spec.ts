@@ -2724,6 +2724,41 @@ test.describe('MarkuprPlus desktop application', () => {
     expect(remaining).toEqual([]);
   });
 
+  test('cancels an audio start still awaiting permission without a late producer', async () => {
+    await harness.cleanup();
+    harness = await createElectronHarnessEnvironment({ audioPermissionDelayMs: 600 });
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+    await window.evaluate(() => {
+      void window.markuprx.session.start(
+        'screen:e2e-quit-permission',
+        'Quit Permission Pending',
+      ).catch(() => undefined);
+    });
+    await expect.poll(() => window.evaluate(async () => (
+      await window.markuprx.session.getStatus()
+    ).state)).toBe('starting');
+
+    await expect(window.evaluate(() => window.markuprx.session.cancel()))
+      .resolves.toMatchObject({ success: true });
+    await window.waitForTimeout(750);
+    await expect(window.evaluate(async () => (
+      await window.markuprx.session.getStatus()
+    ).state)).resolves.toBe('idle');
+    expect(harness.logs.join('\n')).not.toContain('[AudioCapture] Capture started');
+    expect(harness.logs.join('\n')).not.toContain('Audio capture start timeout');
+
+    const closed = application.waitForEvent('close');
+    await application.evaluate(({ app }) => app.quit());
+    await closed;
+    application = null;
+
+    const audioRoot = join(harness.userDataDir, 'capture-recovery', 'audio');
+    const remaining = await readdir(audioRoot).catch(() => []);
+    expect(remaining).toEqual([]);
+  });
+
   test('quiesces active audio before process exit', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;
