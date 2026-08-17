@@ -36,7 +36,8 @@ export const linearTemplate: OutputTemplate = {
     }
 
     if (transcriptSegments.length === 0) {
-      md += `_No feedback was captured during this recording._\n`;
+      md += `_No feedback was captured during this recording._\n\n`;
+      md += `---\n_Captured by [${PUBLIC_BRAND_NAME}](${PUBLIC_WEBSITE_URL})_\n`;
       return { content: md, fileExtension: '.md' };
     }
 

@@ -8,6 +8,7 @@
 import { existsSync } from 'fs';
 import { readFile, writeFile, appendFile } from 'fs/promises';
 import { join, resolve } from 'path';
+import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 
 // ============================================================================
 // Types
@@ -106,7 +107,7 @@ export async function updateGitignore(
   // Build the block to append
   const block = [
     '',
-    '# markuprx output',
+    `# ${PUBLIC_BRAND_NAME} output`,
     ...missingEntries,
     '',
   ].join('\n');

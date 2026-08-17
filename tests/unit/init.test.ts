@@ -206,7 +206,8 @@ describe('init', () => {
       const appended = mockAppendFile.mock.calls[0][1] as string;
       expect(appended).toContain('./markuprx-output');
       expect(appended).toContain('.markuprx-watch.log');
-      expect(appended).toContain('# markuprx output');
+      expect(appended).toContain('# MarkuprPlus output');
+      expect(appended).not.toContain('# markuprx output');
     });
 
     it('appends to existing .gitignore', async () => {
