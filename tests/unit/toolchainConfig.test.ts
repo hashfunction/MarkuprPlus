@@ -6,7 +6,11 @@ import vitestConfig from '../../vitest.config';
 const repositoryRoot = join(__dirname, '../..');
 const packageJson = JSON.parse(
   readFileSync(join(repositoryRoot, 'package.json'), 'utf8'),
-) as { engines: { node: string }; devDependencies: Record<string, string> };
+) as {
+  engines: { node: string };
+  devDependencies: Record<string, string>;
+  scripts: Record<string, string>;
+};
 
 describe('release toolchain contract', () => {
   it('pins the supported Node runtime for contributors', () => {
@@ -44,5 +48,12 @@ describe('release toolchain contract', () => {
       isolate: true,
     });
     expect(vitestConfig.test).not.toHaveProperty('poolOptions');
+  });
+
+  it('uses flat-config lint commands without legacy extension flags', () => {
+    expect(packageJson.scripts).toMatchObject({
+      lint: 'eslint src',
+      'lint:fix': 'eslint src --fix',
+    });
   });
 });
