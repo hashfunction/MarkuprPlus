@@ -27,9 +27,9 @@ vi.mock('fs/promises', () => ({
 }));
 
 vi.mock('../../../../src/integrations/linear/LinearIssueCreator.js', () => ({
-  LinearIssueCreator: vi.fn().mockImplementation(() => ({
-    pushReport: mockPushReport,
-  })),
+  LinearIssueCreator: vi.fn().mockImplementation(function LinearIssueCreatorMock() {
+    return { pushReport: mockPushReport };
+  }),
 }));
 
 vi.mock('../../../../src/mcp/utils/Logger.js', () => ({

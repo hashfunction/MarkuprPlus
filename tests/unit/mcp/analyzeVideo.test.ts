@@ -31,7 +31,9 @@ const {
   return {
     mockStat: vi.fn(),
     mockPipelineRun: pipelineRun,
-    mockCLIPipeline: vi.fn().mockImplementation(() => ({ run: pipelineRun })),
+    mockCLIPipeline: vi.fn().mockImplementation(function CLIPipelineMock() {
+      return { run: pipelineRun };
+    }),
     mockCreate: vi.fn(),
     mockGetSessionDir: vi.fn(),
     mockUpdate: vi.fn(),

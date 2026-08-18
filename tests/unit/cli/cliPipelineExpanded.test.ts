@@ -63,9 +63,11 @@ vi.mock('crypto', () => ({
 const mockAnalyze = vi.fn(() => []);
 
 vi.mock('../../../src/main/pipeline/TranscriptAnalyzer', () => ({
-  TranscriptAnalyzer: vi.fn().mockImplementation(() => ({
-    analyze: mockAnalyze,
-  })),
+  TranscriptAnalyzer: vi.fn().mockImplementation(function TranscriptAnalyzerMock() {
+    return {
+      analyze: mockAnalyze,
+    };
+  }),
 }));
 
 // Mock FrameExtractor
@@ -75,17 +77,21 @@ const mockExtract = vi.fn(() =>
 );
 
 vi.mock('../../../src/main/pipeline/FrameExtractor', () => ({
-  FrameExtractor: vi.fn().mockImplementation(() => ({
-    checkFfmpeg: mockCheckFfmpeg,
-    extract: mockExtract,
-  })),
+  FrameExtractor: vi.fn().mockImplementation(function FrameExtractorMock() {
+    return {
+      checkFfmpeg: mockCheckFfmpeg,
+      extract: mockExtract,
+    };
+  }),
 }));
 
 // Mock MarkdownGenerator
 vi.mock('../../../src/main/output/MarkdownGenerator', () => ({
-  MarkdownGenerator: vi.fn().mockImplementation(() => ({
-    generateFromPostProcess: vi.fn(() => '# Test Markdown'),
-  })),
+  MarkdownGenerator: vi.fn().mockImplementation(function MarkdownGeneratorMock() {
+    return {
+      generateFromPostProcess: vi.fn(() => '# Test Markdown'),
+    };
+  }),
 }));
 
 // Mock WhisperService with controllable behavior
@@ -94,7 +100,7 @@ const mockTranscribeFile = vi.fn(() => Promise.resolve([]));
 
 vi.mock('../../../src/main/transcription/WhisperService', () => {
   return {
-    WhisperService: vi.fn().mockImplementation(() => {
+    WhisperService: vi.fn().mockImplementation(function WhisperServiceMock() {
       const emitter = new EventEmitter();
       return Object.assign(emitter, {
         isModelAvailable: mockIsModelAvailable,

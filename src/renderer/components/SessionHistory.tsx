@@ -851,15 +851,7 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
   const focusAfterDeleteDialog = useCallback((deletedAny: boolean) => {
     const plan = deleteFocusPlanRef.current;
     deleteFocusPlanRef.current = null;
-    requestAnimationFrame(() => {
-      const currentFocus = document.activeElement;
-      if (
-        currentFocus instanceof HTMLElement
-        && currentFocus !== document.body
-        && currentFocus.isConnected
-      ) {
-        return;
-      }
+    const restoreFocus = () => {
       if (!deletedAny && plan?.origin?.isConnected) {
         plan.origin.focus();
         return;
@@ -871,12 +863,13 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
         ? rows[Math.min(plan?.preferredIndex ?? 0, rows.length - 1)]
         : null;
       (nearest ?? searchInputRef.current)?.focus();
-    });
+    };
+    window.setTimeout(restoreFocus, 0);
   }, []);
 
   const handleCancelDelete = useCallback(() => {
-    setDeleteConfirm({ isOpen: false, sessionIds: [] });
     focusAfterDeleteDialog(false);
+    setDeleteConfirm({ isOpen: false, sessionIds: [] });
   }, [focusAfterDeleteDialog]);
 
   const handleConfirmDelete = useCallback(async () => {
@@ -923,8 +916,8 @@ export function SessionHistory({ isOpen, onClose, onOpenSession }: SessionHistor
       setActionError('Unable to delete sessions.');
     }
 
-    setDeleteConfirm({ isOpen: false, sessionIds: [] });
     focusAfterDeleteDialog(deletedAny);
+    setDeleteConfirm({ isOpen: false, sessionIds: [] });
   }, [deleteConfirm, focusAfterDeleteDialog]);
 
   const handleExportSessions = useCallback(async (sessionIds: string[]) => {

@@ -74,21 +74,25 @@ vi.mock('electron', () => ({
     getName: vi.fn(() => 'markuprx'),
     getVersion: vi.fn(() => '2.4.0'),
   },
-  BrowserWindow: vi.fn().mockImplementation(() => ({
-    isDestroyed: vi.fn(() => false),
-    webContents: { send: vi.fn() },
-  })),
+  BrowserWindow: vi.fn().mockImplementation(function BrowserWindowMock() {
+    return {
+      isDestroyed: vi.fn(() => false),
+      webContents: { send: vi.fn() },
+    };
+  }),
   ipcMain: { handle: vi.fn(), on: vi.fn() },
 }));
 
 vi.mock('electron-store', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    get: vi.fn((_key: string, defaultValue?: unknown) => defaultValue),
-    set: vi.fn(),
-    delete: vi.fn(),
-    clear: vi.fn(),
-    has: vi.fn(() => false),
-  })),
+  default: vi.fn().mockImplementation(function StoreMock() {
+    return {
+      get: vi.fn((_key: string, defaultValue?: unknown) => defaultValue),
+      set: vi.fn(),
+      delete: vi.fn(),
+      clear: vi.fn(),
+      has: vi.fn(() => false),
+    };
+  }),
 }));
 
 // Mock WhisperService for PostProcessor tests

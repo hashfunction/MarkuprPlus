@@ -63,27 +63,29 @@ vi.mock('crypto', () => ({
 
 // Mock shared services to avoid Electron dependencies
 vi.mock('../../src/main/pipeline/TranscriptAnalyzer', () => ({
-  TranscriptAnalyzer: vi.fn().mockImplementation(() => ({
-    analyze: vi.fn(() => []),
-  })),
+  TranscriptAnalyzer: vi.fn().mockImplementation(function TranscriptAnalyzerMock() {
+    return { analyze: vi.fn(() => []) };
+  }),
 }));
 
 vi.mock('../../src/main/pipeline/FrameExtractor', () => ({
-  FrameExtractor: vi.fn().mockImplementation(() => ({
-    checkFfmpeg: vi.fn(() => Promise.resolve(true)),
-    extract: vi.fn(() => Promise.resolve({ frames: [] })),
-  })),
+  FrameExtractor: vi.fn().mockImplementation(function FrameExtractorMock() {
+    return {
+      checkFfmpeg: vi.fn(() => Promise.resolve(true)),
+      extract: vi.fn(() => Promise.resolve({ frames: [] })),
+    };
+  }),
 }));
 
 vi.mock('../../src/main/output/MarkdownGenerator', () => ({
-  MarkdownGenerator: vi.fn().mockImplementation(() => ({
-    generateFromPostProcess: vi.fn(() => '# Test Markdown'),
-  })),
+  MarkdownGenerator: vi.fn().mockImplementation(function MarkdownGeneratorMock() {
+    return { generateFromPostProcess: vi.fn(() => '# Test Markdown') };
+  }),
 }));
 
 vi.mock('../../src/main/transcription/WhisperService', () => {
   return {
-    WhisperService: vi.fn().mockImplementation(() => {
+    WhisperService: vi.fn().mockImplementation(function WhisperServiceMock() {
       const emitter = new EventEmitter();
       return Object.assign(emitter, {
         isModelAvailable: vi.fn(() => false),

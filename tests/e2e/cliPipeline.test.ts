@@ -60,18 +60,19 @@ vi.mock('crypto', () => ({
 
 // Mock shared services
 vi.mock('../../src/main/pipeline/TranscriptAnalyzer', () => ({
-  TranscriptAnalyzer: vi.fn().mockImplementation(() => ({
-    analyze: vi.fn(() => [
+  TranscriptAnalyzer: vi.fn().mockImplementation(function TranscriptAnalyzerMock() {
+    return { analyze: vi.fn(() => [
       { timestamp: 0.35, reason: 'Session start', confidence: 1.0 },
       { timestamp: 15, reason: 'Natural pause', confidence: 0.8 },
-    ]),
-  })),
+    ]) };
+  }),
 }));
 
 vi.mock('../../src/main/pipeline/FrameExtractor', () => ({
-  FrameExtractor: vi.fn().mockImplementation(() => ({
-    checkFfmpeg: vi.fn(() => Promise.resolve(true)),
-    extract: vi.fn(() =>
+  FrameExtractor: vi.fn().mockImplementation(function FrameExtractorMock() {
+    return {
+      checkFfmpeg: vi.fn(() => Promise.resolve(true)),
+      extract: vi.fn(() =>
       Promise.resolve({
         frames: [
           { path: '/output/screenshots/frame-001.png', timestamp: 0.35, success: true },
@@ -79,18 +80,19 @@ vi.mock('../../src/main/pipeline/FrameExtractor', () => ({
         ],
         ffmpegAvailable: true,
       })
-    ),
-  })),
+      ),
+    };
+  }),
 }));
 
 vi.mock('../../src/main/output/MarkdownGenerator', () => ({
-  MarkdownGenerator: vi.fn().mockImplementation(() => ({
-    generateFromPostProcess: vi.fn(() => '# Feedback Report\n\nTest content'),
-  })),
+  MarkdownGenerator: vi.fn().mockImplementation(function MarkdownGeneratorMock() {
+    return { generateFromPostProcess: vi.fn(() => '# Feedback Report\n\nTest content') };
+  }),
 }));
 
 vi.mock('../../src/main/transcription/WhisperService', () => ({
-  WhisperService: vi.fn().mockImplementation(() => {
+  WhisperService: vi.fn().mockImplementation(function WhisperServiceMock() {
     const emitter = new EventEmitter();
     return Object.assign(emitter, {
       isModelAvailable: vi.fn(() => true),

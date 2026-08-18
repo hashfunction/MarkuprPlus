@@ -68,11 +68,13 @@ vi.mock('../../../src/mcp/utils/Logger.js', () => ({
 }));
 
 vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    messages: {
-      create: mockMessagesCreate,
-    },
-  })),
+  default: vi.fn().mockImplementation(function AnthropicMock() {
+    return {
+      messages: {
+        create: mockMessagesCreate,
+      },
+    };
+  }),
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({

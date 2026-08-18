@@ -52,10 +52,12 @@ const mockPipelineRun = vi.fn();
 const mockPipelineAbort = vi.fn();
 
 vi.mock('../../../src/cli/CLIPipeline', () => ({
-  CLIPipeline: vi.fn().mockImplementation(() => ({
-    run: mockPipelineRun,
-    abort: mockPipelineAbort,
-  })),
+  CLIPipeline: vi.fn().mockImplementation(function CLIPipelineMock() {
+    return {
+      run: mockPipelineRun,
+      abort: mockPipelineAbort,
+    };
+  }),
 }));
 
 // ============================================================================

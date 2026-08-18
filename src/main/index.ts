@@ -33,7 +33,7 @@ import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 
 // Hide dock icon on macOS for pure menu bar experience
 // IMPORTANT: Must be called before app.whenReady()
-if (process.platform === 'darwin') {
+if (process.platform === 'darwin' && app.dock) {
   app.dock.hide();
 }
 

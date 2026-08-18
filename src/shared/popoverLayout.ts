@@ -16,7 +16,7 @@ export type PopoverState = keyof typeof POPOVER_SIZES;
 export type PortraitAppView = 'settings' | 'history' | 'shortcuts';
 
 export function getPopoverSizeForView(
-  view: PortraitAppView,
+  _view: PortraitAppView,
 ): typeof PORTRAIT_POPOVER_SIZE {
   return PORTRAIT_POPOVER_SIZE;
 }

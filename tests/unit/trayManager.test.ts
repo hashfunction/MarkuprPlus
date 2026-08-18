@@ -81,7 +81,9 @@ describe('TrayManager native integration', () => {
       }),
       destroy: vi.fn(),
     };
-    vi.mocked(Tray).mockImplementation(() => tray as never);
+    vi.mocked(Tray).mockImplementation(function TrayMock() {
+      return tray as never;
+    });
 
     nativeIcon = {
       isEmpty: vi.fn(() => false),

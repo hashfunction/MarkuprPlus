@@ -840,6 +840,7 @@ async function expectNormalizedPortraitMetrics(
     const headerBox = header.getBoundingClientRect();
     const backBox = back.getBoundingClientRect();
     const scrollerBox = scroller.getBoundingClientRect();
+    const scrollbarInset = scroller.offsetWidth - scroller.clientWidth;
     const contentBox = contentElement.getBoundingClientRect();
     const headerStyle = getComputedStyle(header);
     const headingStyle = getComputedStyle(heading);
@@ -868,6 +869,7 @@ async function expectNormalizedPortraitMetrics(
       heading: { fontSize: headingStyle.fontSize, lineHeight: headingStyle.lineHeight },
       scroller: {
         width: scrollerBox.width,
+        scrollbarInset,
         overflowX: getComputedStyle(scroller).overflowX,
         overflowY: getComputedStyle(scroller).overflowY,
       },
@@ -917,9 +919,9 @@ async function expectNormalizedPortraitMetrics(
     heading: { fontSize: '18px', lineHeight: '22px' },
     scroller: { width: 438, overflowX: 'hidden', overflowY: 'auto' },
     content: {
-      width: 430,
+      width: 438 - metrics.scroller.scrollbarInset,
       leftInset: 0,
-      rightInset: 8,
+      rightInset: metrics.scroller.scrollbarInset,
       paddingLeft: '14px',
       paddingRight: '14px',
     },

@@ -237,7 +237,9 @@ describe('real review export artifacts', () => {
           }),
         },
       };
-      vi.mocked(BrowserWindow).mockImplementationOnce(() => pdfWindow as never);
+      vi.mocked(BrowserWindow).mockImplementationOnce(function PdfWindowMock() {
+        return pdfWindow as never;
+      });
 
       const result = await service.export(evidenceSession() as Session, {
         format: 'pdf',
@@ -289,7 +291,9 @@ describe('real review export artifacts', () => {
           printToPDF: vi.fn(async () => Buffer.from('collision-safe-pdf')),
         },
       };
-      vi.mocked(BrowserWindow).mockImplementationOnce(() => pdfWindow as never);
+      vi.mocked(BrowserWindow).mockImplementationOnce(function PdfWindowMock() {
+        return pdfWindow as never;
+      });
 
       try {
         const result = await new ExportService().export(evidenceSession() as Session, {
@@ -336,7 +340,9 @@ describe('real review export artifacts', () => {
           }),
         },
       };
-      vi.mocked(BrowserWindow).mockImplementationOnce(() => pdfWindow as never);
+      vi.mocked(BrowserWindow).mockImplementationOnce(function PdfWindowMock() {
+        return pdfWindow as never;
+      });
 
       const result = await new ExportService().export(evidenceSession() as Session, {
         format: 'pdf',
@@ -369,7 +375,9 @@ describe('real review export artifacts', () => {
         printToPDF: vi.fn(),
       },
     };
-    vi.mocked(BrowserWindow).mockImplementationOnce(() => pdfWindow as never);
+    vi.mocked(BrowserWindow).mockImplementationOnce(function PdfWindowMock() {
+      return pdfWindow as never;
+    });
 
     const result = await new ExportService().export(evidenceSession() as Session, {
       format: 'pdf',

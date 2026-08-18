@@ -36,7 +36,8 @@ vi.mock('electron', () => ({
     whenReady: vi.fn(() => Promise.resolve()),
   },
 
-  BrowserWindow: vi.fn().mockImplementation(() => ({
+  BrowserWindow: vi.fn().mockImplementation(function BrowserWindowMock() {
+    return {
     loadURL: vi.fn(() => Promise.resolve()),
     loadFile: vi.fn(() => Promise.resolve()),
     on: vi.fn(),
@@ -56,15 +57,18 @@ vi.mock('electron', () => ({
       on: vi.fn(),
       once: vi.fn(),
       openDevTools: vi.fn(),
+      setWindowOpenHandler: vi.fn(),
       printToPDF: vi.fn(() => Promise.resolve(Buffer.from('PDF content'))),
       executeJavaScript: vi.fn(() => Promise.resolve()),
     },
-  })),
+    };
+  }),
 
   ipcMain: {
     handle: vi.fn(),
     on: vi.fn(),
     once: vi.fn(),
+    removeListener: vi.fn(),
     removeHandler: vi.fn(),
     removeAllListeners: vi.fn(),
   },
@@ -140,11 +144,13 @@ vi.mock('electron', () => ({
     showMessageBox: vi.fn(() => Promise.resolve({ response: 0 })),
   },
 
-  Notification: vi.fn().mockImplementation(() => ({
-    show: vi.fn(),
-    on: vi.fn(),
-    close: vi.fn(),
-  })),
+  Notification: vi.fn().mockImplementation(function NotificationMock() {
+    return {
+      show: vi.fn(),
+      on: vi.fn(),
+      close: vi.fn(),
+    };
+  }),
 
   globalShortcut: {
     register: vi.fn(() => true),
@@ -153,13 +159,15 @@ vi.mock('electron', () => ({
     isRegistered: vi.fn(() => true),
   },
 
-  Tray: vi.fn().mockImplementation(() => ({
-    setImage: vi.fn(),
-    setToolTip: vi.fn(),
-    setContextMenu: vi.fn(),
-    on: vi.fn(),
-    destroy: vi.fn(),
-  })),
+  Tray: vi.fn().mockImplementation(function TrayMock() {
+    return {
+      setImage: vi.fn(),
+      setToolTip: vi.fn(),
+      setContextMenu: vi.fn(),
+      on: vi.fn(),
+      destroy: vi.fn(),
+    };
+  }),
 
   Menu: {
     buildFromTemplate: vi.fn(() => ({})),
@@ -213,7 +221,7 @@ vi.mock('electron-store', () => {
   const mockStore = new Map<string, unknown>();
 
   return {
-    default: vi.fn().mockImplementation((options?: { defaults?: Record<string, unknown> }) => {
+    default: vi.fn(function StoreMock(options?: { defaults?: Record<string, unknown> }) {
       // Initialize with defaults
       if (options?.defaults) {
         Object.entries(options.defaults).forEach(([key, value]) => {

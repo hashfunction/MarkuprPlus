@@ -6,7 +6,7 @@ Thanks for helping improve MarkuprPlus. Start with a focused issue or proposal, 
 
 Requirements:
 
-- Node.js 20.9 or newer;
+- Node.js 22.23.2 for contributor tooling (the published CLI retains a Node.js 20.9+ engine);
 - npm;
 - ffmpeg on `PATH`;
 - macOS for the currently exercised real-Electron desktop/package path (other targets may still be developed/tested where supported).

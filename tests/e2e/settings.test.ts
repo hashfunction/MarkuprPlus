@@ -87,7 +87,7 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('electron-store', () => ({
-  default: vi.fn().mockImplementation((options?: { name?: string; defaults?: Record<string, unknown> }) => {
+  default: vi.fn().mockImplementation(function StoreMock(options?: { name?: string; defaults?: Record<string, unknown> }) {
     const store = createMockStoreMap();
 
     if (options?.defaults) {

@@ -18,9 +18,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { mockGetLatest, mockGet, mockResourceTemplate } = vi.hoisted(() => ({
   mockGetLatest: vi.fn(),
   mockGet: vi.fn(),
-  mockResourceTemplate: vi.fn().mockImplementation((template: string) => ({
-    template,
-  })),
+  mockResourceTemplate: vi.fn().mockImplementation(function ResourceTemplateMock(template: string) {
+    return { template };
+  }),
 }));
 
 vi.mock('../../../src/mcp/session/SessionStore.js', () => ({

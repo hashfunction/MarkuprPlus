@@ -33,7 +33,9 @@ const {
   return {
     mockStop: vi.fn(),
     mockPipelineRun: pipelineRun,
-    mockCLIPipeline: vi.fn().mockImplementation(() => ({ run: pipelineRun })),
+    mockCLIPipeline: vi.fn().mockImplementation(function CLIPipelineMock() {
+      return { run: pipelineRun };
+    }),
     mockIsRecording: vi.fn(),
     mockGetCurrent: vi.fn(),
     mockActiveStop: vi.fn(),
