@@ -2885,12 +2885,147 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(settings.getByText('Pause Threshold', { exact: true })).toHaveCount(0);
     await expect(settings.getByText('Minimum Time Between Captures', { exact: true }))
       .toHaveCount(0);
+    await window.evaluate(async () => {
+      await window.markuprx.settings.set('audioDeviceId', 'preserved-microphone');
+      await window.markuprx.settings.set('showTranscriptionPreview', false);
+      await window.markuprx.settings.set('pauseThreshold', 900);
+      await window.markuprx.settings.set('minTimeBetweenCaptures', 1100);
+    });
+    const recordingBehavior = settings.getByRole('heading', {
+      name: 'Recording Behavior',
+      exact: true,
+    });
+    await recordingBehavior.locator('xpath=../..')
+      .getByTitle('Reset section to defaults')
+      .click();
+    await expect.poll(() => window.evaluate(async () => ({
+      audioDeviceId: await window.markuprx.settings.get('audioDeviceId'),
+      showTranscriptionPreview: await window.markuprx.settings.get('showTranscriptionPreview'),
+      pauseThreshold: await window.markuprx.settings.get('pauseThreshold'),
+      minTimeBetweenCaptures: await window.markuprx.settings.get('minTimeBetweenCaptures'),
+    }))).toEqual({
+      audioDeviceId: 'preserved-microphone',
+      showTranscriptionPreview: false,
+      pauseThreshold: 900,
+      minTimeBetweenCaptures: 1100,
+    });
 
     await settings.getByRole('tab', { name: 'Advanced', exact: true }).click();
     await expect(settings.getByText('Settings Management', { exact: true })).toBeVisible();
     await expect(settings.getByText('Debug Mode', { exact: true })).toHaveCount(0);
     await expect(settings.getByText('Keep Audio Backups', { exact: true })).toHaveCount(0);
+    const localTranscription = settings.getByRole('heading', {
+      name: 'Local Transcription',
+      exact: true,
+    });
+    await expect(localTranscription.locator('xpath=../..')
+      .getByTitle('Reset section to defaults')).toHaveCount(0);
     expect(await seriousAccessibilityViolations(window)).toEqual([]);
+  });
+
+  test('applies native View theme and waveform controls to the live renderer', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.evaluate(async () => {
+      await window.markuprx.settings.set('theme', 'light');
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+        detail: { type: 'appearance' },
+      }));
+    });
+    await expect(window.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+    const waveformSetting = settings.getByRole('switch', {
+      name: 'Show Audio Waveform',
+      exact: true,
+    });
+    await expect(waveformSetting).toHaveAttribute('aria-checked', 'true');
+    await waveformSetting.click();
+    await expect(waveformSetting).toHaveAttribute('aria-checked', 'false');
+    await settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }).click();
+
+    await application.evaluate(({ Menu }) => {
+      const view = Menu.getApplicationMenu()?.items.find((item) => item.label === 'View');
+      const theme = view?.submenu?.items.find((item) => item.label === 'Theme');
+      const dark = theme?.submenu?.items.find((item) => item.label === 'Dark');
+      (dark?.click as (() => void) | undefined)?.();
+    });
+    await expect(window.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    await selectDeterministicWindow(application, window);
+    await expect(window.getByText('Mic', { exact: true })).toHaveCount(0);
+    await application.evaluate(({ Menu }) => {
+      const view = Menu.getApplicationMenu()?.items.find((item) => item.label === 'View');
+      const waveform = view?.submenu?.items.find(
+        (item) => item.label === 'Toggle Audio Waveform',
+      );
+      (waveform?.click as (() => void) | undefined)?.();
+    });
+    await expect(window.getByText('Mic', { exact: true })).toBeVisible();
+  });
+
+  test('enumerates and restores the selected microphone for the next capture', async () => {
+    let launched = await launchApplication(harness);
+    application = launched.application;
+    let window = launched.mainWindow;
+
+    await window.evaluate(() => {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: {
+          getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }),
+          enumerateDevices: async () => ([
+            {
+              deviceId: 'studio-microphone',
+              groupId: 'studio-group',
+              kind: 'audioinput',
+              label: 'Studio Microphone',
+              toJSON: () => ({}),
+            },
+          ]),
+        },
+      });
+    });
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+    const microphone = settings.getByLabel('Microphone', { exact: true });
+    await expect(microphone).toContainText('Studio Microphone');
+    await microphone.selectOption('studio-microphone');
+    await expect.poll(() => window.evaluate(
+      () => window.markuprx.settings.get('audioDeviceId'),
+    )).toBe('studio-microphone');
+
+    await application.close();
+    application = null;
+    launched = await launchApplication(harness);
+    application = launched.application;
+    window = launched.mainWindow;
+    await application.evaluate(({ BrowserWindow }, channel) => {
+      const owner = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed());
+      if (!owner) throw new Error('Main window is unavailable.');
+      const originalSend = owner.webContents.send.bind(owner.webContents);
+      (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
+        .selectedAudioDevice = undefined;
+      owner.webContents.send = ((sentChannel: string, ...args: unknown[]) => {
+        if (sentChannel === channel) {
+          const config = args[0] as { deviceId?: string | null } | undefined;
+          (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
+            .selectedAudioDevice = config?.deviceId;
+        }
+        return originalSend(sentChannel, ...args);
+      }) as typeof owner.webContents.send;
+    }, 'markuprx:audio:start-capture');
+
+    await selectDeterministicWindow(application, window);
+    await expect.poll(() => application!.evaluate(() => (
+      (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
+        .selectedAudioDevice
+    ))).toBe('studio-microphone');
   });
 
   test('renders Settings as the approved portrait surface @public-screenshot', async () => {

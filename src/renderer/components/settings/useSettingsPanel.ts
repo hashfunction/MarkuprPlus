@@ -160,7 +160,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setSaveStatus('saving');
       setSaveError(null);
       try {
-        await window.markuprx.settings.set(key, value);
+        if (key === 'audioDeviceId') {
+          const result = await window.markuprx.audio.setDevice(value as PublicSettings['audioDeviceId']);
+          if (!result.success) throw new Error(result.error || 'Unable to select this microphone.');
+        } else {
+          await window.markuprx.settings.set(key, value);
+        }
         if (key === 'theme' || key === 'accentColor') {
           window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
             detail: { type: 'appearance' },
@@ -411,8 +416,31 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const resetRecordingSection = useCallback(async () => {
     const defaults = {
       defaultCountdown: DEFAULT_SETTINGS.defaultCountdown,
-      showTranscriptionPreview: DEFAULT_SETTINGS.showTranscriptionPreview,
       showAudioWaveform: DEFAULT_SETTINGS.showAudioWaveform,
+    };
+    setSettings((prev) => ({ ...prev, ...defaults }));
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      for (const [key, value] of Object.entries(defaults)) {
+        await window.markuprx.settings.set(key as keyof PublicSettings, value);
+      }
+      setSaveStatus('saved');
+      return true;
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this setting.';
+      setSaveStatus('error');
+      setSaveError(message);
+      console.error('Failed to save setting:', error);
+      return false;
+    }
+  }, []);
+
+  const resetRecordingCompatibilitySection = useCallback(async () => {
+    const defaults = {
+      showTranscriptionPreview: DEFAULT_SETTINGS.showTranscriptionPreview,
       audioDeviceId: DEFAULT_SETTINGS.audioDeviceId,
       pauseThreshold: DEFAULT_SETTINGS.pauseThreshold,
       minTimeBetweenCaptures: DEFAULT_SETTINGS.minTimeBetweenCaptures,
@@ -422,7 +450,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     setSaveError(null);
     try {
       for (const [key, value] of Object.entries(defaults)) {
-        await window.markuprx.settings.set(key as keyof PublicSettings, value);
+        if (key === 'audioDeviceId') {
+          const result = await window.markuprx.audio.setDevice(value as PublicSettings['audioDeviceId']);
+          if (!result.success) throw new Error(result.error || 'Unable to reset the microphone.');
+        } else {
+          await window.markuprx.settings.set(key as keyof PublicSettings, value);
+        }
       }
       setSaveStatus('saved');
       return true;
@@ -653,6 +686,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     // Reset handlers
     resetGeneralSection,
     resetRecordingSection,
+    resetRecordingCompatibilitySection,
     resetAppearanceSection,
     resetHotkeysSection,
     resetAdvancedSection,

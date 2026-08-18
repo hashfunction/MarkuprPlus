@@ -22,6 +22,7 @@ interface RecordingOverlayProps {
   isDarkMode?: boolean;
   audioLevel?: number;
   isVoiceActive?: boolean;
+  showAudioWaveform?: boolean;
   isPaused?: boolean;
   manualShortcut?: string;
   toggleShortcut?: string;
@@ -111,6 +112,7 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   isDarkMode = false,
   audioLevel = 0,
   isVoiceActive = false,
+  showAudioWaveform = true,
   isPaused = false,
   manualShortcut = 'CommandOrControl+Shift+S',
   toggleShortcut = 'CommandOrControl+Shift+F',
@@ -298,43 +300,45 @@ export const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           </span>
 
           {/* Live microphone indicator */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              borderRadius: 999,
-              padding: '2px 5px',
-              background: isPaused ? theme.pauseBg : theme.hintBg,
-              color: theme.textMuted,
-              fontSize: 8,
-              fontWeight: 600,
-              minWidth: 78,
-            }}
-          >
-            <CompactAudioIndicator
-              audioLevel={visualAudioLevel}
-              isVoiceActive={isVoiceActive}
-              accentColor={theme.micActive}
-              inactiveColor={theme.micIdle}
-              barCount={11}
-              barWidth={2.6}
-              barGap={1.2}
-              meterHeight={16}
-              minBarHeight={4}
-              maxBarHeight={16}
-            />
-            <span
+          {showAudioWaveform && (
+            <div
               style={{
-                color: isPaused ? colors.status.warning : isVoiceActive ? theme.text : theme.textMuted,
-                fontVariantNumeric: 'tabular-nums',
-                minWidth: 36,
-                textAlign: 'right',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                borderRadius: 999,
+                padding: '2px 5px',
+                background: isPaused ? theme.pauseBg : theme.hintBg,
+                color: theme.textMuted,
+                fontSize: 8,
+                fontWeight: 600,
+                minWidth: 78,
               }}
             >
-              {isPaused ? 'Paused' : isVoiceActive ? `${Math.round(displayedMicPercent)}%` : 'Mic'}
-            </span>
-          </div>
+              <CompactAudioIndicator
+                audioLevel={visualAudioLevel}
+                isVoiceActive={isVoiceActive}
+                accentColor={theme.micActive}
+                inactiveColor={theme.micIdle}
+                barCount={11}
+                barWidth={2.6}
+                barGap={1.2}
+                meterHeight={16}
+                minBarHeight={4}
+                maxBarHeight={16}
+              />
+              <span
+                style={{
+                  color: isPaused ? colors.status.warning : isVoiceActive ? theme.text : theme.textMuted,
+                  fontVariantNumeric: 'tabular-nums',
+                  minWidth: 36,
+                  textAlign: 'right',
+                }}
+              >
+                {isPaused ? 'Paused' : isVoiceActive ? `${Math.round(displayedMicPercent)}%` : 'Mic'}
+              </span>
+            </div>
+          )}
 
           {/* Confirmed marked-issue count */}
           <span

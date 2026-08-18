@@ -360,6 +360,7 @@ const App: React.FC = () => {
             onStop={() => { void handlePrimaryAction(); }}
             audioLevel={recording.audioLevel}
             isVoiceActive={recording.isVoiceActive}
+            showAudioWaveform={ui.settings?.showAudioWaveform !== false}
             isPaused={recording.isPaused}
             manualShortcut={ui.settings?.hotkeys?.manualScreenshot}
             toggleShortcut={ui.settings?.hotkeys?.toggleRecording}

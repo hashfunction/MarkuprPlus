@@ -604,16 +604,32 @@ describe('settings IPC security boundary', () => {
 
   it('updates only the validated public audioDeviceId field', async () => {
     const manager = makeManager();
+    const devices = [
+      { id: 'microphone-1', name: 'Studio Microphone', isDefault: false },
+    ];
+    const getDevices = vi.spyOn(audioCapture, 'getDevices').mockResolvedValue(devices);
+    const setDevice = vi.spyOn(audioCapture, 'setDevice').mockImplementation(() => undefined);
     registerCaptureHandlers(context(manager));
-    const setDevice = registeredHandler(IPC_CHANNELS.AUDIO_SET_DEVICE);
+    const getDevicesHandler = registeredHandler(IPC_CHANNELS.AUDIO_GET_DEVICES);
+    const setDeviceHandler = registeredHandler(IPC_CHANNELS.AUDIO_SET_DEVICE);
 
-    await expect(setDevice({}, 'microphone-1')).resolves.toEqual({ success: true });
+    await expect(getDevicesHandler({})).resolves.toEqual(devices);
+    expect(getDevices).toHaveBeenCalledOnce();
+
+    await expect(setDeviceHandler({}, 'microphone-1')).resolves.toEqual({ success: true });
     expect(manager.update).toHaveBeenCalledWith({ audioDeviceId: 'microphone-1' });
+    expect(setDevice).toHaveBeenCalledWith('microphone-1');
     expect(manager.getAll).not.toHaveBeenCalled();
 
+    await expect(setDeviceHandler({}, null)).resolves.toEqual({ success: true });
+    expect(manager.update).toHaveBeenCalledWith({ audioDeviceId: null });
+    expect(setDevice).toHaveBeenCalledWith(null);
+
     manager.update.mockClear();
-    await expect(setDevice({}, { device: SECRET_CANARY }))
+    setDevice.mockClear();
+    await expect(setDeviceHandler({}, { device: SECRET_CANARY }))
       .resolves.toEqual({ success: false, error: 'Invalid audio device.' });
     expect(manager.update).not.toHaveBeenCalled();
+    expect(setDevice).not.toHaveBeenCalled();
   });
 });

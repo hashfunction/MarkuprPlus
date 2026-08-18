@@ -64,7 +64,7 @@ export interface AudioCaptureService {
   checkPermission(): Promise<boolean>;
   requestPermission(): Promise<boolean>;
   getDevices(): Promise<AudioDevice[]>;
-  setDevice(deviceId: string): void;
+  setDevice(deviceId: string | null): void;
   setPaused(paused: boolean): void;
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -293,7 +293,7 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
   /**
    * Set the audio input device to use
    */
-  setDevice(deviceId: string): void {
+  setDevice(deviceId: string | null): void {
     this.currentDeviceId = deviceId;
     if (this.capturing && this.mainWindow) {
       // If already capturing, notify renderer to switch device

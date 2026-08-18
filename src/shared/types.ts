@@ -275,6 +275,10 @@ export interface PublicSettings {
   hasCompletedOnboarding: boolean;
 }
 
+export type PublicSettingChangedPayload = {
+  [K in keyof PublicSettings]: { key: K; value: PublicSettings[K] };
+}[keyof PublicSettings];
+
 /**
  * Complete persisted application settings shape.
  *
@@ -479,6 +483,9 @@ export const IPC_CHANNELS = {
   SETTINGS_CLEAR_ALL_DATA: 'markuprx:settings:clear-all-data',
   SETTINGS_EXPORT: 'markuprx:settings:export',
   SETTINGS_IMPORT: 'markuprx:settings:import',
+
+  // Main -> Renderer notification used by native menu setting controls.
+  SETTINGS_CHANGED: 'menu:setting-changed',
 
   // ---------------------------------------------------------------------------
   // Analysis Provider Channels (Renderer -> Main)

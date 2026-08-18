@@ -139,6 +139,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     const resetSections = [
       s.resetGeneralSection,
       s.resetRecordingSection,
+      s.resetRecordingCompatibilitySection,
       s.resetAppearanceSection,
       s.resetHotkeysSection,
       s.resetAdvancedSection,
@@ -186,7 +187,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             onClearAllData={s.handleClearAllData}
             onExportSettings={s.handleExportSettings}
             onImportSettings={s.handleImportSettings}
-            onResetSection={s.resetAdvancedSection}
           />
         );
       default:
@@ -202,7 +202,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,
     s.handleAnthropicApiKeyChange, s.handleToggleAnthropicApiKeyVisibility, s.handleTestAnthropicApiKey,
     s.handleClearAllData, s.handleExportSettings, s.handleImportSettings,
-    s.resetRecordingSection, s.resetAppearanceSection, s.resetHotkeysSection, s.resetAdvancedSection,
+    s.resetRecordingSection, s.resetAppearanceSection, s.resetHotkeysSection,
   ]);
 
   if (!isOpen) return null;

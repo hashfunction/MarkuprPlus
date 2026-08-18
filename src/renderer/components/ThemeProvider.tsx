@@ -204,11 +204,19 @@ export function ThemeProvider({
         void syncFromSettings();
       }
     };
+    const unsubscribeNativeSetting = window.markuprx?.settings?.onChanged?.(({ key }) => {
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+        detail: {
+          type: key === 'theme' || key === 'accentColor' ? 'appearance' : 'setting',
+        },
+      }));
+    });
 
     void syncFromSettings();
     window.addEventListener('markuprx:settings-updated', handleSettingsUpdate);
     return () => {
       active = false;
+      unsubscribeNativeSetting?.();
       window.removeEventListener('markuprx:settings-updated', handleSettingsUpdate);
     };
   }, [setMode, setAccentColor]);

@@ -15,6 +15,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   IPC_CHANNELS,
   type PublicSettings,
+  type PublicSettingChangedPayload,
   type ClearApplicationDataResult,
   type CaptureSource,
   type CaptureSelectionMode,
@@ -300,7 +301,7 @@ const markuprxApi = {
     /**
      * Set the preferred audio input device
      */
-    setDevice: (deviceId: string): Promise<{ success: boolean }> => {
+    setDevice: (deviceId: string | null): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.AUDIO_SET_DEVICE, deviceId);
     },
 
@@ -371,8 +372,8 @@ const markuprxApi = {
     /**
      * Handle device change command from main
      */
-    onSetDevice: (callback: (deviceId: string) => void): Unsubscribe => {
-      const handler = (_: Electron.IpcRendererEvent, deviceId: string) => callback(deviceId);
+    onSetDevice: (callback: (deviceId: string | null) => void): Unsubscribe => {
+      const handler = (_: Electron.IpcRendererEvent, deviceId: string | null) => callback(deviceId);
       ipcRenderer.on(IPC_CHANNELS.AUDIO_SET_DEVICE, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.AUDIO_SET_DEVICE, handler);
     },
@@ -554,6 +555,8 @@ const markuprxApi = {
     set: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]): Promise<PublicSettings> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value);
     },
+
+    onChanged: createEventSubscriber<PublicSettingChangedPayload>(IPC_CHANNELS.SETTINGS_CHANGED),
 
     /**
      * Get an API key from secure storage

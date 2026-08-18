@@ -35,7 +35,6 @@ export const AdvancedTab: React.FC<{
   onClearAllData: () => void;
   onExportSettings: () => void;
   onImportSettings: () => void;
-  onResetSection: () => void;
 }> = ({
   settings,
   openAiApiKey,
@@ -60,7 +59,6 @@ export const AdvancedTab: React.FC<{
   onClearAllData,
   onExportSettings,
   onImportSettings,
-  onResetSection,
 }) => {
   const { colors } = useTheme();
   return (
@@ -78,7 +76,6 @@ export const AdvancedTab: React.FC<{
     <SettingsSection
       title="Local Transcription"
       description="Whisper runs automatically after recording and does not generate the report."
-      onReset={onResetSection}
     >
       <div style={styles.settingRow}>
         <div style={styles.settingInfo}>

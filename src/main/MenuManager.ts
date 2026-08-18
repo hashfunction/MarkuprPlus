@@ -16,7 +16,7 @@ import { Menu, app, shell, BrowserWindow, MenuItemConstructorOptions } from 'ele
 import { PUBLIC_BRAND_NAME, PUBLIC_WEBSITE_URL } from '../shared/publicBrand';
 import { sessionController } from './SessionController';
 import { getSettingsManager } from './settings/SettingsManager';
-import type { PublicSettings } from '../shared/types';
+import { IPC_CHANNELS, type PublicSettings } from '../shared/types';
 
 // =============================================================================
 // Types
@@ -427,7 +427,7 @@ export class MenuManager {
       getSettingsManager().set(key, value);
       this.buildMenu();
       // Notify renderer of setting change
-      this.sendToRenderer('menu:setting-changed', { key, value });
+      this.sendToRenderer(IPC_CHANNELS.SETTINGS_CHANGED, { key, value });
     } catch (error) {
       console.error(`[MenuManager] Failed to set setting ${key}:`, error);
     }

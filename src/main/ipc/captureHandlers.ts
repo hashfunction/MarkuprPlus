@@ -32,6 +32,7 @@ import {
   privateCaptureAreaPath,
 } from '../security/PrivateCaptureStorage';
 import { randomUUID } from 'node:crypto';
+import { audioCapture } from '../audio';
 
 const markedIssueArtifactStore = new MarkedIssueArtifactStore(
   privateCaptureAreaPath('marked-issues'),
@@ -452,7 +453,7 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
 
   // Audio device handlers
   ipcMain.handle(IPC_CHANNELS.AUDIO_GET_DEVICES, async (): Promise<AudioDevice[]> => {
-    return [];
+    return audioCapture.getDevices();
   });
 
   ipcMain.handle(IPC_CHANNELS.AUDIO_SET_DEVICE, async (_, deviceId: unknown) => {
@@ -461,7 +462,7 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
     }
     const settingsManager = ctx.getSettingsManager();
     settingsManager?.update({ audioDeviceId: deviceId });
-    ctx.getMainWindow()?.webContents.send(IPC_CHANNELS.AUDIO_SET_DEVICE, deviceId);
+    audioCapture.setDevice(deviceId);
     return { success: true };
   });
 }

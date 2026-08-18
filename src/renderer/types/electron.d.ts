@@ -7,6 +7,7 @@
 
 import type {
   PublicSettings,
+  PublicSettingChangedPayload,
   ClearApplicationDataResult,
   CaptureSource,
   CaptureSelectionMode,
@@ -119,7 +120,7 @@ interface CaptureOverlayAPI {
  */
 interface AudioAPI {
   getDevices: () => Promise<AudioDevice[]>;
-  setDevice: (deviceId: string) => Promise<{ success: boolean }>;
+  setDevice: (deviceId: string | null) => Promise<{ success: boolean; error?: string }>;
   onLevel: (callback: (level: number) => void) => Unsubscribe;
   onVoiceActivity: (callback: (active: boolean) => void) => Unsubscribe;
 
@@ -133,7 +134,7 @@ interface AudioAPI {
     chunkDurationMs: number;
   }) => void) => Unsubscribe;
   onStopCapture: (callback: () => void) => Unsubscribe;
-  onSetDevice: (callback: (deviceId: string) => void) => Unsubscribe;
+  onSetDevice: (callback: (deviceId: string | null) => void) => Unsubscribe;
   sendAudioChunk: (data: {
     timestamp: number;
     duration: number;
@@ -198,6 +199,7 @@ interface SettingsAPI {
   get: <K extends keyof PublicSettings>(key: K) => Promise<PublicSettings[K]>;
   getAll: () => Promise<PublicSettings>;
   set: <K extends keyof PublicSettings>(key: K, value: PublicSettings[K]) => Promise<PublicSettings>;
+  onChanged: (callback: (change: PublicSettingChangedPayload) => void) => Unsubscribe;
   getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;

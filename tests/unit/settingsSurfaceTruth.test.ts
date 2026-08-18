@@ -23,6 +23,7 @@ import { GeneralTab } from '../../src/renderer/components/settings/GeneralTab';
 import { RecordingTab } from '../../src/renderer/components/settings/RecordingTab';
 import { AdvancedTab } from '../../src/renderer/components/settings/AdvancedTab';
 import { DonateButton } from '../../src/renderer/components/DonateButton';
+import { RecordingOverlay } from '../../src/renderer/components/RecordingOverlay';
 
 const noop = () => undefined;
 const apiKey = {
@@ -70,6 +71,24 @@ describe('truthful public Settings surfaces', () => {
     expect(markup).not.toContain('Minimum Time Between Captures');
   });
 
+  it('hides the active recording meter when waveform feedback is disabled', () => {
+    const visible = renderToStaticMarkup(React.createElement(RecordingOverlay, {
+      duration: 3,
+      screenshotCount: 0,
+      onStop: noop,
+      showAudioWaveform: true,
+    }));
+    const hidden = renderToStaticMarkup(React.createElement(RecordingOverlay, {
+      duration: 3,
+      screenshotCount: 0,
+      onStop: noop,
+      showAudioWaveform: false,
+    }));
+
+    expect(visible).toContain('aria-label="Microphone level"');
+    expect(hidden).not.toContain('aria-label="Microphone level"');
+  });
+
   it('omits inactive debug and retention promises from Advanced Settings', () => {
     const markup = renderToStaticMarkup(React.createElement(AdvancedTab, {
       settings: { ...DEFAULT_SETTINGS, analysisProvider: 'rules' },
@@ -95,12 +114,12 @@ describe('truthful public Settings surfaces', () => {
       onClearAllData: noop,
       onExportSettings: noop,
       onImportSettings: noop,
-      onResetSection: noop,
     }));
 
     expect(markup).toContain('Report Generation');
     expect(markup).toContain('Settings Management');
     expect(markup).not.toContain('Debug Mode');
     expect(markup).not.toContain('Keep Audio Backups');
+    expect(markup).not.toContain('title="Reset section to defaults"');
   });
 });

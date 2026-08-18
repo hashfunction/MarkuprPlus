@@ -628,6 +628,11 @@ export function CompactAudioIndicator({
 
   return (
     <div
+      role="meter"
+      aria-label="Microphone level"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(Math.max(0, Math.min(1, audioLevel)) * 100)}
       style={{
         display: 'flex',
         alignItems: 'center',

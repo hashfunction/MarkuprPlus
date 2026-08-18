@@ -1897,6 +1897,7 @@ app.whenReady().then(async () => {
     });
   }
   synchronizeOutputDirectory(settingsManager, fileManager);
+  audioCapture.setDevice(settingsManager.get('audioDeviceId'));
   console.log('[Main] Settings loaded');
 
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path
