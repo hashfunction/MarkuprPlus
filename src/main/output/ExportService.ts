@@ -24,6 +24,7 @@ import type { PostProcessResult } from '../pipeline/PostProcessor';
 import { generateHtmlDocument } from './templates/html-template';
 import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import { secureWebPreferences } from '../security/BrowserSecurity';
 import {
   decodeTrustedImageBase64,
   screenshotExtension,
@@ -405,9 +406,9 @@ class ExportServiceImpl {
       width: 1200,
       height: 800,
       webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
+        ...secureWebPreferences(),
         offscreen: true,
+        javascript: false,
       },
     });
 

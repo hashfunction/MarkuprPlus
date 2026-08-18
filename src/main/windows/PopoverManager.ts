@@ -12,6 +12,7 @@
 import { BrowserWindow, screen, Tray, app } from 'electron';
 import { join } from 'path';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import { secureWebPreferences } from '../security/BrowserSecurity';
 import { POPOVER_SIZES, type PopoverState } from '../../shared/popoverLayout';
 
 /**
@@ -75,12 +76,7 @@ export class PopoverManager {
         backgroundColor: '#00000000',
       }),
 
-      webPreferences: {
-        preload: preloadPath,
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: true,
-      },
+      webPreferences: secureWebPreferences({ preload: preloadPath }),
     });
     protectRendererNavigation(this.window.webContents);
 

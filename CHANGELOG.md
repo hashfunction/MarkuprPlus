@@ -137,12 +137,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Accessibility (Landing Page)
 - Added skip-to-content link
 - Added `<main>` landmark element
-- Added focus trap on donate modal with focus return
+- Added focus trap on the legacy support modal with focus return
 - Fixed ARIA radiogroup pattern (role="radio" + aria-checked)
 - Added screen reader text for external links
 - Added focus-visible styles with amber outline
 - Fixed color contrast ratios (dark mode tertiary, light mode tertiary, light mode accent)
-- Fixed donate modal light mode (text was invisible on dark background)
+- Fixed legacy support modal light mode (text was invisible on dark background)
 - Added noscript fallback for scroll-reveal content
 
 ### Platform Compatibility
@@ -245,7 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Crash Recovery**: 5-second auto-save ensures no work is lost
 - **Offline Mode**: Local Whisper transcription works without internet
 - **Platform-Aware Hotkeys**: Cmd on Mac, Ctrl on Windows - just works
-- **Donate Button**: Rotating messages for supporting the developer
+- **Support action**: Rotating messages in the legacy interface
 - **Windows Taskbar Integration**: Overlay icons and toolbar buttons
 
 ### Changed

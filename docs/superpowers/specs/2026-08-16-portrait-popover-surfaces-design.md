@@ -103,7 +103,7 @@ The approved Settings structure is:
 1. Sticky header with Back, `Settings`, saved/readiness status, and the conditional AI Setup action.
 2. Horizontally scrollable rail containing General, Recording, Appearance, Hotkeys, and Advanced.
 3. One vertically scrollable active-section body.
-4. Reset-all and donation actions at the end of the content rather than a wide permanent footer.
+4. Reset-all actions at the end of the content rather than a wide permanent footer.
 
 The rail uses tab semantics, Left/Right arrow navigation, Home/End support, and automatic scroll-into-view for the active tab. Wheel and trackpad input over the rail may scroll it horizontally without creating page-level overflow.
 
@@ -191,7 +191,7 @@ The menu adds:
 - **Contact** — opens `mailto:hello@markuprx.com?subject=MarkuprX%20Support` in the default mail client;
 - **Quit MarkuprX** on macOS or **Exit MarkuprX** on Windows/Linux — calls `app.quit()`.
 
-Existing donation, Start/Stop Recording, Settings, and About items remain. Help and Contact sit together above About; Exit/Quit remains the final item after a separator. Processing-state enablement for Start/Stop remains unchanged.
+Start/Stop Recording, Settings, and About items remain. Help and Contact sit together above About; Exit/Quit remains the final item after a separator. Processing-state enablement for Start/Stop remains unchanged.
 
 The menu template will be built by a testable pure helper that receives platform, state, and callbacks. External-link failures are caught and logged without closing or destabilizing the app. Exit/Quit remains available in every tray state.
 

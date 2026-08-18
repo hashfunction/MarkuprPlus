@@ -7,7 +7,6 @@ import {
   SettingsPanel,
   CountdownTimer,
   CompactAudioIndicator,
-  DonateButton,
   KeyboardShortcuts,
   ExportDialog,
   SessionReview,
@@ -676,7 +675,6 @@ const App: React.FC = () => {
           <p>
             Global hotkey: <ToggleRecordingHint inline /> starts or stops the loop.
           </p>
-          <DonateButton className="ff-shell__donate" />
         </footer>
           </>
         )}

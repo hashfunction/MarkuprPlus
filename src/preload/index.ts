@@ -1192,7 +1192,11 @@ const markuprxApi = {
 // Expose API to Renderer
 // =============================================================================
 
-contextBridge.exposeInMainWorld('markuprx', markuprxApi);
+// Electron defines this as false for subframes. Treat non-Electron test
+// processes as the main frame so the preload contract remains importable.
+if (process.isMainFrame !== false) {
+  contextBridge.exposeInMainWorld('markuprx', markuprxApi);
+}
 
 // =============================================================================
 // Type Exports

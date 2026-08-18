@@ -249,6 +249,17 @@ describe('real review export artifacts', () => {
         theme: 'light',
       });
       expect(result.success).toBe(true);
+      expect(vi.mocked(BrowserWindow).mock.calls.at(-1)?.[0]).toMatchObject({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          webSecurity: true,
+          webviewTag: false,
+          navigateOnDragDrop: false,
+          javascript: false,
+        },
+      });
       await expect(readFile(outputPath)).resolves.toEqual(Buffer.from('real-export-service-pdf'));
       return capturedHtml;
     };

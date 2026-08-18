@@ -40,6 +40,7 @@ import {
   isElectronTestHarnessAllowed,
 } from '../e2e/ElectronTestHarness';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import { secureWebPreferences } from '../security/BrowserSecurity';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -212,12 +213,7 @@ function createElectronOverlayWindow(): CaptureOverlayWindow {
     maximizable: false,
     fullscreenable: false,
     hasShadow: false,
-    webPreferences: {
-      preload: preloadPath,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-    },
+    webPreferences: secureWebPreferences({ preload: preloadPath }),
   });
   protectRendererNavigation(window.webContents);
   return window as unknown as CaptureOverlayWindow;

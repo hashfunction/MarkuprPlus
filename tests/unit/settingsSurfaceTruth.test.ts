@@ -22,7 +22,6 @@ vi.mock('../../src/renderer/hooks/useTheme', () => ({
 import { GeneralTab } from '../../src/renderer/components/settings/GeneralTab';
 import { RecordingTab } from '../../src/renderer/components/settings/RecordingTab';
 import { AdvancedTab } from '../../src/renderer/components/settings/AdvancedTab';
-import { DonateButton } from '../../src/renderer/components/DonateButton';
 import { RecordingOverlay } from '../../src/renderer/components/RecordingOverlay';
 
 const noop = () => undefined;
@@ -35,16 +34,6 @@ const apiKey = {
 };
 
 describe('truthful public Settings surfaces', () => {
-  it('uses forced-colors-aware tokens for the support action', () => {
-    const markup = renderToStaticMarkup(React.createElement(DonateButton, {
-      message: 'Support MarkuprPlus',
-    }));
-
-    expect(markup).toContain('color:var(--text-secondary)');
-    expect(markup).toContain('border-color:var(--border-default)');
-    expect(markup).toContain('background-color:var(--bg-subtle)');
-  });
-
   it('shows only supported General controls', () => {
     const markup = renderToStaticMarkup(React.createElement(GeneralTab, {
       settings: { ...DEFAULT_SETTINGS, outputDirectory: '/tmp/markuprplus-output' },

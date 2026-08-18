@@ -583,7 +583,6 @@ Add these refs and handlers above the return. Extend the React import with useCa
       >
         {renderTabContent}
         <div style={styles.portraitEndActions}>
-          <DonateButton />
           <button type="button" style={styles.resetAllButton} onClick={handleResetAll}>
             Reset All to Defaults
           </button>
@@ -1699,7 +1698,7 @@ Expected: PASS.
 
 **Interfaces:**
 - Consumes: TrayState, NodeJS.Platform, shell.openExternal, app.quit, recording/settings callbacks.
-- Produces: HELP_URL, CONTACT_URL, DONATE_URL, TrayMenuActions, and buildTrayContextMenuTemplate(options).
+- Produces: HELP_URL, CONTACT_URL, TrayMenuActions, and buildTrayContextMenuTemplate(options).
 
 - [ ] **Step 1: Write the failing tray-template tests**
 
@@ -1794,7 +1793,6 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
     import type { MenuItemConstructorOptions } from 'electron';
     import type { TrayState } from '../shared/types';
 
-    export const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
     export const HELP_URL = 'https://markuprplus.com';
     export const CONTACT_URL =
       'https://github.com/hashfunction/MarkuprPlus/issues/new';
@@ -1805,7 +1803,7 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
       openExternal: (url: string) => Promise<void>;
       quit: () => void;
       reportExternalError: (
-        destination: 'donate' | 'help' | 'contact',
+        destination: 'help' | 'contact',
         error: unknown,
       ) => void;
     }
@@ -1817,7 +1815,7 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
     }
 
     function externalAction(
-      destination: 'donate' | 'help' | 'contact',
+      destination: 'help' | 'contact',
       url: string,
       actions: TrayMenuActions,
     ): () => void {
@@ -1836,11 +1834,6 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
       const isRecording = state === 'recording';
       const isProcessing = state === 'processing';
       return [
-        {
-          label: 'Buy Developer a Coffee',
-          click: externalAction('donate', DONATE_URL, actions),
-        },
-        { type: 'separator' },
         {
           label: isRecording ? 'Stop Recording' : 'Start Recording',
           enabled: !isProcessing,
@@ -1874,7 +1867,7 @@ Expected: FAIL because src/main/trayContextMenu.ts does not exist.
 
 - [ ] **Step 4: Use the helper from TrayManager**
 
-Remove the local DONATE_URL and inline Menu.buildFromTemplate array. Build the menu with:
+Replace the inline Menu.buildFromTemplate array with:
 
     const menu = Menu.buildFromTemplate(
       buildTrayContextMenuTemplate({

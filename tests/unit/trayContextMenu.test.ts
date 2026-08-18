@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CONTACT_URL,
-  DONATE_URL,
   HELP_URL,
   buildTrayContextMenuTemplate,
   type TrayMenuActions,
@@ -53,8 +52,6 @@ describe('tray context menu', () => {
     });
 
     expect(menuOrder(template)).toEqual([
-      'Buy Developer a Coffee',
-      '---',
       'Start Recording',
       '---',
       'Settings...',
@@ -112,7 +109,6 @@ describe('tray context menu', () => {
       actions,
     });
 
-    clickItem(template, 'Buy Developer a Coffee');
     clickItem(template, 'Start Recording');
     clickItem(template, 'Settings...');
     clickItem(template, 'Help');
@@ -120,11 +116,10 @@ describe('tray context menu', () => {
     clickItem(template, 'Quit MarkuprPlus');
 
     await vi.waitFor(() => {
-      expect(actions.openExternal).toHaveBeenCalledTimes(3);
+      expect(actions.openExternal).toHaveBeenCalledTimes(2);
     });
-    expect(actions.openExternal).toHaveBeenNthCalledWith(1, DONATE_URL);
-    expect(actions.openExternal).toHaveBeenNthCalledWith(2, HELP_URL);
-    expect(actions.openExternal).toHaveBeenNthCalledWith(3, CONTACT_URL);
+    expect(actions.openExternal).toHaveBeenNthCalledWith(1, HELP_URL);
+    expect(actions.openExternal).toHaveBeenNthCalledWith(2, CONTACT_URL);
     expect(actions.toggleRecording).toHaveBeenCalledOnce();
     expect(actions.openSettings).toHaveBeenCalledOnce();
     expect(actions.quit).toHaveBeenCalledOnce();
@@ -134,11 +129,9 @@ describe('tray context menu', () => {
   it('uses the exact approved public destinations', () => {
     expect(HELP_URL).toBe(PUBLIC_WEBSITE_URL);
     expect(CONTACT_URL).toBe(PUBLIC_CONTACT_URL);
-    expect(DONATE_URL).toBe('https://ko-fi.com/eddiesanjuan');
   });
 
   it.each([
-    ['Buy Developer a Coffee', 'donate'],
     ['Help', 'help'],
     ['Contact', 'contact'],
   ] as const)(

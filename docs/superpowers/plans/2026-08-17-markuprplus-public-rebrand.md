@@ -231,7 +231,6 @@ git commit -m "feat: establish MarkuprPlus public identity"
 - Modify: `src/renderer/components/settings/HotkeysTab.tsx`
 - Modify: `src/renderer/components/settings/analysisProviderOptions.ts`
 - Modify: `src/renderer/components/settings/analysisProviderViewState.ts`
-- Modify: `src/renderer/donateMessages.ts`
 - Modify: `src/renderer/overlays/SelectionOverlay.tsx`
 - Modify: `src/shared/hotkeys.ts`
 - Modify: `tests/ui/markuprx-electron.spec.ts`
@@ -308,7 +307,7 @@ backLabel="Back to MarkuprPlus"
 'MarkuprPlus ' + (s.appVersion ? 'v' + s.appVersion : '')
 ```
 
-Change shortcut copy to `Exit MarkuprPlus`, onboarding to `Welcome to MarkuprPlus setup`, the selection overlay label to `Choose what MarkuprPlus should record`, and all settings descriptions/donation messages to MarkuprPlus. Update the renderer document title, crash-recovery copy, model-download copy, review attribution, transcription-selector copy, update notification, test-fixture canvas/display labels, and public-facing renderer log text. Update only the `<text>` content in both logo SVG files; preserve geometry, typography, colors, and view boxes.
+Change shortcut copy to `Exit MarkuprPlus`, onboarding to `Welcome to MarkuprPlus setup`, the selection overlay label to `Choose what MarkuprPlus should record`, and all settings descriptions to MarkuprPlus. Update the renderer document title, crash-recovery copy, model-download copy, review attribution, transcription-selector copy, update notification, test-fixture canvas/display labels, and public-facing renderer log text. Update only the `<text>` content in both logo SVG files; preserve geometry, typography, colors, and view boxes.
 
 - [ ] **Step 5: Run UI, menu, accessibility, and static checks**
 
@@ -327,7 +326,7 @@ Expected: PASS with no new warnings.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/main src/renderer/App.tsx src/renderer/index.html src/renderer/assets src/renderer/audio/AudioCaptureRenderer.ts src/renderer/capture/ScreenRecordingRenderer.ts src/renderer/components src/renderer/donateMessages.ts src/renderer/overlays/SelectionOverlay.tsx src/shared/hotkeys.ts tests/ui/markuprx-electron.spec.ts tests/unit/analysisProviderViewState.test.ts tests/unit/electronTestHarness.test.ts tests/unit/navigationGuard.test.ts tests/unit/trayContextMenu.test.ts
+git add src/main src/renderer/App.tsx src/renderer/index.html src/renderer/assets src/renderer/audio/AudioCaptureRenderer.ts src/renderer/capture/ScreenRecordingRenderer.ts src/renderer/components src/renderer/overlays/SelectionOverlay.tsx src/shared/hotkeys.ts tests/ui/markuprx-electron.spec.ts tests/unit/analysisProviderViewState.test.ts tests/unit/electronTestHarness.test.ts tests/unit/navigationGuard.test.ts tests/unit/trayContextMenu.test.ts
 git commit -m "feat: rebrand desktop surfaces as MarkuprPlus"
 ```
 

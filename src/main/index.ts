@@ -25,6 +25,7 @@ import {
   BrowserWindow,
   ipcMain,
   Notification,
+  session,
 } from 'electron';
 import * as fs from 'fs/promises';
 import { join, dirname, basename, extname } from 'path';
@@ -65,6 +66,7 @@ import { synchronizeRuntimeSettings } from './settings/synchronizeRuntimeSetting
 import { discoverStartupCredentialAvailability } from './settings/startupCredentialAvailability';
 import { beginApplicationDataSessionStart } from './settings/clearApplicationData';
 import { clearLegacyScreenRecordingArtifacts } from './security/PrivateCaptureStorage';
+import { installPermissionPolicy, secureWebPreferences } from './security/BrowserSecurity';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
@@ -348,12 +350,7 @@ function createWindow(): void {
     alwaysOnTop: true,
     skipTaskbar: false,
     show: false, // Don't show until ready
-    webPreferences: {
-      preload: preloadPath,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-    },
+    webPreferences: secureWebPreferences({ preload: preloadPath }),
   });
   protectRendererNavigation(mainWindow.webContents);
 
@@ -1832,6 +1829,7 @@ if (!gotTheLock) {
 
 app.whenReady().then(async () => {
   console.log('[Main] App ready, starting initialization...');
+  installPermissionPolicy(session.defaultSession, DEV_RENDERER_URL);
 
   const brandMigration = await migrateLegacyBrandData({
     currentUserDataDir: app.getPath('userData'),

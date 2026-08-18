@@ -307,5 +307,3 @@ You control when and whether data leaves your machine.
 - **npm**: [npmjs.com/package/markuprx](https://www.npmjs.com/package/markuprx)
 
 Open source, MIT licensed. 860 tests across 44 files. Contributions welcome.
-
-If markuprx saves you time, consider [supporting development on Ko-fi](https://ko-fi.com/eddiesanjuan).

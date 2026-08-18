@@ -73,6 +73,13 @@ vi.mock('electron', () => ({
     removeAllListeners: vi.fn(),
   },
 
+  session: {
+    defaultSession: {
+      setPermissionRequestHandler: vi.fn(),
+      setPermissionCheckHandler: vi.fn(),
+    },
+  },
+
   ipcRenderer: {
     invoke: vi.fn(),
     on: vi.fn(),
