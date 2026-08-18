@@ -2938,16 +2938,9 @@ test.describe('MarkuprPlus desktop application', () => {
 
     await window.getByRole('button', { name: 'Open Settings' }).click();
     const settings = window.getByRole('region', { name: 'Settings', exact: true });
-    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
-    const waveformSetting = settings.getByRole('switch', {
-      name: 'Show Audio Waveform',
-      exact: true,
-    });
-    await expect(waveformSetting).toHaveAttribute('aria-checked', 'true');
-    await waveformSetting.click();
-    await expect(waveformSetting).toHaveAttribute('aria-checked', 'false');
-    await settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }).click();
-
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    const themeMode = settings.getByLabel('Theme Mode', { exact: true });
+    await expect(themeMode).toHaveValue('light');
     await application.evaluate(({ Menu }) => {
       const view = Menu.getApplicationMenu()?.items.find((item) => item.label === 'View');
       const theme = view?.submenu?.items.find((item) => item.label === 'Theme');
@@ -2955,6 +2948,23 @@ test.describe('MarkuprPlus desktop application', () => {
       (dark?.click as (() => void) | undefined)?.();
     });
     await expect(window.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(themeMode).toHaveValue('dark');
+
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+    const waveformSetting = settings.getByRole('switch', {
+      name: 'Show Audio Waveform',
+      exact: true,
+    });
+    await expect(waveformSetting).toHaveAttribute('aria-checked', 'true');
+    await application.evaluate(({ Menu }) => {
+      const view = Menu.getApplicationMenu()?.items.find((item) => item.label === 'View');
+      const waveform = view?.submenu?.items.find(
+        (item) => item.label === 'Toggle Audio Waveform',
+      );
+      (waveform?.click as (() => void) | undefined)?.();
+    });
+    await expect(waveformSetting).toHaveAttribute('aria-checked', 'false');
+    await settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }).click();
 
     await selectDeterministicWindow(application, window);
     await expect(window.getByText('Mic', { exact: true })).toHaveCount(0);
@@ -2966,6 +2976,44 @@ test.describe('MarkuprPlus desktop application', () => {
       (waveform?.click as (() => void) | undefined)?.();
     });
     await expect(window.getByText('Mic', { exact: true })).toBeVisible();
+  });
+
+  test('keeps native View checks synchronized with changes made in Settings', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await settings.getByLabel('Theme Mode', { exact: true }).selectOption('dark');
+    await expect.poll(() => window.evaluate(
+      () => window.markuprx.settings.get('theme'),
+    )).toBe('dark');
+
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+    const waveformSetting = settings.getByRole('switch', {
+      name: 'Show Audio Waveform',
+      exact: true,
+    });
+    if (await waveformSetting.getAttribute('aria-checked') === 'true') {
+      await waveformSetting.click();
+    }
+    await expect.poll(() => window.evaluate(
+      () => window.markuprx.settings.get('showAudioWaveform'),
+    )).toBe(false);
+
+    await expect.poll(() => application!.evaluate(({ Menu }) => {
+      const view = Menu.getApplicationMenu()?.items.find((item) => item.label === 'View');
+      const theme = view?.submenu?.items.find((item) => item.label === 'Theme');
+      return {
+        dark: theme?.submenu?.items.find((item) => item.label === 'Dark')?.checked,
+        system: theme?.submenu?.items.find((item) => item.label === 'System')?.checked,
+        waveform: view?.submenu?.items.find(
+          (item) => item.label === 'Toggle Audio Waveform',
+        )?.checked,
+      };
+    })).toEqual({ dark: true, system: false, waveform: false });
   });
 
   test('enumerates and restores the selected microphone for the next capture', async () => {
@@ -3026,6 +3074,55 @@ test.describe('MarkuprPlus desktop application', () => {
       (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
         .selectedAudioDevice
     ))).toBe('studio-microphone');
+
+    await cancelActiveSession(window);
+    await window.evaluate(async () => {
+      await window.markuprx.settings.set('audioDeviceId', null);
+    });
+    await application.evaluate(() => {
+      (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
+        .selectedAudioDevice = undefined;
+    });
+    await selectDeterministicWindow(application, window);
+    await expect.poll(() => application!.evaluate(() => (
+      (globalThis as typeof globalThis & { selectedAudioDevice?: string | null })
+        .selectedAudioDevice
+    ))).toBe(null);
+  });
+
+  test('contains microphone enumeration failure without a capture error or stale listener', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.evaluate(() => {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: {
+          getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }),
+          enumerateDevices: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            throw new Error('enumeration unavailable');
+          },
+        },
+      });
+    });
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    const settings = window.getByRole('region', { name: 'Settings', exact: true });
+    await settings.getByRole('tab', { name: 'Recording', exact: true }).click();
+
+    await expect.poll(() => application!.evaluate(({ ipcMain }, channel) => (
+      ipcMain.listenerCount(channel)
+    ), 'markuprx:audio:devices-response')).toBe(1);
+    await expect.poll(() => application!.evaluate(({ ipcMain }, channel) => (
+      ipcMain.listenerCount(channel)
+    ), 'markuprx:audio:devices-response')).toBe(0);
+
+    const microphone = settings.getByLabel('Microphone', { exact: true });
+    await expect(microphone.locator('option')).toHaveCount(1);
+    await expect(microphone.locator('option')).toHaveText(['System Default']);
+    expect(harness.logs.join('\n')).not.toContain('[Main] Uncaught exception: enumeration unavailable');
+    expect(harness.logs.join('\n')).not.toContain('Device enumeration timeout');
   });
 
   test('renders Settings as the approved portrait surface @public-screenshot', async () => {

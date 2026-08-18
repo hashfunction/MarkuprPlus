@@ -61,6 +61,7 @@ import { wireTrayActionCallbacks } from './trayActionWiring';
 import { audioCapture } from './audio/AudioCapture';
 import { getSettingsManager, type SettingsManager } from './settings';
 import { synchronizeOutputDirectory } from './settings/synchronizeOutputDirectory';
+import { synchronizeRuntimeSettings } from './settings/synchronizeRuntimeSettings';
 import { discoverStartupCredentialAvailability } from './settings/startupCredentialAvailability';
 import { beginApplicationDataSessionStart } from './settings/clearApplicationData';
 import { clearLegacyScreenRecordingArtifacts } from './security/PrivateCaptureStorage';
@@ -1897,7 +1898,6 @@ app.whenReady().then(async () => {
     });
   }
   synchronizeOutputDirectory(settingsManager, fileManager);
-  audioCapture.setDevice(settingsManager.get('audioDeviceId'));
   console.log('[Main] Settings loaded');
 
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path
@@ -1983,6 +1983,7 @@ app.whenReady().then(async () => {
 
   // 8b. Initialize menu manager (native macOS menu bar)
   menuManager.initialize(mainWindow!);
+  synchronizeRuntimeSettings(settingsManager, audioCapture, menuManager);
   menuManager.onAction((action, data) => {
     handleMenuAction(action, data);
   });

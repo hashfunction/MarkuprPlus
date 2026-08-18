@@ -462,7 +462,6 @@ export function registerCaptureHandlers(ctx: IpcContext): void {
     }
     const settingsManager = ctx.getSettingsManager();
     settingsManager?.update({ audioDeviceId: deviceId });
-    audioCapture.setDevice(deviceId);
     return { success: true };
   });
 }

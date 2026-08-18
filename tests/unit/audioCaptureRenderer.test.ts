@@ -161,6 +161,17 @@ describe('AudioCaptureRenderer', () => {
     expect(createScriptProcessor).not.toHaveBeenCalled();
   });
 
+  it('returns an empty device list when enumeration fails without reporting a capture error', async () => {
+    vi.mocked(navigator.mediaDevices.enumerateDevices)
+      .mockRejectedValueOnce(new Error('enumeration unavailable'));
+    const requestDevices = audioApi.onRequestDevices.mock.calls.at(-1)?.[0];
+
+    await requestDevices?.();
+
+    expect(audioApi.sendDevices).toHaveBeenCalledWith([]);
+    expect(audioApi.sendCaptureError).not.toHaveBeenCalled();
+  });
+
   it('does not begin capture after Stop overtakes an asynchronous Start', async () => {
     let resolveStream: ((stream: MockMediaStream) => void) | undefined;
     vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementation(() => (

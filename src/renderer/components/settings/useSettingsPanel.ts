@@ -150,6 +150,14 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     loadSettings();
   }, [isOpen, initialTab, getApiKeyPresence, refreshAnalysisProviders]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    return window.markuprx.settings.onChanged(({ key, value }) => {
+      setSettings((previous) => ({ ...previous, [key]: value }));
+    });
+  }, [isOpen]);
+
   // ---------------------------------------------------------------------------
   // Setting change handlers
   // ---------------------------------------------------------------------------

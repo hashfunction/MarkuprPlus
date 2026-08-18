@@ -68,7 +68,8 @@ class AudioCaptureRenderer {
         const devices = await this.getDevices();
         api.audio.sendDevices(devices);
       } catch (error) {
-        api.audio.sendCaptureError((error as Error).message);
+        console.warn('[AudioCaptureRenderer] Device enumeration failed:', error);
+        api.audio.sendDevices([]);
       }
     });
     this.cleanupFunctions.push(cleanupDevices);

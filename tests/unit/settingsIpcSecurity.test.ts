@@ -618,12 +618,12 @@ describe('settings IPC security boundary', () => {
 
     await expect(setDeviceHandler({}, 'microphone-1')).resolves.toEqual({ success: true });
     expect(manager.update).toHaveBeenCalledWith({ audioDeviceId: 'microphone-1' });
-    expect(setDevice).toHaveBeenCalledWith('microphone-1');
+    expect(setDevice).not.toHaveBeenCalled();
     expect(manager.getAll).not.toHaveBeenCalled();
 
     await expect(setDeviceHandler({}, null)).resolves.toEqual({ success: true });
     expect(manager.update).toHaveBeenCalledWith({ audioDeviceId: null });
-    expect(setDevice).toHaveBeenCalledWith(null);
+    expect(setDevice).not.toHaveBeenCalled();
 
     manager.update.mockClear();
     setDevice.mockClear();

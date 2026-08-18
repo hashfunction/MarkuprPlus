@@ -117,6 +117,26 @@ const DEFAULT_CONFIG: AudioCaptureConfig = {
   recoveryBufferMinutes: 5, // Rotate buffer files every 5 minutes
 };
 
+const MAX_AUDIO_DEVICE_COUNT = 128;
+const MAX_AUDIO_DEVICE_TEXT_LENGTH = 512;
+
+function validatedAudioDevices(value: unknown): AudioDevice[] | null {
+  if (!Array.isArray(value) || value.length > MAX_AUDIO_DEVICE_COUNT) return null;
+  const valid = value.every((device) => {
+    if (!device || typeof device !== 'object') return false;
+    const candidate = device as Partial<AudioDevice>;
+    return typeof candidate.id === 'string'
+      && candidate.id.length > 0
+      && candidate.id.length <= MAX_AUDIO_DEVICE_TEXT_LENGTH
+      && typeof candidate.name === 'string'
+      && candidate.name.length > 0
+      && candidate.name.length <= MAX_AUDIO_DEVICE_TEXT_LENGTH
+      && typeof candidate.isDefault === 'boolean';
+  });
+  if (!valid) return null;
+  return value.map((device: AudioDevice) => ({ ...device }));
+}
+
 // ============================================================================
 // AudioCaptureService Implementation
 // ============================================================================
@@ -269,24 +289,33 @@ class AudioCaptureServiceImpl extends EventEmitter implements AudioCaptureServic
    * This requests device list from renderer via IPC
    */
   async getDevices(): Promise<AudioDevice[]> {
-    return new Promise((resolve, reject) => {
-      if (!this.mainWindow) {
-        reject(new Error('Main window not set'));
+    return new Promise((resolve) => {
+      const owner = this.mainWindow?.webContents;
+      if (!owner) {
+        resolve([]);
         return;
       }
 
-      const timeout = setTimeout(() => {
-        reject(new Error('Device enumeration timeout'));
-      }, 5000);
-
-      const handler = (_event: Electron.IpcMainEvent, devices: AudioDevice[]) => {
+      let settled = false;
+      const finish = (devices: AudioDevice[]) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
         ipcMain.removeListener(AUDIO_IPC_CHANNELS.DEVICES_RESPONSE, handler);
         resolve(devices);
       };
+      const handler = (event: Electron.IpcMainEvent, devices: unknown) => {
+        if (event.sender !== owner) return;
+        finish(validatedAudioDevices(devices) ?? []);
+      };
 
       ipcMain.on(AUDIO_IPC_CHANNELS.DEVICES_RESPONSE, handler);
-      this.mainWindow.webContents.send(AUDIO_IPC_CHANNELS.REQUEST_DEVICES);
+      const timeout = setTimeout(() => finish([]), 5000);
+      try {
+        owner.send(AUDIO_IPC_CHANNELS.REQUEST_DEVICES);
+      } catch {
+        finish([]);
+      }
     });
   }
 

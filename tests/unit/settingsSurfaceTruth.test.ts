@@ -71,6 +71,21 @@ describe('truthful public Settings surfaces', () => {
     expect(markup).not.toContain('Minimum Time Between Captures');
   });
 
+  it('renders the system microphone option only once when Chromium reports it', () => {
+    const markup = renderToStaticMarkup(React.createElement(RecordingTab, {
+      settings: DEFAULT_SETTINGS,
+      audioDevices: [
+        { id: 'default', name: 'Default - MacBook Microphone', isDefault: true },
+        { id: 'studio', name: 'Studio Microphone', isDefault: false },
+      ],
+      onSettingChange: noop,
+      onResetSection: noop,
+    }));
+
+    expect(markup.match(/value="default"/g)).toHaveLength(1);
+    expect(markup).toContain('Studio Microphone');
+  });
+
   it('hides the active recording meter when waveform feedback is disabled', () => {
     const visible = renderToStaticMarkup(React.createElement(RecordingOverlay, {
       duration: 3,

@@ -41,7 +41,7 @@ export const RecordingTab: React.FC<{
         value={settings.audioDeviceId || 'default'}
         options={[
           { value: 'default', label: 'System Default' },
-          ...audioDevices.map((device) => ({
+          ...audioDevices.filter((device) => device.id !== 'default').map((device) => ({
             value: device.id,
             label: device.name + (device.isDefault ? ' (Default)' : ''),
           })),
