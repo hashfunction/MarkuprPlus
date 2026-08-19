@@ -437,7 +437,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Originally created by [Eddie San Juan](https://github.com/eddiesanjuan).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
