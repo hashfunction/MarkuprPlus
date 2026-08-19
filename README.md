@@ -1,137 +1,297 @@
 <p align="center">
-  <img src="src/renderer/assets/logo.svg" alt="MarkuprX" width="80" height="80">
+  <img src="src/renderer/assets/logo.svg" alt="MarkuprPlus" width="80" height="80">
 </p>
 
-<h1 align="center">MarkuprX</h1>
+<h1 align="center">MarkuprPlus</h1>
 
 <p align="center">
-  <strong>Record your screen. Say what's wrong. Your AI agent fixes it.</strong>
+  <strong>You see it. You say it. Your AI fixes it.</strong>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/v/markuprx?style=flat-square" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/markuprx"><img src="https://img.shields.io/npm/dm/markuprx?style=flat-square" alt="npm downloads"></a>
+  Pick a window. Talk through what's wrong. Circle it while it happens.<br>
+  Every circle becomes its own issue, with its own screenshot, ready to paste into your coding agent.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.0.0-f59e0b?style=flat-square" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#context-aware-capture-what-your-agent-actually-gets">Context-Aware Capture</a> &middot;
-  <a href="#why-markuprx">Why MarkuprX</a> &middot;
-  <a href="#mcp-server">MCP Server</a> &middot;
-  <a href="#cli">CLI</a> &middot;
-  <a href="#integrations">Integrations</a> &middot;
-  <a href="#contributing">Contributing</a>
+  <a href="#the-loop">The Loop</a> &middot;
+  <a href="#what-lands-in-your-folder">Output</a> &middot;
+  <a href="#every-surface">Screenshots</a> &middot;
+  <a href="#report-providers">Providers</a> &middot;
+  <a href="#mcp-server">MCP</a> &middot;
+  <a href="#cli">CLI</a>
 </p>
 
 ---
 
 <p align="center">
-  <img src="assets/demo-cli.gif" alt="MarkuprX desktop-to-report workflow demo" width="800">
+  <img src="docs/images/markuprplus/target-clean.png" alt="An app under review, unmarked" width="290">
+  &nbsp;&nbsp;
+  <img src="docs/images/markuprplus/marked-issue-001.png" alt="The same screen with a red freehand ellipse around the problem" width="290">
 </p>
 
-Desktop app workflow is the default: record + narrate + stop, then ship context-rich markdown (frames + cursor/window/focus hints when available) directly to your agent.
+<p align="center">
+  <em>Hold <code>Cmd</code>, circle the problem, keep talking. That stroke becomes <code>MX-001</code>.</em>
+</p>
 
 ## The Problem
 
-AI coding agents can't see your screen. When you find a bug, you context-switch into writing mode -- describing the layout issue in text, manually screenshotting, cropping, and dragging images into the right spot. You speak at 150 words per minute but type at 60. The context is lost in translation.
+Your coding agent can't see your screen. So you stop working and start transcribing: describe the layout bug in prose, take a screenshot, crop it, drag it into the right place, explain which part matters. You speak at 150 words per minute and type at 60, and the context leaks out on the way.
 
 ## The Solution
 
-MarkuprX is a desktop capture app first. You hit a hotkey, narrate what you see, and stop. Then it runs a post-session pipeline that aligns transcript timestamps with the recording, extracts the right frames, and outputs structured Markdown your agent can execute against immediately.
-
-- **Record** -- press a hotkey, talk through what you see
-- **Process** -- Whisper transcribes, ffmpeg extracts frames at the exact moments you described
-- **Enrich** -- capture context is attached to shot markers (cursor position, active window/app, focused element hints when available)
-- **Output** -- structured Markdown with screenshots and context your agent can trust
+MarkuprPlus is a menu bar app. It records the exact window you point at, listens while you narrate, and lets you draw on the live screen without blocking your clicks. When you stop, it transcribes on-device, aligns your words to each mark, and writes a report your agent can act on — one finding per circle, each with its own annotated frame.
 
 ```
-Cmd+Shift+F  -->  talk  -->  Cmd+Shift+F  -->  Cmd+V into your agent
+Cmd+Shift+F  →  talk  →  Cmd-drag  →  Cmd+Shift+F  →  paste into your agent
 ```
+
+## The Loop
+
+### 1. Press `Cmd+Shift+F` and pick your target
+
+<img src="docs/images/markuprplus/popover-ready.png" alt="The MarkuprPlus popover in its Ready To Capture state" width="320" align="right">
+
+The picker opens above every window. Whatever is under your cursor lights up — click it and the recorder locks onto that window alone, and stays locked through moves, resizes, and app switches. Region and full-display modes are one click away when a finding needs a wider frame.
+
+If the window's identity or native geometry ever becomes ambiguous mid-session, capture **stops** rather than widening to whatever is behind it. You never ship a frame you didn't mean to share.
+
+The whole app lives in this one portrait popover. No window to manage, no dock icon.
+
+<br clear="right">
+
+### 2. Talk while you work
+
+Keep clicking through your app as usual. MarkuprPlus records the window and your microphone together, then transcribes with Whisper on-device after you stop.
+
+The picker, the drawing canvas, and the recording HUD are all excluded from screen capture at the OS level — **nothing MarkuprPlus draws ends up in your video.** Only your app does, plus the strokes you meant to leave.
+
+### 3. Hold `Cmd` and draw
+
+<img src="docs/images/markuprplus/marked-issue-003.png" alt="A red hand-drawn ellipse around the tab bar of the app under review" width="250" align="right">
+
+Command-drag paints straight onto the live screen — freehand, circle, or highlight, in a colour you choose. Let go of the key and your next normal click both reaches the app underneath **and** saves that mark, clearing the canvas for the next one.
+
+On Windows, hold `Ctrl` instead.
+
+Three circles means three issues, not one screenshot with three scribbles on it. Each finding carries its own PNG, timestamp, tool, and colour.
+
+<br clear="right">
+
+### 4. Press `Cmd+Shift+F` again
+
+<img src="docs/images/markuprplus/popover-report.png" alt="The popover showing Report Ready with the markdown path copied to the clipboard" width="320" align="right">
+
+Whisper runs, your narration is aligned to each mark, and the report is written to disk. The markdown path lands on your clipboard the moment it's ready — paste it straight into Claude Code, Codex, Cursor, or anything else that reads a file.
+
+Everything for the session goes in one folder: the report, the screenshots, the session video, the narration audio, and the metadata.
+
+<br clear="right">
 
 ## Quick Start
 
-### Desktop App (recommended)
+### Desktop app (recommended)
 
-Desktop distribution information is available at [markuprx.com](https://markuprx.com).
+Download from [markuprplus.com](https://www.markuprplus.com) or the [releases page](https://github.com/hashfunction/MarkuprPlus/releases/latest). macOS on Apple Silicon and Intel, plus Windows.
 
-> **macOS install note:** Apple notarization is currently rolling out. If macOS warns on first launch, use **Right-click -> Open** once to trust the app. If needed, run: `xattr -dr com.apple.quarantine /Applications/MarkuprX.app`
+> **macOS install note:** Apple notarization is still rolling out. If macOS warns on first launch, use **Right-click → Open** once to trust the app. If needed:
+> `xattr -dr com.apple.quarantine /Applications/MarkuprPlus.app`
 
-1. Press `Cmd+Shift+F` (macOS) or `Ctrl+Shift+F` (Windows) to start
-2. Narrate what you see. Hold `Command` on macOS or `Control` on Windows and drag to mark the live screen.
-3. Release the key, then click normally to save and clear that issue while the click still reaches the app. Repeat for every finding.
-4. Press the recording hotkey again to stop.
-5. Paste the generated report path into Claude Code, Cursor, Windsurf, or any coding agent. Every marked issue includes its own screenshot and matching narration.
+1. Press `Cmd+Shift+F` (macOS) or `Ctrl+Shift+F` (Windows) and click the window you want.
+2. Narrate what you see. Hold `Cmd` / `Ctrl` and drag to mark the live screen.
+3. Release the key, then click normally — that saves the mark and clears the canvas. Repeat for every finding.
+4. Press the hotkey again to stop. The report path is on your clipboard.
 
-### MCP Server (for AI coding agents)
+### MCP server (for AI coding agents)
 
 ```bash
 npx --package markuprx markuprx-mcp
 ```
 
-### CLI (for existing recordings / CI / automation)
+### CLI (for recordings you already have)
 
 ```bash
 npx markuprx analyze ./recording.mov
 ```
 
-Use this when you already have a video file. The desktop app remains the primary capture workflow.
+> **Heads up — pre-release.** The npm package is not published yet, so the `npx`
+> forms above will 404 today. Until it lands, build from a source checkout and
+> the same two binaries are available locally:
+>
+> ```bash
+> git clone https://github.com/hashfunction/MarkuprPlus.git
+> cd MarkuprPlus && npm install && npm run build
+> node dist/cli/index.mjs analyze ./recording.mov
+> node dist/mcp/index.mjs                     # MCP server over stdio
+> ```
 
-## Context-Aware Capture: What Your Agent Actually Gets
+> **Naming:** the product is **MarkuprPlus**; the package and its binaries stay
+> `markuprx` / `markuprx-mcp` for compatibility. `npx markuprplus …` is not a thing.
 
-Every important frame can carry extra machine-usable context, not just pixels.
+## What Lands in Your Folder
 
-- **Cursor coordinates** at capture time
-- **Active app + window title** (best-effort from OS context)
-- **Focused element hints** (role/text/title hints when available)
-- **Trigger metadata** (`manual`, `pause`, or `voice-command`)
+One session, one directory:
 
-This makes the report a high-signal liaison between you and your agent: what you said, what you saw, and where your attention was.
-
-## Why MarkuprX?
-
-**Local-first.** Whisper runs on your device. Your recordings, transcripts, and screenshots never leave your machine. No cloud dependency, no account required.
-
-**AI-native output.** The Markdown output is structured for LLM consumption -- headings, categories, severity levels, inline screenshots, and capture-context hints. Not a raw transcript with random images.
-
-**Works everywhere.** Desktop app for daily flow. CLI for scripts and CI/CD. MCP server for agent integration. GitHub Action for PR feedback. Same pipeline, four interfaces.
-
-**Open source.** MIT licensed. No telemetry, no tracking, no analytics. Read the source, fork it, ship it.
-
-## What the Output Looks Like
-
-```markdown
-# Feedback Session -- Feb 5, 2026
-
-## FB-001: Button sizing issue
-The submit button is way too small on mobile. I'm trying to tap it
-and keep hitting the cancel link underneath. Needs more vertical
-padding, maybe 12px minimum tap target.
-
-![Screenshot at 0:34](screenshots/fb-001.png)
-
-## FB-002: Loading state feels janky
-After the spinner disappears, the content pops in with no transition.
-There's a visible layout shift -- the sidebar jumps left by about
-20 pixels.
-
-![Screenshot at 1:12](screenshots/fb-002.png)
+```
+originplayer-test-iphone-20260818-104731/
+├── feedback-report.md          # the file you paste
+├── feedback-summary.md         # counts and duration
+├── metadata.json               # per-issue capture context
+├── processing-trace.json       # which provider ran, how long, why it fell back
+├── screenshots/
+│   ├── marked-issue-001.png    # one frame per mark, your stroke composited in
+│   ├── marked-issue-002.png
+│   └── marked-issue-003.png
+├── session-recording.webm      # the window, with annotations
+└── session-audio.webm          # your narration
 ```
 
-Each screenshot is extracted from the exact video frame matching your narration timestamp, with context hints attached when available. See full examples in [`examples/`](examples/).
+A real, unedited finding from that session:
+
+```markdown
+### MX-001
+
+- **Timestamp:** 00:08
+- **Tools:** freehand
+- **Colors:** #ff3b30
+
+#### User Comment
+
+> So there's a search menu and over here by default, if there's been
+> previous searches, it should list out all the searches that have
+> happened in the past.
+
+#### Marked Evidence
+
+![Marked issue MX-001](./screenshots/marked-issue-001.png)
+```
+
+Each finding carries more than pixels:
+
+| What travels with the issue | Example |
+|---|---|
+| Its own annotated PNG | `screenshots/marked-issue-001.png` |
+| The narration at that moment | `transcript-segment-0001 … 0002` |
+| How you marked it | `freehand · #ff3b30` |
+| Where it came from | `window:5976:0` · `OriginPlayer Test iPhone` · `darwin` |
+| Cursor, active app, and focus hints | captured at the instant you drew |
+| Trigger metadata | `annotation`, `manual`, `pause`, or `voice-command` |
+
+Marked issues are numbered `MX-001…`; items that come from narration alone are `FB-001…`.
+
+## Every Surface
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="docs/images/markuprplus/providers.png" alt="Provider list with live reachability status" width="100%"><br>
+      <strong>Report providers</strong><br>
+      Six ways to turn a session into a report, each showing whether it's reachable <em>right now</em> — CLI version and path, local port, missing key.
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/images/markuprplus/review-editor-dark.png" alt="Review editor with editable category and severity chips" width="100%"><br>
+      <strong>Review editor</strong><br>
+      Reorder findings, retitle them, change category and severity, and drop the ones that were just thinking out loud.
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/images/markuprplus/markdown-preview.png" alt="Live markdown preview inside the review editor" width="100%"><br>
+      <strong>Live markdown preview</strong><br>
+      See the exact file your agent will read before you save it. Copy it, open the folder, or export.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/images/markuprplus/popover-recent.png" alt="Recent captures list with item and shot counts" width="100%"><br>
+      <strong>Recent captures</strong><br>
+      Every session stays on disk with its item and shot counts. Copy any report path back without hunting through Finder.
+    </td>
+    <td valign="top">
+      <img src="docs/images/markuprplus/hotkeys-dark.png" alt="Hotkey settings and quick reference" width="100%"><br>
+      <strong>Hotkeys</strong><br>
+      Record, screenshot, and pause are global and rebindable, with the quick reference kept in the panel.
+    </td>
+    <td valign="top">
+      <img src="docs/images/markuprplus/appearance.png" alt="Accent colour picker with live preview" width="100%"><br>
+      <strong>Appearance</strong><br>
+      Ten accent colours plus a custom picker, previewed live. Light and dark follow the system.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/images/markuprplus/recording-settings.png" alt="Recording behaviour and audio input settings" width="100%"><br>
+      <strong>Recording &amp; audio</strong><br>
+      Countdown before recording, audio waveform feedback, and microphone selection.
+    </td>
+    <td valign="top">
+      <img src="docs/images/markuprplus/transcription.png" alt="Local transcription and credential settings" width="100%"><br>
+      <strong>Transcription &amp; keys</strong><br>
+      Whisper runs locally first. OpenAI only receives audio if local recovery fails <em>and</em> you saved a key.
+    </td>
+    <td valign="top">
+      <img src="docs/images/markuprplus/tray-menu.png" alt="Menu bar context menu" width="100%"><br>
+      <strong>Menu bar</strong><br>
+      Start a recording, jump to settings, or quit — without opening the popover at all.
+    </td>
+  </tr>
+</table>
+
+## Report Providers
+
+Pick the model that turns a capture into a structured report. MarkuprPlus checks each one **before** you record and shows you what it actually found.
+
+| Provider | Kind | What it uses |
+|---|---|---|
+| **Codex CLI** | CLI | Your installed Codex CLI and existing ChatGPT login, in a read-only ephemeral session |
+| **Claude Code CLI** | CLI | The Claude Code CLI you're already signed in to |
+| **Ollama** | Local | A model served on `127.0.0.1:11434` — nothing leaves the machine |
+| **LM Studio** | Local | An LM Studio server on `127.0.0.1:1234` |
+| **Anthropic API** | Cloud | Your own key, stored in the system keychain and used for nothing else |
+| **Local rules** | Zero setup | Deterministic report from transcript and marks alone, no credentials |
+
+**Failure is safe by design.** If the provider you picked errors out, the deterministic Local rules report is written anyway, and the popover names the provider and the reason. Your recording, audio, and marks were already on disk before analysis started. An explicit Codex choice never silently becomes an Anthropic call.
+
+`processing-trace.json` records exactly what happened:
+
+```json
+{
+  "requestedProvider": "codex-cli",
+  "actualProvider": "rules",
+  "aiFallbackReason": "Codex analysis exited with status 1.",
+  "aiEnhanced": false,
+  "totalMs": 4220
+}
+```
+
+## Why MarkuprPlus
+
+**Evidence, not footage.** A screen recording leaves your agent a video it can't watch and you a file you have to narrate twice. This gives you separate findings, one annotated frame each, the words you said at that timestamp, and the window and cursor context.
+
+**Local-first.** Whisper runs on your device and Local rules needs no credentials. Cloud transcription and cloud models only run when you explicitly pick them. No account, no telemetry, no analytics.
+
+**It doesn't film itself.** The picker, the drawing canvas, and the recording HUD are content-protected at the OS level. Your marks reach the report; the app's own chrome never reaches the video.
+
+**Works everywhere.** Desktop app for daily flow, CLI for scripts and CI, MCP server for agents, GitHub Action for pull requests. One pipeline, four front doors.
+
+**Open source.** MIT licensed. Read it, fork it, ship it.
 
 ## MCP Server
 
-Give your AI coding agent eyes and ears. Add MarkuprX as an MCP server and it can capture screenshots, record your screen with voice, and receive structured reports -- all mid-conversation.
+Give your agent eyes and ears. It can capture screenshots, record your screen with voice, and receive structured reports mid-conversation.
 
-### Setup
-
-**Claude Code** (`~/.claude/settings.json`):
+**Claude Code** (`~/.claude/settings.json`), Cursor, and Windsurf all take the same shape:
 
 ```json
 {
   "mcpServers": {
-    "MarkuprX": {
+    "MarkuprPlus": {
       "command": "npx",
       "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
@@ -139,105 +299,93 @@ Give your AI coding agent eyes and ears. Add MarkuprX as an MCP server and it ca
 }
 ```
 
-**Cursor / Windsurf** -- same config in your MCP settings.
-
 ### Tools
 
 | Tool | Description |
 |------|-------------|
-| `capture_screenshot` | Grab the current screen and attach context metadata (cursor + active app/window + focus hints when available). |
-| `capture_with_voice` | Record screen + mic for a set duration. Returns a structured report. |
-| `analyze_video` | Process any existing `.mov` or `.mp4` into Markdown with extracted frames (fallback path for externally captured recordings). |
-| `analyze_screenshot` | Run a screenshot through the AI analysis pipeline. |
+| `capture_screenshot` | Grab the current screen with cursor, active app/window, and focus hints attached. |
+| `capture_with_voice` | Record screen and mic for a set duration, and return a structured report. |
+| `describe_screen` | Describe what's currently on screen. |
 | `start_recording` | Begin an interactive recording session. |
 | `stop_recording` | End the session and run the full pipeline. |
-
-### Example
+| `analyze_video` | Process an existing `.mov` / `.mp4` into Markdown with extracted frames. |
+| `analyze_screenshot` | Run a single screenshot through the analysis pipeline. |
+| `push_to_github` | Create GitHub issues from a report. |
+| `push_to_linear` | Create Linear issues from a report. |
 
 ```
 You: "The sidebar is overlapping the main content on mobile. Can you see it?"
 
 Agent: [calls capture_screenshot]
-       "I can see the issue -- the sidebar has position: fixed but no z-index,
-        and it's 280px wide with no responsive breakpoint. Let me fix the CSS..."
-
-       [fixes the code]
+       "I can see it — the sidebar is position: fixed with no z-index,
+        280px wide with no responsive breakpoint. Fixing the CSS..."
 ```
 
-No copy-pasting screenshots. No rewriting what you already know. The agent gets structured report context and acts.
-
-Full MCP documentation: [README-MCP.md](README-MCP.md)
+Full MCP documentation: [README-MCP.md](README-MCP.md).
 
 ## CLI
 
-### Installation
-
 ```bash
-# Run without installing
-npx markuprx analyze ./recording.mov
-
-# Or install globally
-npm install -g markuprx
+npx markuprx analyze ./recording.mov     # once published; see the pre-release note above
 ```
 
-### Commands
-
-**`markuprx analyze <video>`** -- Process an existing screen recording into structured Markdown.
+| Command | What it does |
+|---|---|
+| `markuprx analyze <video>` | Turn an existing recording into a structured report |
+| `markuprx watch [dir]` | Process new recordings from a folder as they land |
+| `markuprx doctor` | Check your environment for dependencies and configuration |
+| `markuprx init` | Scaffold configuration |
+| `markuprx push github <report>` | Create GitHub issues from a report |
+| `markuprx push linear <report>` | Create Linear issues from a report |
 
 ```bash
-markuprx analyze ./bug-demo.mov
 markuprx analyze ./recording.mov --output ./reports
 markuprx analyze ./recording.mov --template github-issue
-markuprx analyze ./recording.mov --no-frames  # transcript only
-```
-
-**`markuprx watch [directory]`** -- Watch for new recordings and auto-process them.
-
-```bash
+markuprx analyze ./recording.mov --no-frames        # transcript only
 markuprx watch ~/Desktop --output ./reports
-```
-
-**`markuprx push github <report>`** -- Create GitHub issues from a feedback report.
-
-```bash
-markuprx push github ./report.md --repo myorg/myapp
 markuprx push github ./report.md --repo myorg/myapp --dry-run
 ```
 
-**`markuprx push linear <report>`** -- Create Linear issues from a feedback report.
+**Output templates:** `markdown` (default) · `json` · `github-issue` · `linear` · `jira`
+The desktop app also exports `html` and `pdf`.
 
-```bash
-markuprx push linear ./report.md --team ENG
-```
+**Requirements:** Node.js 20.9+ and [ffmpeg](https://ffmpeg.org/) on your `PATH` (`brew install ffmpeg` / `apt install ffmpeg` / `choco install ffmpeg`).
 
-### Output Templates
-
-`markdown` (default) | `json` | `github-issue` | `linear` | `jira` | `html`
-
-### Requirements
-
-- Node.js 20.9+
-- [ffmpeg](https://ffmpeg.org/) on your PATH (`brew install ffmpeg` / `apt install ffmpeg` / `choco install ffmpeg`)
+<p align="center">
+  <img src="assets/demo-cli.gif" alt="MarkuprPlus desktop-to-report workflow demo" width="800">
+</p>
 
 ## Integrations
 
 ### GitHub Action
 
-Run MarkuprX in CI to get visual feedback on pull requests:
+Analyze recordings in CI and post structured feedback on the pull request that needs it:
 
 ```yaml
 - uses: eddiesanjuan/markuprx-action@v1
   with:
     video-path: ./recordings/
     github-token: ${{ secrets.GITHUB_TOKEN }}
+    create-issues: 'true'
 ```
 
-### Desktop App Workflow (Primary)
+See [markuprx-action/README.md](markuprx-action/README.md) for every input.
 
-1. Press `Cmd+Shift+F` (macOS) or `Ctrl+Shift+F` (Windows)
-2. Narrate what you see and mark shots as needed
-3. Press the hotkey again to stop
-4. Paste the file path from your clipboard into Claude Code, Cursor, or any AI agent
+### Issue trackers
+
+Push each finding straight into GitHub Issues or Linear — screenshot, narration, timestamp, and capture context already formatted — from the app, the CLI, or your agent over MCP.
+
+## Keyboard Shortcuts
+
+| Action | macOS | Windows |
+|---|---|---|
+| Start / stop recording | `Cmd+Shift+F` | `Ctrl+Shift+F` |
+| Mark the live screen | hold `Cmd` and drag | hold `Ctrl` and drag |
+| Manual screenshot | `Cmd+Shift+S` | `Ctrl+Shift+S` |
+| Pause / resume | `Cmd+Shift+P` | `Ctrl+Shift+P` |
+| Settings | `Cmd+,` | `Ctrl+,` |
+
+Recording, screenshot, and pause are global and rebindable in **Settings → Hotkeys**. Full reference: [docs/KEYBOARD_SHORTCUTS.md](docs/KEYBOARD_SHORTCUTS.md).
 
 ## How It Works
 
@@ -247,28 +395,25 @@ Run MarkuprX in CI to get visual feedback on pull requests:
                     +-----------+
                          |
                     +-----------+
-                    | Analyzer  | -> Key moments identified
+                    | Aligner   | -> Marks matched to the words around them
                     +-----------+
                          |
                     +-----------+
-                    | ffmpeg    | -> Frames extracted at exact timestamps
+                    | Provider  | -> Structure and severity (or local rules)
                     +-----------+
                          |
                     +-----------+
-                    | Generator | -> Structured Markdown with inline screenshots
+                    | Generator | -> Markdown, HTML, JSON, PDF, or tracker-ready
                     +-----------+
 ```
 
-The pipeline degrades gracefully. No ffmpeg? Transcript-only output. No Whisper model? Timer-based screenshots. No API keys? Everything runs locally.
-
-Desktop app capture remains the default path. CLI/MCP `analyze_video` remains available when you need to process an existing recording.
+The pipeline degrades gracefully at every step. No ffmpeg? Transcript-only output. No Whisper model? Timer-based screenshots. No provider? Local rules. A failure anywhere still leaves you a report and the raw session on disk.
 
 For architecture details, see [CLAUDE.md](CLAUDE.md).
 
 ## Development
 
 ```bash
-# From an existing MarkuprX source checkout:
 npm install
 npm run dev
 ```
@@ -292,11 +437,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ## License
 
-MIT -- see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Originally created by [Eddie San Juan](https://github.com/eddiesanjuan).
 
 ---
 
 <p align="center">
-  Built by <a href="https://github.com/eddiesanjuan">Eddie San Juan</a><br>
-  <a href="https://markuprx.com">markuprx.com</a>
+  <a href="https://www.markuprplus.com">www.markuprplus.com</a>
 </p>
