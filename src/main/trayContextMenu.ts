@@ -6,11 +6,10 @@ import {
 } from '../shared/publicBrand';
 import type { TrayState } from '../shared/types';
 
-export const DONATE_URL = 'https://ko-fi.com/eddiesanjuan';
 export const HELP_URL = PUBLIC_WEBSITE_URL;
 export const CONTACT_URL = PUBLIC_CONTACT_URL;
 
-type ExternalDestination = 'donate' | 'help' | 'contact';
+type ExternalDestination = 'help' | 'contact';
 
 export interface TrayMenuActions {
   toggleRecording: () => void;
@@ -56,11 +55,6 @@ export function buildTrayContextMenuTemplate({
   const isProcessing = state === 'processing';
 
   return [
-    {
-      label: 'Buy Developer a Coffee',
-      click: externalAction('donate', DONATE_URL, actions),
-    },
-    { type: 'separator' },
     {
       label: isRecording ? 'Stop Recording' : 'Start Recording',
       enabled: !isProcessing,

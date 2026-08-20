@@ -7,7 +7,6 @@
 
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
-import { DonateButton } from './DonateButton';
 import { PortraitSurface } from './PortraitSurface';
 import { GeneralTab, RecordingTab, AppearanceTab, HotkeysTab, AdvancedTab, TABS } from './settings';
 import type { SettingsTab } from './settings';
@@ -297,7 +296,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       >
         {renderTabContent}
         <div style={styles.portraitEndActions}>
-          <DonateButton />
           <button type="button" style={styles.resetAllButton} onClick={handleResetAll}>
             Reset All to Defaults
           </button>

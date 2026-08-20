@@ -1,8 +1,8 @@
-# MarkuprX Portrait Application Design System
+# MarkuprPlus Portrait Application Design System
 
 ## Product context
 
-MarkuprX is an Electron menu-bar/taskbar app for recording screen feedback with narration and turning it into structured Markdown. It must feel fast, compact, native, and trustworthy. The primary interaction surface is a tray-anchored portrait popover rather than a conventional desktop window.
+MarkuprPlus is an Electron menu-bar/taskbar app for recording screen feedback with narration and turning it into structured Markdown. It must feel fast, compact, native, and trustworthy. The primary interaction surface is a tray-anchored portrait popover rather than a conventional desktop window.
 
 Primary logical surfaces:
 
@@ -31,7 +31,7 @@ Compact recording and processing HUDs are deliberately separate and retain their
 
 ## Visual language
 
-Preserve the current MarkuprX visual identity.
+Preserve the current MarkuprPlus visual identity.
 
 - Background: layered radial blue/indigo glow over a deep navy-to-black vertical gradient.
 - Main surfaces: translucent #161c27 / #1a212d family with restrained glass treatment.
@@ -104,10 +104,10 @@ Preserve the current MarkuprX visual identity.
 
 Use the platform-native Electron tray menu.
 
-- Retain recording action, Settings, About, Donate, and platform conventions.
-- Add Help, opening https://markuprx.com.
-- Add Contact, opening a pre-addressed mailto link to hello@markuprx.com.
-- Provide Exit MarkuprX on Windows/Linux and Quit MarkuprX on macOS.
+- Retain recording action, Settings, About, and platform conventions.
+- Add Help, opening https://markuprplus.com.
+- Add Contact, opening a pre-addressed mailto link to hello@markuprplus.com.
+- Provide Exit MarkuprPlus on Windows/Linux and Quit MarkuprPlus on macOS.
 - Right-click opens this menu; left-click continues to toggle the portrait popover.
 
 ## Accessibility and motion

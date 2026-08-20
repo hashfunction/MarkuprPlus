@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-> **Upgrading to MarkuprX 3.0:** the new application and bundle identity may cause macOS or Windows to request Screen Recording, Microphone, or Accessibility permission again. Re-enable MarkuprX in the relevant privacy panels, then restart the app once.
+> **Upgrading to MarkuprPlus 3.0:** the new application and bundle identity may cause macOS or Windows to request Screen Recording, Microphone, or Accessibility permission again. Re-enable MarkuprPlus in the relevant privacy panels, then restart the app once.
 
 This guide helps resolve common issues with markuprx.
 
@@ -403,7 +403,7 @@ When reporting an issue:
 
 ### Contact
 
-- **Project website**: [markuprx.com](https://markuprx.com)
+- **Project website**: [markuprplus.com](https://markuprplus.com)
 - **Documentation**: This documentation
 - **Release Notes**: Check for known issues in release notes
 

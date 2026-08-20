@@ -35,9 +35,9 @@ Everything needed to launch markuprx on Product Hunt. Copy-paste ready.
 
 **Pricing:** Free
 
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 
 ---
 
@@ -73,7 +73,7 @@ Everything needed to launch markuprx on Product Hunt. Copy-paste ready.
 >
 > I'd love your honest feedback. What would make this more useful in your workflow? What's missing? I'm shipping fast and building in public.
 >
-> Follow the project at https://markuprx.com
+> Follow the project at https://markuprplus.com
 
 ---
 
@@ -193,7 +193,7 @@ Send this via DM, email, or group chat. Keep it personal -- never mass-blast.
 > Free, MIT licensed, no telemetry. Desktop app + CLI + MCP server + GitHub Action.
 >
 > Check it out: [PH link]
-> Website: https://markuprx.com
+> Website: https://markuprplus.com
 
 ### Anti-patterns to avoid:
 - Don't say "please upvote" -- say "check it out" or "would love your feedback"
@@ -227,7 +227,7 @@ Send this via DM, email, or group chat. Keep it personal -- never mass-blast.
 - [ ] Maker comment written and reviewed
 - [ ] First technical comment written and reviewed
 - [ ] 20+ followers on the upcoming page
-- [ ] Website live and all links working (https://markuprx.com)
+- [ ] Website live and all links working (https://markuprplus.com)
 - [ ] GitHub repo public with clean README
 - [ ] npm packages published and working (`npx markuprx`, `npx --package markuprx markuprx-mcp`)
 - [ ] Download links working for macOS and Windows

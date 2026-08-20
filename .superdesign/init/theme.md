@@ -981,11 +981,6 @@ h6 {
   color: var(--ff-text-muted);
 }
 
-.ff-shell__donate {
-  margin-top: 4px;
-  align-self: flex-start;
-}
-
 .ff-shell--recording .ff-shell__card {
   border-color: rgba(255, 59, 48, 0.35);
 }

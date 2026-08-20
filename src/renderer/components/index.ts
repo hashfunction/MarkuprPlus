@@ -52,9 +52,6 @@ export { SettingsPanel, default as SettingsPanelDefault } from './SettingsPanel'
 export { PortraitSurface } from './PortraitSurface';
 export type { PortraitSurfaceProps } from './PortraitSurface';
 
-// Donate button
-export { DonateButton, default as DonateButtonDefault } from './DonateButton';
-
 // Session history
 export { SessionHistory } from './SessionHistory';
 
@@ -94,4 +91,3 @@ export type {
   ClarificationQuestion,
   ClarificationType,
 } from './ClarificationQuestions';
-export type { DonateButtonProps } from './DonateButton';

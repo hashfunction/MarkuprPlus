@@ -53,6 +53,6 @@ Everything runs locally by default. Whisper transcription happens on your machin
 
 Open source, MIT licensed. 860 tests.
 
-Website: https://markuprx.com
+Website: https://markuprplus.com
 npm: `npx --package markuprx markuprx-mcp` (MCP server) / `npx markuprx analyze` (CLI)
 GitHub Action: `eddiesanjuan/markuprx-action@v1`

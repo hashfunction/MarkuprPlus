@@ -2463,9 +2463,6 @@ test.describe('MarkuprPlus desktop application', () => {
     application = launched.application;
     const window = launched.mainWindow;
     await setRendererTheme(window, 'light');
-    await window.evaluate(() => {
-      localStorage.setItem('markuprx:donate-message-index', '0');
-    });
 
     await window.getByRole('button', { name: 'Open Settings' }).click();
     await expectPortraitWindow(application, window);
@@ -2532,13 +2529,8 @@ test.describe('MarkuprPlus desktop application', () => {
     await expectSettingsTabUnobscured(settings, 'Advanced', 'backward');
 
     await settings.getByRole('button', { name: 'Back to MarkuprPlus', exact: true }).click();
-    await window.evaluate(() => {
-      localStorage.setItem('markuprx:donate-message-index', '0');
-    });
     await window.getByRole('button', { name: 'Open Settings', exact: true }).click();
     await expect(settings).toBeVisible();
-    await expect(settings.getByRole('button', { name: 'Buy Eddie a Coffee', exact: true }))
-      .toBeVisible();
     const generalBeforeScreenshot = rail.getByRole('tab', { name: 'General', exact: true });
     await expect(settings.getByRole('button', {
       name: 'Show more settings sections',

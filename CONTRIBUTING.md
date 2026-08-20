@@ -1,6 +1,6 @@
-# Contributing to MarkuprX
+# Contributing to MarkuprPlus
 
-Thank you for your interest in contributing to MarkuprX! This document covers everything you need to get started.
+Thank you for your interest in contributing to MarkuprPlus! This document covers everything you need to get started.
 
 ## Table of Contents
 
@@ -269,11 +269,11 @@ export function SessionStatus({ state }: SessionStatusProps) {
 
 1. **Search existing issues** for duplicates
 2. **Try the latest version** -- the issue may already be fixed
-3. **Collect information**: OS, MarkuprX version (visible in Settings footer), steps to reproduce, error messages or logs
+3. **Collect information**: OS, MarkuprPlus version (visible in Settings footer), steps to reproduce, error messages or logs
 
 ### Filing a Bug
 
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening a new issue. Include your OS, MarkuprX version, and steps to reproduce.
+Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) when opening a new issue. Include your OS, MarkuprPlus version, and steps to reproduce.
 
 ### Requesting a Feature
 
@@ -282,6 +282,6 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). D
 ## Questions?
 
 - Check the [documentation](docs/)
-- Visit [markuprx.com](https://markuprx.com) for current project information
+- Visit [markuprplus.com](https://markuprplus.com) for current project information
 
-Thank you for contributing to MarkuprX!
+Thank you for contributing to MarkuprPlus!

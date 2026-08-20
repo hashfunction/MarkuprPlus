@@ -1,6 +1,6 @@
-# Getting Started with MarkuprX
+# Getting Started with MarkuprPlus
 
-This guide walks you through setting up MarkuprX for the first time.
+This guide walks you through setting up MarkuprPlus for the first time.
 
 ## Table of Contents
 
@@ -35,20 +35,20 @@ This guide walks you through setting up MarkuprX for the first time.
 
 ### macOS
 
-1. Obtain the current `.dmg` using the distribution information at [markuprx.com](https://markuprx.com)
+1. Obtain the current `.dmg` using the distribution information at [markuprplus.com](https://markuprplus.com)
 2. Open the downloaded DMG file
-3. Drag the MarkuprX icon to your Applications folder
+3. Drag the MarkuprPlus icon to your Applications folder
 4. Eject the DMG
-5. Open MarkuprX from your Applications folder
+5. Open MarkuprPlus from your Applications folder
 
 **Note**: On first launch, macOS may show a security warning. Click "Open" to continue, or go to System Preferences > Security & Privacy to allow the app.
 
 ### Windows
 
-1. Obtain the current `.exe` using the distribution information at [markuprx.com](https://markuprx.com)
+1. Obtain the current `.exe` using the distribution information at [markuprplus.com](https://markuprplus.com)
 2. Run the installer
 3. Follow the installation wizard
-4. Launch MarkuprX from the Start menu or desktop shortcut
+4. Launch MarkuprPlus from the Start menu or desktop shortcut
 
 ### Linux
 
@@ -70,9 +70,9 @@ sudo apt-get install -f  # Install dependencies if needed
 
 ## First-Time Setup
 
-When you launch MarkuprX for the first time, the onboarding wizard will guide you through:
+When you launch MarkuprPlus for the first time, the onboarding wizard will guide you through:
 
-1. **Welcome** - Introduction to MarkuprX
+1. **Welcome** - Introduction to MarkuprPlus
 2. **Permissions** - Granting required system permissions
 3. **BYOK Keys (Optional)** - Configuring OpenAI + Anthropic keys for full AI-assisted reports
 4. **Quick Tour** - Learning the basic workflow
@@ -81,7 +81,7 @@ You can skip the wizard and configure settings manually, but we recommend comple
 
 ## Configuring BYOK API Keys (Optional)
 
-MarkuprX can run local-first, and you can optionally configure BYOK keys for full cloud-assisted transcription + analysis.
+MarkuprPlus can run local-first, and you can optionally configure BYOK keys for full cloud-assisted transcription + analysis.
 
 ### Which keys do I need?
 
@@ -96,9 +96,9 @@ If you only want capture + basic local workflows, you can start without keys and
 2. Anthropic: [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
 3. Create keys and copy them immediately (you may not be able to view them again).
 
-### Add keys in MarkuprX
+### Add keys in MarkuprPlus
 
-1. Open MarkuprX
+1. Open MarkuprPlus
 2. Go to **Settings** (`Cmd+,` on macOS, `Ctrl+,` on Windows)
 3. Navigate to **Advanced**
 4. Paste your OpenAI and Anthropic keys in their respective fields
@@ -107,27 +107,27 @@ If you only want capture + basic local workflows, you can start without keys and
 
 ## Granting Permissions
 
-MarkuprX requires certain system permissions to function properly.
+MarkuprPlus requires certain system permissions to function properly.
 
 ### macOS Permissions
 
 #### Microphone Access
 
-MarkuprX needs microphone access to capture your voice narration.
+MarkuprPlus needs microphone access to capture your voice narration.
 
 1. When prompted, click **OK** to allow microphone access
 2. If you denied access, go to:
    - System Preferences > Security & Privacy > Privacy > Microphone
-   - Check the box next to MarkuprX
+   - Check the box next to MarkuprPlus
 
 #### Screen Recording
 
-MarkuprX needs screen recording permission to record the selected window, region, or display and extract report frames.
+MarkuprPlus needs screen recording permission to record the selected window, region, or display and extract report frames.
 
 1. When prompted, click **Open System Preferences**
 2. Go to Security & Privacy > Privacy > Screen Recording
-3. Check the box next to MarkuprX
-4. **Restart MarkuprX** for the change to take effect
+3. Check the box next to MarkuprPlus
+4. **Restart MarkuprPlus** for the change to take effect
 
 #### Accessibility (Optional)
 
@@ -135,13 +135,13 @@ For global hotkeys to work in all applications:
 
 1. Go to System Preferences > Security & Privacy > Privacy > Accessibility
 2. Click the lock icon and enter your password
-3. Check the box next to MarkuprX
+3. Check the box next to MarkuprPlus
 
 ### Windows Permissions
 
 Windows typically handles permissions automatically. If you encounter issues:
 
-1. Right-click on MarkuprX in the Start menu
+1. Right-click on MarkuprPlus in the Start menu
 2. Select "Run as administrator" (for first run only)
 3. Follow any Windows Security prompts
 
@@ -175,7 +175,7 @@ A QuickTime-style desktop selector appears. **Window** mode is the default:
 - Choose **Full Screen** (or press `S`) only when you explicitly want an entire display.
 - Press `W` to return to Window mode or `Escape` to cancel without starting a session.
 
-On window systems that do not expose trustworthy window geometry, MarkuprX offers an exact-source thumbnail gallery instead of guessing. That exact window can still be recorded, but live drawing is disabled because MarkuprX will not fabricate annotation bounds. Region and Full Screen remain available when the display can be matched to its exact capture source.
+On window systems that do not expose trustworthy window geometry, MarkuprPlus offers an exact-source thumbnail gallery instead of guessing. That exact window can still be recorded, but live drawing is disabled because MarkuprPlus will not fabricate annotation bounds. Region and Full Screen remain available when the display can be matched to its exact capture source.
 
 ### Step 3: Reproduce and Narrate
 
@@ -198,7 +198,7 @@ Release Command or Control when the mark is complete. The drawing remains visibl
 - saves a marked screenshot and the narration associated with that finding;
 - clears the drawing so you can move to the next screen.
 
-Repeat this sequence for as many issues as the video contains. MarkuprX preserves them as separate report items rather than merging them. If global modifier observation is unavailable, the HUD shows an explicit **Draw** / **Done** fallback; choosing **Done** saves that issue and returns pointer control.
+Repeat this sequence for as many issues as the video contains. MarkuprPlus preserves them as separate report items rather than merging them. If global modifier observation is unavailable, the HUD shows an explicit **Draw** / **Done** fallback; choosing **Done** saves that issue and returns pointer control.
 
 You can still press `Cmd+Shift+S` (or `Ctrl+Shift+S`) to place a manual report-frame cue.
 
@@ -226,7 +226,7 @@ The Markdown format is optimized for AI consumption.
 
 ## Next Steps
 
-- [Configure settings](CONFIGURATION.md) to customize MarkuprX
+- [Configure settings](CONFIGURATION.md) to customize MarkuprPlus
 - [Learn keyboard shortcuts](KEYBOARD_SHORTCUTS.md) for efficient workflows
 - [Explore export formats](EXPORT_FORMATS.md) for different use cases
 

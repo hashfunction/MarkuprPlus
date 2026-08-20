@@ -302,7 +302,7 @@ describe('Markdown Template', () => {
   it('renders footer', () => {
     const output = markdownTemplate.render(makeContext());
     expect(output.content).toContain('https://markuprplus.com');
-    expect(output.content).toContain('Ko-fi');
+    expect(output.content).not.toContain('Ko-fi');
   });
 
   it('handles empty transcription', () => {

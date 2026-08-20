@@ -49,7 +49,6 @@ import {
   SettingsPanel,
   CountdownTimer,
   CompactAudioIndicator,
-  DonateButton,
   KeyboardShortcuts,
   ExportDialog,
   SessionReview,
@@ -258,7 +257,7 @@ const App: React.FC = () => {
               error={recording.errorMessage}
             />
             <div>
-              <p className="ff-shell__eyebrow">MarkuprX</p>
+              <p className="ff-shell__eyebrow">MarkuprPlus</p>
               <h1 className="ff-shell__title">{ui.statusCopy.title}</h1>
             </div>
           </div>
@@ -552,7 +551,6 @@ const App: React.FC = () => {
           <p>
             Global hotkey: <ToggleRecordingHint inline /> starts or stops the loop.
           </p>
-          <DonateButton className="ff-shell__donate" />
         </footer>
           </>
         )}

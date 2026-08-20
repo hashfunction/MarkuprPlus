@@ -1,6 +1,6 @@
-# MarkuprX MCP Server
+# MarkuprPlus MCP Server
 
-Give your AI coding agent eyes and ears. The MarkuprX MCP server lets Claude Code, Cursor, and Windsurf capture screenshots and screen recordings with voice narration, plus context metadata (cursor, active app/window, focused element hints when available), then processes everything into structured, AI-ready Markdown reports.
+Give your AI coding agent eyes and ears. The MarkuprPlus MCP server lets Claude Code, Cursor, and Windsurf capture screenshots and screen recordings with voice narration, plus context metadata (cursor, active app/window, focused element hints when available), then processes everything into structured, AI-ready Markdown reports.
 
 **Version:** 3.0.0 | **Platform:** macOS/Windows/Linux | **Protocol:** MCP (Model Context Protocol) over stdio
 
@@ -37,7 +37,7 @@ npx --package markuprx markuprx-mcp
 npm install -g markuprx
 ```
 
-This installs both the `MarkuprX` CLI and the `markuprx-mcp` server binary.
+This installs both the `MarkuprPlus` CLI and the `markuprx-mcp` server binary.
 
 > The MCP server is the agent-facing interface. For day-to-day manual capture, the desktop app is the primary workflow.
 
@@ -52,7 +52,7 @@ Add to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "MarkuprX": {
+    "MarkuprPlus": {
       "command": "npx",
       "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
@@ -67,7 +67,7 @@ Add to `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` globally
 ```json
 {
   "mcpServers": {
-    "MarkuprX": {
+    "MarkuprPlus": {
       "command": "npx",
       "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
@@ -82,7 +82,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 ```json
 {
   "mcpServers": {
-    "MarkuprX": {
+    "MarkuprPlus": {
       "command": "npx",
       "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
     }
@@ -125,7 +125,7 @@ Context: Cursor: 914, 622 | App: Arc | Focus: Submit button
 
 ### `capture_with_voice`
 
-Record screen and voice for a fixed duration, then run the full MarkuprX pipeline. Produces a structured Markdown report with transcript, key moments, extracted frames, and capture context metadata.
+Record screen and voice for a fixed duration, then run the full MarkuprPlus pipeline. Produces a structured Markdown report with transcript, key moments, extracted frames, and capture context metadata.
 
 **Input:**
 | Parameter | Type | Default | Description |
@@ -154,7 +154,7 @@ Report: /Users/you/Documents/markuprx/mcp/session-20260214-143022/feedback-repor
 
 ### `analyze_video`
 
-Process an existing video file through the MarkuprX pipeline. Useful for recordings made outside MarkuprX (fallback flow; capture tools are the primary flow).
+Process an existing video file through the MarkuprPlus pipeline. Useful for recordings made outside MarkuprPlus (fallback flow; capture tools are the primary flow).
 
 **Input:**
 | Parameter | Type | Default | Description |
@@ -218,7 +218,7 @@ Use stop_recording to end and process the recording.
 
 ### `stop_recording`
 
-Stop an active recording and run the full MarkuprX pipeline on the captured video.
+Stop an active recording and run the full MarkuprPlus pipeline on the captured video.
 
 **Input:**
 | Parameter | Type | Default | Description |
@@ -251,7 +251,7 @@ Session metadata now includes capture-context snapshots (for example: cursor coo
 ## How It Works
 
 1. **Your AI agent calls a tool** -- e.g., `capture_with_voice({ duration: 30 })`
-2. **MarkuprX captures** -- records screen and microphone via ffmpeg
+2. **MarkuprPlus captures** -- records screen and microphone via ffmpeg
 3. **The pipeline runs** -- transcribes audio (Whisper), detects key moments, extracts frames at those timestamps
 4. **Structured output** -- produces a Markdown report with screenshots placed at the exact moments you described them, enriched with capture context metadata
 5. **Agent reads the report** -- the tool returns the file path; the agent reads and acts on the structured feedback
@@ -334,7 +334,7 @@ If your IDE can't connect to the MCP server:
 
 The MCP protocol uses stdout for JSON-RPC communication. If you see garbled output:
 - Ensure no other tools are writing to stdout in the same process
-- All MarkuprX logging goes to stderr by design
+- All MarkuprPlus logging goes to stderr by design
 
 ---
 
@@ -343,7 +343,7 @@ The MCP protocol uses stdout for JSON-RPC communication. If you see garbled outp
 To develop the MCP server locally:
 
 ```bash
-# From an existing MarkuprX source checkout
+# From an existing MarkuprPlus source checkout
 npm install
 
 # Build the MCP server
@@ -358,7 +358,7 @@ For Claude Code, point to your local build:
 ```json
 {
   "mcpServers": {
-    "MarkuprX": {
+    "MarkuprPlus": {
       "command": "node",
       "args": ["/path/to/markuprx/dist/mcp/index.mjs"]
     }

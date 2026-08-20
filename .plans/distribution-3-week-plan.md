@@ -71,7 +71,7 @@ These are zero-effort prerequisites. Do them all in one sitting (2-3 hours).
 - **Action:**
   - Add repository topics on GitHub: `mcp`, `mcp-server`, `model-context-protocol`, `screen-recording`, `developer-tools`, `ai-agents`, `claude-code`, `cursor`, `electron`, `typescript`, `whisper`, `markdown`, `cli`, `npx`, `feedback`, `bug-reporting`
   - Add the demo GIF to the top of the README (replace the "Demo video coming soon" placeholder at line 83)
-  - Ensure the "About" section on GitHub has the website URL (markuprx.com), topics, and a concise description
+  - Ensure the "About" section on GitHub has the website URL (markuprplus.com), topics, and a concise description
   - Add `good first issue` and `help wanted` labels to 3-5 existing issues (or create them)
 - **Why:** GitHub topics drive discoverability in GitHub search and "Explore" recommendations. The demo GIF is the single most important README element -- it shows the product working in 5 seconds without reading a word.
 - **Who:** Eddie, 30 minutes.
@@ -310,7 +310,7 @@ Submit to every MCP directory in a single session. These are the primary discove
     1. Hero: The demo GIF showing full workflow
     2. MCP server in action with Claude Code
     3. CLI output showing structured Markdown
-    4. The landing page (markuprx.com) screenshot
+    4. The landing page (markuprplus.com) screenshot
     5. The annotated Markdown output with screenshots
   - First comment: Write a maker's comment explaining why you built this and asking for feedback
   - Topics: Developer Tools, Artificial Intelligence, Open Source, Productivity
@@ -490,7 +490,7 @@ Submit to every MCP directory in a single session. These are the primary discove
   - GitHub stars (total + per day)
   - npm downloads (total + per day, broken down by markuprx and markuprx-mcp)
   - GitHub traffic (visitors, clones, referring sites)
-  - Landing page traffic (markuprx.com analytics)
+  - Landing page traffic (markuprplus.com analytics)
   - Newsletter feature confirmations
   - Social media impressions + engagement
   - MCP directory listing status (approved/pending)

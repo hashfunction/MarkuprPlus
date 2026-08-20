@@ -3,14 +3,14 @@ title: I Built an MCP Server That Lets Claude Code See Your Screen
 published: false
 description: markuprx records your screen while you narrate bugs, then produces structured Markdown with screenshots for AI coding agents.
 tags: mcp, ai, devtools, opensource
-cover_image: https://markuprx.com/og-image.png
+cover_image: https://markuprplus.com/og-image.png
 ---
 
 You know that thing where you find a CSS bug, open your AI coding agent, and then spend three minutes *describing* the bug in text? The sidebar is overlapping the content, but only on mobile, and only when the nav is expanded, and there's this weird 20-pixel gap...
 
 Your agent can read every file in your codebase. It can grep, diff, and refactor. But it cannot look at your screen. You are the bottleneck, translating a visual problem into words so a language model can turn those words back into a fix.
 
-I built [markuprx](https://markuprx.com) to close that gap.
+I built [markuprx](https://markuprplus.com) to close that gap.
 
 ## The Problem
 
@@ -118,7 +118,7 @@ Now your AI agent has access to these tools:
 
 ### 3. Desktop App: Hotkey-Driven Recording
 
-Desktop distribution information is available at [markuprx.com](https://markuprx.com). Builds target macOS and Windows.
+Desktop distribution information is available at [markuprplus.com](https://markuprplus.com). Builds target macOS and Windows.
 
 The workflow is four keystrokes:
 
@@ -222,10 +222,10 @@ npx markuprx analyze ./recording.mov
 ```
 
 **Desktop App:**
-[markuprx.com](https://markuprx.com)
+[markuprplus.com](https://markuprplus.com)
 
 **Website:**
-[markuprx.com](https://markuprx.com)
+[markuprplus.com](https://markuprplus.com)
 
 If markuprx saves you a debugging session, visit the website and share feedback through the current project contact channel.
 

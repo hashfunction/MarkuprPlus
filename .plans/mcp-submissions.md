@@ -41,9 +41,9 @@ Use these across all submissions. Tailor per directory as noted.
 npx markuprx-mcp
 ```
 
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 **npm:** https://www.npmjs.com/package/markuprx-mcp
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 **License:** MIT
 **Author:** Eddie San Juan
 
@@ -89,7 +89,7 @@ Install: `npx markuprx-mcp`
 - push_to_github -- Create GitHub issues from feedback reports
 - push_to_linear -- Push feedback to Linear as structured issues
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **npm install:** `npx markuprx-mcp`
 
@@ -106,7 +106,7 @@ Install: `npx markuprx-mcp`
 **Description:**
 MCP server that lets AI coding agents capture screenshots, describe what's on screen using vision AI, record screen+voice sessions, and push structured feedback to GitHub and Linear. Your agent sees your screen and acts on what it sees. 9 tools. Local-first -- all processing happens on your machine. MIT licensed.
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **Install command:** `npx markuprx-mcp`
 
@@ -125,7 +125,7 @@ MCP server that lets AI coding agents capture screenshots, describe what's on sc
 **Description:**
 Give your AI coding agent eyes and ears. markuprx-mcp is an MCP server that lets Claude Code, Cursor, and Windsurf capture screenshots, describe what's on screen with Claude vision, record screen+voice sessions, analyze video recordings, and push structured feedback directly to GitHub issues and Linear. 9 tools. Local-first. Open source (MIT).
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **npm package:** markuprx-mcp
 
@@ -152,7 +152,7 @@ Give your AI coding agent eyes and ears. markuprx-mcp is an MCP server that lets
 **Description:**
 MCP server for visual developer feedback. Capture screenshots, describe your screen with Claude vision, record screen+voice sessions, analyze videos, and push structured feedback to GitHub and Linear. 9 tools that give AI coding agents the ability to see your screen.
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **Install:** `npx markuprx-mcp`
 
@@ -170,7 +170,7 @@ MCP server for visual developer feedback. Capture screenshots, describe your scr
 
 **Server Name:** markuprx-mcp
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **Logo:** Upload the 400x400 PNG logo (create from `src/renderer/assets/logo.svg` if not yet exported)
 
@@ -223,7 +223,7 @@ MCP server that lets your AI coding agent see your screen. Capture screenshots, 
 }
 ```
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **Category:** Developer Tools
 
@@ -242,7 +242,7 @@ MCP server that lets your AI coding agent see your screen. Capture screenshots, 
 **Description:**
 MCP server for AI coding agents to capture screenshots, describe screen content with vision AI, record screen+voice, analyze video recordings, and push structured feedback to GitHub and Linear. 9 tools. Install: `npx markuprx-mcp`. Open source (MIT).
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **Category:** Developer Tools
 
@@ -260,7 +260,7 @@ MCP server for AI coding agents to capture screenshots, describe screen content 
 Add under the **Developer Tools** category, in alphabetical order:
 
 ```markdown
-- [markuprx](https://markuprx.com) 📇 🏠 🍎 - MCP server that lets AI coding agents capture screenshots, describe screen content with vision AI, record screen+voice, and push structured feedback to GitHub and Linear
+- [markuprx](https://markuprplus.com) 📇 🏠 🍎 - MCP server that lets AI coding agents capture screenshots, describe screen content with vision AI, record screen+voice, and push structured feedback to GitHub and Linear
 ```
 
 Badge explanation:
@@ -278,7 +278,7 @@ Add markuprx-mcp -- visual feedback MCP server for AI coding agents
 ```markdown
 ## Add markuprx-mcp
 
-**Project URL:** https://markuprx.com
+**Project URL:** https://markuprplus.com
 **npm:** [markuprx-mcp](https://www.npmjs.com/package/markuprx-mcp)
 **Install:** `npx markuprx-mcp`
 **License:** MIT
@@ -330,7 +330,7 @@ Added under **Developer Tools**, alphabetically ordered.
 Add under the **Development Tools** section (or nearest equivalent), in alphabetical order:
 
 ```markdown
-- <img src="https://markuprx.com/favicon.ico" height="14"/> [markuprx-mcp](https://markuprx.com) - MCP server for AI coding agents to capture screenshots, describe screen content with vision AI, record screen+voice sessions, and push feedback to GitHub/Linear
+- <img src="https://markuprplus.com/favicon.ico" height="14"/> [markuprx-mcp](https://markuprplus.com) - MCP server for AI coding agents to capture screenshots, describe screen content with vision AI, record screen+voice sessions, and push feedback to GitHub/Linear
 ```
 
 > Note: If the favicon does not work at that URL, upload an icon with the directory submission.
@@ -345,7 +345,7 @@ Add markuprx-mcp -- visual feedback and screen capture MCP server
 ```markdown
 ## Add markuprx-mcp
 
-**Project URL:** https://markuprx.com
+**Project URL:** https://markuprplus.com
 **npm:** [markuprx-mcp](https://www.npmjs.com/package/markuprx-mcp)
 **Install:** `npx markuprx-mcp`
 **License:** MIT
@@ -389,7 +389,7 @@ Development Tools (or Developer Tools -- whichever exists in the current list).
 **Description:**
 MCP server for visual developer feedback. Lets AI coding agents capture screenshots, describe screen content with Claude vision, record screen+voice, analyze video recordings, and push structured feedback to GitHub and Linear. 9 tools. Local-first, open source.
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **npm:** markuprx-mcp
 
@@ -412,7 +412,7 @@ MCP server for visual developer feedback. Lets AI coding agents capture screensh
 **Description:**
 Give your AI coding agent eyes and ears. markuprx-mcp captures screenshots, describes screen content with vision AI, records screen+voice sessions with Whisper transcription, and pushes structured feedback to GitHub and Linear. 9 tools for complete visual feedback.
 
-**Website URL:** https://markuprx.com
+**Website URL:** https://markuprplus.com
 
 **npm:** markuprx-mcp
 

@@ -123,14 +123,14 @@
 
 ### Scene 7: CTA (1:15 - 1:20)
 
-**Show:** markuprx.com landing page, then the GitHub repo.
+**Show:** markuprplus.com landing page, then the GitHub repo.
 
 **Narration:**
-> "Open source. No telemetry. Your data stays on your machine. markuprx.com."
+> "Open source. No telemetry. Your data stays on your machine. markuprplus.com."
 
 **Camera/screen notes:**
 - Hold on the landing page hero for 2 seconds
-- End on a clean frame showing the URL: markuprx.com
+- End on a clean frame showing the URL: markuprplus.com
 - Fade to black or cut to logo
 
 ---
@@ -207,7 +207,7 @@ Capture 5 key frames from the video for the Product Hunt gallery (1270x760px eac
 | 2 | Recording active | ~0:25 | markuprx capturing, waveform visible |
 | 3 | The output | ~0:58 | Markdown document with inline screenshots |
 | 4 | MCP config | ~1:08 | The 3-line JSON config |
-| 5 | Landing page | ~1:17 | markuprx.com hero section |
+| 5 | Landing page | ~1:17 | markuprplus.com hero section |
 
 Extract stills with ffmpeg:
 ```bash
@@ -224,7 +224,7 @@ ffmpeg -i demo.mp4 -ss 77 -vframes 1 -vf "scale=1270:760:force_original_aspect_r
 ## Platform-Specific Edits
 
 ### Twitter (30-60s max for engagement)
-Cut Scenes 1-5 only. Drop the MCP scene. End with the markdown output and a text overlay: "markuprx.com -- open source".
+Cut Scenes 1-5 only. Drop the MCP scene. End with the markdown output and a text overlay: "markuprplus.com -- open source".
 
 ### GitHub README (GIF)
 Scenes 2-4 only (hotkey, narrate, output). 15-20 seconds. No audio needed -- the GIF speaks for itself.

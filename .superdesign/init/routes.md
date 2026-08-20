@@ -1,6 +1,6 @@
 # Renderer Routes and Views
 
-MarkuprX has one trusted Electron renderer URL and no React Router. Navigation is state-based through `UIContext.currentView`; native menus and the tray deliver IPC events that switch the active secondary surface.
+MarkuprPlus has one trusted Electron renderer URL and no React Router. Navigation is state-based through `UIContext.currentView`; native menus and the tray deliver IPC events that switch the active secondary surface.
 
 ## View map
 

@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-02-15
 **Version:** 2.5.0
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### Body Text (link post to GitHub repo)
 
-Post the website link: https://markuprx.com
+Post the website link: https://markuprplus.com
 
 ### Maker's First Comment
 
@@ -43,7 +43,7 @@ Technical details: Electron + React + TypeScript for the desktop app. The CLI an
 
 Would love feedback on the timestamp correlation approach -- the heuristic key-moment detection is the piece I've iterated on the most. Source is at src/main/pipeline/TranscriptAnalyzer.ts if anyone wants to dig in.
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -117,7 +117,7 @@ The timestamp correlation logic is the part I've iterated on the most -- the heu
 
 Stack: Electron + React + TypeScript (desktop), esbuild (CLI/MCP), Whisper (transcription), ffmpeg (frame extraction).
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -151,7 +151,7 @@ The MCP server angle changed my workflow the most. I added 3 lines to my Claude 
 
 Open source, MIT licensed, no accounts or API keys required.
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -192,7 +192,7 @@ Everything runs locally. Whisper transcription is on-device. No cloud processing
 
 Also works with Cursor and Windsurf -- same MCP config format.
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -224,7 +224,7 @@ The MCP server is the piece I'm most excited about. Instead of me capturing cont
 
 Would love to hear what other side project builders think. What would you add?
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -297,7 +297,7 @@ Four interfaces, one pipeline:
 
 Try it. Break it. Tell me what to build next.
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 
@@ -315,7 +315,7 @@ The MCP server has changed how I work with AI coding assistants. Instead of desc
 
 Open source, MIT licensed, no accounts required. Everything runs locally.
 
-https://markuprx.com
+https://markuprplus.com
 
 ---
 

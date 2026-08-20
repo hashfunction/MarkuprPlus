@@ -15,7 +15,6 @@ Dependencies:
     - `src/renderer/components/SettingsPanel.tsx`
     - `src/renderer/components/CountdownTimer.tsx`
     - `src/renderer/components/AudioWaveform.tsx`
-    - `src/renderer/components/DonateButton.tsx`
     - `src/renderer/components/KeyboardShortcuts.tsx`
     - `src/renderer/components/ExportDialog.tsx`
     - `src/renderer/components/SessionReview.tsx`
@@ -41,7 +40,6 @@ Entry: `src/renderer/components/SettingsPanel.tsx`
 Dependencies:
 - `src/renderer/hooks/useTheme.ts`
   - `src/renderer/styles/theme.ts`
-- `src/renderer/components/DonateButton.tsx`
 - `src/renderer/components/settings/index.ts`
   - `src/renderer/components/settings/GeneralTab.tsx`
     - `src/renderer/components/primitives/SettingsSection.tsx`

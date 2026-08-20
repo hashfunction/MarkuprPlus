@@ -6,7 +6,7 @@
 - Category: layout
 - Description: Fixed-size portrait popover shell with gradient background, elevated card, title/status header, and vertically scrollable content.
 - Extractable props: `sessionState` (string, default: "idle"), `currentView` (string, default: "main"), `showStatus` (boolean, default: true)
-- Hardcoded: MarkuprX eyebrow, header icon geometry, shell gradient, card border/radius/shadow, primary and secondary action styling
+- Hardcoded: MarkuprPlus eyebrow, header icon geometry, shell gradient, card border/radius/shadow, primary and secondary action styling
 
 ## SecondaryViewShell
 
@@ -55,11 +55,3 @@
 - Description: Shortcut description and platform-aware key-badge row with optional rebinding state.
 - Extractable props: `isEditing` (boolean, default: false), `customizable` (boolean, default: false), `keys` (string)
 - Hardcoded: keycap styling, edit/check/cancel icons, row spacing
-
-## DonateButton
-
-- Source: `src/renderer/components/DonateButton.tsx`
-- Category: basic
-- Description: Reusable rotating support action shown at the bottom of primary and settings surfaces.
-- Extractable props: `className` (string, optional)
-- Hardcoded: Ko-fi destination, message rotation, heart/coffee visual

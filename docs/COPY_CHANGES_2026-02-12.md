@@ -14,8 +14,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 1. Page Title
 
-**Before:** `MarkuprX -- App feedback, made effortless`
-**After:** `MarkuprX -- You see it. You say it. Your AI fixes it.`
+**Before:** `MarkuprPlus -- App feedback, made effortless`
+**After:** `MarkuprPlus -- You see it. You say it. Your AI fixes it.`
 
 *Rationale: Old title was generic SaaS. New title is the campaign tagline -- specific, memorable, and describes the full loop in one sentence.*
 
@@ -23,8 +23,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 2. Meta Description
 
-**Before:** `MarkuprX records your screen while you talk, then assembles structured Markdown with the right screenshots at the right moments. Launch includes both BYOK open source mode and touchless premium mode with hosted keys.`
-**After:** `MarkuprX closes the feedback loop between what you see on screen and what your AI coding agent fixes. Record your screen, say what's wrong, and get structured Markdown your agent can act on immediately.`
+**Before:** `MarkuprPlus records your screen while you talk, then assembles structured Markdown with the right screenshots at the right moments. Launch includes both BYOK open source mode and touchless premium mode with hosted keys.`
+**After:** `MarkuprPlus closes the feedback loop between what you see on screen and what your AI coding agent fixes. Record your screen, say what's wrong, and get structured Markdown your agent can act on immediately.`
 
 *Rationale: Old description led with mechanics. New description leads with the value proposition and outcome. Also removes launch-specific language ("Launch includes") that will age poorly.*
 
@@ -32,7 +32,7 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 3. Hero Headline (H1)
 
-**Before:** `You found the bug. MarkuprX writes it up.`
+**Before:** `You found the bug. MarkuprPlus writes it up.`
 **After:** `You see it. You say it. Your AI fixes it.`
 
 *Rationale: Old headline positioned markuprx as a writing tool. New headline positions it as a feedback loop that ends with a fix. Three short declarative sentences with parallel structure.*
@@ -41,8 +41,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 4. Hero Subtext
 
-**Before:** `AI writes your code. You still have to review it. MarkuprX records your screen while you talk through what you see, then assembles a structured Markdown document your AI agent can act on immediately.`
-**After:** `You know exactly what's wrong. You just can't describe it precisely enough for the AI to fix it. MarkuprX records your screen while you talk, then gives your coding agent the structured context it needs to act.`
+**Before:** `AI writes your code. You still have to review it. MarkuprPlus records your screen while you talk through what you see, then assembles a structured Markdown document your AI agent can act on immediately.`
+**After:** `You know exactly what's wrong. You just can't describe it precisely enough for the AI to fix it. MarkuprPlus records your screen while you talk, then gives your coding agent the structured context it needs to act.`
 
 *Rationale: Old subtext started with a statement about AI writing code (not about markuprx). New subtext names the specific pain point -- the articulation gap -- and positions markuprx as the solution.*
 
@@ -50,8 +50,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 5. Quick Walkthrough Description
 
-**Before:** `You record and mark shots. After you stop, MarkuprX runs AI alignment on narration + frames and generates a clean report your agent can use.`
-**After:** `You record and mark shots. After you stop, MarkuprX aligns narration with frames and closes the loop -- your agent gets structured context to start fixing.`
+**Before:** `You record and mark shots. After you stop, MarkuprPlus runs AI alignment on narration + frames and generates a clean report your agent can use.`
+**After:** `You record and mark shots. After you stop, MarkuprPlus aligns narration with frames and closes the loop -- your agent gets structured context to start fixing.`
 
 *Rationale: Replaced "generates a clean report" with "closes the loop." Replaced jargon ("AI alignment on narration + frames") with plain language. Ends with action ("start fixing") not possession ("can use").*
 
@@ -95,8 +95,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 10. "Stop retyping" Card -- Final Sentence
 
-**Before:** `MarkuprX lets you just say it. The documentation happens behind you.`
-**After:** `MarkuprX lets you just say it. Your agent gets what it needs to fix it.`
+**Before:** `MarkuprPlus lets you just say it. The documentation happens behind you.`
+**After:** `MarkuprPlus lets you just say it. Your agent gets what it needs to fix it.`
 
 *Rationale: "The documentation happens behind you" sounds like the goal is documentation. New copy redirects the outcome to the agent getting what it needs for a fix.*
 
@@ -104,8 +104,8 @@ These changes reposition markuprx from a screen-recording documentation tool to 
 
 ### 11. "150 wpm" Card -- Body Text
 
-**Before:** `A five-minute narration produces more structured output than twenty minutes of writing. And the result is better -- MarkuprX places screenshots at the exact moments you were describing something, not wherever you remembered to paste them.`
-**After:** `A five-minute narration gives your AI agent more precise context than twenty minutes of writing. MarkuprX places screenshots at the exact moments you were describing something -- so the agent sees what you saw, when you saw it.`
+**Before:** `A five-minute narration produces more structured output than twenty minutes of writing. And the result is better -- MarkuprPlus places screenshots at the exact moments you were describing something, not wherever you remembered to paste them.`
+**After:** `A five-minute narration gives your AI agent more precise context than twenty minutes of writing. MarkuprPlus places screenshots at the exact moments you were describing something -- so the agent sees what you saw, when you saw it.`
 
 *Rationale: Old copy compared output quantity. New copy frames the comparison around agent context quality. Final clause ("the agent sees what you saw") reinforces the feedback-loop metaphor.*
 

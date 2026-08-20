@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rebranded the public desktop experience and documentation as MarkuprPlus.
 - Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.
 - Added a portrait-first taskbar popover experience and new README screenshot gallery.
+- Removed the Ko-fi donation surface: in-app donate button, tray menu entry, generated report and HTML footers, funding metadata, and all sponsor copy across the docs and site.
+- Updated the documentation and website branding from MarkuprX to MarkuprPlus, including the site wordmark and the markuprplus.com domain.
 - Windows publisher identity is derived from the signing certificate; signed releases must verify the actual certificate subject.
 - macOS releases are now signed with a Developer ID Application certificate, notarized by Apple, and stapled, so they open without a Gatekeeper warning and validate offline.
 - Added `npm run release:mac`, which builds, signs, notarizes, staples, and verifies a macOS release in one step.

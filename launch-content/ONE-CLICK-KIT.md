@@ -10,7 +10,7 @@
 
 - **Space posts apart.** Reddit flags accounts that post similar content across subs rapidly. Minimum 4-6 hours between Reddit posts, ideally across different days.
 - **Eddie's account needs prior engagement** on r/webdev and r/programming before posting there. Comment on a few threads in those subs in the days before launch.
-- **All links use markuprx.com** (not markuprx.dev).
+- **All links use markuprplus.com** (not markuprx.dev).
 - **Don't cross-link posts.** Each platform post should stand alone.
 
 ---
@@ -30,7 +30,7 @@ Show HN: markuprx -- Give your AI coding agent eyes and ears (open source)
 
 **URL field:**
 ```
-https://markuprx.com
+https://markuprplus.com
 ```
 
 > **Do NOT put anything in the "text" field.** HN only allows URL or text, not both. Post as a URL submission, then immediately add your body as the first comment.
@@ -79,7 +79,7 @@ Everything runs locally by default. Whisper transcription happens on your machin
 
 Open source, MIT licensed. 860 tests.
 
-Website: https://markuprx.com
+Website: https://markuprplus.com
 npm: `npx --package markuprx markuprx-mcp` (MCP server) / `npx markuprx analyze` (CLI)
 GitHub Action: `eddiesanjuan/markuprx-action@v1`
 ```
@@ -100,7 +100,7 @@ markuprx v2.5: record your screen, narrate bugs, get structured reports pushed d
 
 Open source. Free. Zero config.
 
-https://markuprx.com
+https://markuprplus.com
 ```
 
 > Attach: hero screenshot or demo GIF showing the workflow.
@@ -204,7 +204,7 @@ Same pipeline. Pick whatever fits your workflow.
 ```
 If you're tired of describing visual bugs in text, give it a try.
 
-Website: https://markuprx.com
+Website: https://markuprplus.com
 npm: `npx --package markuprx markuprx-mcp`
 Action: `eddiesanjuan/markuprx-action@v1`
 
@@ -291,7 +291,7 @@ The desktop app, CLI, and MCP server all share the same post-processing pipeline
 
 Everything runs locally. Whisper transcription is on your machine. No telemetry, no data collection. External calls only happen if you explicitly add API keys for cloud transcription.
 
-Open source, MIT, 860 tests: https://markuprx.com
+Open source, MIT, 860 tests: https://markuprplus.com
 ```
 
 > **Compliance notes:**
@@ -376,9 +376,9 @@ Record it, structure it, push it. No more manual bug filing.
 - ffmpeg (`brew install ffmpeg`) for recording tools
 - Screenshot tools work without ffmpeg
 
-Open source, MIT licensed, 860 tests: https://markuprx.com
+Open source, MIT licensed, 860 tests: https://markuprplus.com
 
-Full MCP docs: https://markuprx.com
+Full MCP docs: https://markuprplus.com
 ```
 
 > **Compliance notes:**
@@ -422,7 +422,7 @@ Screenshot? Better. But now you're screenshotting, uploading, switching context,
 
 ## The Solution
 
-I built [markuprx](https://markuprx.com). It records your screen and microphone, then runs a post-processing pipeline that:
+I built [markuprx](https://markuprplus.com). It records your screen and microphone, then runs a post-processing pipeline that:
 
 1. Transcribes your voice with local Whisper
 2. Analyzes the transcript to find key moments
@@ -663,15 +663,13 @@ You control when and whether data leaves your machine.
 
 ## Links
 
-- **Website**: [markuprx.com](https://markuprx.com)
+- **Website**: [markuprplus.com](https://markuprplus.com)
 - **MCP server**: `npx --package markuprx markuprx-mcp` (zero install)
 - **CLI**: `npx markuprx analyze ./video.mov`
 - **GitHub Action**: `eddiesanjuan/markuprx-action@v1`
 - **npm**: [npmjs.com/package/markuprx](https://www.npmjs.com/package/markuprx)
 
 Open source, MIT licensed. 860 tests across 44 files. Contributions welcome.
-
-If markuprx saves you time, consider [supporting development on Ko-fi](https://ko-fi.com/eddiesanjuan).
 ```
 
 > **Notes:**
@@ -781,14 +779,14 @@ There's also a template system (`--template github-issue`, `--template linear`, 
 
 Other additions: a watch mode (`markuprx watch ./dir`) that auto-processes recordings from a directory, and a GitHub Action (`eddiesanjuan/markuprx-action@v1`) that runs the pipeline in CI and posts visual feedback as PR comments.
 
-Open source, MIT, 860 tests: https://markuprx.com
+Open source, MIT, 860 tests: https://markuprplus.com
 ```
 
 > **Compliance notes:**
 > - This post is framed as a technical writeup, NOT a product pitch
 > - r/programming values engineering substance -- the architecture decisions and state machine details are what make this appropriate
 > - Eddie's account should have recent r/programming comment history before posting
-> - Alternative: post as a link post with URL `https://markuprx.com` and add the technical breakdown as a comment
+> - Alternative: post as a link post with URL `https://markuprplus.com` and add the technical breakdown as a comment
 
 ---
 
@@ -871,7 +869,7 @@ The result isn't "screenshots taken every 5 seconds." It's contextually-aware fr
 
 Everything runs locally. Open source, MIT licensed. 860 tests.
 
-Website: https://markuprx.com
+Website: https://markuprplus.com
 GitHub Action: https://github.com/marketplace/actions/markuprx-action
 ```
 
@@ -908,12 +906,12 @@ markuprx records your screen, structures feedback with screenshots at the moment
 
 **Website:**
 ```
-https://markuprx.com
+https://markuprplus.com
 ```
 
 **GitHub:**
 ```
-https://markuprx.com
+https://markuprplus.com
 ```
 
 **Maker Comment** (post IMMEDIATELY after launch goes live):
@@ -948,7 +946,7 @@ Five ways to use it:
 
 I'd love your honest feedback. What would make this more useful in your workflow? What's missing? I'm shipping fast and building in public.
 
-Follow the project at https://markuprx.com
+Follow the project at https://markuprplus.com
 ```
 
 **Technical Comment** (post 5-10 minutes after maker comment):
@@ -1026,7 +1024,7 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.markuprx/
 3. Add this line:
 
 ```markdown
-- [markuprx](https://markuprx.com) - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents.
+- [markuprx](https://markuprplus.com) - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents.
 ```
 
 4. Commit message: `Add markuprx MCP server`
@@ -1042,7 +1040,7 @@ Add markuprx - Screen capture & voice recording for AI agents
 ## New Server: markuprx
 
 - **Name:** markuprx
-- **URL:** https://markuprx.com
+- **URL:** https://markuprplus.com
 - **npm:** `npx --package markuprx markuprx-mcp`
 - **Language:** TypeScript
 - **Scope:** Local (runs on device)
@@ -1079,9 +1077,9 @@ npx @anthropic-ai/smithery-cli mcp publish --name markuprx --transport stdio
 |-------|-------|
 | Server Name | `markuprx` |
 | Short Description | `Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice narration, analyze video, and generate structured Markdown feedback documents.` |
-| Link | `https://markuprx.com` |
+| Link | `https://markuprplus.com` |
 | Category | `development` |
-| Contact Email | `eddie@markuprx.com` |
+| Contact Email | `eddie@markuprplus.com` |
 
 ---
 
@@ -1093,7 +1091,7 @@ Add a comment with:
 
 ```
 **Server Name:** markuprx
-**Website:** https://markuprx.com
+**Website:** https://markuprplus.com
 **npm:** markuprx (run via `npx --package markuprx markuprx-mcp`)
 **Description:** Screen capture and voice recording MCP server for AI coding agents. Capture screenshots with voice narration, analyze video, and generate structured Markdown feedback documents for code review.
 **Tools:** capture_screenshot, capture_with_voice, analyze_video, analyze_screenshot, start_recording, stop_recording
@@ -1109,7 +1107,7 @@ Add a comment with:
 Same process as 9b. Add under **Development Tools** section:
 
 ```markdown
-- **[markuprx](https://markuprx.com)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, and generate structured feedback.
+- **[markuprx](https://markuprplus.com)** - Screen capture and voice recording MCP server for AI coding agents. Capture screenshots, record voice, analyze video, and generate structured feedback.
 ```
 
 ---
