@@ -1,9 +1,14 @@
 # =============================================================================
-# markuprx Release Pipeline
+# MarkuprPlus Release Pipeline
 # =============================================================================
 # Triggered on version tags (v*)
 # Builds signed installers for macOS and Windows
 # Creates GitHub Release with changelog and assets
+#
+# macOS artifacts are signed with a Developer ID Application certificate,
+# notarized by Apple, and stapled. The job fails rather than publishing an
+# artifact that Gatekeeper would block, so a release can never silently ship
+# an app that users cannot open.
 # =============================================================================
 
 name: Release
@@ -19,7 +24,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: '20'
+  # @electron/notarize requires Node >= 22.12.
+  NODE_VERSION: '22'
 
 jobs:
   # ===========================================================================
@@ -69,15 +75,54 @@ jobs:
     runs-on: macos-latest
     needs: validate-tag
     env:
+      # Signing
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
       APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      # Notarization - App Store Connect API key (preferred)
+      APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      # Notarization - Apple ID + app-specific password (fallback)
       APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD || secrets.APPLE_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # A tagged release must never produce an unnotarized artifact.
+      MARKUPRX_REQUIRE_NOTARIZATION: '1'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      # Fail early and legibly rather than 20 minutes into a build that would
+      # have produced an app Gatekeeper blocks.
+      - name: Require Apple signing and notarization credentials
+        run: |
+          missing=()
+          [ -n "$APPLE_CERTIFICATE" ] || missing+=("APPLE_CERTIFICATE (base64 .p12 of the Developer ID Application certificate)")
+          [ -n "$APPLE_CERTIFICATE_PASSWORD" ] || missing+=("APPLE_CERTIFICATE_PASSWORD (export password of that .p12)")
+
+          # Either notarization credential set is acceptable.
+          if [ -n "$APPLE_API_KEY_P8" ] && [ -n "$APPLE_API_KEY_ID" ]; then
+            echo "Notarization credentials: App Store Connect API key"
+          elif [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "Notarization credentials: Apple ID + app-specific password"
+          else
+            missing+=("notarization credentials: either APPLE_API_KEY_P8 + APPLE_API_KEY_ID [+ APPLE_API_ISSUER], or APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID")
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            {
+              echo "::error::Cannot build a release: required macOS signing secrets are not configured."
+              echo "Missing repository secrets:"
+              for item in "${missing[@]}"; do echo "  - $item"; done
+              echo ""
+              echo "See SIGNING_INSTRUCTIONS.md. Without these the macOS build would be unsigned,"
+              echo "and macOS would refuse to open it on any machine but the build runner."
+            } >&2
+            exit 1
+          fi
+
+          echo "All required macOS release credentials are present."
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -100,49 +145,98 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Install certificates for code signing
-      - name: Install Apple certificates
-        if: ${{ env.APPLE_CERTIFICATE != '' }}
+      # Import the Developer ID certificate into a throwaway keychain that is
+      # discarded with the runner.
+      - name: Install Apple signing certificate
         run: |
-          # Create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          set -euo pipefail
 
-          # Import certificate
-          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          # The keychain is ephemeral, so a random password is fine when the
+          # KEYCHAIN_PASSWORD secret is not set.
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(uuidgen)}"
 
-          # Create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o "$CERTIFICATE_PATH"
 
-          # Import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Allow codesign to access keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import "$CERTIFICATE_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -k "$KEYCHAIN_PATH" \
+            -f pkcs12 \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
 
-      # Build and sign for macOS
-      - name: Package macOS (signed)
-        if: ${{ env.APPLE_ID != '' && env.APPLE_CERTIFICATE != '' }}
+          # Keep the default login keychain searchable so the Apple intermediate
+          # certificates still resolve while the signature chain is built.
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+
+          rm -f "$CERTIFICATE_PATH"
+
+          echo "CSC_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          echo "Identities in the signing keychain:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      # An Apple Development or Apple Distribution certificate signs fine but
+      # can never be notarized for distribution outside the Mac App Store.
+      - name: Verify a Developer ID Application certificate is present
+        run: |
+          set -euo pipefail
+          if ! security find-identity -v -p codesigning "$CSC_KEYCHAIN" | grep -q "Developer ID Application"; then
+            {
+              echo "::error::The APPLE_CERTIFICATE secret does not contain a 'Developer ID Application' certificate."
+              echo "Apple only notarizes apps signed with 'Developer ID Application'."
+              echo "'Apple Development' certificates are for local runs and 'Apple Distribution' certificates"
+              echo "are for Mac App Store submission; neither can be distributed as a DMG."
+              echo "Create one at https://developer.apple.com/account/resources/certificates"
+            } >&2
+            exit 1
+          fi
+          echo "Developer ID Application certificate found."
+
+      # notarytool authenticates with a .p8 key file, so materialise it here and
+      # hand scripts/notarize.cjs the path.
+      - name: Stage App Store Connect API key
+        if: ${{ env.APPLE_API_KEY_P8 != '' && env.APPLE_API_KEY_ID != '' }}
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+
+          # Accept the secret either base64 encoded or as raw PEM text.
+          if printf '%s' "$APPLE_API_KEY_P8" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s\n' "$APPLE_API_KEY_P8" > "$KEY_PATH"
+          else
+            printf '%s' "$APPLE_API_KEY_P8" | base64 --decode -o "$KEY_PATH"
+          fi
+
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "Staged App Store Connect API key $APPLE_API_KEY_ID"
+
+      # Signs both architectures, then scripts/notarize.cjs (afterSign) submits
+      # each .app to Apple and staples the ticket before the DMG is assembled.
+      - name: Package macOS (signed and notarized)
         run: npx electron-builder --mac --publish never --config electron-builder.yml
-        env:
-          # Code signing
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Notarization
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
-      # Build unsigned if no signing credentials
-      - name: Package macOS (unsigned)
-        if: ${{ env.APPLE_ID == '' || env.APPLE_CERTIFICATE == '' }}
-        run: CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --publish never --config electron-builder.yml
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Verify package layout
+        run: npm run verify:package
+
+      # The .app inside the DMG is stapled, but the DMG itself is built after
+      # the afterSign hook, so it needs its own ticket to validate offline.
+      - name: Notarize and staple disk images
+        run: npm run notarize:dmg
+
+      # Final gate: refuse to upload anything Gatekeeper would reject.
+      - name: Verify signatures, notarization, and stapling
+        run: npm run verify:signing
 
       - name: List build artifacts
         run: ls -la release/
@@ -208,6 +302,13 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Warn about unsigned Windows build
+        if: ${{ env.WIN_SIGNING_AVAILABLE != 'true' }}
+        run: echo "::warning::WIN_CSC_LINK is not configured. Windows installers are unsigned and SmartScreen will warn on download."
+
+      - name: Verify package layout
+        run: npm run verify:package
+
       - name: List build artifacts
         run: dir release
 
@@ -247,48 +348,53 @@ jobs:
       - name: Display artifact structure
         run: find artifacts -type f | head -50
 
-      - name: Generate changelog
+      - name: Generate release notes
         id: changelog
         run: |
-          # Get previous tag
+          # Written to its own file so the curated CHANGELOG.md is left intact.
+          NOTES=RELEASE_NOTES.md
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           CURRENT_TAG=${{ github.ref_name }}
+          VERSION=${{ needs.validate-tag.outputs.version }}
 
-          echo "## What's Changed" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
+          echo "## What's Changed" > $NOTES
+          echo "" >> $NOTES
 
           if [ -n "$PREVIOUS_TAG" ]; then
-            echo "Changes since $PREVIOUS_TAG:" >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            git log $PREVIOUS_TAG..$CURRENT_TAG --pretty=format:"- %s (%h)" >> CHANGELOG.md
+            echo "Changes since $PREVIOUS_TAG:" >> $NOTES
+            echo "" >> $NOTES
+            git log $PREVIOUS_TAG..$CURRENT_TAG --pretty=format:"- %s (%h)" --no-merges >> $NOTES
           else
-            echo "Initial release" >> CHANGELOG.md
+            echo "Initial release" >> $NOTES
           fi
 
-          echo "" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "## Downloads" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "| Platform | Download |" >> CHANGELOG.md
-          echo "|----------|----------|" >> CHANGELOG.md
-          echo "| macOS (Apple Silicon) | \`markuprx-${{ needs.validate-tag.outputs.version }}-arm64.dmg\` |" >> CHANGELOG.md
-          echo "| macOS (Intel) | \`markuprx-${{ needs.validate-tag.outputs.version }}-x64.dmg\` |" >> CHANGELOG.md
-          echo "| Windows | \`markuprx-Setup-${{ needs.validate-tag.outputs.version }}.exe\` |" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "## Checksums" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "\`\`\`" >> CHANGELOG.md
-          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) -exec sha256sum {} \; >> CHANGELOG.md
-          echo "\`\`\`" >> CHANGELOG.md
+          echo "" >> $NOTES
+          echo "" >> $NOTES
+          echo "## Downloads" >> $NOTES
+          echo "" >> $NOTES
+          echo "| Platform | Download |" >> $NOTES
+          echo "|----------|----------|" >> $NOTES
+          echo "| macOS (Apple Silicon) | \`markuprplus-${VERSION}-arm64.dmg\` |" >> $NOTES
+          echo "| macOS (Intel) | \`markuprplus-${VERSION}-x64.dmg\` |" >> $NOTES
+          echo "| Windows | \`markuprplus-Setup-${VERSION}.exe\` |" >> $NOTES
+          echo "" >> $NOTES
+          echo "The macOS builds are signed with a Developer ID Application certificate," >> $NOTES
+          echo "notarized by Apple, and stapled, so they open without a Gatekeeper warning." >> $NOTES
+          echo "" >> $NOTES
+          echo "## Checksums" >> $NOTES
+          echo "" >> $NOTES
+          echo "\`\`\`" >> $NOTES
+          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) -exec sha256sum {} \; >> $NOTES
+          echo "\`\`\`" >> $NOTES
 
-          cat CHANGELOG.md
+          cat $NOTES
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: markuprx v${{ needs.validate-tag.outputs.version }}
-          body_path: CHANGELOG.md
+          name: MarkuprPlus v${{ needs.validate-tag.outputs.version }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: ${{ needs.validate-tag.outputs.is-prerelease == 'true' }}
           files: |
@@ -311,6 +417,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** v${{ needs.validate-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Prerelease:** ${{ needs.validate-tag.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "**macOS:** signed, notarized, and stapled" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) | while read f; do

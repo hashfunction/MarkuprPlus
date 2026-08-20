@@ -1,50 +1,58 @@
-# Code Signing & Notarization Guide for MarkuprX
+# Code Signing & Notarization Guide for MarkuprPlus
 
-This guide explains how to set up Apple code signing and notarization for distributing MarkuprX.
+This guide explains how to set up Apple code signing and notarization so
+MarkuprPlus installs and launches without Gatekeeper warnings.
 
 ## Why Code Signing Matters
 
-Without code signing, macOS Gatekeeper will:
-- Block the app from opening
-- Show scary "unidentified developer" warnings
-- Require users to go through Security settings to allow the app
+Without code signing and notarization, macOS Gatekeeper will:
+- Refuse to open the app ("MarkuprPlus is damaged and can't be opened")
+- Show "unidentified developer" warnings
+- Force users through System Settings to allow the app
 
-With code signing AND notarization:
-- App opens without warnings
-- Users feel confident installing your app
-- Apple has verified the app is free of malware
+With code signing **and** notarization:
+- The app opens on first launch with no warning
+- Apple has scanned the build for malware
+- The ticket is stapled, so it validates even offline
 
 ---
 
 ## Prerequisites
 
-1. **Apple Developer Account** ($99/year)
+1. **Apple Developer Program membership** ($99/year)
    - Sign up at https://developer.apple.com
    - Required for distribution outside the Mac App Store
 
-2. **Xcode Command Line Tools**
+2. **Xcode Command Line Tools** (provides `codesign`, `notarytool`, `stapler`)
    ```bash
    xcode-select --install
    ```
 
 ---
 
-## Step 1: Create Certificates
+## Step 1: Create a Developer ID Application Certificate
 
-### Via Xcode (Recommended)
+**This must be a "Developer ID Application" certificate.** It is the only
+certificate type Apple will notarize for direct distribution.
 
-1. Open Xcode > Preferences > Accounts
+| Certificate | Valid for |
+|-------------|-----------|
+| Developer ID Application | Direct distribution (DMG/ZIP) — **required here** |
+| Apple Distribution | Mac App Store submission only |
+| Apple Development | Local development only |
+
+### Via Xcode (recommended)
+
+1. Open Xcode > Settings > Accounts
 2. Select your Apple ID > Manage Certificates
-3. Click `+` and create:
-   - "Developer ID Application" certificate
+3. Click `+` and create **Developer ID Application**
 
-### Via Apple Developer Portal
+### Via the Developer Portal
 
 1. Go to https://developer.apple.com/account/resources/certificates
-2. Click `+` to create a new certificate
-3. Select "Developer ID Application"
-4. Follow the CSR (Certificate Signing Request) instructions
-5. Download and double-click to install in Keychain
+2. Click `+`, select **Developer ID Application**
+3. Follow the CSR (Certificate Signing Request) instructions
+4. Download and double-click to install into your keychain
 
 ### Verify Installation
 
@@ -52,110 +60,154 @@ With code signing AND notarization:
 security find-identity -v -p codesigning
 ```
 
-You should see your "Developer ID Application: Your Name (TEAM_ID)" certificate.
+You should see `Developer ID Application: Your Name (TEAMID1234)`. If you only
+see `Apple Development` or `Apple Distribution`, the certificate above has not
+been created yet and notarization will fail.
 
 ---
 
-## Step 2: Create App-Specific Password
+## Step 2: Choose a Notarization Credential
 
-Apple requires an app-specific password for notarization (not your regular Apple ID password).
+`notarytool` accepts either of these. The App Store Connect API key is
+preferred for CI because it is scoped and does not expire with a password reset.
+
+### Option A — App Store Connect API key (recommended)
+
+1. Go to https://appstoreconnect.apple.com/access/integrations/api
+2. Create a key with the **Developer** role
+3. Download the `AuthKey_XXXXXXXXXX.p8` file (downloadable only once)
+4. Note the **Key ID** and the **Issuer ID**
+
+### Option B — Apple ID + app-specific password
 
 1. Go to https://appleid.apple.com
-2. Sign in with your Apple ID
-3. Navigate to "App-Specific Passwords"
-4. Click "Generate Password"
-5. Name it "MarkuprX Notarization"
-6. **Save this password securely** - you'll need it for builds
+2. Sign in, then open "App-Specific Passwords"
+3. Generate one named "MarkuprPlus Notarization"
+4. Note your 10-character **Team ID** (Developer Portal > Membership)
 
 ---
 
-## Step 3: Find Your Team ID
+## Step 3: Local Signed Builds
 
-Your Team ID is a 10-character alphanumeric code.
-
-### Method 1: Xcode
-Open Xcode > Preferences > Accounts > Select your team > View the Team ID
-
-### Method 2: Developer Portal
-Go to https://developer.apple.com/account > Membership > Team ID
-
-### Method 3: Command Line
-```bash
-security find-identity -v -p codesigning | grep "Developer ID"
-# Output: ... "Developer ID Application: Your Name (ABCD1234XY)"
-# Your Team ID is the part in parentheses: ABCD1234XY
-```
-
----
-
-## Step 4: Set Environment Variables
-
-### For Local Development
-
-Add to your shell profile (`~/.zshrc` or `~/.bashrc`):
+Export the credentials for whichever option you chose:
 
 ```bash
-# MarkuprX Code Signing
+# Option A - App Store Connect API key
+export APPLE_API_KEY="$HOME/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8"
+export APPLE_API_KEY_ID="XXXXXXXXXX"
+export APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
+
+# Option B - Apple ID + app-specific password
 export APPLE_ID="your.email@example.com"
 export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-export APPLE_TEAM_ID="ABCD1234XY"
+export APPLE_TEAM_ID="TEAMID1234"
 ```
 
-Then reload:
+Then build the full signed, notarized, stapled and verified release:
+
 ```bash
-source ~/.zshrc
+npm run release:mac
 ```
 
-### For CI/CD (GitHub Actions)
+That script sets `MARKUPRX_REQUIRE_NOTARIZATION=1`, so it fails loudly rather
+than quietly producing an unnotarized build. It runs:
 
-Add these as repository secrets:
-- `APPLE_ID`
-- `APPLE_APP_SPECIFIC_PASSWORD`
-- `APPLE_TEAM_ID`
-- `CSC_LINK` (base64-encoded .p12 certificate)
-- `CSC_KEY_PASSWORD` (certificate password)
+1. `npm run build` — desktop, CLI, and MCP bundles
+2. `electron-builder --mac` — signs both architectures, then the `afterSign`
+   hook (`scripts/notarize.cjs`) submits each `.app` to Apple and staples it
+3. `npm run verify:package` — checks artifact layout and native runtimes
+4. `npm run notarize:dmg` — notarizes and staples each `.dmg`
+5. `npm run verify:signing` — final Gatekeeper gate (see below)
+
+### Unsigned local builds
+
+```bash
+npm run package:mac:unsigned
+```
+
+These are for local testing only and will not open on another machine.
 
 ---
 
-## Step 5: Export Certificate for CI
+## Step 4: CI Setup (GitHub Actions)
 
-To sign in CI, you need to export your certificate as a base64-encoded .p12 file.
+`.github/workflows/release.yml` runs on `v*` tags. It **fails the release**
+rather than publishing artifacts macOS would block, so these secrets must be
+configured before tagging.
 
-### Export from Keychain
+### Required repository secrets
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_CERTIFICATE` | Base64-encoded `.p12` export of the Developer ID Application certificate |
+| `APPLE_CERTIFICATE_PASSWORD` | Password set when exporting that `.p12` |
+
+### Plus one notarization credential set
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_API_KEY_P8` | Contents of the `AuthKey_XXXXXXXXXX.p8` file (raw PEM or base64) |
+| `APPLE_API_KEY_ID` | App Store Connect Key ID |
+| `APPLE_API_ISSUER` | App Store Connect Issuer ID (team keys only) |
+
+*or*
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_ID` | Apple Developer account email |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password from appleid.apple.com |
+| `APPLE_TEAM_ID` | 10-character Apple Team ID |
+
+### Optional
+
+| Secret | Description |
+|--------|-------------|
+| `KEYCHAIN_PASSWORD` | Password for the runner's throwaway keychain. A random one is generated when unset. |
+| `WIN_CSC_LINK` | Base64-encoded Windows code signing certificate |
+| `WIN_CSC_KEY_PASSWORD` | Password for the Windows certificate |
+
+### Exporting the certificate for CI
 
 1. Open Keychain Access
-2. Find your "Developer ID Application" certificate
-3. Right-click > Export
-4. Save as `.p12` format
-5. Set a strong password (this becomes `CSC_KEY_PASSWORD`)
+2. Find **Developer ID Application: Your Name (TEAMID1234)**
+3. Right-click > Export, save as `.p12`, set a strong password
+   (this becomes `APPLE_CERTIFICATE_PASSWORD`)
+4. Base64-encode it:
 
-### Convert to Base64
+   ```bash
+   base64 -i Certificates.p12 | pbcopy
+   ```
+
+5. Paste the result into the `APPLE_CERTIFICATE` secret
+
+Export the API key the same way if using Option A:
 
 ```bash
-base64 -i Certificates.p12 -o certificate-base64.txt
+base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
 ```
-
-The contents of `certificate-base64.txt` is your `CSC_LINK` secret.
 
 ---
 
-## Step 6: Build & Sign
+## Step 5: Verifying a Release
 
-### Local Build
+`npm run verify:signing` is the gate that decides whether a build is safe to
+publish. For every `.app` it checks that:
+
+- the signature is valid and unbroken (`codesign --verify --deep --strict`)
+- it is signed by a **Developer ID Application** certificate
+- the hardened runtime is enabled and a Team ID is embedded
+- every loose Mach-O binary under `Contents/Resources` is signed — this covers
+  the unpacked whisper.cpp runtime and native addons, which `--deep` does not
+  traverse and which are the usual cause of a notarization rejection
+- a notarization ticket is stapled (`xcrun stapler validate`)
+- Gatekeeper reports `source=Notarized Developer ID` (`spctl --assess`)
+
+For every `.dmg` it checks that a ticket is stapled and Gatekeeper accepts it.
+
+Run it against any release directory:
 
 ```bash
-# Build the app
-npm run build
-
-# Package for macOS (will sign and notarize)
-npm run package:mac
-```
-
-### Build Without Signing (for testing)
-
-```bash
-# Skip signing
-CSC_IDENTITY_AUTO_DISCOVERY=false npm run package:mac
+npm run verify:signing
 ```
 
 ---
@@ -164,121 +216,52 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npm run package:mac
 
 ### "No identity found for signing"
 
-Your certificate isn't installed or recognized:
 ```bash
-# Check installed certificates
 security find-identity -v -p codesigning
-
-# If empty, reinstall your certificate from Keychain
 ```
+
+If this is empty, or only shows `Apple Development` / `Apple Distribution`,
+create a Developer ID Application certificate (Step 1).
 
 ### "Notarization failed: invalid credentials"
 
-1. Regenerate your app-specific password
-2. Verify APPLE_ID matches your developer account email exactly
-3. Check APPLE_TEAM_ID is correct
+1. Regenerate the app-specific password, or re-download the API key
+2. Verify `APPLE_ID` exactly matches the developer account email
+3. Verify `APPLE_TEAM_ID` matches the team on the certificate
+4. For **individual** API keys, omit `APPLE_API_ISSUER` — sending it returns 401
+
+### Finding out why Apple rejected a build
+
+```bash
+xcrun notarytool history --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID"
+xcrun notarytool log <submission-id> --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID"
+```
+
+The log names each offending file. The most common causes are a nested binary
+that is unsigned or missing the hardened runtime.
 
 ### "The signature is invalid"
 
-The app was modified after signing:
-```bash
-# Verify signature
-codesign --verify --deep --strict /path/to/markuprx.app
+The bundle was modified after signing. Rebuild from a clean `release/`
+directory rather than re-signing in place.
 
-# Re-sign if needed
-codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name" /path/to/markuprx.app
-```
+### "This app is damaged and can't be opened"
 
-### "This app is damaged"
-
-Gatekeeper quarantine issue:
-```bash
-# Remove quarantine attribute
-xattr -cr /Applications/markuprx.app
-```
+This is the Gatekeeper message for an unsigned or unnotarized download. It
+means the release was published without notarization. Removing quarantine
+locally (`xattr -cr /Applications/MarkuprPlus.app`) hides the symptom on your
+own machine but does nothing for users — fix the release instead.
 
 ### Notarization timeout
 
-Apple's servers can be slow. The process typically takes 2-10 minutes but can take longer. The script will wait automatically.
-
----
-
-## GitHub Actions CI Setup
-
-Add this to your workflow:
-
-```yaml
-jobs:
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Package & Sign
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: npm run package:mac
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: markuprx-mac
-          path: release/*.dmg
-```
-
----
-
-## Environment Variables Reference
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `APPLE_ID` | Apple Developer account email | `dev@example.com` |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password from appleid.apple.com | `xxxx-xxxx-xxxx-xxxx` |
-| `APPLE_TEAM_ID` | 10-char Apple Team ID | `ABCD1234XY` |
-| `CSC_LINK` | Base64-encoded .p12 certificate | (long string) |
-| `CSC_KEY_PASSWORD` | Password for .p12 certificate | (your password) |
-
----
-
-## Quick Reference Commands
-
-```bash
-# Build and package
-npm run build && npm run package:mac
-
-# Release (builds, signs, notarizes, publishes to GitHub)
-npm run release
-
-# Check what will be included in the package
-npx electron-builder --mac --dir
-
-# Verify signature
-codesign --verify --deep --strict "release/mac/markuprx.app"
-
-# Check notarization status
-xcrun stapler validate "release/markuprx-0.2.0.dmg"
-```
+Apple's service normally takes 2-10 minutes but can be slower. `notarytool
+--wait` blocks until a verdict is returned.
 
 ---
 
 ## Security Notes
 
-- **Never commit** certificates, passwords, or keys to git
+- **Never commit** certificates, `.p8` keys, passwords, or `.p12` files
 - Use environment variables or CI secrets only
 - Rotate app-specific passwords periodically
-- Keep your .p12 certificate file secure and backed up
+- Keep the `.p12` export backed up securely; certificates cannot be re-downloaded

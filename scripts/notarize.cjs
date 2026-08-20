@@ -1,23 +1,36 @@
 /**
- * notarize.js
+ * notarize.cjs
  *
- * Apple Notarization script for MarkuprPlus
- * This script runs automatically after code signing via electron-builder
+ * Apple notarization hook for MarkuprPlus. electron-builder invokes this from
+ * `afterSign`, once the .app bundle has been code signed and before the DMG and
+ * ZIP artifacts are assembled. `@electron/notarize` submits the bundle to Apple
+ * and staples the resulting ticket to it, so every artifact built afterwards
+ * carries a stapled app.
  *
- * Handles notarization for:
- *   - .app bundles (main application)
- *   - .dmg files (disk image installers)
- *   - .zip files (compressed archives)
+ * Credentials are resolved from the first complete set of:
  *
- * Required Environment Variables:
- *   APPLE_ID                    - Your Apple ID email
- *   APPLE_APP_SPECIFIC_PASSWORD - App-specific password from appleid.apple.com
- *   APPLE_TEAM_ID               - Your Apple Developer Team ID
+ *   1. App Store Connect API key
+ *        APPLE_API_KEY      - path to the .p8 private key
+ *        APPLE_API_KEY_ID   - key ID
+ *        APPLE_API_ISSUER   - issuer UUID (team keys only)
+ *   2. Apple ID + app-specific password
+ *        APPLE_ID
+ *        APPLE_APP_SPECIFIC_PASSWORD
+ *        APPLE_TEAM_ID
+ *   3. A `notarytool store-credentials` keychain profile
+ *        APPLE_KEYCHAIN_PROFILE
+ *        APPLE_KEYCHAIN       - optional keychain path
+ *
+ * Set MARKUPRX_REQUIRE_NOTARIZATION=1 to make missing credentials, a missing
+ * Developer ID signature, or a failed submission fail the build. The release
+ * pipeline sets it so a tagged release can never silently publish an
+ * unnotarized app.
  *
  * @see https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution
  */
 
 const { notarize } = require('@electron/notarize');
+const { spawnSync } = require('node:child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -46,48 +59,126 @@ function formatDuration(ms) {
 }
 
 /**
- * Check if required environment variables are set
+ * True when the build must not continue unless the app is notarized.
  */
-function checkCredentials() {
-  const required = ['APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID'];
-  const missing = required.filter(key => !process.env[key]);
-
-  if (missing.length > 0) {
-    return {
-      valid: false,
-      missing,
-    };
-  }
-
-  return { valid: true, missing: [] };
+function notarizationRequired() {
+  const flag = String(process.env.MARKUPRX_REQUIRE_NOTARIZATION || '').toLowerCase();
+  return flag === '1' || flag === 'true' || flag === 'yes';
 }
 
 /**
- * Notarize a single artifact
+ * Resolve the first complete set of notarytool credentials.
+ * Returns null when no strategy is fully configured.
  */
-async function notarizeArtifact(artifactPath, appBundleId) {
-  log.progress(`Notarizing: ${path.basename(artifactPath)}`);
-  log.info(`Full path: ${artifactPath}`);
+function resolveCredentials() {
+  const {
+    APPLE_API_KEY,
+    APPLE_API_KEY_ID,
+    APPLE_API_ISSUER,
+    APPLE_ID,
+    APPLE_APP_SPECIFIC_PASSWORD,
+    APPLE_TEAM_ID,
+    APPLE_KEYCHAIN_PROFILE,
+    APPLE_KEYCHAIN,
+  } = process.env;
 
-  const startTime = Date.now();
-
-  try {
-    await notarize({
-      appBundleId,
-      appPath: artifactPath,
-      appleId: process.env.APPLE_ID,
-      appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID,
-    });
-
-    const duration = formatDuration(Date.now() - startTime);
-    log.success(`Notarized ${path.basename(artifactPath)} in ${duration}`);
-    return true;
-  } catch (error) {
-    log.error(`Failed to notarize ${path.basename(artifactPath)}`);
-    log.error(error.message);
-    return false;
+  if (APPLE_API_KEY && APPLE_API_KEY_ID) {
+    if (!fs.existsSync(APPLE_API_KEY)) {
+      throw new Error(`APPLE_API_KEY does not point at an existing .p8 key: ${APPLE_API_KEY}`);
+    }
+    return {
+      strategy: 'App Store Connect API key',
+      describe: `key ${APPLE_API_KEY_ID}`,
+      options: {
+        appleApiKey: APPLE_API_KEY,
+        appleApiKeyId: APPLE_API_KEY_ID,
+        // Individual keys must omit the issuer or Apple returns 401.
+        ...(APPLE_API_ISSUER ? { appleApiIssuer: APPLE_API_ISSUER } : {}),
+      },
+    };
   }
+
+  if (APPLE_ID && APPLE_APP_SPECIFIC_PASSWORD && APPLE_TEAM_ID) {
+    return {
+      strategy: 'Apple ID + app-specific password',
+      describe: `${APPLE_ID.replace(/(.{3}).*(@.*)/, '$1***$2')} (team ${APPLE_TEAM_ID})`,
+      options: {
+        appleId: APPLE_ID,
+        appleIdPassword: APPLE_APP_SPECIFIC_PASSWORD,
+        teamId: APPLE_TEAM_ID,
+      },
+    };
+  }
+
+  if (APPLE_KEYCHAIN_PROFILE) {
+    return {
+      strategy: 'notarytool keychain profile',
+      describe: APPLE_KEYCHAIN_PROFILE,
+      options: {
+        keychainProfile: APPLE_KEYCHAIN_PROFILE,
+        ...(APPLE_KEYCHAIN ? { keychain: APPLE_KEYCHAIN } : {}),
+      },
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Read the signing authorities off a bundle. Apple rejects anything that is not
+ * signed by a Developer ID Application certificate, so catching it here turns a
+ * slow, opaque server-side rejection into an immediate, explicit failure.
+ */
+function signingAuthorities(appPath) {
+  const result = spawnSync('codesign', ['--display', '--verbose=4', appPath], { encoding: 'utf8' });
+  if (result.status !== 0) return [];
+  return `${result.stderr || ''}`
+    .split('\n')
+    .filter((line) => line.startsWith('Authority='))
+    .map((line) => line.slice('Authority='.length).trim());
+}
+
+function assertDeveloperIdSignature(appPath) {
+  const authorities = signingAuthorities(appPath);
+
+  if (authorities.length === 0) {
+    throw new Error(
+      `${path.basename(appPath)} is not code signed. Notarization requires a Developer ID Application signature.`,
+    );
+  }
+
+  const developerId = authorities.find((authority) => authority.startsWith('Developer ID Application'));
+  if (!developerId) {
+    throw new Error(
+      `${path.basename(appPath)} is signed by "${authorities[0]}", which Apple will not notarize.\n`
+      + 'Direct distribution requires a "Developer ID Application" certificate. '
+      + '"Apple Development" and "Apple Distribution" certificates are only valid for local runs and App Store submission.',
+    );
+  }
+
+  log.info(`Signed by: ${developerId}`);
+}
+
+/**
+ * Explain a missing-credential situation, then either fail or skip.
+ */
+function handleMissingCredentials() {
+  const message = 'No complete notarytool credential set found.';
+
+  log.info('Configure one of the following credential sets:');
+  log.info('  APPLE_API_KEY + APPLE_API_KEY_ID [+ APPLE_API_ISSUER]');
+  log.info('  APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID');
+  log.info('  APPLE_KEYCHAIN_PROFILE');
+  log.info('');
+  log.info('Get an app-specific password at: https://appleid.apple.com/account/manage');
+
+  if (notarizationRequired()) {
+    log.error(message);
+    throw new Error(`${message} MARKUPRX_REQUIRE_NOTARIZATION is set, refusing to produce an unnotarized build.`);
+  }
+
+  log.warn(`${message} Skipping notarization.`);
+  log.warn('The resulting build is for local testing only; Gatekeeper will block it on other machines.');
 }
 
 /**
@@ -95,7 +186,6 @@ async function notarizeArtifact(artifactPath, appBundleId) {
  */
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
-  const appBundleId = 'com.eddiesanjuan.markuprx';
 
   log.divider();
   log.info('MarkuprPlus Notarization');
@@ -107,23 +197,14 @@ exports.default = async function notarizing(context) {
     return;
   }
 
-  // Check credentials
-  const credentials = checkCredentials();
-  if (!credentials.valid) {
-    log.warn('Skipping: missing credentials');
-    log.info(`Missing: ${credentials.missing.join(', ')}`);
-    log.info('');
-    log.info('To enable notarization, set these environment variables:');
-    log.info('  export APPLE_ID="your@email.com"');
-    log.info('  export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"');
-    log.info('  export APPLE_TEAM_ID="XXXXXXXXXX"');
-    log.info('');
-    log.info('Get an app-specific password at: https://appleid.apple.com/account/manage');
+  const credentials = resolveCredentials();
+  if (!credentials) {
+    handleMissingCredentials();
     return;
   }
 
-  log.info(`Team ID: ${process.env.APPLE_TEAM_ID}`);
-  log.info(`Apple ID: ${process.env.APPLE_ID.replace(/(.{3}).*(@.*)/, '$1***$2')}`);
+  log.info(`Strategy: ${credentials.strategy}`);
+  log.info(`Identity: ${credentials.describe}`);
   log.info('');
 
   const appName = context.packager.appInfo.productFilename;
@@ -135,46 +216,33 @@ exports.default = async function notarizing(context) {
     throw new Error(`App bundle not found: ${appPath}`);
   }
 
-  const totalStartTime = Date.now();
-  const results = [];
+  assertDeveloperIdSignature(appPath);
 
-  // Step 1: Notarize the .app bundle
   log.divider();
-  log.progress('Step 1/1: Notarizing app bundle');
-  log.divider();
-
-  const appResult = await notarizeArtifact(appPath, appBundleId);
-  results.push({ artifact: '.app bundle', success: appResult });
-
-  // Summary
-  log.divider();
-  log.info('Notarization Summary');
+  log.progress(`Submitting ${path.basename(appPath)} to Apple`);
+  log.info(`Full path: ${appPath}`);
+  log.info('This usually takes 2-10 minutes.');
   log.divider();
 
-  const successful = results.filter(r => r.success).length;
-  const failed = results.filter(r => !r.success).length;
+  const startTime = Date.now();
 
-  results.forEach(({ artifact, success }) => {
-    const status = success ? 'OK' : 'FAILED';
-    console.log(`  [${status}] ${artifact}`);
-  });
-
-  log.info('');
-  log.info(`Total: ${successful} succeeded, ${failed} failed`);
-  log.info(`Duration: ${formatDuration(Date.now() - totalStartTime)}`);
-  log.divider();
-
-  if (failed > 0) {
-    log.error('Some artifacts failed notarization');
+  try {
+    // notarize() waits for Apple's verdict and staples the ticket to the bundle.
+    await notarize({ appPath, ...credentials.options });
+  } catch (error) {
+    log.error(`Failed to notarize ${path.basename(appPath)}`);
+    log.error(error.message);
     log.info('');
     log.info('Troubleshooting tips:');
-    log.info('  1. Verify your Apple ID is enrolled in the Developer Program');
-    log.info('  2. Generate a new app-specific password at https://appleid.apple.com');
-    log.info('  3. Ensure your Team ID matches your Developer account');
-    log.info('  4. Check that code signing succeeded before notarization');
-    log.info('  5. Run `xcrun notarytool history` to see submission status');
-    throw new Error('Notarization failed');
+    log.info('  1. Verify the Apple ID is enrolled in the Apple Developer Program');
+    log.info('  2. Regenerate the app-specific password at https://appleid.apple.com');
+    log.info('  3. Ensure APPLE_TEAM_ID matches the Developer ID certificate');
+    log.info('  4. Run `xcrun notarytool history` to inspect recent submissions');
+    log.info('  5. Run `xcrun notarytool log <submission-id>` for per-file rejection detail');
+    throw error;
   }
 
-  log.success('All notarization complete!');
+  log.divider();
+  log.success(`Notarized and stapled ${path.basename(appPath)} in ${formatDuration(Date.now() - startTime)}`);
+  log.divider();
 };

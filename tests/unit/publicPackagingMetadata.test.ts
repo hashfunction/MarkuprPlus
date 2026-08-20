@@ -166,12 +166,20 @@ describe('public packaging identity', () => {
     expect(script).toContain('/Applications/markuprx.app');
   });
 
-  it('uses public branding in notarization output while retaining the bundle identifier', () => {
+  it('uses public branding in notarization output and fails closed', () => {
     const script = read('scripts/notarize.cjs');
 
     expect(script).toContain("log.info('MarkuprPlus Notarization')");
-    expect(script).toContain("const appBundleId = 'com.eddiesanjuan.markuprx'");
     expect(script).not.toContain("log.info('markuprx Notarization')");
+
+    // notarytool reads the bundle identifier from the signed app, so the hook
+    // must not carry a second copy of it. electron-builder.yml stays the single
+    // source of truth and is asserted above.
+    expect(script).not.toContain('appBundleId');
+
+    // A tagged release must never silently produce an unnotarized artifact.
+    expect(script).toContain('MARKUPRX_REQUIRE_NOTARIZATION');
+    expect(script).toContain('Developer ID Application');
   });
 
   it('runs fail-closed package verification after every public packaging command', () => {

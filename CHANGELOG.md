@@ -11,10 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.
 - Added a portrait-first taskbar popover experience and new README screenshot gallery.
 - Windows publisher identity is derived from the signing certificate; signed releases must verify the actual certificate subject.
+- macOS releases are now signed with a Developer ID Application certificate, notarized by Apple, and stapled, so they open without a Gatekeeper warning and validate offline.
+- Added `npm run release:mac`, which builds, signs, notarizes, staples, and verifies a macOS release in one step.
+- Added `npm run verify:signing`, which fails a release whose artifacts Gatekeeper would block.
+- Added `npm run notarize:dmg`, which notarizes and staples the disk images that are assembled after the app bundle is signed.
 
 ### Fixed
 
 - Removed the unconfigured repository update feed and its dead update/support entry points.
+- The release pipeline no longer falls back to an unsigned macOS build when signing secrets are absent; it now fails with the list of missing secrets instead of publishing an app macOS refuses to open.
+- Notarization no longer skips silently: missing credentials, a non-Developer ID certificate, or a failed submission now fail the release build.
+- Release notes now list the real `markuprplus-*` artifact names and no longer overwrite the curated changelog.
 
 ## 3.0.0 - 2026-08-15
 

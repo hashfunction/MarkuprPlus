@@ -9,7 +9,7 @@ As of v2.5.0, MarkuprX also ships as:
 - **MCP server** (`npx --package markuprx markuprx-mcp`) -- Model Context Protocol server for AI coding agents (capture screenshots, analyze video, start/stop recordings)
 - **GitHub Action** (`eddiesanjuan/markuprx-action@v1`) -- CI/CD visual feedback on PRs
 
-**Version:** 2.6.0
+**Version:** 3.0.0
 **License:** MIT (Open Source)
 
 ## Tech Stack
