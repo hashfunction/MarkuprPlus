@@ -39,7 +39,7 @@ jobs:
       is-prerelease: ${{ steps.version.outputs.is-prerelease }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Extract version from tag
         id: version
@@ -91,7 +91,7 @@ jobs:
       MARKUPRX_REQUIRE_NOTARIZATION: '1'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Fail early and legibly rather than 20 minutes into a build that would
       # have produced an app Gatekeeper blocks.
@@ -125,7 +125,7 @@ jobs:
           echo "All required macOS release credentials are present."
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -135,7 +135,7 @@ jobs:
 
       # Cache Electron binaries
       - name: Cache Electron
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/Library/Caches/electron
           key: macos-electron-${{ hashFiles('package-lock.json') }}
@@ -242,7 +242,7 @@ jobs:
         run: ls -la release/
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-macos
           path: |
@@ -264,10 +264,10 @@ jobs:
       WIN_SIGNING_AVAILABLE: ${{ secrets.WIN_CSC_LINK != '' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -277,7 +277,7 @@ jobs:
 
       # Cache Electron binaries
       - name: Cache Electron
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/AppData/Local/electron/Cache
           key: windows-electron-${{ hashFiles('package-lock.json') }}
@@ -313,7 +313,7 @@ jobs:
         run: dir release
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-windows
           path: |
@@ -336,12 +336,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -390,7 +390,7 @@ jobs:
           cat $NOTES
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: MarkuprPlus v${{ needs.validate-tag.outputs.version }}
