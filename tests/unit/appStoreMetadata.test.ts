@@ -47,7 +47,7 @@ describe('App Store public metadata', () => {
     }
   });
 
-  it('keeps every English listing field inside App Store character limits', async () => {
+  it('keeps the English listing within limits without edition comparisons', async () => {
     const metadata = await readFile('app-store/metadata/en-US.md', 'utf8');
     const fields = {
       name: section(metadata, 'Name'),
@@ -64,7 +64,9 @@ describe('App Store public metadata', () => {
     expect(fields.keywords.length).toBeLessThanOrEqual(100);
     expect(fields.description.length).toBeLessThanOrEqual(4_000);
     expect(fields.description).toMatch(/AI coding agents/i);
-    expect(fields.description).toMatch(/free.*GitHub/is);
+    expect(fields.description).not.toMatch(
+      /\bpaid\b|open[ -]?source|free (?:on GitHub|direct-download)|MIT-licensed|direct-download edition/i,
+    );
     expect(fields.description).not.toMatch(/Codex CLI|Claude Code CLI/);
   });
 });
