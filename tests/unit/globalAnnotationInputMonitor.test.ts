@@ -42,6 +42,25 @@ describe('GlobalAnnotationInputMonitor', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('does not launch the macOS observer when external processes are forbidden', async () => {
+    const spawn = vi.fn();
+    const monitor = createGlobalAnnotationInputMonitor({
+      platform: 'darwin',
+      spawn,
+      externalProcessAllowed: false,
+    });
+
+    await monitor.start(() => undefined);
+
+    expect(monitor.health()).toEqual({
+      state: 'unsupported',
+      platform: 'darwin',
+      restartCount: 0,
+      error: 'Global modifier observation is unavailable in this distribution.',
+    });
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
   it('starts the macOS Quartz observer with a minimal child environment', async () => {
     const child = new FakeProcess();
     const spawn = vi.fn(() => child);

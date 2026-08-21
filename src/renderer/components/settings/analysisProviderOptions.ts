@@ -4,6 +4,10 @@ import type {
   ModelAnalysisProvider,
 } from '../../../shared/types';
 import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
+import {
+  currentDistribution,
+  type DistributionKind,
+} from '../../../shared/distribution';
 
 export type ModelControlMode = 'none' | 'default-or-custom' | 'discovered-only';
 
@@ -15,7 +19,7 @@ export interface AnalysisProviderOption {
   recommended?: boolean;
 }
 
-export const PROVIDER_OPTIONS: AnalysisProviderOption[] = [
+const ALL_PROVIDER_OPTIONS: AnalysisProviderOption[] = [
   {
     id: 'codex-cli',
     title: 'Codex CLI',
@@ -54,6 +58,15 @@ export const PROVIDER_OPTIONS: AnalysisProviderOption[] = [
     connectionBadge: 'Local',
   },
 ];
+
+export function providerOptionsForDistribution(
+  distribution: DistributionKind,
+): AnalysisProviderOption[] {
+  return ALL_PROVIDER_OPTIONS.filter((option) =>
+    distribution === 'direct' || option.connectionBadge !== 'CLI');
+}
+
+export const PROVIDER_OPTIONS = providerOptionsForDistribution(currentDistribution());
 
 export function getModelControlMode(provider: AnalysisProvider): ModelControlMode {
   if (provider === 'rules') return 'none';

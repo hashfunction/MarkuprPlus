@@ -50,6 +50,7 @@ interface MonitorOptions {
   env?: NodeJS.ProcessEnv;
   schedule?: Schedule;
   cancelSchedule?: CancelSchedule;
+  externalProcessAllowed?: boolean;
 }
 
 const MAX_LINE_BYTES = 1_024;
@@ -197,6 +198,7 @@ class GlobalAnnotationInputMonitorImpl implements GlobalAnnotationInputMonitor {
   private readonly env: NodeJS.ProcessEnv;
   private readonly schedule: Schedule;
   private readonly cancelSchedule: CancelSchedule;
+  private readonly externalProcessAllowed: boolean;
   private listener: ((sample: GlobalAnnotationInputSample) => void) | null = null;
   private child: SpawnedAnnotationInputProcess | null = null;
   private restartHandle: unknown = null;
@@ -215,6 +217,7 @@ class GlobalAnnotationInputMonitorImpl implements GlobalAnnotationInputMonitor {
     this.env = minimalEnvironment(options.env || process.env);
     this.schedule = options.schedule || ((callback, delayMs) => setTimeout(callback, delayMs));
     this.cancelSchedule = options.cancelSchedule || ((handle) => clearTimeout(handle as NodeJS.Timeout));
+    this.externalProcessAllowed = options.externalProcessAllowed ?? true;
     this.status = { state: 'idle', platform: this.platform, restartCount: 0 };
   }
 
@@ -225,6 +228,16 @@ class GlobalAnnotationInputMonitorImpl implements GlobalAnnotationInputMonitor {
     this.rawSequence = -1;
     this.emittedSequence = 0;
     this.status = { state: 'starting', platform: this.platform, restartCount: 0 };
+
+    if (!this.externalProcessAllowed) {
+      this.status = {
+        state: 'unsupported',
+        platform: this.platform,
+        restartCount: 0,
+        error: 'Global modifier observation is unavailable in this distribution.',
+      };
+      return;
+    }
 
     if (!observerCommand(this.platform)) {
       this.status = {

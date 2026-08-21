@@ -40,6 +40,7 @@ import {
   isElectronTestHarnessAllowed,
 } from '../e2e/ElectronTestHarness';
 import { protectRendererNavigation } from '../security/NavigationGuard';
+import { currentDistributionCapabilities } from '../../shared/distribution';
 
 export interface CaptureOverlayWindow {
   webContents: {
@@ -283,7 +284,10 @@ function defaultDependencies(): CaptureOverlayManagerDependencies {
       isPackaged: app.isPackaged,
     })
       ? electronTestInputMonitor
-      : createGlobalAnnotationInputMonitor(),
+      : createGlobalAnnotationInputMonitor({
+        externalProcessAllowed:
+          currentDistributionCapabilities().externalInputObserver,
+      }),
     now: () => Date.now(),
     isAnnotationEnabled: () => true,
   };
