@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 import {
   parseTrueEntitlements,
@@ -27,6 +28,23 @@ function validEvidence(
 }
 
 describe('Mac App Store packaging policy', () => {
+  it('disables the intermediate macOS identity before the MAS signing pass', async () => {
+    const config = load(
+      await readFile('electron-builder.mas.yml', 'utf8'),
+    ) as {
+      mac?: { identity?: string | null };
+      mas?: { identity?: string | null };
+    };
+
+    expect({
+      intermediateIdentity: config.mac?.identity,
+      masIdentity: config.mas?.identity,
+    }).toEqual({
+      intermediateIdentity: null,
+      masIdentity: 'Apple Distribution',
+    });
+  });
+
   it('accepts a signed universal sandbox bundle with only Store update delivery', () => {
     expect(validateMasEvidence(validEvidence())).toEqual([]);
   });

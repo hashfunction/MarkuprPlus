@@ -29,6 +29,9 @@ asarUnpack:
 beforePack: scripts/prepare-whisper-runtime.cjs
 
 mac:
+  # Electron Builder runs a generic macOS signing pass before its MAS pass.
+  # Disable certificate auto-selection there so only the MAS identity below signs.
+  identity: null
   category: public.app-category.developer-tools
   icon: build/icon.icns
   hardenedRuntime: false
