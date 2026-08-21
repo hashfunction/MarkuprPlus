@@ -46,12 +46,13 @@ mac:
   target:
     - target: mas
       arch:
-        - x64
-        - arm64
+        - universal
 
 mas:
   type: distribution
-  identity: Apple Distribution
+  # One qualifier is applied to both Apple Distribution and Mac Installer
+  # Distribution lookups, so use the team name shared by both identities.
+  identity: Trieflow LLC
   hardenedRuntime: false
   gatekeeperAssess: false
   entitlements: build/entitlements.mas.plist

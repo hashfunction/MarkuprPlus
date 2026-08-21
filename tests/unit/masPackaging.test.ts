@@ -28,7 +28,7 @@ function validEvidence(
 }
 
 describe('Mac App Store packaging policy', () => {
-  it('disables the intermediate macOS identity before the MAS signing pass', async () => {
+  it('uses one team qualifier for the MAS app and installer signing passes', async () => {
     const config = load(
       await readFile('electron-builder.mas.yml', 'utf8'),
     ) as {
@@ -41,7 +41,20 @@ describe('Mac App Store packaging policy', () => {
       masIdentity: config.mas?.identity,
     }).toEqual({
       intermediateIdentity: null,
-      masIdentity: 'Apple Distribution',
+      masIdentity: 'Trieflow LLC',
+    });
+  });
+
+  it('builds one universal Mac App Store artifact', async () => {
+    const config = load(
+      await readFile('electron-builder.mas.yml', 'utf8'),
+    ) as {
+      mac?: { target?: Array<{ target?: string; arch?: string[] }> };
+    };
+
+    expect(config.mac?.target).toContainEqual({
+      target: 'mas',
+      arch: ['universal'],
     });
   });
 
