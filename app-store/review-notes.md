@@ -21,7 +21,3 @@ The sandboxed Mac App Store build does not execute external coding-agent command
 ## Files and permissions
 
 Capture artifacts are stored locally in the app's sandbox or a user-selected export location. Screen Recording and Microphone usage strings explain their purpose before macOS presents permission controls. The app does not request camera, contacts, calendar, location, Photos, or advertising permissions.
-
-## Paid and open-source editions
-
-This paid App Store edition is sold for convenient Apple-managed installation and updates and to support development. A free MIT-licensed direct-download edition remains available at https://github.com/hashfunction/MarkuprPlus. The two distributions are clearly disclosed in the listing.

@@ -41,10 +41,6 @@ LOCAL FIRST BY DESIGN
 
 No MarkuprPlus account. No developer-operated telemetry. Recordings, audio, screenshots, transcripts, and reports stay locally unless you explicitly choose a cloud provider or share an export.
 
-PAID IN THE APP STORE, FREE ON GITHUB
-
-The paid Mac App Store edition provides convenient Apple-managed installation and updates while supporting continued development. MarkuprPlus remains MIT-licensed, and the free direct-download edition remains available on GitHub.
-
 ## Marketing URL
 https://markuprplus.com
 
