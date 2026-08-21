@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — MarkuprPlus</title>
+  <meta name="description" content="How MarkuprPlus handles recordings, reports, API keys, and optional AI providers.">
+  <link rel="canonical" href="https://markuprplus.com/privacy">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3.0.0">
+  <style>
+    :root {
+      color-scheme: dark light;
+      --background: #0a0a0b;
+      --surface: #141415;
+      --text: #f5f5f5;
+      --muted: #a0a0a0;
+      --border: rgba(255, 255, 255, 0.16);
+      --accent: #f59e0b;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--background); color: var(--muted); line-height: 1.7; }
+    header, main, footer { width: min(760px, calc(100% - 40px)); margin: 0 auto; }
+    header { padding: 48px 0 24px; border-bottom: 2px solid var(--border); }
+    main { padding: 48px 0 72px; }
+    footer { padding: 24px 0 48px; border-top: 2px solid var(--border); font-size: 14px; }
+    h1, h2 { color: var(--text); letter-spacing: -0.025em; line-height: 1.15; }
+    h1 { margin: 20px 0 12px; font-size: clamp(36px, 8vw, 56px); }
+    h2 { margin: 44px 0 12px; font-size: 24px; }
+    p, li { font-size: 17px; }
+    a { color: var(--accent); }
+    .wordmark { color: var(--text); font-size: 22px; font-weight: 900; text-decoration: none; }
+    .wordmark span { color: var(--accent); }
+    .lede { color: var(--text); font-size: 21px; }
+    .summary { margin: 32px 0; padding: 24px; background: var(--surface); border: 2px solid var(--border); }
+    .updated { font: 13px ui-monospace, "SF Mono", monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="wordmark" href="/">MarkuprPlus</a>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Effective August 20, 2026</p>
+  </header>
+
+  <main>
+    <p class="lede">MarkuprPlus is designed to keep visual feedback under your control. There is no account, no telemetry, and no advertising profile.</p>
+
+    <div class="summary">
+      <strong>In short:</strong> recordings, narration, screenshots, transcripts, and reports are stored locally on your Mac. Content leaves your Mac only when you explicitly choose a cloud provider or send an export somewhere yourself.
+    </div>
+
+    <h2>Information MarkuprPlus handles</h2>
+    <p>When you start a capture, MarkuprPlus processes the window, region, or display you select; microphone narration when enabled; marks you draw; and the reports and exports created from that session. These files are stored locally in the output location shown in the app.</p>
+
+    <h2>On-device processing</h2>
+    <p>Local Rules creates structured reports without an AI service. Local Whisper transcription runs on your device after you install a model. Ollama and LM Studio connections use fixed loopback addresses on your Mac. MarkuprPlus does not send those local-provider requests to a developer-operated server.</p>
+
+    <h2>Optional cloud providers</h2>
+    <p>If you select a cloud provider, MarkuprPlus sends only the report material needed for that request to the provider you choose. For example, Anthropic API analysis may receive transcript text and selected screenshots, and optional cloud transcription may receive narration audio. Those providers process data under their own terms and privacy policies. MarkuprPlus does not silently switch to a different cloud provider.</p>
+
+    <h2>API keys</h2>
+    <p>Keys you enter are stored in the macOS Keychain and are used only to contact the provider you selected. MarkuprPlus does not transmit your keys to a MarkuprPlus server.</p>
+
+    <h2>Permissions</h2>
+    <p>macOS asks for Screen Recording permission so MarkuprPlus can capture the source you choose and Microphone permission so it can record narration. You can revoke either permission in System Settings. The Mac App Store edition runs in Apple's App Sandbox.</p>
+
+    <h2>Analytics, tracking, and accounts</h2>
+    <p>MarkuprPlus does not require a MarkuprPlus account, does not include developer-operated analytics or telemetry, does not use advertising identifiers, and does not track you across apps or websites. Apple may process purchase, download, and diagnostic information for the App Store under Apple's privacy policy.</p>
+
+    <h2>Retention and deletion</h2>
+    <p>Session files remain on your Mac until you remove them. You can delete captures from MarkuprPlus or Finder, clear app data from Settings, revoke permissions in System Settings, and remove provider keys from the app or Keychain Access. Cloud providers may retain submitted material according to the provider settings and policy associated with your account.</p>
+
+    <h2>Distribution and updates</h2>
+    <p>MarkuprPlus is distributed through the Mac App Store, where Apple manages installation and updates. This policy covers the MarkuprPlus application; Apple and optional providers process data under their own policies.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes materially, the effective date above will change and the updated policy will remain available at this URL.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or privacy requests can be filed through <a href="https://github.com/hashfunction/MarkuprPlus/issues/new">MarkuprPlus support on GitHub</a> or sent to <a href="mailto:hello@markuprplus.com">hello@markuprplus.com</a>.</p>
+  </main>
+
+  <footer>
+    <a href="/">MarkuprPlus home</a> · <a href="https://github.com/hashfunction/MarkuprPlus">Source code</a>
+  </footer>
+</body>
+</html>
