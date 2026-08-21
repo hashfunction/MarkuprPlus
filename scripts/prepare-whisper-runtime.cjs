@@ -19,6 +19,10 @@ const ARCH_NAMES = {
   4: 'universal',
 };
 
+function normalizeTargetPlatform(platform) {
+  return platform === 'mas' ? 'darwin' : platform;
+}
+
 function sharpRuntimePackages(platform, arch) {
   if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
     return [
@@ -211,7 +215,9 @@ async function prepareNativeRuntime(context) {
   if (!appDirectory) {
     throw new Error('electron-builder did not provide an application directory.');
   }
-  const targetPlatform = context.electronPlatformName || process.platform;
+  const targetPlatform = normalizeTargetPlatform(
+    context.electronPlatformName || process.platform,
+  );
   const targetArch = typeof context.arch === 'number'
     ? ARCH_NAMES[context.arch]
     : String(context.arch || process.arch);
@@ -268,6 +274,7 @@ async function prepareNativeRuntime(context) {
 }
 
 module.exports = prepareNativeRuntime;
+module.exports.normalizeTargetPlatform = normalizeTargetPlatform;
 module.exports.sharpRuntimePackages = sharpRuntimePackages;
 module.exports.whisperBuildConfiguration = whisperBuildConfiguration;
 module.exports.nativeBinaryArchitectures = nativeBinaryArchitectures;
