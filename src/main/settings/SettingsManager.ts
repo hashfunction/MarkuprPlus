@@ -138,6 +138,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
   // Onboarding
   hasCompletedOnboarding: false,
+  suppressPermissionPrompts: false,
 };
 
 /**
@@ -189,6 +190,7 @@ const SETTINGS_SCHEMA = {
   debugMode: { type: 'boolean' },
   keepAudioBackups: { type: 'boolean' },
   hasCompletedOnboarding: { type: 'boolean' },
+  suppressPermissionPrompts: { type: 'boolean' },
 } as const;
 
 // ============================================================================

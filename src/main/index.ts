@@ -74,7 +74,7 @@ import {
 import { menuManager } from './MenuManager';
 import { WindowsTaskbar, createWindowsTaskbar } from './platform';
 import { PopoverManager, POPOVER_SIZES } from './windows';
-import { permissionManager } from './PermissionManager';
+import { permissionManager, type RequestPermissionOptions } from './PermissionManager';
 import {
   registerAllHandlers,
   extensionFromMimeType,
@@ -1723,9 +1723,12 @@ async function checkPermission(type: PermissionType): Promise<boolean> {
   return permissionManager.isGranted(type);
 }
 
-async function requestPermission(type: PermissionType): Promise<boolean> {
+async function requestPermission(
+  type: PermissionType,
+  options?: RequestPermissionOptions
+): Promise<boolean> {
   if (electronTestHarnessAllowed()) return true;
-  return permissionManager.requestPermission(type);
+  return permissionManager.requestPermission(type, options);
 }
 
 /**
@@ -1742,11 +1745,17 @@ async function checkStartupPermissions(): Promise<void> {
   const initial = await permissionManager.checkAllPermissions();
 
   // On first launch, proactively trigger macOS permission prompts for not-determined states.
+  // Probe silently: the single startup dialog below is the guidance surface, so
+  // a per-permission denial dialog here would just stack a second modal on top.
   if (initial.state.microphone === 'not-determined') {
-    await requestPermission('microphone');
+    await requestPermission('microphone', { silent: true });
   }
-  if (initial.state.screen === 'not-determined') {
-    await requestPermission('screen');
+  // Screen capture has no 'not-determined' state on macOS -- getMediaAccessStatus
+  // reports a bare granted/denied. Anything short of granted has to go through
+  // the request path, which is what actually raises the system prompt and lists
+  // the app under Privacy & Security > Screen Recording.
+  if (initial.state.screen !== 'granted') {
+    await requestPermission('screen', { silent: true });
   }
 
   const result = await permissionManager.checkAllPermissions();
@@ -1764,12 +1773,24 @@ async function checkStartupPermissions(): Promise<void> {
 
     // Show guidance dialog for users who already finished onboarding.
     // New users will continue through onboarding guidance.
-    if (hasCompletedOnboarding) {
+    if (hasCompletedOnboarding && !settingsManager?.get('suppressPermissionPrompts')) {
       // Avoid blocking startup on a modal dialog; show guidance asynchronously.
       setTimeout(() => {
-        void permissionManager.showStartupPermissionDialog(result.missing).catch((error) => {
-          console.warn('[Main] Startup permission dialog failed:', error);
-        });
+        // The dialog is parented to the popover, and macOS orders that window on
+        // screen to host it. Re-anchor first so it surfaces under the tray icon
+        // rather than at Electron's default centered position.
+        popover?.reanchor();
+
+        void permissionManager
+          .showStartupPermissionDialog(result.missing)
+          .then(({ suppressFuturePrompts }) => {
+            if (suppressFuturePrompts) {
+              settingsManager?.set('suppressPermissionPrompts', true);
+            }
+          })
+          .catch((error) => {
+            console.warn('[Main] Startup permission dialog failed:', error);
+          });
       }, 500);
     }
   }

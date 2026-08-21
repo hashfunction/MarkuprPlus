@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { systemPreferences } from 'electron';
+import { systemPreferences, desktopCapturer, dialog } from 'electron';
 
 // Mock the ErrorHandler used by PermissionManager (must be before import)
 vi.mock('../../src/main/ErrorHandler', () => ({
@@ -172,4 +172,89 @@ describeOrSkip('PermissionManager', () => {
       expect(result.missing).toHaveLength(2);
     });
   });
+
+  describe('requestPermission (screen)', () => {
+    // macOS reports screen capture access as a binary via
+    // CGPreflightScreenCaptureAccess, so getMediaAccessStatus('screen') only
+    // ever returns 'granted' or 'denied' -- never 'not-determined'. Gating the
+    // request on 'not-determined' therefore never fires, and the app can never
+    // trigger the system prompt or register itself in the Screen Recording list.
+    it('attempts a real capture to trigger the system prompt when denied', async () => {
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
+
+      await manager.requestPermission('screen');
+
+      expect(desktopCapturer.getSources).toHaveBeenCalled();
+    });
+
+    it('returns true without a dialog when the capture attempt grants access', async () => {
+      let status = 'denied';
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockImplementation(
+        () => status as ReturnType<typeof systemPreferences.getMediaAccessStatus>
+      );
+      vi.mocked(desktopCapturer.getSources).mockImplementation(async () => {
+        status = 'granted';
+        return [];
+      });
+
+      const granted = await manager.requestPermission('screen');
+
+      expect(granted).toBe(true);
+      expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    });
+
+    it('probes without a guidance dialog when asked to stay silent', async () => {
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
+
+      const granted = await manager.requestPermission('screen', { silent: true });
+
+      expect(desktopCapturer.getSources).toHaveBeenCalled();
+      expect(dialog.showMessageBox).not.toHaveBeenCalled();
+      expect(granted).toBe(false);
+    });
+
+    it('does not re-trigger capture when access is already granted', async () => {
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('granted');
+
+      const granted = await manager.requestPermission('screen');
+
+      expect(granted).toBe(true);
+      expect(desktopCapturer.getSources).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('showStartupPermissionDialog', () => {
+    it('reports when the user asks not to be prompted again', async () => {
+      vi.mocked(dialog.showMessageBox).mockResolvedValue({
+        response: 1,
+        checkboxChecked: true,
+      } as Awaited<ReturnType<typeof dialog.showMessageBox>>);
+
+      const result = await manager.showStartupPermissionDialog(['screen']);
+
+      expect(result.suppressFuturePrompts).toBe(true);
+      expect(result.action).toBe('continue');
+    });
+
+    it('offers a suppression checkbox so startup stops nagging', async () => {
+      vi.mocked(dialog.showMessageBox).mockResolvedValue({
+        response: 0,
+        checkboxChecked: false,
+      } as Awaited<ReturnType<typeof dialog.showMessageBox>>);
+
+      await manager.showStartupPermissionDialog(['screen']);
+
+      const options = vi.mocked(dialog.showMessageBox).mock.calls[0].at(-1) as
+        Electron.MessageBoxOptions;
+      expect(options.checkboxLabel).toBeTruthy();
+    });
+
+    it('does nothing when nothing is missing', async () => {
+      const result = await manager.showStartupPermissionDialog([]);
+
+      expect(dialog.showMessageBox).not.toHaveBeenCalled();
+      expect(result.action).toBe('none');
+    });
+  });
+
 });

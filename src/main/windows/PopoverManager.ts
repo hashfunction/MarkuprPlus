@@ -97,9 +97,28 @@ export class PopoverManager {
       this.window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
 
+    // Anchor immediately. The window is created without an x/y, which leaves
+    // it at Electron's default position: centered on the primary display.
+    // show() is not the only thing that can surface it -- a dialog parented to
+    // this window (e.g. the startup permission prompt) orders it on screen
+    // without ever calling show(), which would strand it in the middle of the
+    // screen instead of under the tray icon.
+    this.reanchor();
+
     console.log('[PopoverManager] Popover window created');
 
     return this.window;
+  }
+
+  /**
+   * Recompute and apply the tray-anchored position without changing visibility.
+   */
+  reanchor(): { x: number; y: number } | null {
+    if (!this.window || this.window.isDestroyed()) return null;
+
+    const position = this.calculatePosition();
+    this.window.setPosition(position.x, position.y, false);
+    return position;
   }
 
   /**
@@ -108,8 +127,7 @@ export class PopoverManager {
   show(): void {
     if (!this.window || this.window.isDestroyed() || !this.tray) return;
 
-    const position = this.calculatePosition();
-    this.window.setPosition(position.x, position.y, false);
+    const position = this.reanchor();
     this.window.show();
     this.window.focus();
 
@@ -213,10 +231,7 @@ export class PopoverManager {
     this.window.setSize(width, height, true);
 
     // Reposition to stay anchored to tray
-    if (this.window.isVisible()) {
-      const position = this.calculatePosition();
-      this.window.setPosition(position.x, position.y, false);
-    }
+    this.reanchor();
 
     console.log(`[PopoverManager] Resized to ${width}x${height}`);
   }
