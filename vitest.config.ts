@@ -35,11 +35,13 @@ export default defineConfig({
     watchExclude: ['node_modules/**', 'dist/**'],
     // Reporter
     reporters: ['default'],
-    // Pool settings for better isolation
+    // Pool settings for better isolation.
+    // singleFork must stay off: it shares one module registry across every test
+    // file, so a vi.mock() in one file leaks into the ones that run after it.
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true,
+        singleFork: false,
       },
     },
   },

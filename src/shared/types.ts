@@ -270,6 +270,8 @@ export interface AppSettings {
 
   // Onboarding
   hasCompletedOnboarding: boolean;
+  /** User asked not to be reminded about missing system permissions. */
+  suppressPermissionPrompts: boolean;
 
   // Legacy fields (for migration compatibility)
   /** @deprecated Use imageQuality instead */
@@ -337,6 +339,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // Onboarding
   hasCompletedOnboarding: false,
+  suppressPermissionPrompts: false,
 };
 
 // =============================================================================

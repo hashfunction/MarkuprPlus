@@ -28,7 +28,8 @@ const { mockMkdir, mockReadFile, mockWriteFile, mockReaddir, mockAccess } = vi.h
   mockAccess: vi.fn(),
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   mkdir: mockMkdir,
   readFile: mockReadFile,
   writeFile: mockWriteFile,

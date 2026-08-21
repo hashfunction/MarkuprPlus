@@ -33,6 +33,20 @@ export interface PermissionCheckResult {
   state: PermissionState;
 }
 
+export interface RequestPermissionOptions {
+  /**
+   * Skip the "permission denied" guidance dialog. Use when the caller shows its
+   * own guidance, so the user is not handed two stacked dialogs in a row.
+   */
+  silent?: boolean;
+}
+
+export interface StartupPermissionDialogResult {
+  action: 'none' | 'settings' | 'continue' | 'quit';
+  /** User ticked "don't remind me again" -- callers should persist this. */
+  suppressFuturePrompts: boolean;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -174,7 +188,10 @@ class PermissionManager {
    * Request a specific permission
    * Returns true if granted, false otherwise
    */
-  async requestPermission(type: PermissionType): Promise<boolean> {
+  async requestPermission(
+    type: PermissionType,
+    options: RequestPermissionOptions = {}
+  ): Promise<boolean> {
     if (process.platform !== 'darwin') {
       return true;
     }
@@ -194,11 +211,11 @@ class PermissionManager {
 
     switch (type) {
       case 'microphone':
-        return this.requestMicrophonePermission(currentStatus);
+        return this.requestMicrophonePermission(currentStatus, options);
       case 'screen':
-        return this.requestScreenPermission(currentStatus);
+        return this.requestScreenPermission(options);
       case 'accessibility':
-        return this.requestAccessibilityPermission();
+        return this.requestAccessibilityPermission(options);
       default:
         return false;
     }
@@ -208,7 +225,8 @@ class PermissionManager {
    * Request microphone permission
    */
   private async requestMicrophonePermission(
-    currentStatus: PermissionState['microphone']
+    currentStatus: PermissionState['microphone'],
+    options: RequestPermissionOptions = {}
   ): Promise<boolean> {
     // Can trigger the system prompt for 'not-determined'
     if (currentStatus === 'not-determined') {
@@ -229,49 +247,64 @@ class PermissionManager {
     }
 
     // Previously denied or restricted - need manual intervention
-    await this.showPermissionDeniedDialog('microphone');
+    if (!options.silent) {
+      await this.showPermissionDeniedDialog('microphone');
+    }
     return false;
   }
 
   /**
-   * Request screen recording permission
-   * Note: macOS doesn't have a direct API to request this - we guide the user
+   * Request screen recording permission.
+   *
+   * macOS exposes screen capture access as a binary (CGPreflightScreenCaptureAccess),
+   * so getMediaAccessStatus('screen') only ever returns 'granted' or 'denied' --
+   * it never returns 'not-determined' the way microphone and camera do. Gating the
+   * request on 'not-determined' meant this never ran, so the app could neither
+   * trigger the system prompt nor register itself in System Settings, leaving the
+   * user with a dialog they had no way to satisfy.
+   *
+   * Attempting a real capture is what triggers the prompt on first ask, and what
+   * puts the app in the Screen Recording list so there is something to toggle.
    */
   private async requestScreenPermission(
-    currentStatus: PermissionState['screen']
+    options: RequestPermissionOptions = {}
   ): Promise<boolean> {
-    if (currentStatus === 'not-determined') {
-      // Trigger the system prompt by attempting to get sources
-      // This is the only way to trigger the screen recording prompt
-      try {
-        const { desktopCapturer } = await import('electron');
-        await desktopCapturer.getSources({
-          types: ['screen'],
-          thumbnailSize: { width: 1, height: 1 },
-        });
+    try {
+      const { desktopCapturer } = await import('electron');
+      await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1, height: 1 },
+      });
 
-        // Check if user granted
-        const newStatus = systemPreferences.getMediaAccessStatus('screen');
-        if (newStatus === 'granted') {
-          errorHandler.log('info', 'Screen recording permission granted via system prompt', {
-            component: 'PermissionManager',
-          });
-          return true;
-        }
-      } catch {
-        // Prompt was shown but user may have denied
+      const newStatus = systemPreferences.getMediaAccessStatus('screen');
+      if (newStatus === 'granted') {
+        errorHandler.log('info', 'Screen recording permission granted via system prompt', {
+          component: 'PermissionManager',
+        });
+        return true;
       }
+    } catch (error) {
+      // A rejected capture is the expected path when the user has denied access.
+      errorHandler.log('info', 'Screen capture probe did not yield access', {
+        component: 'PermissionManager',
+        operation: 'requestScreenPermission',
+        error: (error as Error).message,
+      });
     }
 
     // Need to guide user to System Preferences
-    await this.showPermissionDeniedDialog('screen');
+    if (!options.silent) {
+      await this.showPermissionDeniedDialog('screen');
+    }
     return false;
   }
 
   /**
    * Request accessibility permission
    */
-  private async requestAccessibilityPermission(): Promise<boolean> {
+  private async requestAccessibilityPermission(
+    options: RequestPermissionOptions = {}
+  ): Promise<boolean> {
     // This will show the system prompt if not determined
     const result = systemPreferences.isTrustedAccessibilityClient(true);
 
@@ -283,7 +316,9 @@ class PermissionManager {
     }
 
     // Guide user to System Preferences
-    await this.showPermissionDeniedDialog('accessibility');
+    if (!options.silent) {
+      await this.showPermissionDeniedDialog('accessibility');
+    }
     return false;
   }
 
@@ -304,11 +339,21 @@ class PermissionManager {
         ? 'Open Windows Settings'
         : 'Open Settings';
 
+    // macOS caches the screen-capture check for the lifetime of the process, so
+    // a grant made in System Settings stays invisible until the app relaunches.
+    // Offer the relaunch directly instead of letting the user loop on a dialog
+    // that keeps reappearing after they have already granted access.
+    const needsRelaunch = type === 'screen' && process.platform === 'darwin';
+    const relaunchLabel = `Restart ${PUBLIC_BRAND_NAME}`;
+    const buttons = needsRelaunch
+      ? [settingsLabel, relaunchLabel, 'Later']
+      : [settingsLabel, 'Later'];
+
     const options: Electron.MessageBoxOptions = {
       type: 'warning',
-      buttons: [settingsLabel, 'Later'],
+      buttons,
       defaultId: 0,
-      cancelId: 1,
+      cancelId: buttons.length - 1,
       title: `${config.title} Required`,
       message: config.title,
       detail:
@@ -317,7 +362,10 @@ class PermissionManager {
         `1. Click "${settingsLabel}"\n` +
         `2. Find ${PUBLIC_BRAND_NAME} in the list\n` +
         '3. Toggle it ON\n' +
-        `4. You may need to restart ${PUBLIC_BRAND_NAME}`,
+        (needsRelaunch
+          ? `4. Come back and click "${relaunchLabel}" -- macOS only applies a new\n`
+            + '   screen recording grant after the app restarts.'
+          : `4. You may need to restart ${PUBLIC_BRAND_NAME}`),
     };
 
     const { response } = this.mainWindow
@@ -329,14 +377,27 @@ class PermissionManager {
       return true;
     }
 
+    if (needsRelaunch && response === 1) {
+      errorHandler.log('info', 'Relaunching to pick up screen recording grant', {
+        component: 'PermissionManager',
+      });
+      app.relaunch();
+      app.exit(0);
+      return true;
+    }
+
     return false;
   }
 
   /**
    * Show a dialog on startup if required permissions are missing
    */
-  async showStartupPermissionDialog(missing: PermissionType[]): Promise<void> {
-    if (missing.length === 0) return;
+  async showStartupPermissionDialog(
+    missing: PermissionType[]
+  ): Promise<StartupPermissionDialogResult> {
+    if (missing.length === 0) {
+      return { action: 'none', suppressFuturePrompts: false };
+    }
 
     const missingDescriptions = missing
       .map((type) => `- ${PERMISSION_DESCRIPTIONS[type].title}`)
@@ -353,19 +414,29 @@ class PermissionManager {
         `To work properly, ${PUBLIC_BRAND_NAME} needs access to:\n` +
         `${missingDescriptions}\n\n` +
         'Would you like to set up permissions now?',
+      checkboxLabel: "Don't remind me again",
+      checkboxChecked: false,
     };
 
-    const { response } = this.mainWindow
+    const { response, checkboxChecked } = this.mainWindow
       ? await dialog.showMessageBox(this.mainWindow, options)
       : await dialog.showMessageBox(options);
+
+    const suppressFuturePrompts = checkboxChecked === true;
 
     if (response === 0) {
       // Open settings for first missing permission
       await this.openSystemPreferences(missing[0]);
-    } else if (response === 2) {
-      app.quit();
+      return { action: 'settings', suppressFuturePrompts };
     }
+
+    if (response === 2) {
+      app.quit();
+      return { action: 'quit', suppressFuturePrompts };
+    }
+
     // response === 1: Continue anyway - user accepted degraded functionality
+    return { action: 'continue', suppressFuturePrompts };
   }
 
   // ==========================================================================

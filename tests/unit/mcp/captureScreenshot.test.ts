@@ -32,7 +32,8 @@ vi.mock('../../../src/mcp/utils/ImageOptimizer.js', () => ({
   optimize: mockOptimize,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   readdir: mockReaddir,
 }));
 

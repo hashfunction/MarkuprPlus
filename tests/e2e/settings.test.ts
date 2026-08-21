@@ -119,7 +119,8 @@ vi.mock('keytar', () => ({
   }),
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   chmod: vi.fn(() => Promise.resolve()),
 }));
 

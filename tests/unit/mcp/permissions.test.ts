@@ -21,20 +21,24 @@ const { mockExecFile, mockStat, mockUnlink } = vi.hoisted(() => ({
   mockUnlink: vi.fn(),
 }));
 
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: mockExecFile,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: mockStat,
   unlink: mockUnlink,
 }));
 
-vi.mock('os', () => ({
+vi.mock('os', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('os')>()),
   tmpdir: () => '/tmp',
 }));
 
-vi.mock('crypto', () => ({
+vi.mock('crypto', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('crypto')>()),
   randomUUID: () => 'test-uuid-perm',
 }));
 

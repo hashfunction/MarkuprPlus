@@ -125,11 +125,24 @@ describeOrSkip('PermissionManager (expanded)', () => {
 
     it('shows dialog for denied status', async () => {
       vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
-      vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
+      // Screen adds a relaunch button, so 'Later' is the third option.
+      vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 2, checkboxChecked: false });
 
       const result = await manager.requestPermission('screen');
 
       expect(result).toBe(false);
+    });
+
+    it('offers a relaunch so a new grant can be picked up', async () => {
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
+      vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 2, checkboxChecked: false });
+
+      await manager.requestPermission('screen');
+
+      const options = vi.mocked(dialog.showMessageBox).mock.calls[0].at(-1) as
+        Electron.MessageBoxOptions;
+      expect(options.buttons).toHaveLength(3);
+      expect(options.buttons?.[1]).toContain('Restart');
     });
   });
 

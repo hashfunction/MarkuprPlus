@@ -32,11 +32,13 @@ vi.mock('electron', () => ({
     isReady: vi.fn(() => true),
     isPackaged: false,
     quit: vi.fn(),
+    relaunch: vi.fn(),
+    exit: vi.fn(),
     on: vi.fn(),
     whenReady: vi.fn(() => Promise.resolve()),
   },
 
-  BrowserWindow: vi.fn().mockImplementation(() => ({
+  BrowserWindow: vi.fn().mockImplementation((options: { width?: number; height?: number } = {}) => ({
     loadURL: vi.fn(() => Promise.resolve()),
     loadFile: vi.fn(() => Promise.resolve()),
     on: vi.fn(),
@@ -50,7 +52,21 @@ vi.mock('electron', () => ({
     blur: vi.fn(),
     setSize: vi.fn(),
     setPosition: vi.fn(),
-    getBounds: vi.fn(() => ({ x: 0, y: 0, width: 800, height: 600 })),
+    getBounds: vi.fn(() => ({
+      x: 0,
+      y: 0,
+      width: options.width ?? 800,
+      height: options.height ?? 600,
+    })),
+    isVisible: vi.fn(() => false),
+    isMinimized: vi.fn(() => false),
+    restore: vi.fn(),
+    setVisibleOnAllWorkspaces: vi.fn(),
+    setAlwaysOnTop: vi.fn(),
+    setVibrancy: vi.fn(),
+    setBackgroundColor: vi.fn(),
+    setHasShadow: vi.fn(),
+    setContentProtection: vi.fn(),
     webContents: {
       send: vi.fn(),
       on: vi.fn(),

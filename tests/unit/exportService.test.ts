@@ -29,7 +29,8 @@ vi.mock('electron', () => ({
   })),
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   mkdir: vi.fn(() => Promise.resolve()),
   writeFile: vi.fn(() => Promise.resolve()),
   stat: vi.fn(() => Promise.resolve({ size: 1024 })),
