@@ -1,0 +1,109 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2880, height=1800, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #090c14;
+      color: #eef3ff;
+    }
+
+    .mac-shell-bg {
+      background: 
+        radial-gradient(circle at 10% -18%, rgba(10, 132, 255, 0.16), transparent 46%),
+        radial-gradient(circle at 90% -16%, rgba(94, 106, 240, 0.12), transparent 44%),
+        linear-gradient(180deg, #090c14 0%, #0c1018 60%, #0b0f16 100%);
+    }
+
+    .sf-mono {
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    }
+
+    .text-balance {
+      text-wrap: balance;
+    }
+
+    .accent-gradient {
+      background: linear-gradient(180deg, #0a84ff 0%, #0077ed 100%);
+    }
+    
+    .glass-panel {
+      background: rgba(22, 28, 39, 0.82);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(150, 162, 183, 0.22);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+    }
+
+    .border-subtle {
+      border-color: rgba(150, 162, 183, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <div id="root" class="w-[2880px] h-[1800px] overflow-hidden relative mac-shell-bg flex flex-row items-center" data-sd-id="1">
+    
+    <!-- LEFT COLUMN: COPY (38%) -->
+    <div class="w-[38%] h-full flex flex-col justify-center px-40 z-20" data-sd-id="2">
+      <div class="mb-10" data-sd-id="3">
+        <span class="sf-mono text-[24px] tracking-[0.2em] font-semibold text-[#8f9db5] uppercase" data-sd-id="4">
+          AI WHEN YOU WANT IT. LOCAL WHEN YOU DO NOT.
+        </span>
+      </div>
+      
+      <h1 class="text-[92px] leading-[1.05] font-bold tracking-tighter mb-12 text-[#eef3ff] text-balance" data-sd-id="5">
+        Choose how AI analyzes the session.
+      </h1>
+      
+      <p class="text-[38px] leading-[1.5] text-[#c6d0e3] font-medium opacity-90 mb-20 text-balance" data-sd-id="6">
+        Use local models, bring an Anthropic key, or build a deterministic report with no model at all.
+      </p>
+
+      <div class="mt-auto mb-20" data-sd-id="7">
+        <div class="h-[1px] w-full bg-[#8f9db5]/20 mb-8" data-sd-id="8"></div>
+        <p class="sf-mono text-[26px] text-[#8f9db5] flex gap-8" data-sd-id="9">
+          <span data-sd-id="10">Ollama</span>
+          <span class="opacity-30" data-sd-id="11">·</span>
+          <span data-sd-id="12">LM Studio</span>
+          <span class="opacity-30" data-sd-id="13">·</span>
+          <span data-sd-id="14">Anthropic API</span>
+          <span class="opacity-30" data-sd-id="15">·</span>
+          <span data-sd-id="16">Local Rules</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: PRODUCT IMAGERY (62%) -->
+    <div class="w-[62%] h-full relative flex items-center justify-center" data-sd-id="17">
+      
+      <!-- Main Visual: Review Editor -->
+      <div class="absolute z-10 left-[5%] transform -translate-y-12 rotate-[-2deg]" data-sd-id="18">
+        <div class="glass-panel rounded-[32px] overflow-hidden p-3 w-[1100px]" data-sd-id="19">
+           <img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-review-editor/review-editor-dark.png" alt="Review Editor" class="w-full rounded-[24px]" data-sd-id="20">
+        </div>
+      </div>
+
+      <!-- Supporting Visual: Report Ready Popover -->
+      <div class="absolute z-20 right-[8%] top-[18%] transform rotate-[3deg] scale-110 shadow-2xl" data-sd-id="21">
+        <div class="glass-panel rounded-[28px] overflow-hidden p-2.5 w-[560px]" data-sd-id="22">
+          <img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-popover-report/popover-report.png" alt="Report Ready Popover" class="w-full rounded-[20px]" data-sd-id="23">
+        </div>
+      </div>
+
+      <!-- Background Grid/Accents -->
+      <div class="absolute inset-0 pointer-events-none" data-sd-id="24">
+        <div class="absolute top-0 right-0 w-[800px] h-[800px] bg-[#0a84ff]/5 blur-[120px] rounded-full" data-sd-id="25"></div>
+        <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#ff3b30]/5 blur-[100px] rounded-full" data-sd-id="26"></div>
+      </div>
+
+      <!-- Subtle UI Lines -->
+      <div class="absolute top-0 left-0 w-px h-full bg-gradient-to-b from-transparent via-[#8f9db5]/20 to-transparent" data-sd-id="27"></div>
+    </div>
+
+  </div>
+
+</body></html>

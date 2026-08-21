@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'SF Pro Display', 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .bg-gradient-main {
+            background: radial-gradient(circle at 10% -18%, rgba(10, 132, 255, 0.16), transparent 46%), radial-gradient(circle at 90% -16%, rgba(94, 106, 240, 0.12), transparent 44%), linear-gradient(180deg, #090c14 0%, #0c1018 60%, #0b0f16 100%);
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(26, 33, 45, 0.9) 0%, rgba(22, 28, 39, 0.82) 100%);
+            border: 1px solid rgba(150, 162, 183, 0.22);
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(217, 224, 236, 0.11);
+        }
+
+        .sf-mono {
+            font-family: 'SF Mono', 'JetBrains Mono', monospace;
+        }
+
+        .text-accent {
+            color: #0a84ff;
+        }
+
+        .text-muted {
+            color: #8f9db5;
+        }
+
+        .text-secondary {
+            color: #c6d0e3;
+        }
+
+        .text-primary {
+            color: #eef3ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="w-[2880px] h-[1800px] overflow-hidden relative bg-gradient-main flex flex-row items-center justify-between px-[160px]" data-sd-id="1">
+        <div class="w-[38%] h-full flex flex-col justify-center pr-24 z-10" data-sd-id="2">
+            <div class="sf-mono text-[22px] font-semibold tracking-[0.2em] text-accent mb-12" data-sd-id="3">LOCAL FIRST BY DESIGN</div>
+            <h1 class="text-[112px] font-bold text-primary leading-[1.05] tracking-tighter mb-14" data-sd-id="4">Everything stays under your control.</h1>
+            <p class="text-[42px] font-medium text-secondary leading-[1.4] pr-12" data-sd-id="5">No account. No telemetry. Captures and reports stay on your Mac unless you choose otherwise.</p>
+            <div class="mt-[140px] flex items-center gap-6" data-sd-id="6">
+                <div class="h-[1px] w-24 bg-accent opacity-60" data-sd-id="7"></div>
+                <div class="sf-mono text-[20px] text-muted tracking-wide" data-sd-id="8">Private session history · User-selected exports</div>
+            </div>
+        </div>
+        <div class="w-[62%] h-full relative flex items-center justify-center" data-sd-id="9">
+            <div class="absolute w-full h-full inset-0 pointer-events-none opacity-20" data-sd-id="10">
+                <div class="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-500/10 blur-[200px] rounded-full" data-sd-id="11"></div>
+                <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/5 blur-[150px] rounded-full" data-sd-id="12"></div>
+            </div>
+            <div class="relative flex gap-12 rotate-[-6deg] translate-x-24 scale-[1.08]" data-sd-id="13">
+                <div class="glass-card w-[600px] h-[880px] rounded-[48px] overflow-hidden p-6 mt-32" data-sd-id="14"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-session-history/session-history.png" class="w-full h-full object-cover rounded-[32px]" alt="Session History View" data-sd-id="15"></div>
+                <div class="glass-card w-[600px] h-[880px] rounded-[48px] overflow-hidden p-6" data-sd-id="16"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-appearance/appearance.png" class="w-full h-full object-cover rounded-[32px]" alt="Appearance Settings View" data-sd-id="17"></div>
+                <div class="absolute -bottom-8 -left-8 w-64 h-64 border-l-2 border-b-2 border-accent/20" data-sd-id="18"></div>
+                <div class="absolute -top-8 -right-8 w-64 h-64 border-r-2 border-t-2 border-accent/20" data-sd-id="19"></div>
+            </div>
+        </div>
+        <div class="absolute inset-0 pointer-events-none mix-blend-overlay opacity-30" data-sd-id="21"><svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" data-sd-id="22">
+                <defs>
+                    <pattern id="grid" width="120" height="120" patternUnits="userSpaceOnUse">
+                        <path d="M 120 0 L 0 0 0 120" fill="none" stroke="white" stroke-width="0.5"></path>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)"></rect>
+            </svg></div>
+    </div>
+</body>
+
+</html>
