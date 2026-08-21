@@ -2,6 +2,7 @@ appId: com.eddiesanjuan.markuprx
 productName: MarkuprPlus
 executableName: MarkuprPlus
 copyright: Copyright 2026 Trieflow LLC
+buildVersion: "2"
 
 directories:
   output: release-mas
@@ -33,7 +34,7 @@ mac:
   # Disable certificate auto-selection there so only the MAS identity below signs.
   identity: null
   category: public.app-category.developer-tools
-  icon: build/icon.icns
+  icon: build/mas-icon.icns
   hardenedRuntime: false
   gatekeeperAssess: false
   entitlements: build/entitlements.mas.plist

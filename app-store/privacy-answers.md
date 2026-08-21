@@ -8,10 +8,13 @@ These answers describe the sandboxed Mac App Store build. Reconfirm them against
 - Data used for third-party advertising: No.
 - Developer-operated analytics or telemetry: No.
 - MarkuprPlus account or user identity collection: No.
-- Data collected by Trieflow LLC from the app: None.
+- Data received or stored by Trieflow LLC from the app: None.
 - User content stored by Trieflow LLC: None.
+- App Store privacy data types: Photos or Videos and Other User Content.
+- Purpose: App Functionality only.
+- Linked to the user's identity: Yes, conservatively, because optional Anthropic API analysis uses the user's own provider API key and Anthropic retains API inputs and outputs under its then-current commercial retention policy.
 
-Recordings, narration, screenshots, transcripts, reports, preferences, and API keys are processed and stored on the user's Mac. When a user explicitly selects an optional third-party cloud provider, the app sends the material required for that user-requested provider operation directly to the provider. Trieflow LLC does not receive that material. Confirm App Store Connect's then-current definition of “collection” when entering the questionnaire; if Apple treats direct third-party transmission as collected data, disclose the applicable User Content and Audio categories for optional functionality.
+Recordings, narration, screenshots, transcripts, reports, preferences, and API keys are processed and stored on the user's Mac. When a user explicitly selects Anthropic API analysis, the app sends the transcript and selected screenshots directly to Anthropic using the user's own key; Trieflow LLC does not receive that material. The App Store label therefore conservatively discloses Photos or Videos and Other User Content as Data Linked to You and used for App Functionality. OpenAI audio transcription currently has no abuse-monitoring or application-state retention according to OpenAI's endpoint-specific data-controls documentation, so Audio Data is not listed as collected under Apple's current definition. Reconfirm both providers' retention policies before each submission.
 
 ## Permissions
 

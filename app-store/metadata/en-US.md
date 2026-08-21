@@ -7,15 +7,15 @@ MarkuprPlus
 Visual feedback for AI agents
 
 ## Promotional Text
-See it, say it, circle it—and hand your coding agent a structured report with the exact frame and words behind every issue.
+Circle the bug. Give your AI the whole story. MarkuprPlus turns each mark and spoken note into a structured issue with the exact frame and moment.
 
 ## Keywords
-bug report,screen record,transcribe,developer,markdown,screenshot,voice,QA,code review,annotation
+bug report,screen recorder,AI feedback,annotation,transcription,Markdown,QA,code review,screenshot
 
 ## Description
-Turn what you see into feedback your AI coding agents can act on.
+Circle the bug. Give your AI the whole story.
 
-MarkuprPlus lives in your menu bar. Pick a window, region, or display, talk through what is wrong, and mark the screen while you test. When you stop, MarkuprPlus creates a structured report with the exact frame and narration behind every finding—ready for Codex, Claude Code, Cursor, and any agent that can read Markdown.
+MarkuprPlus turns visual feedback into structured context for AI coding agents. Pick a window, region, or display, talk through what is wrong, and mark the screen while you test. When you stop, every finding has the exact frame, timestamp, and narration behind it—ready for Codex, Claude Code, Cursor, or any agent that reads Markdown.
 
 ONE MARK, ONE ACTIONABLE ISSUE
 
@@ -43,7 +43,7 @@ No MarkuprPlus account. No developer-operated telemetry. Recordings, audio, scre
 
 PAID IN THE APP STORE, FREE ON GITHUB
 
-The $9.99 Mac App Store edition provides convenient Apple-managed installation and updates while supporting continued development. MarkuprPlus remains MIT-licensed and the free direct-download edition remains available on GitHub.
+The paid Mac App Store edition provides convenient Apple-managed installation and updates while supporting continued development. MarkuprPlus remains MIT-licensed, and the free direct-download edition remains available on GitHub.
 
 ## Marketing URL
 https://markuprplus.com

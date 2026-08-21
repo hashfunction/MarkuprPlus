@@ -24,4 +24,4 @@ Capture artifacts are stored locally in the app's sandbox or a user-selected exp
 
 ## Paid and open-source editions
 
-This $9.99 App Store edition is sold for convenient Apple-managed installation and updates and to support development. A free MIT-licensed direct-download edition remains available at https://github.com/hashfunction/MarkuprPlus. The two distributions are clearly disclosed in the listing.
+This paid App Store edition is sold for convenient Apple-managed installation and updates and to support development. A free MIT-licensed direct-download edition remains available at https://github.com/hashfunction/MarkuprPlus. The two distributions are clearly disclosed in the listing.
