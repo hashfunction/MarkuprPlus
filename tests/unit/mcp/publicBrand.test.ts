@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('fs/promises', () => ({ stat: vi.fn() }));
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()), stat: vi.fn() }));
 vi.mock('../../../src/cli/CLIPipeline.js', () => ({ CLIPipeline: vi.fn() }));
 vi.mock('../../../src/mcp/capture/ScreenRecorder.js', () => ({
   record: vi.fn(),

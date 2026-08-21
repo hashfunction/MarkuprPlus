@@ -101,18 +101,21 @@ vi.mock('../../src/main/transcription/WhisperService', () => ({
 }));
 
 // Mock child_process for FrameExtractor
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
     cb(new Error('ffmpeg not found'), '', '');
   }),
 }));
 
-vi.mock('fs', () => ({
+vi.mock('fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs')>()),
   existsSync: vi.fn(() => true),
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: vi.fn(() => Promise.resolve({ size: 1024 })),
   writeFile: vi.fn(() => Promise.resolve()),
   mkdir: vi.fn(() => Promise.resolve()),

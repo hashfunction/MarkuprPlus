@@ -22,7 +22,8 @@ const { mockStat, mockPushReport } = vi.hoisted(() => ({
   mockPushReport: vi.fn(),
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: mockStat,
 }));
 

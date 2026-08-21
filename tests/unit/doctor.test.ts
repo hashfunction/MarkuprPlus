@@ -26,19 +26,23 @@ const {
   mockStat: vi.fn(),
 }));
 
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: mockExecFile,
 }));
 
-vi.mock('fs', () => ({
+vi.mock('fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs')>()),
   existsSync: mockExistsSync,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: mockStat,
 }));
 
-vi.mock('os', () => ({
+vi.mock('os', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('os')>()),
   homedir: () => '/home/testuser',
   platform: () => 'darwin',
 }));

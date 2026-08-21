@@ -27,7 +27,8 @@ const { mockStat, mockResolveAuth, mockParseRepoString, mockPushToGitHub } =
     mockPushToGitHub: vi.fn(),
   }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: mockStat,
 }));
 

@@ -17,7 +17,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockExecFile = vi.fn();
 
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: (...args: unknown[]) => {
     const cb = args[args.length - 1];
     if (typeof cb === 'function') {
@@ -35,7 +36,8 @@ vi.mock('util', async (importOriginal) => {
   };
 });
 
-vi.mock('fs', () => ({
+vi.mock('fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs')>()),
   existsSync: vi.fn(() => true),
   mkdirSync: vi.fn(),
 }));

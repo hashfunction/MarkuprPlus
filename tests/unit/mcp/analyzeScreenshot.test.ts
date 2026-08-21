@@ -34,16 +34,19 @@ vi.mock('../../../src/mcp/utils/ImageOptimizer.js', () => ({
   optimize: mockOptimize,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   readFile: mockReadFile,
   unlink: mockUnlink,
 }));
 
-vi.mock('os', () => ({
+vi.mock('os', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('os')>()),
   tmpdir: () => '/tmp',
 }));
 
-vi.mock('crypto', () => ({
+vi.mock('crypto', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('crypto')>()),
   randomUUID: () => 'test-uuid-1234',
 }));
 

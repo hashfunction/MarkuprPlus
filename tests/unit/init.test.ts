@@ -27,11 +27,13 @@ const {
   mockAppendFile: vi.fn(),
 }));
 
-vi.mock('fs', () => ({
+vi.mock('fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs')>()),
   existsSync: mockExistsSync,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   readFile: mockReadFile,
   writeFile: mockWriteFile,
   appendFile: mockAppendFile,

@@ -20,7 +20,8 @@ const { mockExecFileCb } = vi.hoisted(() => ({
   mockExecFileCb: vi.fn(),
 }));
 
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: mockExecFileCb,
 }));
 

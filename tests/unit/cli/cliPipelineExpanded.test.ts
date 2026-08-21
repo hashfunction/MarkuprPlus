@@ -35,27 +35,32 @@ const {
   mockMkdirSync: vi.fn(),
 }));
 
-vi.mock('child_process', () => ({
+vi.mock('child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('child_process')>()),
   execFile: mockExecFile,
 }));
 
-vi.mock('fs/promises', () => ({
+vi.mock('fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs/promises')>()),
   stat: mockStat,
   unlink: mockUnlink,
   writeFile: mockWriteFile,
   chmod: mockChmod,
 }));
 
-vi.mock('fs', () => ({
+vi.mock('fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('fs')>()),
   existsSync: mockExistsSync,
   mkdirSync: mockMkdirSync,
 }));
 
-vi.mock('os', () => ({
+vi.mock('os', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('os')>()),
   tmpdir: () => '/tmp',
 }));
 
-vi.mock('crypto', () => ({
+vi.mock('crypto', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('crypto')>()),
   randomUUID: () => 'test-uuid-expanded',
 }));
 
