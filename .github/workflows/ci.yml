@@ -1,7 +1,7 @@
 # =============================================================================
 # markuprx CI Pipeline
 # =============================================================================
-# Runs on every push to main and pull request
+# Runs on every pushed commit and every pull request targeting main
 # Matrix build for macOS and Windows with comprehensive validation
 # =============================================================================
 
@@ -9,7 +9,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -40,6 +39,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify CI workflow coverage
+        run: npm run verify:ci
+
+      - name: Verify public brand and repository references
+        run: npm run verify:brand
 
       - name: Run ESLint
         run: npm run lint
@@ -192,6 +197,9 @@ jobs:
 
       - name: Verify packaged native runtime
         run: npm run verify:package
+
+      - name: Smoke test packaged application
+        run: npm run test:package-smoke
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
