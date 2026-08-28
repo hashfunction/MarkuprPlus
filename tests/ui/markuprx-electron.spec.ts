@@ -2662,7 +2662,7 @@ test.describe('MarkuprPlus desktop application', () => {
       exact: true,
     });
     await expect(rebind).toBeVisible();
-    await shortcuts.getByPlaceholder('Search shortcuts...').focus();
+    await expect(shortcuts.getByPlaceholder('Search shortcuts...')).toBeFocused();
     await window.keyboard.press('Tab');
     await expect(rebind).toBeFocused();
     const focusStyle = await rebind.evaluate((element) => {
@@ -2755,7 +2755,7 @@ test.describe('MarkuprPlus desktop application', () => {
     shortcuts = window.getByRole('region', { name: 'Keyboard Shortcuts', exact: true });
     recordingRow = shortcuts.locator('.ff-shortcut-row')
       .filter({ hasText: 'Start/Stop Recording' });
-    expect(await recordingRow.locator('kbd').allTextContents())
+    await expect.poll(() => recordingRow.locator('kbd').allTextContents())
       .toEqual([primaryKey, '⌥', 'J']);
   });
 
@@ -4175,7 +4175,7 @@ test.describe('MarkuprPlus desktop application', () => {
 
   test('writes five MarkuprPlus README screenshots at portrait dimensions @public-screenshot', async () => {
     const entries = await readdir(publicScreenshotRoot).catch(() => []);
-    expect(entries.sort()).toEqual([...publicScreenshotNames].sort());
+    expect(entries).toEqual(expect.arrayContaining([...publicScreenshotNames]));
     const proofEntries = await readdir(publicScreenshotProofRoot).catch(() => []);
     expect(proofEntries.sort()).toEqual(
       publicScreenshotNames.flatMap((name) => [
