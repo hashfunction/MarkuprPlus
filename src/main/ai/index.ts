@@ -16,6 +16,15 @@ export {
   createLocalAnalysisProviderRegistry,
 } from './providers/AnalysisProviderRegistry';
 export {
+  CLI_PROVIDER_PROFILES,
+  ProfiledCliProvider,
+  extractCliAnalysisResult,
+} from './providers/ProfiledCliProvider';
+export type {
+  CliProviderProfile,
+  ProfiledCliProviderDependencies,
+} from './providers/ProfiledCliProvider';
+export {
   AnthropicApiProvider,
   AnthropicApiProviderError,
 } from './providers/AnthropicApiProvider';

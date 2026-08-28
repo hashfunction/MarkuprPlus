@@ -194,7 +194,7 @@ Marked issues are numbered `MX-001…`; items that come from narration alone are
     <td width="33%" valign="top">
       <img src="docs/images/markuprplus/providers.png" alt="Provider list with live reachability status" width="100%"><br>
       <strong>Report providers</strong><br>
-      Six ways to turn a session into a report, each showing whether it's reachable <em>right now</em> — CLI version and path, local port, missing key.
+      Fifteen ways to turn a session into a report, each showing whether it's reachable <em>right now</em> — CLI version and path, local port, missing key.
     </td>
     <td width="33%" valign="top">
       <img src="docs/images/markuprplus/review-editor-dark.png" alt="Review editor with editable category and severity chips" width="100%"><br>
@@ -251,12 +251,23 @@ Pick the model that turns a capture into a structured report. MarkuprPlus checks
 |---|---|---|
 | **Codex CLI** | CLI | Your installed Codex CLI and existing ChatGPT login, in a read-only ephemeral session |
 | **Claude Code CLI** | CLI | The Claude Code CLI you're already signed in to |
+| **GitHub Copilot CLI** | CLI | Your installed Copilot CLI and existing GitHub login, with mutation, shell, URL, and memory tools denied |
+| **OpenCode** | CLI | Your configured OpenCode provider, with a per-run agent that denies every tool action |
+| **Gemini CLI** | CLI | Your authenticated Gemini CLI in non-interactive plan mode |
+| **Cursor Agent CLI** | CLI | Cursor Agent in non-interactive, read-only Ask mode |
+| **Qwen Code** | CLI | Qwen Code in safe, non-interactive plan mode with mutation tools excluded |
+| **Goose** | CLI | Your configured Goose provider in tool-free chat mode, without profiles or session persistence |
+| **Amp** | CLI | Your Amp login with an isolated default-deny tool policy |
+| **Kiro CLI** | CLI | Kiro headless mode with only read and grep trusted |
+| **Aider** | CLI | Your configured Aider model in dry-run, no-git mode |
 | **Ollama** | Local | A model served on `127.0.0.1:11434` — nothing leaves the machine |
 | **LM Studio** | Local | An LM Studio server on `127.0.0.1:1234` |
 | **Anthropic API** | Cloud | Your own key, stored in the system keychain and used for nothing else |
 | **Local rules** | Zero setup | Deterministic report from transcript and marks alone, no credentials |
 
-**Failure is safe by design.** If the provider you picked errors out, the deterministic Local rules report is written anyway, and the popover names the provider and the reason. Your recording, audio, and marks were already on disk before analysis started. An explicit Codex choice never silently becomes an Anthropic call.
+**Failure is safe by design.** If the provider you picked errors out, the deterministic Local rules report is written anyway, and the popover names the provider and the reason. Your recording, audio, and marks were already on disk before analysis started. An explicit CLI choice never silently becomes an Anthropic call.
+
+Codex CLI, GitHub Copilot CLI, and OpenCode can receive captured screenshots. Transcript-only CLI adapters reject screenshot-only sessions instead of inventing visual findings.
 
 `processing-trace.json` records exactly what happened:
 

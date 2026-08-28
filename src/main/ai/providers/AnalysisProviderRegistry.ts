@@ -13,6 +13,11 @@ import type {
 } from './types';
 import type { ISettingsManager } from '../../settings/SettingsManager';
 import { AnthropicApiProvider } from './AnthropicApiProvider';
+import { CLI_PROVIDER_PROFILES, ProfiledCliProvider } from './ProfiledCliProvider';
+
+function profiledCliAdapters(): AnalysisProviderAdapter[] {
+  return CLI_PROVIDER_PROFILES.map((profile) => new ProfiledCliProvider(profile));
+}
 
 export class AnalysisProviderRegistry {
   private readonly adapters: AnalysisProviderAdapter[];
@@ -75,6 +80,7 @@ export function createCliAnalysisProviderRegistry(): AnalysisProviderRegistry {
       discover: (forceRefresh) => claudeCliDiscovery.discover(forceRefresh),
       analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
     },
+    ...profiledCliAdapters(),
   ]);
 }
 
@@ -105,6 +111,7 @@ export function createDefaultAnalysisProviderRegistry(
       discover: (forceRefresh) => claudeCliDiscovery.discover(forceRefresh),
       analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
     },
+    ...profiledCliAdapters(),
     new OllamaProvider(),
     new LmStudioProvider(),
     new AnthropicApiProvider(settingsManager),

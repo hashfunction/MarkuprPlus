@@ -1489,7 +1489,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
             title="Report Generation (Optional)"
             helpText={
               <>
-                Choose Codex CLI, Claude Code CLI, Ollama, LM Studio, Anthropic API, or Local Rules later in Settings {'>'} Advanced. If you want Anthropic API, create a key at{' '}
+                Choose from installed coding-agent CLIs—including Codex, Claude Code, GitHub Copilot, OpenCode, Gemini, Cursor, Qwen Code, Goose, Amp, Kiro, and Aider—or use Ollama, LM Studio, Anthropic API, or Local Rules later in Settings {'>'} Advanced. If you want Anthropic API, create a key at{' '}
                 <a
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"

@@ -24,6 +24,15 @@ describe('analysis provider settings', () => {
       'anthropic-api',
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
+      'opencode-cli',
+      'gemini-cli',
+      'cursor-cli',
+      'qwen-cli',
+      'goose-cli',
+      'amp-cli',
+      'kiro-cli',
+      'aider-cli',
       'ollama',
       'lmstudio',
     ]);
@@ -46,8 +55,11 @@ describe('analysis provider settings', () => {
     settings.set('analysisProvider', 'codex-cli');
     expect(settings.get('analysisProvider')).toBe('codex-cli');
 
+    settings.set('analysisProvider', 'github-copilot-cli');
+    expect(settings.get('analysisProvider')).toBe('github-copilot-cli');
+
     settings.set('analysisProvider', 'unsupported' as never);
-    expect(settings.get('analysisProvider')).toBe('codex-cli');
+    expect(settings.get('analysisProvider')).toBe('github-copilot-cli');
 
     settings.set('analysisProvider', 'rules');
     expect(settings.get('analysisProvider')).toBe('rules');

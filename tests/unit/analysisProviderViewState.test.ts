@@ -59,6 +59,37 @@ describe('getAnalysisProviderViewState', () => {
     });
   });
 
+  it('uses provider-specific readiness copy for an additional CLI', () => {
+    expect(getAnalysisProviderViewState(
+      'github-copilot-cli',
+      [status('github-copilot-cli', {
+        name: 'GitHub Copilot CLI',
+        connection: 'cli',
+      })],
+      {},
+    )).toEqual({
+      ready: true,
+      title: 'GitHub Copilot CLI ready',
+      detail: 'Reports will use GitHub Copilot CLI with its default model.',
+    });
+  });
+
+  it('labels CLI authentication as unverified when no safe auth probe exists', () => {
+    expect(getAnalysisProviderViewState(
+      'opencode-cli',
+      [status('opencode-cli', {
+        name: 'OpenCode',
+        connection: 'cli',
+        authenticated: undefined,
+      })],
+      {},
+    )).toEqual({
+      ready: true,
+      title: 'OpenCode installed',
+      detail: 'OpenCode authentication will be verified when the report runs.',
+    });
+  });
+
   it('treats Local Rules as always ready', () => {
     expect(getAnalysisProviderViewState('rules', [], {})).toEqual({
       ready: true,

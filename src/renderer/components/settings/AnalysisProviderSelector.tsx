@@ -186,7 +186,12 @@ export const AnalysisProviderSelector: React.FC<{
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-        <button type="button" style={styles.secondaryButton} onClick={onRefresh} disabled={isScanning}>
+        <button
+          type="button"
+          style={styles.secondaryButton}
+          onClick={() => onRefresh()}
+          disabled={isScanning}
+        >
           {isScanning ? 'Refreshing…' : 'Refresh providers'}
         </button>
       </div>

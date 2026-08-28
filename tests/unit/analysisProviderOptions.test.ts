@@ -9,17 +9,27 @@ import {
 import type { AnalysisProviderStatus } from '../../src/shared/types';
 
 describe('analysis provider options', () => {
-  it('uses the fixed six-provider card order and connection badges', () => {
+  it('shows the comprehensive CLI provider catalog before local and cloud fallbacks', () => {
     expect(PROVIDER_OPTIONS.map(({ id }) => id)).toEqual([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
+      'opencode-cli',
+      'gemini-cli',
+      'cursor-cli',
+      'qwen-cli',
+      'goose-cli',
+      'amp-cli',
+      'kiro-cli',
+      'aider-cli',
       'ollama',
       'lmstudio',
       'anthropic-api',
       'rules',
     ]);
     expect(PROVIDER_OPTIONS.map(({ connectionBadge }) => connectionBadge)).toEqual([
-      'CLI', 'CLI', 'Local', 'Local', 'Cloud', 'Local',
+      'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
+      'Local', 'Local', 'Cloud', 'Local',
     ]);
   });
 
@@ -29,6 +39,8 @@ describe('analysis provider options', () => {
     expect(getModelControlMode('codex-cli')).toBe('default-or-custom');
     expect(getModelControlMode('claude-cli')).toBe('default-or-custom');
     expect(getModelControlMode('anthropic-api')).toBe('default-or-custom');
+    expect(getModelControlMode('amp-cli')).toBe('none');
+    expect(getModelControlMode('kiro-cli')).toBe('none');
     expect(getModelControlMode('rules')).toBe('none');
   });
 

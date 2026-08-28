@@ -22,6 +22,7 @@ import { app, ipcMain, safeStorage } from 'electron';
 import { join } from 'path';
 import { chmod } from 'fs/promises';
 import {
+  ANALYSIS_PROVIDERS,
   IPC_CHANNELS,
   isValidAnalysisModelSelections,
   normalizeAnalysisProvider,
@@ -172,16 +173,7 @@ const SETTINGS_SCHEMA = {
   audioDeviceId: { type: ['string', 'null'] },
   analysisProvider: {
     type: 'string',
-    enum: [
-      'rules',
-      'anthropic-api',
-      'codex-cli',
-      'claude-cli',
-      'ollama',
-      'lmstudio',
-      'anthropic',
-      'codex',
-    ],
+    enum: [...ANALYSIS_PROVIDERS, 'anthropic', 'codex'],
   },
   analysisModelsByProvider: {
     type: 'object',

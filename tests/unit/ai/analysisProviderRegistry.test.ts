@@ -96,18 +96,33 @@ describe('AnalysisProviderRegistry', () => {
     ])).toThrow('Duplicate analysis provider: ollama');
   });
 
-  it('assembles the two supported CLI adapters', () => {
+  it('assembles every supported CLI adapter', () => {
     const registry = createCliAnalysisProviderRegistry();
 
-    expect(registry.get('codex-cli')).toMatchObject({
-      id: 'codex-cli',
-      name: 'Codex CLI',
-      connection: 'cli',
-    });
-    expect(registry.get('claude-cli')).toMatchObject({
-      id: 'claude-cli',
-      name: 'Claude Code CLI',
-      connection: 'cli',
-    });
+    expect([
+      'codex-cli',
+      'claude-cli',
+      'github-copilot-cli',
+      'opencode-cli',
+      'gemini-cli',
+      'cursor-cli',
+      'qwen-cli',
+      'goose-cli',
+      'amp-cli',
+      'kiro-cli',
+      'aider-cli',
+    ].map((id) => registry.get(id as never))).toMatchObject([
+      { id: 'codex-cli', name: 'Codex CLI', connection: 'cli' },
+      { id: 'claude-cli', name: 'Claude Code CLI', connection: 'cli' },
+      { id: 'github-copilot-cli', name: 'GitHub Copilot CLI', connection: 'cli' },
+      { id: 'opencode-cli', name: 'OpenCode', connection: 'cli' },
+      { id: 'gemini-cli', name: 'Gemini CLI', connection: 'cli' },
+      { id: 'cursor-cli', name: 'Cursor Agent CLI', connection: 'cli' },
+      { id: 'qwen-cli', name: 'Qwen Code', connection: 'cli' },
+      { id: 'goose-cli', name: 'Goose', connection: 'cli' },
+      { id: 'amp-cli', name: 'Amp', connection: 'cli' },
+      { id: 'kiro-cli', name: 'Kiro CLI', connection: 'cli' },
+      { id: 'aider-cli', name: 'Aider', connection: 'cli' },
+    ]);
   });
 });

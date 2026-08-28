@@ -2433,6 +2433,23 @@ test.describe('MarkuprPlus desktop application', () => {
     await expect(heading).toBeFocused();
   });
 
+  test('refreshes report-provider availability without clearing provider statuses', async () => {
+    const launched = await launchApplication(harness);
+    application = launched.application;
+    const window = launched.mainWindow;
+
+    await window.getByRole('button', { name: 'Open Settings' }).click();
+    await window.getByRole('tab', { name: 'Advanced', exact: true }).click();
+    const refresh = window.getByRole('button', { name: 'Refresh providers' });
+    const checkingStatuses = window.getByText('Checking availability…', { exact: true });
+
+    await expect(refresh).toBeEnabled({ timeout: 10_000 });
+    await expect(checkingStatuses).toHaveCount(0, { timeout: 10_000 });
+    await refresh.click();
+    await expect(refresh).toBeEnabled({ timeout: 10_000 });
+    await expect(checkingStatuses).toHaveCount(0, { timeout: 10_000 });
+  });
+
   test('reveals AI Setup selection while leaving focus on its initiating control', async () => {
     const launched = await launchApplication(harness);
     application = launched.application;

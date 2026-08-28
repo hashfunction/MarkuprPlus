@@ -18,6 +18,15 @@ const PROVIDER_NAMES: Record<AnalysisProvider, string> = {
   'anthropic-api': 'Anthropic API',
   'codex-cli': 'Codex CLI',
   'claude-cli': 'Claude Code CLI',
+  'github-copilot-cli': 'GitHub Copilot CLI',
+  'opencode-cli': 'OpenCode',
+  'gemini-cli': 'Gemini CLI',
+  'cursor-cli': 'Cursor Agent CLI',
+  'qwen-cli': 'Qwen Code',
+  'goose-cli': 'Goose',
+  'amp-cli': 'Amp',
+  'kiro-cli': 'Kiro CLI',
+  'aider-cli': 'Aider',
   ollama: 'Ollama',
   lmstudio: 'LM Studio',
 };
@@ -26,6 +35,15 @@ function checkingDetail(provider: Exclude<AnalysisProvider, 'rules'>): string {
   switch (provider) {
     case 'codex-cli': return 'Scanning for an installed and authenticated Codex CLI.';
     case 'claude-cli': return 'Scanning for an installed and authenticated Claude Code CLI.';
+    case 'github-copilot-cli': return 'Scanning for an installed GitHub Copilot CLI.';
+    case 'opencode-cli': return 'Scanning for an installed OpenCode CLI.';
+    case 'gemini-cli': return 'Scanning for an installed Gemini CLI.';
+    case 'cursor-cli': return 'Scanning for an installed Cursor Agent CLI.';
+    case 'qwen-cli': return 'Scanning for an installed Qwen Code CLI.';
+    case 'goose-cli': return 'Scanning for an installed Goose CLI.';
+    case 'amp-cli': return 'Scanning for an installed Amp CLI.';
+    case 'kiro-cli': return 'Scanning for an installed Kiro CLI.';
+    case 'aider-cli': return 'Scanning for an installed Aider CLI.';
     case 'ollama': return 'Checking the local Ollama service and installed models.';
     case 'lmstudio': return 'Checking the local LM Studio service and loaded models.';
     case 'anthropic-api': return 'Checking for a saved Anthropic API key.';
@@ -67,6 +85,13 @@ export function getAnalysisProviderViewState(
   }
 
   if (status.ready) {
+    if (status.connection === 'cli' && status.authenticated === undefined) {
+      return {
+        ready: true,
+        title: `${providerName} installed`,
+        detail: `${providerName} authentication will be verified when the report runs.`,
+      };
+    }
     return {
       ready: true,
       title: `${providerName} ready`,
