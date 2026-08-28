@@ -66,6 +66,8 @@ requireCommand('electron-ui', 'npm run test:ui-electron');
 requireCommand('build', 'npm run build');
 requireCommand('build', 'npm run verify:package');
 requireCommand('build', 'npm run test:package-smoke');
+requireCommand('build', 'npx vitest run tests/unit/masIconGeneration.test.ts');
+requireCommand('build', 'npx vitest run tests/unit/ai/cliProcessRunner.test.ts');
 
 const packageStep = findStep('build', 'Package application (unsigned)');
 if (packageStep?.env?.USE_HARD_LINKS !== 'false') {

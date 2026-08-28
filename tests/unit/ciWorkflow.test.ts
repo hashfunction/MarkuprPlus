@@ -31,6 +31,7 @@ describe('continuous integration workflow', () => {
         env?: Record<string, string>;
         if?: string;
         name?: string;
+        run?: string;
         uses?: string;
         with?: Record<string, string>;
       }> } };
@@ -40,6 +41,12 @@ describe('continuous integration workflow', () => {
       (step) => step.name === 'Package application (unsigned)',
     );
     const installStep = buildSteps.find((step) => step.name === 'Install dependencies');
+    const macSpecificTests = buildSteps.find(
+      (step) => step.name === 'Run macOS-specific tests',
+    );
+    const windowsSpecificTests = buildSteps.find(
+      (step) => step.name === 'Run Windows-specific tests',
+    );
     const nodeModulesCache = buildSteps.find(
       (step) => step.uses?.startsWith('actions/cache@')
         && String(step.with?.path || '').split(/\s+/).includes('node_modules'),
@@ -53,5 +60,13 @@ describe('continuous integration workflow', () => {
     expect(packageStep?.env).toMatchObject({ USE_HARD_LINKS: 'false' });
     expect(installStep?.if).toBeUndefined();
     expect(nodeModulesCache).toBeUndefined();
+    expect(macSpecificTests).toMatchObject({
+      if: "runner.os == 'macOS'",
+      run: 'npx vitest run tests/unit/masIconGeneration.test.ts',
+    });
+    expect(windowsSpecificTests).toMatchObject({
+      if: "runner.os == 'Windows'",
+      run: 'npx vitest run tests/unit/ai/cliProcessRunner.test.ts',
+    });
   });
 });

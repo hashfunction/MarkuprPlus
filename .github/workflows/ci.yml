@@ -157,6 +157,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run macOS-specific tests
+        if: runner.os == 'macOS'
+        run: npx vitest run tests/unit/masIconGeneration.test.ts
+
+      - name: Run Windows-specific tests
+        if: runner.os == 'Windows'
+        run: npx vitest run tests/unit/ai/cliProcessRunner.test.ts
+
       # Cache Electron binaries
       - name: Cache Electron
         uses: actions/cache@v5
