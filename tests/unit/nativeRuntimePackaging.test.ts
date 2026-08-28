@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const nativeRuntimeHook = require('../../scripts/prepare-whisper-runtime.cjs') as {
+  normalizeTargetPlatform?: (platform: string) => string;
   sharpRuntimePackages(platform: string, arch: string): string[];
   whisperBuildConfiguration?: (platform: string, arch: string) => {
     binaryName: string;
@@ -13,6 +14,12 @@ const nativeRuntimeHook = require('../../scripts/prepare-whisper-runtime.cjs') a
 };
 
 describe('native runtime packaging matrix', () => {
+  it('normalizes the Electron Builder MAS target to the macOS runtime matrix', () => {
+    expect(nativeRuntimeHook.normalizeTargetPlatform?.('mas')).toBe('darwin');
+    expect(nativeRuntimeHook.normalizeTargetPlatform?.('darwin')).toBe('darwin');
+    expect(nativeRuntimeHook.normalizeTargetPlatform?.('win32')).toBe('win32');
+  });
+
   it.each([
     ['darwin', 'x64', ['@img/sharp-darwin-x64', '@img/sharp-libvips-darwin-x64']],
     ['darwin', 'arm64', ['@img/sharp-darwin-arm64', '@img/sharp-libvips-darwin-arm64']],

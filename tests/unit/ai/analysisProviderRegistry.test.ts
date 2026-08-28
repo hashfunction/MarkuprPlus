@@ -7,6 +7,7 @@ import type {
 import {
   AnalysisProviderRegistry,
   createCliAnalysisProviderRegistry,
+  createDefaultAnalysisProviderRegistry,
 } from '../../../src/main/ai/providers/AnalysisProviderRegistry';
 
 const sessionFixture = {
@@ -124,5 +125,22 @@ describe('AnalysisProviderRegistry', () => {
       { id: 'kiro-cli', name: 'Kiro CLI', connection: 'cli' },
       { id: 'aider-cli', name: 'Aider', connection: 'cli' },
     ]);
+  });
+
+  it('omits external CLI adapters when the distribution forbids child tools', () => {
+    const settingsManager = {
+      hasApiKey: vi.fn(async () => false),
+      getApiKey: vi.fn(async () => null),
+    } as never;
+    const registry = createDefaultAnalysisProviderRegistry(settingsManager, false);
+
+    expect(() => registry.get('codex-cli')).toThrow('Unsupported analysis provider: codex-cli');
+    expect(() => registry.get('claude-cli')).toThrow('Unsupported analysis provider: claude-cli');
+    expect(() => registry.get('github-copilot-cli')).toThrow(
+      'Unsupported analysis provider: github-copilot-cli',
+    );
+    expect(registry.get('ollama')).toMatchObject({ id: 'ollama' });
+    expect(registry.get('lmstudio')).toMatchObject({ id: 'lmstudio' });
+    expect(registry.get('anthropic-api')).toMatchObject({ id: 'anthropic-api' });
   });
 });

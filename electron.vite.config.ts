@@ -2,8 +2,14 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
+const distribution = process.env.MARKUPRPLUS_DISTRIBUTION === 'mas' ? 'mas' : 'direct'
+const distributionDefine = {
+  __MARKUPRPLUS_DISTRIBUTION__: JSON.stringify(distribution)
+}
+
 export default defineConfig({
   main: {
+    define: distributionDefine,
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: 'dist/main',
@@ -23,6 +29,7 @@ export default defineConfig({
     }
   },
   preload: {
+    define: distributionDefine,
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: 'dist/preload',
@@ -42,6 +49,7 @@ export default defineConfig({
     }
   },
   renderer: {
+    define: distributionDefine,
     root: 'src/renderer',
     build: {
       outDir: 'dist/renderer',

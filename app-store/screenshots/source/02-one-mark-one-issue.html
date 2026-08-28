@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --navy-bg: #090c14;
+            --navy-mid: #0c1018;
+            --navy-panel: rgba(22, 28, 39, 0.82);
+            --accent: #0a84ff;
+            --text-primary: #eef3ff;
+            --text-secondary: #c6d0e3;
+            --text-muted: #8f9db5;
+            --border: rgba(150, 162, 183, 0.22)
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'SF Pro Display', 'Inter', sans-serif;
+            background-color: var(--navy-bg);
+            color: var(--text-primary);
+            overflow: hidden
+        }
+
+        .grid-lines {
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(26, 33, 45, 0.9) 0%, rgba(22, 28, 39, 0.82) 100%);
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(217, 224, 236, 0.1)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="w-[2880px] h-[1800px] overflow-hidden relative flex bg-[#090c14]" data-sd-id="1">
+        <div class="absolute inset-0 grid-lines z-0" data-sd-id="2"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(10,132,255,0.1),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(94,106,240,0.08),transparent_50%)] z-0" data-sd-id="3"></div>
+        <div class="w-[38%] h-full flex flex-col justify-center px-[160px] relative z-10" data-sd-id="4">
+            <div class="mb-8" data-sd-id="5"><span class="text-[28px] font-semibold tracking-[0.2em] text-[#8f9db5] uppercase" data-sd-id="6">EVIDENCE, NOT JUST FOOTAGE</span></div>
+            <h1 class="text-[110px] font-bold leading-[0.95] tracking-tighter mb-10 text-[#eef3ff]" data-sd-id="7">One mark.<br>One AI-ready issue.</h1>
+            <p class="text-[42px] leading-tight text-[#c6d0e3] font-medium max-w-[700px]" data-sd-id="8">Every circle gets its own annotated frame, timestamp, and narration.</p>
+            <div class="mt-auto mb-20" data-sd-id="9">
+                <div class="flex items-center gap-6" data-sd-id="10">
+                    <div class="w-12 h-[2px] bg-[#0a84ff]" data-sd-id="11"></div>
+                    <p class="text-[32px] font-mono text-[#8f9db5]" data-sd-id="12">Structured Markdown ready for your coding agent.</p>
+                </div>
+            </div>
+        </div>
+        <div class="w-[62%] h-full relative z-10 flex items-center justify-center p-20 gap-16" data-sd-id="13">
+            <div class="relative flex-1 max-w-[720px]" data-sd-id="14">
+                <div class="glass-card rounded-[32px] overflow-hidden p-6 ring-1 ring-white/10" data-sd-id="16"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-marked-issue/marked-issue-001.png" alt="Annotated UI Feedback" class="w-full h-auto rounded-2xl" data-sd-id="17"></div>
+                <div class="absolute -right-8 top-1/2 -translate-y-1/2 z-30" data-sd-id="18">
+                    <div class="w-24 h-24 rounded-full bg-[#0a84ff]/20 flex items-center justify-center border-2 border-[#0a84ff] animate-pulse" data-sd-id="19">
+                        <div class="w-4 h-4 rounded-full bg-[#0a84ff]" data-sd-id="20"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="relative flex-1 max-w-[840px]" data-sd-id="21">
+                <div class="glass-card rounded-[32px] overflow-hidden p-8 ring-1 ring-white/10" data-sd-id="23"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-markdown-preview/markdown-preview.png" alt="Markdown Preview" class="w-full h-auto rounded-2xl" data-sd-id="24"></div>
+            </div>
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[2px] bg-gradient-to-r from-transparent via-[#0a84ff] to-transparent opacity-40" data-sd-id="25"></div>
+        </div>
+        <div class="absolute top-20 right-20 flex gap-4" data-sd-id="26">
+            <div class="w-3 h-3 rounded-full bg-white/10" data-sd-id="27"></div>
+            <div class="w-3 h-3 rounded-full bg-white/10" data-sd-id="28"></div>
+            <div class="w-3 h-3 rounded-full bg-[#0a84ff]" data-sd-id="29"></div>
+        </div>
+    </div>
+</body>
+
+</html>

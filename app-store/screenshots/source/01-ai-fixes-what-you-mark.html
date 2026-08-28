@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #090c14;
+            color: #eef3ff;
+            font-family: 'SF Pro Display', 'Inter', sans-serif;
+            overflow: hidden
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'SF Mono', monospace
+        }
+
+        .shell-gradient {
+            background: radial-gradient(circle at 0% 0%, rgba(10, 132, 255, 0.08), transparent 40%), radial-gradient(circle at 100% 100%, rgba(10, 132, 255, 0.05), transparent 40%), linear-gradient(180deg, #090c14 0%, #0c1018 100%)
+        }
+
+        .glass-panel {
+            background: rgba(22, 28, 39, 0.82);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(150, 162, 183, 0.22);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5)
+        }
+
+        .accent-shadow {
+            box-shadow: 0 0 80px rgba(10, 132, 255, 0.15)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="w-[2880px] h-[1800px] overflow-hidden relative shell-gradient" data-sd-id="1">
+        <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image:linear-gradient(#c6d0e3 1px, transparent 1px), linear-gradient(90deg, #c6d0e3 1px, transparent 1px);background-size:120px 120px" data-sd-id="2"></div>
+        <div class="absolute left-[160px] top-[480px] w-[960px] flex flex-col gap-10" data-sd-id="3">
+            <div class="flex flex-col gap-6" data-sd-id="4">
+                <p class="text-[#0a84ff] font-semibold text-[28px] tracking-[0.15em] uppercase mono" data-sd-id="5">VISUAL FEEDBACK FOR AI CODING AGENTS</p>
+                <h1 class="text-[118px] font-bold leading-[0.95] tracking-[-0.03em] text-[#eef3ff]" data-sd-id="6">Circle the bug.<br>Give your AI<br>the whole story.</h1>
+                <p class="text-[#c6d0e3] text-[42px] leading-[1.3] max-w-[820px] font-medium" data-sd-id="7">Turn every mark and spoken note into AI-ready context.</p>
+            </div>
+        </div>
+        <div class="absolute right-[-100px] top-[140px] w-[1600px] h-[1400px]" data-sd-id="8">
+            <div class="relative w-full h-full" data-sd-id="9">
+                <div class="absolute left-[380px] top-0 w-[840px] aspect-[460/680] z-20 rounded-[48px] overflow-hidden glass-panel accent-shadow" data-sd-id="10"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-target-clean/target-clean.png" class="w-full h-full object-cover" alt="MarkuprPlus Capture UI" data-sd-id="11"></div>
+                <div class="absolute left-0 top-[420px] w-[580px] aspect-[460/680] z-30 rounded-[32px] overflow-hidden glass-panel shadow-2xl scale-[0.9] origin-right" data-sd-id="12"><img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/c07a90e9-1ce8-4557-a725-09920dbb7137/content-assets/app-store-popover-report/popover-report.png" class="w-full h-full object-cover" alt="MarkuprPlus Report Ready" data-sd-id="13"></div>
+            </div>
+        </div>
+        <div class="absolute bottom-[100px] left-[160px] flex items-center gap-12" data-sd-id="24">
+            <div class="h-[2px] w-[120px] bg-[#0a84ff]" data-sd-id="25"></div>
+            <p class="text-[32px] font-semibold text-[#8f9db5]" data-sd-id="26">MarkuprPlus <span class="text-[#eef3ff] mx-4" data-sd-id="27">·</span> Mark it. Explain it. Ship the fix.</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,61 @@
+appId: com.eddiesanjuan.markuprx
+productName: MarkuprPlus
+executableName: MarkuprPlus
+copyright: Copyright 2026 Trieflow LLC
+buildVersion: "2"
+
+directories:
+  output: release-mas
+  buildResources: build
+
+publish: null
+npmRebuild: true
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: assets
+    to: assets
+    filter:
+      - "tray-{idle,recording,complete,error}{,Template,@2x,Template@2x}.png"
+      - "tray-processing{,-0,-1,-2,-3}{,Template,@2x,Template@2x}.png"
+
+asarUnpack:
+  - "node_modules/**/*.node"
+  - "node_modules/whisper-node/lib/whisper.cpp/main*"
+  - "node_modules/whisper-node/lib/whisper.cpp/ggml-metal.metal"
+
+beforePack: scripts/prepare-whisper-runtime.cjs
+
+mac:
+  # Electron Builder runs a generic macOS signing pass before its MAS pass.
+  # Disable certificate auto-selection there so only the MAS identity below signs.
+  identity: null
+  category: public.app-category.developer-tools
+  icon: build/mas-icon.icns
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  extendInfo:
+    LSUIElement: true
+    NSMicrophoneUsageDescription: MarkuprPlus records narration while you review a screen.
+    NSScreenCaptureUsageDescription: MarkuprPlus captures the window, region, or display you choose for visual feedback.
+    ITSAppUsesNonExemptEncryption: false
+  target:
+    - target: mas
+      arch:
+        - universal
+
+mas:
+  type: distribution
+  # One qualifier is applied to both Apple Distribution and Mac Installer
+  # Distribution lookups, so use the team name shared by both identities.
+  identity: Trieflow LLC
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  artifactName: "markuprplus-${version}-mas.${ext}"

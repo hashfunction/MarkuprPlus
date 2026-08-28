@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PROVIDER_OPTIONS,
+  providerOptionsForDistribution,
   getModelControlMode,
   getModelDefaultLabel,
   getSelectedModelLabel,
@@ -31,6 +32,18 @@ describe('analysis provider options', () => {
       'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
       'Local', 'Local', 'Cloud', 'Local',
     ]);
+  });
+
+  it('hides CLI cards in the Store distribution', () => {
+    expect(providerOptionsForDistribution('mas').map(({ id }) => id)).toEqual([
+      'ollama',
+      'lmstudio',
+      'anthropic-api',
+      'rules',
+    ]);
+    expect(providerOptionsForDistribution('direct').map(({ id }) => id)).toEqual(
+      PROVIDER_OPTIONS.map(({ id }) => id),
+    );
   });
 
   it('selects the safe model-control mode for each provider kind', () => {

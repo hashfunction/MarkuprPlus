@@ -13,6 +13,7 @@ import type {
 } from './types';
 import type { ISettingsManager } from '../../settings/SettingsManager';
 import { AnthropicApiProvider } from './AnthropicApiProvider';
+import { currentDistributionCapabilities } from '../../../shared/distribution';
 import { CLI_PROVIDER_PROFILES, ProfiledCliProvider } from './ProfiledCliProvider';
 
 function profiledCliAdapters(): AnalysisProviderAdapter[] {
@@ -93,10 +94,11 @@ export function createLocalAnalysisProviderRegistry(): AnalysisProviderRegistry 
 
 export function createDefaultAnalysisProviderRegistry(
   settingsManager: ISettingsManager,
+  allowCliProviders = currentDistributionCapabilities().externalCliProviders,
 ): AnalysisProviderRegistry {
   const codexAnalyzer = new CodexAnalyzer();
   const claudeAnalyzer = new ClaudeCliAnalyzer();
-  return new AnalysisProviderRegistry([
+  const cliAdapters: AnalysisProviderAdapter[] = allowCliProviders ? [
     {
       id: 'codex-cli',
       name: 'Codex CLI',
@@ -112,6 +114,9 @@ export function createDefaultAnalysisProviderRegistry(
       analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
     },
     ...profiledCliAdapters(),
+  ] : [];
+  return new AnalysisProviderRegistry([
+    ...cliAdapters,
     new OllamaProvider(),
     new LmStudioProvider(),
     new AnthropicApiProvider(settingsManager),
