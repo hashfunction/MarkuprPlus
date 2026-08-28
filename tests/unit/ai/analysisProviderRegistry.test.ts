@@ -103,9 +103,7 @@ describe('AnalysisProviderRegistry', () => {
     expect([
       'codex-cli',
       'claude-cli',
-      'github-copilot-cli',
       'opencode-cli',
-      'gemini-cli',
       'cursor-cli',
       'qwen-cli',
       'goose-cli',
@@ -115,9 +113,7 @@ describe('AnalysisProviderRegistry', () => {
     ].map((id) => registry.get(id as never))).toMatchObject([
       { id: 'codex-cli', name: 'Codex CLI', connection: 'cli' },
       { id: 'claude-cli', name: 'Claude Code CLI', connection: 'cli' },
-      { id: 'github-copilot-cli', name: 'GitHub Copilot CLI', connection: 'cli' },
       { id: 'opencode-cli', name: 'OpenCode', connection: 'cli' },
-      { id: 'gemini-cli', name: 'Gemini CLI', connection: 'cli' },
       { id: 'cursor-cli', name: 'Cursor Agent CLI', connection: 'cli' },
       { id: 'qwen-cli', name: 'Qwen Code', connection: 'cli' },
       { id: 'goose-cli', name: 'Goose', connection: 'cli' },
@@ -136,8 +132,8 @@ describe('AnalysisProviderRegistry', () => {
 
     expect(() => registry.get('codex-cli')).toThrow('Unsupported analysis provider: codex-cli');
     expect(() => registry.get('claude-cli')).toThrow('Unsupported analysis provider: claude-cli');
-    expect(() => registry.get('github-copilot-cli')).toThrow(
-      'Unsupported analysis provider: github-copilot-cli',
+    expect(() => registry.get('opencode-cli')).toThrow(
+      'Unsupported analysis provider: opencode-cli',
     );
     expect(registry.get('ollama')).toMatchObject({ id: 'ollama' });
     expect(registry.get('lmstudio')).toMatchObject({ id: 'lmstudio' });

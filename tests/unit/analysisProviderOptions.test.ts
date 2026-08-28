@@ -14,9 +14,7 @@ describe('analysis provider options', () => {
     expect(PROVIDER_OPTIONS.map(({ id }) => id)).toEqual([
       'codex-cli',
       'claude-cli',
-      'github-copilot-cli',
       'opencode-cli',
-      'gemini-cli',
       'cursor-cli',
       'qwen-cli',
       'goose-cli',
@@ -29,7 +27,7 @@ describe('analysis provider options', () => {
       'rules',
     ]);
     expect(PROVIDER_OPTIONS.map(({ connectionBadge }) => connectionBadge)).toEqual([
-      'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
+      'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
       'Local', 'Local', 'Cloud', 'Local',
     ]);
   });

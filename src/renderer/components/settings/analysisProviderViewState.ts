@@ -18,9 +18,7 @@ const PROVIDER_NAMES: Record<AnalysisProvider, string> = {
   'anthropic-api': 'Anthropic API',
   'codex-cli': 'Codex CLI',
   'claude-cli': 'Claude Code CLI',
-  'github-copilot-cli': 'GitHub Copilot CLI',
   'opencode-cli': 'OpenCode',
-  'gemini-cli': 'Gemini CLI',
   'cursor-cli': 'Cursor Agent CLI',
   'qwen-cli': 'Qwen Code',
   'goose-cli': 'Goose',
@@ -35,9 +33,7 @@ function checkingDetail(provider: Exclude<AnalysisProvider, 'rules'>): string {
   switch (provider) {
     case 'codex-cli': return 'Scanning for an installed and authenticated Codex CLI.';
     case 'claude-cli': return 'Scanning for an installed and authenticated Claude Code CLI.';
-    case 'github-copilot-cli': return 'Scanning for an installed GitHub Copilot CLI.';
     case 'opencode-cli': return 'Scanning for an installed OpenCode CLI.';
-    case 'gemini-cli': return 'Scanning for an installed Gemini CLI.';
     case 'cursor-cli': return 'Scanning for an installed Cursor Agent CLI.';
     case 'qwen-cli': return 'Scanning for an installed Qwen Code CLI.';
     case 'goose-cli': return 'Scanning for an installed Goose CLI.';

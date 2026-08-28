@@ -102,7 +102,7 @@
     "verify:ci": "node scripts/verify-ci.mjs",
     "verify:source": "npm run verify:brand && npm run lint && npm run typecheck && npm run test:ci && npm run build:desktop",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify:mas": "node scripts/verify-mas-package.mjs release-mas",
+    "verify:mas": "node scripts/verify-package.mjs --dir-only release-mas && node scripts/verify-mas-package.mjs release-mas",
     "audit": "npm audit --omit=dev --audit-level=high",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "setup:markuprx": "bash ./scripts/setup-markuprx.sh",

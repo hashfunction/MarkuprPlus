@@ -7,6 +7,7 @@ const nativeRuntimeHook = require('../../scripts/prepare-whisper-runtime.cjs') a
   sharpRuntimePackages(platform: string, arch: string): string[];
   whisperBuildConfiguration?: (platform: string, arch: string) => {
     binaryName: string;
+    cmakeGeneratorArchitecture?: string;
     expectedArchitecture: string;
     makeVariables: string[];
   } | null;
@@ -47,6 +48,19 @@ describe('native runtime packaging matrix', () => {
         `CC=xcrun clang -arch ${compilerArch}`,
         `CXX=xcrun clang++ -arch ${compilerArch}`,
       ],
+    });
+  });
+
+  it.each([
+    ['x64', 'x64'],
+    ['arm64', 'ARM64'],
+    ['ia32', 'Win32'],
+  ])('builds the Windows Whisper executable with MSVC for %s', (arch, generatorArchitecture) => {
+    expect(nativeRuntimeHook.whisperBuildConfiguration?.('win32', arch)).toEqual({
+      binaryName: 'main.exe',
+      cmakeGeneratorArchitecture: generatorArchitecture,
+      expectedArchitecture: arch,
+      makeVariables: [],
     });
   });
 

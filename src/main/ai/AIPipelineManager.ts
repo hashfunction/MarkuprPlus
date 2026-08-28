@@ -123,6 +123,14 @@ function fallbackOutput(
   };
 }
 
+function fallbackConnectionForProvider(
+  provider: Exclude<AnalysisProvider, 'rules'>,
+): AnalysisConnection {
+  if (provider.endsWith('-cli')) return 'cli';
+  if (provider === 'anthropic-api') return 'cloud';
+  return 'local';
+}
+
 /** Generate Local Rules first, then invoke exactly the selected report provider. */
 export async function processSession(
   session: Session,
@@ -144,9 +152,10 @@ export async function processSession(
   const models = options.settingsManager.get('analysisModelsByProvider') || {};
   const modelId = models[provider]?.trim() || null;
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...options.dependencies };
-  const adapter = dependencies.createProviderRegistry(options.settingsManager).get(provider);
+  let adapter: ReturnType<AnalysisProviderRegistry['get']> | null = null;
 
   try {
+    adapter = dependencies.createProviderRegistry(options.settingsManager).get(provider);
     const status = await adapter.discover(false);
     if (!status.ready) {
       throw new Error(status.diagnostic || `${adapter.name} is not ready.`);
@@ -194,16 +203,18 @@ export async function processSession(
     };
   } catch (error) {
     const reason = sanitizeFailureReason(error);
+    const providerLabel = adapter?.name || provider;
+    const connection = adapter?.connection || fallbackConnectionForProvider(provider);
     console.error(
-      `[AIPipelineManager] ${adapter.name} analysis failed after ${Date.now() - startedAt}ms; ` +
+      `[AIPipelineManager] ${providerLabel} analysis failed after ${Date.now() - startedAt}ms; ` +
       'using the rule-based report.',
     );
     return fallbackOutput(
       freeDocument,
       provider,
       modelId,
-      adapter.connection,
-      adapter.name,
+      connection,
+      providerLabel,
       startedAt,
       reason,
     );

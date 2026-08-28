@@ -61,16 +61,16 @@ describe('getAnalysisProviderViewState', () => {
 
   it('uses provider-specific readiness copy for an additional CLI', () => {
     expect(getAnalysisProviderViewState(
-      'github-copilot-cli',
-      [status('github-copilot-cli', {
-        name: 'GitHub Copilot CLI',
+      'qwen-cli',
+      [status('qwen-cli', {
+        name: 'Qwen Code',
         connection: 'cli',
       })],
       {},
     )).toEqual({
       ready: true,
-      title: 'GitHub Copilot CLI ready',
-      detail: 'Reports will use GitHub Copilot CLI with its default model.',
+      title: 'Qwen Code ready',
+      detail: 'Reports will use Qwen Code with its default model.',
     });
   });
 

@@ -34,21 +34,9 @@ const ALL_PROVIDER_OPTIONS: AnalysisProviderOption[] = [
     connectionBadge: 'CLI',
   },
   {
-    id: 'github-copilot-cli',
-    title: 'GitHub Copilot CLI',
-    description: 'Use your installed GitHub Copilot CLI and GitHub login.',
-    connectionBadge: 'CLI',
-  },
-  {
     id: 'opencode-cli',
     title: 'OpenCode',
     description: 'Generate reports with your configured OpenCode providers.',
-    connectionBadge: 'CLI',
-  },
-  {
-    id: 'gemini-cli',
-    title: 'Gemini CLI',
-    description: 'Use your installed and authenticated Google Gemini CLI.',
     connectionBadge: 'CLI',
   },
   {
@@ -132,9 +120,7 @@ export function getModelDefaultLabel(provider: ModelAnalysisProvider): string {
   switch (provider) {
     case 'codex-cli': return 'Codex default';
     case 'claude-cli': return 'Claude Code default';
-    case 'github-copilot-cli': return 'GitHub Copilot default';
     case 'opencode-cli': return 'OpenCode default';
-    case 'gemini-cli': return 'Gemini default';
     case 'cursor-cli': return 'Cursor default';
     case 'qwen-cli': return 'Qwen default';
     case 'goose-cli': return 'Goose default';

@@ -18,6 +18,58 @@ export interface CliProcessResult {
   truncated: boolean;
 }
 
+export interface ResolvedCliInvocation {
+  executable: string;
+  args: string[];
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface ResolvedProcessTreeTermination {
+  executable: string;
+  args: string[];
+}
+
+const WINDOWS_COMMAND_SHIM_SCRIPT = [
+  "$ErrorActionPreference = 'Stop'",
+  '$cliArguments = @(ConvertFrom-Json -InputObject $env:MARKUPRPLUS_CLI_ARGUMENTS)',
+  '& $env:MARKUPRPLUS_CLI_EXECUTABLE @cliArguments',
+  'exit $LASTEXITCODE',
+].join('\n');
+
+const WINDOWS_COMMAND_SHIM_SCRIPT_BASE64 = Buffer
+  .from(WINDOWS_COMMAND_SHIM_SCRIPT, 'utf16le')
+  .toString('base64');
+
+/** Resolve Windows npm command shims without interpolating arguments into shell source. */
+export function resolveCliInvocation(
+  options: CliProcessOptions,
+  platform: NodeJS.Platform = process.platform,
+): ResolvedCliInvocation {
+  if (platform !== 'win32' || !/\.(?:cmd|bat)$/i.test(options.executable)) {
+    return {
+      executable: options.executable,
+      args: options.args,
+      env: options.env,
+    };
+  }
+
+  return {
+    executable: 'powershell.exe',
+    args: [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy', 'Bypass',
+      '-EncodedCommand', WINDOWS_COMMAND_SHIM_SCRIPT_BASE64,
+    ],
+    env: {
+      ...(options.env ?? process.env),
+      MARKUPRPLUS_CLI_EXECUTABLE: options.executable,
+      MARKUPRPLUS_CLI_ARGUMENTS: JSON.stringify(options.args),
+    },
+  };
+}
+
 interface BoundedOutput {
   append(chunk: Buffer): void;
   text(): string;
@@ -53,8 +105,45 @@ function createBoundedOutput(maxBytes: number): BoundedOutput {
   };
 }
 
+export function resolveProcessTreeTermination(
+  pid: number,
+  platform: NodeJS.Platform = process.platform,
+): ResolvedProcessTreeTermination | null {
+  if (platform !== 'win32') return null;
+
+  return {
+    executable: 'taskkill.exe',
+    args: ['/PID', String(pid), '/T', '/F'],
+  };
+}
+
 function terminateProcess(pid: number | undefined): void {
   if (!pid) return;
+
+  const termination = resolveProcessTreeTermination(pid);
+  if (termination) {
+    const fallback = (): void => {
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {
+        // The command may already have exited.
+      }
+    };
+    try {
+      const terminator = spawn(termination.executable, termination.args, {
+        shell: false,
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      terminator.once('error', fallback);
+      terminator.once('close', (exitCode) => {
+        if (exitCode !== 0) fallback();
+      });
+    } catch {
+      fallback();
+    }
+    return;
+  }
 
   try {
     if (process.platform === 'win32') {
@@ -76,12 +165,14 @@ export function runCliProcess(options: CliProcessOptions): Promise<CliProcessRes
     const stderr = createBoundedOutput(Math.max(0, options.maxOutputBytes));
     let timedOut = false;
     let settled = false;
+    const invocation = resolveCliInvocation(options);
 
-    const child = spawn(options.executable, options.args, {
+    const child = spawn(invocation.executable, invocation.args, {
       cwd: options.cwd,
-      env: options.env,
+      env: invocation.env,
       shell: false,
       detached: process.platform !== 'win32',
+      windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

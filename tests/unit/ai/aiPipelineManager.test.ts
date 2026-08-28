@@ -225,4 +225,20 @@ describe('AIPipelineManager provider routing', () => {
     expect(result.document.content).toContain('Ollama unavailable &gt; injected');
     expect(result.document.content).not.toContain('\u0000');
   });
+
+  it('falls back when a distribution does not register the saved provider', async () => {
+    const result = await processSession(sessionFixture, {
+      settingsManager: settings('codex-cli'),
+      dependencies: dependencies([]),
+    });
+
+    expect(result.pipelineOutput).toMatchObject({
+      aiEnhanced: false,
+      requestedProvider: 'codex-cli',
+      actualProvider: 'rules',
+      connection: 'cli',
+      fallbackReason: 'Unsupported analysis provider: codex-cli',
+    });
+    expect(result.document.content).toContain('AI analysis unavailable; Local Rules used');
+  });
 });

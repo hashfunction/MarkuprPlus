@@ -15,6 +15,8 @@ describe('analysis provider settings', () => {
     expect(normalizeAnalysisProvider('codex')).toBe('codex-cli');
     expect(normalizeAnalysisProvider('anthropic')).toBe('anthropic-api');
     expect(normalizeAnalysisProvider('rules')).toBe('rules');
+    expect(normalizeAnalysisProvider('gemini-cli')).toBe('anthropic-api');
+    expect(normalizeAnalysisProvider('github-copilot-cli')).toBe('anthropic-api');
     expect(normalizeAnalysisProvider('unsupported')).toBe('anthropic-api');
   });
 
@@ -24,9 +26,7 @@ describe('analysis provider settings', () => {
       'anthropic-api',
       'codex-cli',
       'claude-cli',
-      'github-copilot-cli',
       'opencode-cli',
-      'gemini-cli',
       'cursor-cli',
       'qwen-cli',
       'goose-cli',
@@ -55,11 +55,11 @@ describe('analysis provider settings', () => {
     settings.set('analysisProvider', 'codex-cli');
     expect(settings.get('analysisProvider')).toBe('codex-cli');
 
-    settings.set('analysisProvider', 'github-copilot-cli');
-    expect(settings.get('analysisProvider')).toBe('github-copilot-cli');
+    settings.set('analysisProvider', 'opencode-cli');
+    expect(settings.get('analysisProvider')).toBe('opencode-cli');
 
     settings.set('analysisProvider', 'unsupported' as never);
-    expect(settings.get('analysisProvider')).toBe('github-copilot-cli');
+    expect(settings.get('analysisProvider')).toBe('opencode-cli');
 
     settings.set('analysisProvider', 'rules');
     expect(settings.get('analysisProvider')).toBe('rules');

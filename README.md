@@ -251,9 +251,7 @@ Pick the model that turns a capture into a structured report. MarkuprPlus checks
 |---|---|---|
 | **Codex CLI** | CLI | Your installed Codex CLI and existing ChatGPT login, in a read-only ephemeral session |
 | **Claude Code CLI** | CLI | The Claude Code CLI you're already signed in to |
-| **GitHub Copilot CLI** | CLI | Your installed Copilot CLI and existing GitHub login, with mutation, shell, URL, and memory tools denied |
 | **OpenCode** | CLI | Your configured OpenCode provider, with a per-run agent that denies every tool action |
-| **Gemini CLI** | CLI | Your authenticated Gemini CLI in non-interactive plan mode |
 | **Cursor Agent CLI** | CLI | Cursor Agent in non-interactive, read-only Ask mode |
 | **Qwen Code** | CLI | Qwen Code in safe, non-interactive plan mode with mutation tools excluded |
 | **Goose** | CLI | Your configured Goose provider in tool-free chat mode, without profiles or session persistence |
@@ -267,7 +265,7 @@ Pick the model that turns a capture into a structured report. MarkuprPlus checks
 
 **Failure is safe by design.** If the provider you picked errors out, the deterministic Local rules report is written anyway, and the popover names the provider and the reason. Your recording, audio, and marks were already on disk before analysis started. An explicit CLI choice never silently becomes an Anthropic call.
 
-Codex CLI, GitHub Copilot CLI, and OpenCode can receive captured screenshots. Transcript-only CLI adapters reject screenshot-only sessions instead of inventing visual findings.
+Codex CLI and OpenCode can receive captured screenshots. Transcript-only CLI adapters reject screenshot-only sessions instead of inventing visual findings.
 
 `processing-trace.json` records exactly what happened:
 

@@ -105,8 +105,11 @@ function universalMachO(): Buffer {
   return binary;
 }
 
-function validUniversalPackage(root: string): { executable: string; resources: string } {
-  const contents = join(root, 'mac-universal', 'MarkuprPlus.app', 'Contents');
+function validUniversalPackage(
+  root: string,
+  layout = 'mac-universal',
+): { executable: string; resources: string } {
+  const contents = join(root, layout, 'MarkuprPlus.app', 'Contents');
   const resources = join(contents, 'Resources');
   const executableDirectory = join(contents, 'MacOS');
   mkdirSync(resources, { recursive: true });
@@ -313,6 +316,17 @@ describe('public package verification', () => {
   it('verifies both native architecture slices in a universal macOS package', () => {
     const root = fixture();
     validUniversalPackage(root);
+
+    const result = verify(root);
+
+    expect(result, result.stderr).toMatchObject({ status: 0, signal: null });
+    expect(result.stdout).toContain('sharp-darwin-x64');
+    expect(result.stdout).toContain('sharp-darwin-arm64');
+  });
+
+  it('verifies both native architecture slices in the MAS universal layout', () => {
+    const root = fixture();
+    validUniversalPackage(root, 'mas-universal');
 
     const result = verify(root);
 

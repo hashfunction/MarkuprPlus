@@ -57,12 +57,78 @@ function whisperBuildConfiguration(platform, arch) {
     };
   }
   if (platform === 'win32' && ['x64', 'arm64', 'ia32'].includes(arch)) {
-    return { binaryName: 'main.exe', expectedArchitecture: arch, makeVariables: [] };
+    return {
+      binaryName: 'main.exe',
+      cmakeGeneratorArchitecture: {
+        x64: 'x64',
+        arm64: 'ARM64',
+        ia32: 'Win32',
+      }[arch],
+      expectedArchitecture: arch,
+      makeVariables: [],
+    };
   }
   if (platform === 'linux' && ['x64', 'arm64', 'arm'].includes(arch)) {
     return { binaryName: 'main', expectedArchitecture: arch, makeVariables: [] };
   }
   return null;
+}
+
+function commandFailureDetail(result) {
+  return `${result.stdout || ''}\n${result.stderr || ''}`
+    .trim()
+    .split('\n')
+    .slice(-8)
+    .join(' ')
+    || result.error?.message
+    || 'unknown build error';
+}
+
+function buildWindowsWhisperRuntime(whisperDirectory, binaryPath, generatorArchitecture) {
+  const buildDirectory = mkdtempSync(join(tmpdir(), 'markuprx-whisper-cmake-'));
+  try {
+    const configure = spawnSync('cmake', [
+      '-S', whisperDirectory,
+      '-B', buildDirectory,
+      '-A', generatorArchitecture,
+      '-DBUILD_SHARED_LIBS=OFF',
+      '-DWHISPER_BUILD_TESTS=OFF',
+      '-DWHISPER_BUILD_EXAMPLES=ON',
+    ], {
+      env: process.env,
+      encoding: 'utf8',
+      shell: false,
+    });
+    if (configure.status !== 0) {
+      throw new Error(`CMake configuration failed: ${commandFailureDetail(configure)}`);
+    }
+
+    const build = spawnSync('cmake', [
+      '--build', buildDirectory,
+      '--config', 'Release',
+      '--target', 'main',
+      '--parallel',
+    ], {
+      env: process.env,
+      encoding: 'utf8',
+      shell: false,
+    });
+    if (build.status !== 0) {
+      throw new Error(`CMake build failed: ${commandFailureDetail(build)}`);
+    }
+
+    const builtBinary = [
+      join(buildDirectory, 'bin', 'Release', 'main.exe'),
+      join(buildDirectory, 'bin', 'main.exe'),
+      join(buildDirectory, 'Release', 'main.exe'),
+    ].find((candidate) => existsSync(candidate));
+    if (!builtBinary) {
+      throw new Error('CMake completed without producing main.exe.');
+    }
+    cpSync(builtBinary, binaryPath, { force: true });
+  } finally {
+    rmSync(buildDirectory, { recursive: true, force: true });
+  }
 }
 
 function nativeBinaryArchitectures(binary) {
@@ -251,22 +317,35 @@ async function prepareNativeRuntime(context) {
   } else {
     console.log(`[prepare-whisper-runtime] Building bundled runtime for ${targetArch}...`);
   }
-  const result = spawnSync('make', ['clean', 'main', ...whisperBuild.makeVariables], {
-    cwd: whisperDirectory,
-    env: process.env,
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-  });
+  let buildError = null;
+  if (whisperBuild.cmakeGeneratorArchitecture) {
+    try {
+      buildWindowsWhisperRuntime(
+        whisperDirectory,
+        binaryPath,
+        whisperBuild.cmakeGeneratorArchitecture,
+      );
+    } catch (error) {
+      buildError = error;
+    }
+  } else {
+    const result = spawnSync('make', ['clean', 'main', ...whisperBuild.makeVariables], {
+      cwd: whisperDirectory,
+      env: process.env,
+      encoding: 'utf8',
+      shell: false,
+    });
+    if (result.status !== 0) {
+      buildError = new Error(commandFailureDetail(result));
+    }
+  }
 
   const builtArchitectures = existsSync(binaryPath)
     ? nativeBinaryArchitectures(readFileSync(binaryPath))
     : [];
-  if (result.status !== 0 || !builtArchitectures.includes(whisperBuild.expectedArchitecture)) {
-    const detail = (result.stderr || result.stdout || result.error?.message || 'unknown build error')
-      .trim()
-      .split('\n')
-      .slice(-3)
-      .join(' ');
+  if (buildError || !builtArchitectures.includes(whisperBuild.expectedArchitecture)) {
+    const detail = buildError?.message
+      || `built executable architecture was ${builtArchitectures.join('/') || 'unknown'}`;
     throw new Error(`Unable to prepare the Whisper runtime: ${detail}`);
   }
 

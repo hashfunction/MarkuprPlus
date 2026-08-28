@@ -25,6 +25,13 @@ function requireCommand(jobName, command) {
   if (!present) violations.push(`${jobName}: missing ${command}`);
 }
 
+function findStep(jobName, stepName) {
+  const steps = workflow.jobs?.[jobName]?.steps;
+  return Array.isArray(steps)
+    ? steps.find((step) => step?.name === stepName)
+    : undefined;
+}
+
 const triggers = workflow.on;
 if (!triggers || typeof triggers !== 'object' || !hasOwn(triggers, 'push')) {
   violations.push('workflow: missing push trigger');
@@ -40,6 +47,15 @@ if (!triggers || typeof triggers !== 'object' || !hasOwn(triggers, 'pull_request
   violations.push('workflow: missing pull_request trigger');
 }
 
+if (String(workflow.env?.NODE_VERSION || '') !== '22') {
+  violations.push('workflow: NODE_VERSION must be 22');
+}
+
+if (workflow.concurrency?.group !== 'ci-${{ github.sha }}'
+  || workflow.concurrency?.['cancel-in-progress'] !== false) {
+  violations.push('workflow: every commit must retain a non-cancelled CI run');
+}
+
 requireCommand('validate', 'npm run verify:brand');
 requireCommand('validate', 'npm run lint');
 requireCommand('validate', 'npm run typecheck');
@@ -50,6 +66,23 @@ requireCommand('electron-ui', 'npm run test:ui-electron');
 requireCommand('build', 'npm run build');
 requireCommand('build', 'npm run verify:package');
 requireCommand('build', 'npm run test:package-smoke');
+
+const packageStep = findStep('build', 'Package application (unsigned)');
+if (packageStep?.env?.USE_HARD_LINKS !== 'false') {
+  violations.push('build: package step must disable hard links');
+}
+
+const installStep = findStep('build', 'Install dependencies');
+if (installStep?.run !== 'npm ci' || hasOwn(installStep, 'if')) {
+  violations.push('build: dependencies must be installed unconditionally with npm ci');
+}
+const nodeModulesCache = workflow.jobs?.build?.steps?.find((step) => (
+  String(step?.uses || '').startsWith('actions/cache@')
+    && String(step?.with?.path || '').split(/\s+/).includes('node_modules')
+));
+if (nodeModulesCache) {
+  violations.push('build: node_modules must not be restored across Node runtimes');
+}
 
 const buildOperatingSystems = workflow.jobs?.build?.strategy?.matrix?.os;
 for (const operatingSystem of ['macos-latest', 'windows-latest']) {

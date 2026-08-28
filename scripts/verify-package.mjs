@@ -99,7 +99,7 @@ function plistString(plist, key) {
 function packagedLayout(resources) {
   const normalized = resources.replaceAll('\\', '/').toLowerCase();
   const layouts = [
-    ['mac-universal', /\/mac-universal\/[^/]+\.app\/contents\/resources$/],
+    ['mac-universal', /\/(?:mac|mas)-universal\/[^/]+\.app\/contents\/resources$/],
     ['mac-arm64', /\/mac-arm64\/[^/]+\.app\/contents\/resources$/],
     ['mac-x64', /\/mac\/[^/]+\.app\/contents\/resources$/],
     ['win-arm64', /\/win-arm64-unpacked\/resources$/],

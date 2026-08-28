@@ -28,6 +28,17 @@ function validEvidence(
 }
 
 describe('Mac App Store packaging policy', () => {
+  it('runs native-runtime verification before Store signing verification', async () => {
+    const packageMetadata = JSON.parse(await readFile('package.json', 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageMetadata.scripts?.['verify:mas']).toBe(
+      'node scripts/verify-package.mjs --dir-only release-mas '
+      + '&& node scripts/verify-mas-package.mjs release-mas',
+    );
+  });
+
   it('uses one team qualifier for the MAS app and installer signing passes', async () => {
     const config = load(
       await readFile('electron-builder.mas.yml', 'utf8'),

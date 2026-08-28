@@ -45,15 +45,26 @@ function result(overrides: Partial<CliProcessResult> = {}): CliProcessResult {
 }
 
 describe('CLI provider profiles', () => {
+  it('does not register headless CLIs whose tool restrictions can be bypassed', () => {
+    expect(CLI_PROVIDER_PROFILES.map(({ id }) => id)).not.toContain('gemini-cli');
+    expect(CLI_PROVIDER_PROFILES.map(({ id }) => id)).not.toContain('github-copilot-cli');
+  });
+
+  it('does not advertise excluded headless CLIs as available providers', async () => {
+    const readme = await readFile('README.md', 'utf8');
+
+    expect(readme).not.toContain('| **Gemini CLI**');
+    expect(readme).not.toContain('| **GitHub Copilot CLI**');
+    expect(readme).toContain('Codex CLI and OpenCode can receive captured screenshots.');
+  });
+
   it('defines every additional CLI with a unique executable and safe invocation', () => {
     expect(CLI_PROVIDER_PROFILES.map(({ id, name, executables }) => ({
       id,
       name,
       executable: executables[0],
     }))).toEqual([
-      { id: 'github-copilot-cli', name: 'GitHub Copilot CLI', executable: 'copilot' },
       { id: 'opencode-cli', name: 'OpenCode', executable: 'opencode2' },
-      { id: 'gemini-cli', name: 'Gemini CLI', executable: 'gemini' },
       { id: 'cursor-cli', name: 'Cursor Agent CLI', executable: 'agent' },
       { id: 'qwen-cli', name: 'Qwen Code', executable: 'qwen' },
       { id: 'goose-cli', name: 'Goose', executable: 'goose' },
@@ -63,13 +74,6 @@ describe('CLI provider profiles', () => {
     ]);
 
     const prompt = 'Return a report';
-    expect(CLI_PROVIDER_PROFILES.find(({ id }) => id === 'github-copilot-cli')
-      ?.buildArgs({ prompt, modelId: 'gpt-5', imagePaths: [] }))
-      .toEqual([
-        '-p', 'Generate the requested MarkuprPlus report from the attached session context.',
-        '-s', '--no-ask-user', '--disable-builtin-mcps',
-        '--deny-tool=shell,write,url,memory', '--model', 'gpt-5',
-      ]);
     expect(CLI_PROVIDER_PROFILES.find(({ id }) => id === 'cursor-cli')
       ?.buildArgs({ prompt, modelId: undefined, imagePaths: [] }))
       .toContain('--mode=ask');
@@ -97,26 +101,26 @@ describe('CLI provider profiles', () => {
   it('discovers an executable from PATH and reports its version', async () => {
     const profile = CLI_PROVIDER_PROFILES[0];
     const run = vi.fn(async (options: CliProcessOptions) => {
-      expect(options.executable).toBe('/tools/copilot');
+      expect(options.executable).toBe('/tools/opencode2');
       expect(options.args).toEqual(['--version']);
-      return result({ stdout: 'copilot 1.2.3\n' });
+      return result({ stdout: 'opencode 2.2.3\n' });
     });
     const provider = new ProfiledCliProvider(profile, {
       env: { PATH: '/tools' },
       homeDirectory: '/home/tester',
       shell: '/bin/zsh',
-      isExecutable: async (path) => path === '/tools/copilot',
+      isExecutable: async (path) => path === '/tools/opencode2',
       realpath: async (path) => path,
       run,
     });
 
     await expect(provider.discover()).resolves.toEqual(expect.objectContaining({
-      id: 'github-copilot-cli',
-      executablePath: '/tools/copilot',
+      id: 'opencode-cli',
+      executablePath: '/tools/opencode2',
       installed: true,
       ready: true,
-      version: 'copilot 1.2.3',
-      models: [{ id: '', name: 'GitHub Copilot default', source: 'default' }],
+      version: 'opencode 2.2.3',
+      models: [{ id: '', name: 'OpenCode default', source: 'default' }],
     }));
   });
 
@@ -139,12 +143,12 @@ describe('CLI provider profiles', () => {
   });
 
   it('does not report a broken executable as ready', async () => {
-    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'gemini-cli')!;
+    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'cursor-cli')!;
     const provider = new ProfiledCliProvider(profile, {
       env: { PATH: '/tools' },
       homeDirectory: '/home/tester',
       shell: '/bin/zsh',
-      isExecutable: async (path) => path === '/tools/gemini',
+      isExecutable: async (path) => path === '/tools/agent',
       realpath: async (path) => path,
       run: async () => result({ exitCode: 2, stderr: 'unsupported runtime' }),
     });
@@ -195,7 +199,7 @@ describe('CLI provider profiles', () => {
   });
 
   it('runs analysis in an isolated directory and validates the structured response', async () => {
-    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'gemini-cli')!;
+    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'qwen-cli')!;
     const calls: CliProcessOptions[] = [];
     const run = vi.fn(async (options: CliProcessOptions) => {
       calls.push(options);
@@ -206,41 +210,18 @@ describe('CLI provider profiles', () => {
       env: { PATH: '/tools' },
       homeDirectory: '/home/tester',
       shell: '/bin/zsh',
-      isExecutable: async (path) => path === '/tools/gemini',
+      isExecutable: async (path) => path === '/tools/qwen',
       realpath: async (path) => path,
       run,
     });
 
-    await expect(provider.analyze(session, 'gemini-2.5-pro')).resolves.toEqual(analysis);
+    await expect(provider.analyze(session, 'qwen3-coder')).resolves.toEqual(analysis);
     const analysisCall = calls.at(-1)!;
-    expect(analysisCall.cwd).toContain('markuprx-gemini-cli-');
-    expect(analysisCall.args).toContain('gemini-2.5-pro');
+    expect(analysisCall.cwd).toContain('markuprx-qwen-cli-');
+    expect(analysisCall.args).toContain('qwen3-coder');
     expect(analysisCall.args.join(' ')).not.toContain('The primary action is hard to find.');
     expect(analysisCall.stdin).toContain('The primary action is hard to find.');
     expect(analysisCall.env?.NO_COLOR).toBe('1');
-  });
-
-  it('keeps Copilot session content out of argv and attaches a private prompt file', async () => {
-    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'github-copilot-cli')!;
-    const run = vi.fn(async (options: CliProcessOptions) => {
-      if (options.args[0] === '--version') return result({ stdout: '1.0.0' });
-      expect(options.args.join(' ')).not.toContain('The primary action is hard to find.');
-      const attachmentFlag = options.args.indexOf('--attachment');
-      expect(attachmentFlag).toBeGreaterThan(-1);
-      expect(await readFile(options.args[attachmentFlag + 1], 'utf8'))
-        .toContain('The primary action is hard to find.');
-      return result({ stdout: JSON.stringify(analysis) });
-    });
-    const provider = new ProfiledCliProvider(profile, {
-      env: { PATH: '/tools' },
-      homeDirectory: '/home/tester',
-      shell: '/bin/zsh',
-      isExecutable: async (path) => path === '/tools/copilot',
-      realpath: async (path) => path,
-      run,
-    });
-
-    await expect(provider.analyze(session)).resolves.toEqual(analysis);
   });
 
   it('writes a hard-deny OpenCode agent configuration for every tool action', async () => {
@@ -378,21 +359,21 @@ describe('CLI provider profiles', () => {
   });
 
   it('discovers Windows command shims using PATHEXT', async () => {
-    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'github-copilot-cli')!;
+    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'opencode-cli')!;
     const provider = new ProfiledCliProvider(profile, {
       platform: 'win32',
       env: { PATH: 'C:\\Tools', PATHEXT: '.COM;.EXE;.BAT;.CMD' },
       homeDirectory: 'C:\\Users\\tester',
       shell: 'cmd.exe',
-      isExecutable: async (path) => path.toLowerCase().endsWith('copilot.cmd'),
+      isExecutable: async (path) => path.toLowerCase().endsWith('opencode2.cmd'),
       realpath: async (path) => path,
-      run: async () => result({ stdout: '1.0.0' }),
+      run: async () => result({ stdout: '2.0.0' }),
     });
 
     await expect(provider.discover()).resolves.toMatchObject({
       installed: true,
       ready: true,
-      executablePath: expect.stringMatching(/copilot\.cmd$/i),
+      executablePath: expect.stringMatching(/opencode2\.cmd$/i),
     });
   });
 });

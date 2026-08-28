@@ -30,7 +30,6 @@ export interface CliProviderProfile {
   versionArgs?: string[];
   minimumMajorVersion?: number;
   promptViaStdin?: boolean;
-  promptAsAttachment?: boolean;
   supportsImages?: boolean;
   requiredEnvironmentVariable?: string;
   environment?: NodeJS.ProcessEnv;
@@ -53,20 +52,6 @@ function addImages(args: string[], imagePaths: string[], flag: string): string[]
 
 export const CLI_PROVIDER_PROFILES: CliProviderProfile[] = [
   {
-    id: 'github-copilot-cli',
-    name: 'GitHub Copilot CLI',
-    executables: ['copilot'],
-    supportsImages: true,
-    promptAsAttachment: true,
-    buildArgs: ({ modelId, imagePaths, promptPath }) => addModel(addImages([
-      '-p', 'Generate the requested MarkuprPlus report from the attached session context.',
-      '-s',
-      '--no-ask-user',
-      '--disable-builtin-mcps',
-      '--deny-tool=shell,write,url,memory',
-    ], [...(promptPath ? [promptPath] : []), ...imagePaths], '--attachment'), modelId),
-  },
-  {
     id: 'opencode-cli',
     name: 'OpenCode',
     executables: ['opencode2', 'opencode'],
@@ -78,16 +63,6 @@ export const CLI_PROVIDER_PROFILES: CliProviderProfile[] = [
         'run', '--format', 'json', '--agent', 'markuprx-report',
       ], imagePaths, '--file'), modelId),
     ],
-  },
-  {
-    id: 'gemini-cli',
-    name: 'Gemini CLI',
-    executables: ['gemini'],
-    promptViaStdin: true,
-    buildArgs: ({ modelId }) => addModel([
-      '--output-format', 'json',
-      '--approval-mode', 'plan',
-    ], modelId),
   },
   {
     id: 'cursor-cli',
@@ -459,7 +434,7 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
       throw new Error('The session has no transcript or screenshots to analyze.');
     }
     if (transcript === '[No transcript available]' && !this.profile.supportsImages) {
-      throw new Error(`${this.name} cannot analyze a screenshot-only session. Choose Codex CLI, GitHub Copilot CLI, or OpenCode.`);
+      throw new Error(`${this.name} cannot analyze a screenshot-only session. Choose Codex CLI or OpenCode.`);
     }
 
     const temporaryDirectory = await mkdtemp(join(tmpdir(), `markuprx-${this.id}-`));
@@ -491,7 +466,7 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
           mode: 0o600,
         });
       }
-      const promptPath = this.profile.id === 'aider-cli' || this.profile.promptAsAttachment
+      const promptPath = this.profile.id === 'aider-cli'
         ? join(temporaryDirectory, 'analysis-prompt.txt')
         : undefined;
       if (promptPath) {
