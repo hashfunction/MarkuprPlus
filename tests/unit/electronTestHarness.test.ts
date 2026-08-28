@@ -4,6 +4,7 @@ import {
   ElectronTestInputMonitor,
   getElectronTestReviewSaveDelay,
   isElectronTestHarnessAllowed,
+  shouldObserveDisplayChanges,
 } from '../../src/main/e2e/ElectronTestHarness';
 
 describe('Electron test harness guard', () => {
@@ -11,6 +12,12 @@ describe('Electron test harness guard', () => {
     expect(isElectronTestHarnessAllowed({ requested: true, isPackaged: false })).toBe(true);
     expect(isElectronTestHarnessAllowed({ requested: false, isPackaged: false })).toBe(false);
     expect(isElectronTestHarnessAllowed({ requested: true, isPackaged: true })).toBe(false);
+  });
+
+  it('ignores host display changes only while synthetic E2E displays are active', () => {
+    expect(shouldObserveDisplayChanges({ requested: true, isPackaged: false })).toBe(false);
+    expect(shouldObserveDisplayChanges({ requested: false, isPackaged: false })).toBe(true);
+    expect(shouldObserveDisplayChanges({ requested: true, isPackaged: true })).toBe(true);
   });
 
   it('allows a bounded review-save delay only in the unpackaged test harness', () => {

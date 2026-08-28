@@ -38,6 +38,7 @@ import {
   createElectronTestCaptureFixtures,
   electronTestInputMonitor,
   isElectronTestHarnessAllowed,
+  shouldObserveDisplayChanges,
 } from '../e2e/ElectronTestHarness';
 import { protectRendererNavigation } from '../security/NavigationGuard';
 import { currentDistributionCapabilities } from '../../shared/distribution';
@@ -269,6 +270,10 @@ function defaultDependencies(): CaptureOverlayManagerDependencies {
     setInterval: (callback, milliseconds) => setInterval(callback, milliseconds),
     clearInterval: (handle) => clearInterval(handle as NodeJS.Timeout),
     onDisplayChange: (callback) => {
+      if (!shouldObserveDisplayChanges({
+        requested: process.env.MARKUPRX_E2E === '1',
+        isPackaged: app.isPackaged,
+      })) return () => {};
       if (typeof screen.on !== 'function') return () => {};
       screen.on('display-added', callback);
       screen.on('display-removed', callback);

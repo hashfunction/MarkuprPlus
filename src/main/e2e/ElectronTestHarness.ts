@@ -19,6 +19,13 @@ export function isElectronTestHarnessAllowed(options: {
   return options.requested && !options.isPackaged;
 }
 
+export function shouldObserveDisplayChanges(options: {
+  requested: boolean;
+  isPackaged: boolean;
+}): boolean {
+  return !isElectronTestHarnessAllowed(options);
+}
+
 export function getElectronTestReviewSaveDelay(options: {
   requested: boolean;
   isPackaged: boolean;
