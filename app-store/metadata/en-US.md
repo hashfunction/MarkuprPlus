@@ -12,6 +12,9 @@ Circle the bug. Give your AI the whole story. MarkuprPlus turns each mark and sp
 ## Keywords
 bug report,screen recorder,AI feedback,annotation,transcription,Markdown,QA,code review,screenshot
 
+## What's New in Version 3.1.0
+CLI report integrations are back in the Mac App Store app through an optional local companion. Connect Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, or Aider from Advanced Settings. This update also adds secure Keychain pairing, bridge status diagnostics, and stricter report-transport limits. Local Rules remains available with no setup or network connection.
+
 ## Description
 Circle the bug. Give your AI the whole story.
 
@@ -32,6 +35,10 @@ Record microphone narration alongside the screen. On-device Whisper can transcri
 CHOOSE HOW AI HELPS
 
 Use deterministic Local Rules with no model, connect to Ollama or LM Studio on your Mac, or bring an Anthropic API key stored in Keychain. MarkuprPlus uses only the provider you select and still writes a local report if analysis fails.
+
+OPTIONAL CLI WORKFLOWS
+
+Connect Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, or Aider through an optional local companion you install separately. The App Store app sends structured report material over an authenticated loopback connection to the companion on your Mac; the companion invokes only the CLI you selected. The App Store app never executes shell commands.
 
 REVIEW BEFORE YOU HAND IT OFF
 

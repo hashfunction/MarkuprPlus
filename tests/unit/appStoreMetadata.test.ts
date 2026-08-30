@@ -67,6 +67,9 @@ describe('App Store public metadata', () => {
     expect(fields.description).not.toMatch(
       /\bpaid\b|open[ -]?source|free (?:on GitHub|direct-download)|MIT-licensed|direct-download edition/i,
     );
-    expect(fields.description).not.toMatch(/Codex CLI|Claude Code CLI/);
+    expect(fields.description).toMatch(/Codex CLI/);
+    expect(fields.description).toMatch(/optional local companion/i);
+    expect(fields.description).not.toMatch(/App Store app (?:directly )?(?:runs|executes|launches).*CLI/is);
+    expect(section(metadata, "What's New in Version 3.1.0").length).toBeLessThanOrEqual(4_000);
   });
 });

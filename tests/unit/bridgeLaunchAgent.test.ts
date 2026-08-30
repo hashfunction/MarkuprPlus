@@ -12,13 +12,13 @@ describe('CLI bridge LaunchAgent', () => {
   it('renders an escaped per-user launchd service with no token', () => {
     const plist = renderBridgeLaunchAgent({
       nodePath: '/opt/homebrew/bin/node',
-      cliPath: '/Users/tester/Markupr & Tools/dist/cli/index.mjs',
+      cliPath: '/Users/tester/CLI & Tools/dist/cli/index.mjs',
       paths,
     });
 
     expect(plist).toContain('<string>com.trieflow.markuprplus.cli-bridge</string>');
     expect(plist).toContain('<string>/opt/homebrew/bin/node</string>');
-    expect(plist).toContain('<string>/Users/tester/Markupr &amp; Tools/dist/cli/index.mjs</string>');
+    expect(plist).toContain('<string>/Users/tester/CLI &amp; Tools/dist/cli/index.mjs</string>');
     expect(plist).toContain('<string>bridge</string>');
     expect(plist).toContain('<string>serve</string>');
     expect(plist).toContain('<key>RunAtLoad</key>');

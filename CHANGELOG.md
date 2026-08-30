@@ -25,6 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Notarization no longer skips silently: missing credentials, a non-Developer ID certificate, or a failed submission now fail the release build.
 - Release notes now list the real `markuprplus-*` artifact names and no longer overwrite the curated changelog.
 
+## 3.1.0 - 2026-08-30
+
+### Added
+
+- Restored Codex CLI, Claude Code CLI, OpenCode, Cursor Agent CLI, Qwen Code, Goose, Amp, Kiro CLI, and Aider report providers in the Mac App Store app through an optional local companion.
+- Added `markuprx bridge` lifecycle commands for secure per-user installation, status, pairing-token rotation, restart, and removal.
+- Added a Store-only setup panel with copyable commands, Keychain-backed pairing, connection diagnostics, and live provider readiness.
+
+### Security
+
+- The companion accepts only a versioned, path-free report protocol on authenticated IPv4 loopback and never accepts arbitrary executables, arguments, shell text, environment variables, working directories, or filesystem paths.
+- Bridge requests have strict body, screenshot, transcript, timeout, and concurrency limits. Pairing tokens are generated from 32 random bytes and stored with owner-only permissions and in macOS Keychain.
+
+### Changed
+
+- Bumped the Mac App Store bundle to version 3.1.0, build 3, with updated privacy disclosures and App Review instructions.
+
 ## 3.0.0 - 2026-08-15
 
 ### Added
