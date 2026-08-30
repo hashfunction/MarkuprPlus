@@ -115,6 +115,7 @@ import {
 import {
   attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
+  removeClaimedTranscriptFrames,
   nearestCaptureContext,
 } from './pipeline/CaptureMomentHints';
 import { protectRendererNavigation } from './security/NavigationGuard';
@@ -1427,6 +1428,11 @@ async function stopSession(): Promise<{
       session.metadata.markedIssues = structuredClone(finalizedMarkedIssues);
       sessionController.setMarkedIssues(finalizedMarkedIssues);
       if (postProcessResult) {
+        postProcessResult.extractedFrames = removeClaimedTranscriptFrames(
+          postProcessResult.extractedFrames,
+          postProcessResult.transcriptSegments,
+          finalizedMarkedIssues,
+        );
         postProcessResult.markedIssues = structuredClone(finalizedMarkedIssues);
       }
       const ordinaryFrameCount = postProcessResult?.extractedFrames

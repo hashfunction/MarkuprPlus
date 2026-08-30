@@ -24,14 +24,13 @@ function sanitizeMarkedIssues(
 }
 
 function sanitizeMetadata(metadata: SessionMetadata): BridgeSessionPayload['metadata'] {
-  const {
-    recordingPath: _recordingPath,
-    audioPath: _audioPath,
-    markedIssues,
-    ...portable
-  } = metadata;
+  const portable = structuredClone(metadata);
+  const { markedIssues } = portable;
+  delete portable.recordingPath;
+  delete portable.audioPath;
+  delete portable.markedIssues;
   return {
-    ...structuredClone(portable),
+    ...portable,
     ...(markedIssues ? { markedIssues: sanitizeMarkedIssues(markedIssues) } : {}),
   };
 }

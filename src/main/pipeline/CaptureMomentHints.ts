@@ -1,10 +1,38 @@
 import type { CaptureContextSnapshot, MarkedIssuePayload } from '../../shared/types';
 import type { KeyMoment } from './TranscriptAnalyzer';
+import type { ExtractedFrame, TranscriptSegment } from './PostProcessor';
 import { basename } from 'node:path';
 
 interface MarkedIssueFrame {
   path: string;
   markedIssueId?: string;
+}
+
+export function removeClaimedTranscriptFrames(
+  frames: ExtractedFrame[],
+  segments: TranscriptSegment[],
+  issues: MarkedIssuePayload[],
+): ExtractedFrame[] {
+  const claimedSegmentIndexes = new Set(
+    issues
+      .flatMap((issue) => issue.transcriptSegmentIds)
+      .map((id) => id.match(/^transcript-segment-(\d{4})$/)?.[1])
+      .filter((value): value is string => Boolean(value))
+      .map((value) => Number.parseInt(value, 10) - 1)
+      .filter((index) => index >= 0 && index < segments.length),
+  );
+  if (claimedSegmentIndexes.size === 0) return frames;
+
+  return frames.filter((frame) => {
+    if (frame.markedIssueId || !frame.transcriptSegment) return true;
+    const segmentIndex = segments.indexOf(frame.transcriptSegment);
+    if (segmentIndex >= 0) return !claimedSegmentIndexes.has(segmentIndex);
+    const equivalentIndex = segments.findIndex((segment) =>
+      segment.text === frame.transcriptSegment?.text
+      && segment.startTime === frame.transcriptSegment.startTime
+      && segment.endTime === frame.transcriptSegment.endTime);
+    return equivalentIndex < 0 || !claimedSegmentIndexes.has(equivalentIndex);
+  });
 }
 
 export function attachFallbackFramesToMarkedIssues(
