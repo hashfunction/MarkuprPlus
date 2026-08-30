@@ -13,8 +13,17 @@ import type {
 } from './types';
 import type { ISettingsManager } from '../../settings/SettingsManager';
 import { AnthropicApiProvider } from './AnthropicApiProvider';
-import { currentDistributionCapabilities } from '../../../shared/distribution';
+import {
+  currentDistribution,
+  type DistributionKind,
+} from '../../../shared/distribution';
 import { CLI_PROVIDER_PROFILES, ProfiledCliProvider } from './ProfiledCliProvider';
+import { CliBridgeClient } from '../bridge/CliBridgeClient';
+import {
+  BRIDGE_CLI_PROVIDER_NAMES,
+  BridgeCliProvider,
+} from '../bridge/BridgeCliProvider';
+import { CLI_BRIDGE_PROVIDER_IDS } from '../../../shared/cliBridgeProtocol';
 
 function profiledCliAdapters(): AnalysisProviderAdapter[] {
   return CLI_PROVIDER_PROFILES.map((profile) => new ProfiledCliProvider(profile));
@@ -94,11 +103,12 @@ export function createLocalAnalysisProviderRegistry(): AnalysisProviderRegistry 
 
 export function createDefaultAnalysisProviderRegistry(
   settingsManager: ISettingsManager,
-  allowCliProviders = currentDistributionCapabilities().externalCliProviders,
+  options: DefaultAnalysisProviderRegistryOptions = {},
 ): AnalysisProviderRegistry {
+  const distribution = options.distribution ?? currentDistribution();
   const codexAnalyzer = new CodexAnalyzer();
   const claudeAnalyzer = new ClaudeCliAnalyzer();
-  const cliAdapters: AnalysisProviderAdapter[] = allowCliProviders ? [
+  const directCliAdapters: AnalysisProviderAdapter[] = [
     {
       id: 'codex-cli',
       name: 'Codex CLI',
@@ -114,11 +124,24 @@ export function createDefaultAnalysisProviderRegistry(
       analyze: (session, modelId) => claudeAnalyzer.analyze(session, modelId),
     },
     ...profiledCliAdapters(),
-  ] : [];
+  ];
+  const bridgeClient = options.bridgeClient ?? new CliBridgeClient({
+    getToken: () => settingsManager.getApiKey('cli-bridge'),
+  });
+  const cliAdapters: AnalysisProviderAdapter[] = distribution === 'direct'
+    ? directCliAdapters
+    : CLI_BRIDGE_PROVIDER_IDS.map((id) => (
+        new BridgeCliProvider(id, BRIDGE_CLI_PROVIDER_NAMES[id], bridgeClient)
+      ));
   return new AnalysisProviderRegistry([
     ...cliAdapters,
     new OllamaProvider(),
     new LmStudioProvider(),
     new AnthropicApiProvider(settingsManager),
   ]);
+}
+
+export interface DefaultAnalysisProviderRegistryOptions {
+  distribution?: DistributionKind;
+  bridgeClient?: CliBridgeClient;
 }

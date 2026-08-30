@@ -9,6 +9,7 @@ import {
   createCliAnalysisProviderRegistry,
   createDefaultAnalysisProviderRegistry,
 } from '../../../src/main/ai/providers/AnalysisProviderRegistry';
+import { BridgeCliProvider } from '../../../src/main/ai/bridge/BridgeCliProvider';
 
 const sessionFixture = {
   id: 'registry-session',
@@ -123,20 +124,37 @@ describe('AnalysisProviderRegistry', () => {
     ]);
   });
 
-  it('omits external CLI adapters when the distribution forbids child tools', () => {
+  it('uses bridge adapters for every CLI in the Store distribution', () => {
     const settingsManager = {
       hasApiKey: vi.fn(async () => false),
       getApiKey: vi.fn(async () => null),
     } as never;
-    const registry = createDefaultAnalysisProviderRegistry(settingsManager, false);
+    const bridgeClient = {
+      discoverProviders: vi.fn(async () => []),
+    } as never;
+    const registry = createDefaultAnalysisProviderRegistry(settingsManager, {
+      distribution: 'mas',
+      bridgeClient,
+    });
 
-    expect(() => registry.get('codex-cli')).toThrow('Unsupported analysis provider: codex-cli');
-    expect(() => registry.get('claude-cli')).toThrow('Unsupported analysis provider: claude-cli');
-    expect(() => registry.get('opencode-cli')).toThrow(
-      'Unsupported analysis provider: opencode-cli',
-    );
+    expect(registry.get('codex-cli')).toBeInstanceOf(BridgeCliProvider);
+    expect(registry.get('claude-cli')).toBeInstanceOf(BridgeCliProvider);
+    expect(registry.get('opencode-cli')).toBeInstanceOf(BridgeCliProvider);
     expect(registry.get('ollama')).toMatchObject({ id: 'ollama' });
     expect(registry.get('lmstudio')).toMatchObject({ id: 'lmstudio' });
     expect(registry.get('anthropic-api')).toMatchObject({ id: 'anthropic-api' });
+  });
+
+  it('keeps local CLI adapters in the direct distribution', () => {
+    const settingsManager = {
+      hasApiKey: vi.fn(async () => false),
+      getApiKey: vi.fn(async () => null),
+    } as never;
+    const registry = createDefaultAnalysisProviderRegistry(settingsManager, {
+      distribution: 'direct',
+    });
+
+    expect(registry.get('codex-cli')).not.toBeInstanceOf(BridgeCliProvider);
+    expect(registry.get('opencode-cli')).not.toBeInstanceOf(BridgeCliProvider);
   });
 });
