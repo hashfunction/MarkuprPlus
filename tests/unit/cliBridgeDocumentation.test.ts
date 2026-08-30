@@ -27,7 +27,9 @@ describe('CLI Bridge release documentation', () => {
   it('documents the complete optional companion lifecycle and fixed loopback endpoint', async () => {
     const readme = await readFile('README.md', 'utf8');
     expect(readme).toMatch(/optional.*companion/is);
-    expect(readme).toContain('npm install -g markuprx@latest');
+    expect(readme).toContain(
+      'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz',
+    );
     for (const command of lifecycleCommands) expect(readme).toContain(command);
     expect(readme).toContain('127.0.0.1:49647');
     expect(readme).toMatch(/App Store app does not (?:run|execute|launch) shell commands/i);
@@ -48,6 +50,9 @@ describe('CLI Bridge release documentation', () => {
     }
     expect(metadata).toContain("## What's New in Version 3.1.0");
     expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.0');
+    expect(reviewNotes).toContain(
+      'https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz',
+    );
     expect(reviewNotes.indexOf('Local Rules')).toBeLessThan(reviewNotes.indexOf('Optional CLI Bridge'));
     expect(reviewNotes).toMatch(/does not execute external.*inside.*sandbox/is);
     expect(privacyPage).toMatch(/transcript.*selected screenshots.*companion/is);

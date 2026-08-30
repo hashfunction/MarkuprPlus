@@ -134,11 +134,15 @@ The sandboxed Mac App Store app can use AI command-line tools already installed 
 Install and pair it from a Terminal:
 
 ```bash
-npm install -g markuprx@latest
+npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz
 markuprx bridge install     # installs and starts a per-user LaunchAgent
 markuprx bridge token       # paste this value in Settings → Advanced
 markuprx bridge status
 ```
+
+The versioned package is published with the official GitHub release so the
+companion used by the Store app is reproducible and remains available even
+without an npm registry account.
 
 The service listens only on `127.0.0.1:49647`, requires its random pairing token for every provider request, and accepts a fixed structured-report protocol rather than shell text. The App Store app does not run shell commands or launch external tools; the separately installed companion invokes only the provider selected in Settings.
 
