@@ -206,6 +206,7 @@ export function registerSettingsHandlers(ctx: IpcContext, actions: SessionAction
 
     await settingsManager.deleteApiKey('openai').catch(() => {});
     await settingsManager.deleteApiKey('anthropic').catch(() => {});
+    await settingsManager.deleteApiKey('cli-bridge').catch(() => {});
 
     settingsManager.reset();
     crashRecovery.discardIncompleteSession();
