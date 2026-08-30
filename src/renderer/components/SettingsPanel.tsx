@@ -170,10 +170,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             whisperModelStatus={s.whisperModelStatus}
             isRepairingLocalTranscription={s.isRepairingLocalTranscription}
             localTranscriptionError={s.localTranscriptionError}
+            cliBridgeStatus={s.cliBridgeStatus}
+            cliBridgeToken={s.cliBridgeToken}
+            isUpdatingCliBridge={s.isUpdatingCliBridge}
             onSettingChange={s.handleSettingChange}
             onAnalysisModelChange={s.handleAnalysisModelChange}
             onRefreshAnalysisProviders={s.refreshAnalysisProviders}
             onRepairLocalTranscription={s.handleRepairLocalTranscription}
+            onCliBridgeTokenChange={s.setCliBridgeToken}
+            onPairCliBridge={s.handlePairCliBridge}
+            onRefreshCliBridge={s.refreshCliBridgeStatus}
+            onForgetCliBridge={s.handleForgetCliBridge}
             onOpenAiApiKeyChange={s.handleOpenAiApiKeyChange}
             onToggleOpenAiApiKeyVisibility={s.handleToggleOpenAiApiKeyVisibility}
             onTestOpenAiApiKey={s.handleTestOpenAiApiKey}
@@ -193,8 +200,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     s.activeTab, s.settings, s.audioDevices, s.openAiApiKey, s.anthropicApiKey,
     s.analysisProviderStatuses, s.isScanningProviders, s.refreshAnalysisProviders,
     s.whisperModelStatus, s.isRepairingLocalTranscription, s.localTranscriptionError,
+    s.cliBridgeStatus, s.cliBridgeToken, s.isUpdatingCliBridge,
     s.handleSettingChange, s.handleHotkeyChange,
     s.handleAnalysisModelChange, s.handleRepairLocalTranscription,
+    s.setCliBridgeToken, s.handlePairCliBridge, s.refreshCliBridgeStatus, s.handleForgetCliBridge,
     s.handleOpenAiApiKeyChange, s.handleToggleOpenAiApiKeyVisibility, s.handleTestOpenAiApiKey,
     s.handleAnthropicApiKeyChange, s.handleToggleAnthropicApiKeyVisibility, s.handleTestAnthropicApiKey,
     s.handleClearAllData, s.handleExportSettings, s.handleImportSettings,

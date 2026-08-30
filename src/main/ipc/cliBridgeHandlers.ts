@@ -102,7 +102,7 @@ export function registerCliBridgeHandlers(
           success: false,
           status: notPairedStatus(
             Boolean(previousToken),
-            'Enter the 43-character token printed by markuprplus bridge token.',
+            'Enter the 43-character token printed by markuprx bridge token.',
           ),
         };
       }
