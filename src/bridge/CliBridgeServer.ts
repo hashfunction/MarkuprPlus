@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { AnalysisProviderRegistry } from '../main/ai/providers/AnalysisProviderRegistry';
+import type { BridgeProviderRegistry } from './BridgeProviderRegistry';
 import { deserializeBridgeSession } from './BridgeSession';
 import { isAuthorized } from './BridgeAuth';
 import { BridgeHttpError, sanitizeBridgeMessage } from './BridgeErrors';
@@ -20,7 +20,7 @@ const DEFAULT_ANALYSIS_TIMEOUT_MS = 190_000;
 export interface CliBridgeServerOptions {
   token: string;
   bridgeVersion: string;
-  registry: AnalysisProviderRegistry;
+  registry: BridgeProviderRegistry;
   host?: string;
   port?: number;
   maxBodyBytes?: number;
