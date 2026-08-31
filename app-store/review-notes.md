@@ -1,4 +1,4 @@
-# App Review Notes — MarkuprPlus 3.1.0
+# App Review Notes — MarkuprPlus 3.1.1
 
 MarkuprPlus is a menu bar app for creating structured visual-feedback reports for AI coding agents. It does not require an account and has no developer-operated telemetry.
 
@@ -13,11 +13,15 @@ MarkuprPlus is a menu bar app for creating structured visual-feedback reports fo
 7. Press Command-Shift-F again to stop. MarkuprPlus writes a local report and opens the review surface.
 8. Edit or reorder findings, preview the Markdown, and export or copy the report path.
 
+## Version 3.1.1 fix
+
+Marked screenshots are now placed directly inside their matching AI-generated feedback items. When a screenshot cannot be matched confidently, the evidence remains available in an Unmatched Marked Evidence section instead of being discarded.
+
 ## Optional CLI Bridge
 
-Version 3.1.0 restores optional compatibility with Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, and Aider. This feature is not required to complete the review walkthrough above.
+Version 3.1.1 includes optional compatibility with Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, and Aider. This feature is not required to complete the review walkthrough above.
 
-To test it, install the versioned package from the public project release in Terminal with `npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz`, run `markuprx bridge install`, then run `markuprx bridge token`. In MarkuprPlus, open Settings → Advanced, paste that token into CLI Integrations, and choose any compatible CLI already installed and signed in for the reviewer. `markuprx bridge status` reports whether the per-user companion is running.
+To test it, install the versioned package from the public project release in Terminal with `npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz`, run `markuprx bridge install`, then run `markuprx bridge token`. In MarkuprPlus, open Settings → Advanced, paste that token into CLI Integrations, and choose any compatible CLI already installed and signed in for the reviewer. `markuprx bridge status` reports whether the per-user companion is running.
 
 The companion binds only to IPv4 loopback at `127.0.0.1:49647`, requires bearer-token authentication, and accepts only a fixed structured report protocol. The Mac App Store app does not execute external command-line tools inside its sandbox, does not accept or send arbitrary shell commands, and does not install the companion. The separately installed companion invokes only the provider explicitly selected by the user.
 
