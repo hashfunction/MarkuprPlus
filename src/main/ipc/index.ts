@@ -11,6 +11,7 @@ export { registerSettingsHandlers } from './settingsHandlers';
 export { registerOutputHandlers } from './outputHandlers';
 export { registerWindowHandlers } from './windowHandlers';
 export { registerAnalysisProviderHandlers } from './analysisProviderHandlers';
+export { registerCliBridgeHandlers } from './cliBridgeHandlers';
 export type { IpcContext, SessionActions } from './types';
 
 // Re-export capture utilities used by the main entry point
@@ -34,6 +35,7 @@ import { registerSettingsHandlers } from './settingsHandlers';
 import { registerOutputHandlers } from './outputHandlers';
 import { registerWindowHandlers } from './windowHandlers';
 import { registerAnalysisProviderHandlers } from './analysisProviderHandlers';
+import { registerCliBridgeHandlers } from './cliBridgeHandlers';
 
 /**
  * Register all IPC handlers in a single call.
@@ -46,4 +48,5 @@ export function registerAllHandlers(ctx: IpcContext, actions: SessionActions): v
   registerOutputHandlers(ctx);
   registerWindowHandlers(ctx);
   registerAnalysisProviderHandlers(ctx);
+  registerCliBridgeHandlers(ctx);
 }

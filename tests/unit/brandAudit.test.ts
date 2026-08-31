@@ -13,7 +13,7 @@ type BrandVerifier = {
 const compatiblePackageJson = {
   name: 'markuprx',
   productName: 'MarkuprPlus',
-  version: '3.0.0',
+  version: '3.1.0',
   homepage: 'https://markuprplus.com',
   repository: {
     type: 'git',

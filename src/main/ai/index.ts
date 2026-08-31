@@ -8,6 +8,8 @@ export { processSession } from './AIPipelineManager';
 export { CodexAnalyzer, CodexCliError } from './CodexAnalyzer';
 export { CodexCliDiscovery, codexCliDiscovery } from './CodexCliDiscovery';
 export { runCliProcess } from './CliProcessRunner';
+export { CliBridgeClient, CliBridgeClientError } from './bridge/CliBridgeClient';
+export { BridgeCliProvider } from './bridge/BridgeCliProvider';
 export {
   AnalysisProviderRegistry,
   createAnalysisProviderRegistry,

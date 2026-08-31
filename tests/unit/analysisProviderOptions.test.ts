@@ -32,15 +32,30 @@ describe('analysis provider options', () => {
     ]);
   });
 
-  it('hides CLI cards in the Store distribution', () => {
+  it('shows CLI cards through the companion bridge in the Store distribution', () => {
     expect(providerOptionsForDistribution('mas').map(({ id }) => id)).toEqual([
+      'codex-cli',
+      'claude-cli',
+      'opencode-cli',
+      'cursor-cli',
+      'qwen-cli',
+      'goose-cli',
+      'amp-cli',
+      'kiro-cli',
+      'aider-cli',
       'ollama',
       'lmstudio',
       'anthropic-api',
       'rules',
     ]);
+    expect(providerOptionsForDistribution('mas')
+      .filter(({ connectionBadge }) => connectionBadge === 'CLI')
+      .every(({ description }) => description.includes('companion CLI Bridge'))).toBe(true);
     expect(providerOptionsForDistribution('direct').map(({ id }) => id)).toEqual(
       PROVIDER_OPTIONS.map(({ id }) => id),
+    );
+    expect(providerOptionsForDistribution('direct')[0].description).toBe(
+      'Use your installed Codex CLI and existing ChatGPT login.',
     );
   });
 

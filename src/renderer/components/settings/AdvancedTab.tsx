@@ -2,6 +2,7 @@ import React from 'react';
 import type {
   AnalysisProviderStatus,
   AppSettings,
+  CliBridgeConnectionStatus,
   ModelAnalysisProvider,
   WhisperModelCheckResult,
 } from '../../../shared/types';
@@ -10,6 +11,8 @@ import { SettingsSection, ToggleSetting, ApiKeyInput, DangerButton } from '../pr
 import type { ApiKeyState } from '../primitives';
 import { styles } from './settingsStyles';
 import { AnalysisProviderSelector } from './AnalysisProviderSelector';
+import { CliBridgeSetup } from './CliBridgeSetup';
+import { currentDistribution } from '../../../shared/distribution';
 
 export const AdvancedTab: React.FC<{
   settings: AppSettings;
@@ -20,10 +23,17 @@ export const AdvancedTab: React.FC<{
   whisperModelStatus: WhisperModelCheckResult | null;
   isRepairingLocalTranscription: boolean;
   localTranscriptionError: string | null;
+  cliBridgeStatus: CliBridgeConnectionStatus | null;
+  cliBridgeToken: string;
+  isUpdatingCliBridge: boolean;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onAnalysisModelChange: (provider: ModelAnalysisProvider, modelId: string) => void;
   onRefreshAnalysisProviders: () => void;
   onRepairLocalTranscription: () => void;
+  onCliBridgeTokenChange: (token: string) => void;
+  onPairCliBridge: () => void;
+  onRefreshCliBridge: () => void;
+  onForgetCliBridge: () => void;
   onOpenAiApiKeyChange: (value: string) => void;
   onToggleOpenAiApiKeyVisibility: () => void;
   onTestOpenAiApiKey: () => void;
@@ -43,10 +53,17 @@ export const AdvancedTab: React.FC<{
   whisperModelStatus,
   isRepairingLocalTranscription,
   localTranscriptionError,
+  cliBridgeStatus,
+  cliBridgeToken,
+  isUpdatingCliBridge,
   onSettingChange,
   onAnalysisModelChange,
   onRefreshAnalysisProviders,
   onRepairLocalTranscription,
+  onCliBridgeTokenChange,
+  onPairCliBridge,
+  onRefreshCliBridge,
+  onForgetCliBridge,
   onOpenAiApiKeyChange,
   onToggleOpenAiApiKeyVisibility,
   onTestOpenAiApiKey,
@@ -61,6 +78,18 @@ export const AdvancedTab: React.FC<{
   const { colors } = useTheme();
   return (
   <div style={styles.tabContent}>
+    {currentDistribution() === 'mas' && (
+      <CliBridgeSetup
+        status={cliBridgeStatus}
+        token={cliBridgeToken}
+        busy={isUpdatingCliBridge}
+        onTokenChange={onCliBridgeTokenChange}
+        onPair={onPairCliBridge}
+        onRefresh={onRefreshCliBridge}
+        onForget={onForgetCliBridge}
+      />
+    )}
+
     <AnalysisProviderSelector
       provider={settings.analysisProvider}
       modelSelections={settings.analysisModelsByProvider}

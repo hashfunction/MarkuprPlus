@@ -104,8 +104,13 @@ const ALL_PROVIDER_OPTIONS: AnalysisProviderOption[] = [
 export function providerOptionsForDistribution(
   distribution: DistributionKind,
 ): AnalysisProviderOption[] {
-  return ALL_PROVIDER_OPTIONS.filter((option) =>
-    distribution === 'direct' || option.connectionBadge !== 'CLI');
+  if (distribution === 'direct') return ALL_PROVIDER_OPTIONS;
+  return ALL_PROVIDER_OPTIONS.map((option) => option.connectionBadge === 'CLI'
+    ? {
+        ...option,
+        description: `${option.description} Runs through the companion CLI Bridge.`,
+      }
+    : option);
 }
 
 export const PROVIDER_OPTIONS = providerOptionsForDistribution(currentDistribution());

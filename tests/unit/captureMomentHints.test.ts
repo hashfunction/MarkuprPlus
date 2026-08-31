@@ -4,7 +4,9 @@ import {
   attachFallbackFramesToMarkedIssues,
   captureContextsToKeyMoments,
   nearestCaptureContext,
+  removeClaimedTranscriptFrames,
 } from '../../src/main/pipeline/CaptureMomentHints';
+import type { ExtractedFrame, TranscriptSegment } from '../../src/main/pipeline/PostProcessor';
 
 const annotationContext: CaptureContextSnapshot = {
   recordedAt: 11_000,
@@ -93,6 +95,44 @@ describe('CaptureMomentHints', () => {
         ...missing,
         evidenceWarning: 'No marked screenshot could be recovered for this issue.',
       },
+    ]);
+  });
+
+  it('removes generic frames for narration already owned by a marked issue', () => {
+    const segments: TranscriptSegment[] = [{
+      text: 'Marked checkout issue',
+      startTime: 0,
+      endTime: 2,
+      confidence: 1,
+    }, {
+      text: 'Unmarked navigation feedback',
+      startTime: 3,
+      endTime: 5,
+      confidence: 1,
+    }];
+    const issue = markedIssue(1, 1, 'screenshots/marked-issue-001.png');
+    issue.transcriptSegmentIds = ['transcript-segment-0001'];
+    const frames: ExtractedFrame[] = [{
+      path: '/tmp/frame-start.png',
+      timestamp: 0.35,
+      reason: 'Session start',
+      transcriptSegment: segments[0],
+    }, {
+      path: '/tmp/frame-marked-fallback.png',
+      timestamp: 1,
+      reason: 'Marked issue',
+      markedIssueId: issue.id,
+      transcriptSegment: segments[0],
+    }, {
+      path: '/tmp/frame-unclaimed.png',
+      timestamp: 4,
+      reason: 'AI-highlighted context',
+      transcriptSegment: segments[1],
+    }];
+
+    expect(removeClaimedTranscriptFrames(frames, segments, [issue])).toEqual([
+      frames[1],
+      frames[2],
     ]);
   });
 });

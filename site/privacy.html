@@ -6,7 +6,7 @@
   <title>Privacy Policy — MarkuprPlus</title>
   <meta name="description" content="How MarkuprPlus handles recordings, reports, API keys, and optional AI providers.">
   <link rel="canonical" href="https://markuprplus.com/privacy">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3.0.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3.1.0">
   <style>
     :root {
       color-scheme: dark light;
@@ -40,7 +40,7 @@
   <header>
     <a class="wordmark" href="/">MarkuprPlus</a>
     <h1>Privacy Policy</h1>
-    <p class="updated">Effective August 20, 2026</p>
+    <p class="updated">Effective August 30, 2026</p>
   </header>
 
   <main>
@@ -56,11 +56,14 @@
     <h2>On-device processing</h2>
     <p>Local Rules creates structured reports without an AI service. Local Whisper transcription runs on your device after you install a model. Ollama and LM Studio connections use fixed loopback addresses on your Mac. MarkuprPlus does not send those local-provider requests to a developer-operated server.</p>
 
+    <h2>Optional local CLI companion</h2>
+    <p>The Mac App Store app can connect to a separately installed MarkuprPlus CLI Bridge on the fixed loopback address <code>127.0.0.1:49647</code>. The bridge requires a random pairing token stored in macOS Keychain. Transcript text and selected screenshots are sent only to this companion on your Mac when you explicitly select a compatible CLI report provider. The companion then invokes that selected CLI, which may contact its own provider under the account and privacy terms you configured for that tool. The App Store app does not execute shell commands, and neither the app nor the companion sends this material to a MarkuprPlus or Trieflow server.</p>
+
     <h2>Optional cloud providers</h2>
     <p>If you select a cloud provider, MarkuprPlus sends only the report material needed for that request to the provider you choose. For example, Anthropic API analysis may receive transcript text and selected screenshots, and optional cloud transcription may receive narration audio. Those providers process data under their own terms and privacy policies. MarkuprPlus does not silently switch to a different cloud provider.</p>
 
     <h2>API keys</h2>
-    <p>Keys you enter are stored in the macOS Keychain and are used only to contact the provider you selected. MarkuprPlus does not transmit your keys to a MarkuprPlus server.</p>
+    <p>Provider keys and the optional companion pairing token are stored in the macOS Keychain and are used only for their named connection. MarkuprPlus does not transmit these secrets to a MarkuprPlus server.</p>
 
     <h2>Permissions</h2>
     <p>macOS asks for Screen Recording permission so MarkuprPlus can capture the source you choose and Microphone permission so it can record narration. You can revoke either permission in System Settings. The Mac App Store edition runs in Apple's App Sandbox.</p>
@@ -72,7 +75,7 @@
     <p>Session files remain on your Mac until you remove them. You can delete captures from MarkuprPlus or Finder, clear app data from Settings, revoke permissions in System Settings, and remove provider keys from the app or Keychain Access. Cloud providers may retain submitted material according to the provider settings and policy associated with your account.</p>
 
     <h2>Distribution and updates</h2>
-    <p>MarkuprPlus is distributed through the Mac App Store, where Apple manages installation and updates. This policy covers the MarkuprPlus application; Apple and optional providers process data under their own policies.</p>
+    <p>MarkuprPlus is distributed through the Mac App Store, where Apple manages installation and updates. The optional local companion is installed separately through npm and has its own explicit lifecycle commands. This policy covers the MarkuprPlus application and companion; Apple and optional providers process data under their own policies.</p>
 
     <h2>Changes</h2>
     <p>If this policy changes materially, the effective date above will change and the updated policy will remain available at this URL.</p>

@@ -30,6 +30,7 @@ import { runDoctorChecks } from './doctor';
 import { runInit, CONFIG_FILENAME } from './init';
 import { templateRegistry } from '../main/output/templates/index';
 import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
+import { registerBridgeCommand } from '../bridge/BridgeCommand';
 
 // Read version from package.json at build time (injected by esbuild)
 declare const __MARKUPRX_VERSION__: string;
@@ -219,6 +220,8 @@ program
       activePipeline = null;
     }
   });
+
+registerBridgeCommand(program, { bridgeVersion: VERSION });
 
 // ============================================================================
 // watch command
@@ -572,4 +575,4 @@ if (process.argv.length <= 2) {
   process.exit(EXIT_SUCCESS);
 }
 
-program.parse();
+await program.parseAsync();

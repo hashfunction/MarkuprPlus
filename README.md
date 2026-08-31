@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml/badge.svg?branch=main" alt="Deployment status"></a>
-  <img src="https://img.shields.io/badge/version-3.0.0-f59e0b?style=flat-square" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/version-3.1.0-f59e0b?style=flat-square" alt="Version 3.1.0">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
@@ -124,19 +124,40 @@ npx --package markuprx markuprx-mcp
 npx markuprx analyze ./recording.mov
 ```
 
-> **Heads up — pre-release.** The npm package is not published yet, so the `npx`
-> forms above will 404 today. Until it lands, build from a source checkout and
-> the same two binaries are available locally:
->
-> ```bash
-> git clone https://github.com/hashfunction/MarkuprPlus.git
-> cd MarkuprPlus && npm install && npm run build
-> node dist/cli/index.mjs analyze ./recording.mov
-> node dist/mcp/index.mjs                     # MCP server over stdio
-> ```
-
 > **Naming:** the product is **MarkuprPlus**; the package and its binaries stay
 > `markuprx` / `markuprx-mcp` for compatibility. `npx markuprplus …` is not a thing.
+
+### Optional companion for Mac App Store CLI integrations
+
+The sandboxed Mac App Store app can use AI command-line tools already installed and signed in on your Mac through the optional MarkuprPlus CLI Bridge. Local Rules, Ollama, LM Studio, and Anthropic API do not require this companion.
+
+Install and pair it from a Terminal:
+
+```bash
+npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz
+markuprx bridge install     # installs and starts a per-user LaunchAgent
+markuprx bridge token       # paste this value in Settings → Advanced
+markuprx bridge status
+```
+
+The versioned package is published with the official GitHub release so the
+companion used by the Store app is reproducible and remains available even
+without an npm registry account.
+
+The service listens only on `127.0.0.1:49647`, requires its random pairing token for every provider request, and accepts a fixed structured-report protocol rather than shell text. The App Store app does not run shell commands or launch external tools; the separately installed companion invokes only the provider selected in Settings.
+
+Lifecycle and recovery commands:
+
+```bash
+markuprx bridge start
+markuprx bridge stop
+markuprx bridge status
+markuprx bridge token
+markuprx bridge rotate-token
+markuprx bridge uninstall
+```
+
+Rotating the token requires pairing again. Uninstall removes the exact LaunchAgent and bridge configuration owned by MarkuprPlus; it does not uninstall your AI CLIs.
 
 ## What Lands in Your Folder
 
@@ -249,6 +270,8 @@ Marked issues are numbered `MX-001…`; items that come from narration alone are
 
 Pick the model that turns a capture into a structured report. MarkuprPlus checks each one **before** you record and shows you what it actually found.
 
+In the Mac App Store app, CLI providers use the optional local companion described above. Direct desktop builds invoke the same adapters inside the app. Both paths preserve Local Rules as the failure-safe report.
+
 | Provider | Kind | What it uses |
 |---|---|---|
 | **Codex CLI** | CLI | Your installed Codex CLI and existing ChatGPT login, in a read-only ephemeral session |
@@ -337,7 +360,7 @@ Full MCP documentation: [README-MCP.md](README-MCP.md).
 ## CLI
 
 ```bash
-npx markuprx analyze ./recording.mov     # once published; see the pre-release note above
+npx markuprx analyze ./recording.mov
 ```
 
 | Command | What it does |

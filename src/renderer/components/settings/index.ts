@@ -3,6 +3,7 @@ export { RecordingTab } from './RecordingTab';
 export { AppearanceTab } from './AppearanceTab';
 export { HotkeysTab } from './HotkeysTab';
 export { AdvancedTab } from './AdvancedTab';
+export { CliBridgeSetup } from './CliBridgeSetup';
 export { TABS } from './tabConfig';
 export type { SettingsTab } from './tabConfig';
 export { styles as settingsStyles } from './settingsStyles';

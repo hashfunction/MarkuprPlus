@@ -10,6 +10,7 @@ import type {
   AnalysisProviderStatus,
   AppSettings,
   AudioDevice,
+  CliBridgeConnectionStatus,
   HotkeyConfig,
   ModelAnalysisProvider,
   WhisperModelCheckResult,
@@ -18,6 +19,8 @@ import { DEFAULT_SETTINGS, DEFAULT_HOTKEY_CONFIG } from '../../../shared/types';
 import type { ApiKeyState } from '../primitives';
 import type { SettingsTab } from './tabConfig';
 import { getAnalysisProviderViewState } from './analysisProviderViewState';
+import { currentDistribution } from '../../../shared/distribution';
+import { CLI_BRIDGE_PROVIDER_IDS } from '../../../shared/cliBridgeProtocol';
 
 // ============================================================================
 // Constants
@@ -26,6 +29,7 @@ import { getAnalysisProviderViewState } from './analysisProviderViewState';
 const MASKED_API_KEY_PLACEHOLDER = '********';
 const API_TEST_TIMEOUT_MS = 15000;
 const API_SAVE_TIMEOUT_MS = 12000;
+const IS_MAS_DISTRIBUTION = currentDistribution() === 'mas';
 
 export type SettingsSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -72,6 +76,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   const [whisperModelStatus, setWhisperModelStatus] = useState<WhisperModelCheckResult | null>(null);
   const [isRepairingLocalTranscription, setIsRepairingLocalTranscription] = useState(false);
   const [localTranscriptionError, setLocalTranscriptionError] = useState<string | null>(null);
+  const [cliBridgeStatus, setCliBridgeStatus] = useState<CliBridgeConnectionStatus | null>(null);
+  const [cliBridgeToken, setCliBridgeToken] = useState('');
+  const [isUpdatingCliBridge, setIsUpdatingCliBridge] = useState(false);
   const getApiKeyPresence = useCallback(async (): Promise<{ hasOpenAiKey: boolean; hasAnthropicKey: boolean }> => {
     try {
       const [hasOpenAiKey, hasAnthropicKey] = await Promise.all([
@@ -99,6 +106,28 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     }
   }, []);
 
+  const refreshCliBridgeStatus = useCallback(async (): Promise<CliBridgeConnectionStatus | null> => {
+    if (!IS_MAS_DISTRIBUTION) return null;
+    setIsUpdatingCliBridge(true);
+    try {
+      const status = await window.markuprx.cliBridge.status();
+      setCliBridgeStatus(status);
+      if (status.state === 'connected') await refreshAnalysisProviders(true);
+      return status;
+    } catch (error) {
+      console.error('Failed to check CLI Bridge:', error);
+      const status: CliBridgeConnectionStatus = {
+        state: 'offline',
+        paired: false,
+        diagnostic: 'Unable to check the companion CLI Bridge.',
+      };
+      setCliBridgeStatus(status);
+      return status;
+    } finally {
+      setIsUpdatingCliBridge(false);
+    }
+  }, [refreshAnalysisProviders]);
+
   // ---------------------------------------------------------------------------
   // Load settings on mount
   // ---------------------------------------------------------------------------
@@ -112,14 +141,22 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
         setSettings(loadedSettings);
 
-        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus] = await Promise.all([
+        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus, bridgeStatus] = await Promise.all([
           window.markuprx.audio.getDevices(),
           refreshAnalysisProviders(false),
           getApiKeyPresence(),
           window.markuprx.whisper.checkModel().catch(() => null),
+          IS_MAS_DISTRIBUTION
+            ? window.markuprx.cliBridge.status().catch((): CliBridgeConnectionStatus => ({
+                state: 'offline',
+                paired: false,
+                diagnostic: 'Unable to check the companion CLI Bridge.',
+              }))
+            : Promise.resolve(null),
         ]);
         setAudioDevices(devices);
         setWhisperModelStatus(localModelStatus);
+        setCliBridgeStatus(bridgeStatus);
         if (hasOpenAiKey) {
           setOpenAiApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
         }
@@ -193,6 +230,49 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     else delete next[provider];
     await handleSettingChange('analysisModelsByProvider', next);
   }, [settings.analysisModelsByProvider, handleSettingChange]);
+
+  const handlePairCliBridge = useCallback(async () => {
+    if (!IS_MAS_DISTRIBUTION) return;
+    setIsUpdatingCliBridge(true);
+    try {
+      const result = await window.markuprx.cliBridge.pair(cliBridgeToken);
+      setCliBridgeStatus(result.status);
+      if (result.success) {
+        setCliBridgeToken('');
+        await refreshAnalysisProviders(true);
+      }
+    } catch (error) {
+      console.error('Failed to pair CLI Bridge:', error);
+      setCliBridgeStatus({
+        state: 'offline',
+        paired: cliBridgeStatus?.paired ?? false,
+        diagnostic: 'Unable to pair with the companion CLI Bridge.',
+      });
+    } finally {
+      setIsUpdatingCliBridge(false);
+    }
+  }, [cliBridgeStatus?.paired, cliBridgeToken, refreshAnalysisProviders]);
+
+  const handleForgetCliBridge = useCallback(async () => {
+    if (!IS_MAS_DISTRIBUTION) return;
+    setIsUpdatingCliBridge(true);
+    try {
+      const status = await window.markuprx.cliBridge.forget();
+      setCliBridgeStatus(status);
+      setCliBridgeToken('');
+      if ((CLI_BRIDGE_PROVIDER_IDS as readonly string[]).includes(settings.analysisProvider)) {
+        setSettings((previous) => ({ ...previous, analysisProvider: 'rules' }));
+      }
+      await refreshAnalysisProviders(true);
+      window.dispatchEvent(new CustomEvent('markuprx:settings-updated', {
+        detail: { type: 'analysis-provider', provider: 'rules' },
+      }));
+    } catch (error) {
+      console.error('Failed to forget CLI Bridge:', error);
+    } finally {
+      setIsUpdatingCliBridge(false);
+    }
+  }, [refreshAnalysisProviders, settings.analysisProvider]);
 
   const handleRepairLocalTranscription = useCallback(async () => {
     setIsRepairingLocalTranscription(true);
@@ -534,6 +614,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
       setOpenAiApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnthropicApiKey({ value: '', visible: false, testing: false, valid: null, error: null });
       setAnalysisProviderStatuses([]);
+      setCliBridgeToken('');
+      setCliBridgeStatus(IS_MAS_DISTRIBUTION ? {
+        state: 'not-paired',
+        paired: false,
+        diagnostic: 'Pair MarkuprPlus CLI Bridge.',
+      } : null);
       window.dispatchEvent(new CustomEvent('markuprx:settings-updated', { detail: { type: 'reset' } }));
     } catch (error) {
       console.error('Failed to clear data:', error);
@@ -605,6 +691,10 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     isRepairingLocalTranscription,
     localTranscriptionError,
     analysisProviderViewState,
+    cliBridgeStatus,
+    cliBridgeToken,
+    setCliBridgeToken,
+    isUpdatingCliBridge,
 
     // Setting handlers
     handleSettingChange,
@@ -612,6 +702,9 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
     handleRepairLocalTranscription,
     handleHotkeyChange,
     refreshAnalysisProviders,
+    refreshCliBridgeStatus,
+    handlePairCliBridge,
+    handleForgetCliBridge,
 
     // API key handlers
     handleOpenAiApiKeyChange,

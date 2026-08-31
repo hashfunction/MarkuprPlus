@@ -2,13 +2,16 @@
 
 import { _electron as electron } from '@playwright/test';
 import { constants } from 'node:fs';
-import { access, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { runStartupProbe } from './lib/startup-probe.mjs';
 
 const PUBLIC_PRODUCT_NAME = 'MarkuprPlus';
+const { version: expectedVersion } = JSON.parse(
+  await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+);
 
 function defaultPackagedLayout(platform, arch, releaseRoot = resolve('release')) {
   if (platform === 'darwin') {
@@ -158,7 +161,10 @@ try {
       runtime.name === PUBLIC_PRODUCT_NAME,
       `Unexpected application name: ${runtime.name}.`,
     );
-    assertRuntime(runtime.version === '3.0.0', `Unexpected application version: ${runtime.version}.`);
+    assertRuntime(
+      runtime.version === expectedVersion,
+      `Unexpected application version: ${runtime.version}; expected ${expectedVersion}.`,
+    );
     assertRuntime(
       title.includes(PUBLIC_PRODUCT_NAME),
       `Unexpected application title: ${title}.`,

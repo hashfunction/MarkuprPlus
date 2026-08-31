@@ -52,6 +52,8 @@ import {
   type ReviewSession,
   type ReviewExportOptions,
   type ReviewExportResult,
+  type CliBridgeConnectionStatus,
+  type CliBridgePairResult,
 } from '../shared/types';
 import { ELECTRON_TEST_CHANNELS } from '../shared/electronTestHarness';
 
@@ -640,6 +642,21 @@ const markuprxApi = {
         provider,
         forceRefresh,
       );
+    },
+  },
+
+  // ===========================================================================
+  // CLI Bridge API
+  // ===========================================================================
+  cliBridge: {
+    status: (): Promise<CliBridgeConnectionStatus> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CLI_BRIDGE_STATUS);
+    },
+    pair: (token: string): Promise<CliBridgePairResult> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CLI_BRIDGE_PAIR, token);
+    },
+    forget: (): Promise<CliBridgeConnectionStatus> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.CLI_BRIDGE_FORGET);
     },
   },
 

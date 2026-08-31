@@ -309,6 +309,25 @@ export interface ApiKeyValidationResult {
   status?: number;
 }
 
+export type CliBridgeConnectionState =
+  | 'not-applicable'
+  | 'not-paired'
+  | 'offline'
+  | 'incompatible'
+  | 'connected';
+
+export interface CliBridgeConnectionStatus {
+  state: CliBridgeConnectionState;
+  paired: boolean;
+  diagnostic?: string;
+  providers?: AnalysisProviderStatus[];
+}
+
+export interface CliBridgePairResult {
+  success: boolean;
+  status: CliBridgeConnectionStatus;
+}
+
 /**
  * Default settings
  */
@@ -475,6 +494,13 @@ export const IPC_CHANNELS = {
   ANALYSIS_PROVIDERS_DISCOVER: 'markuprx:analysis-providers:discover',
   ANALYSIS_PROVIDER_TEST: 'markuprx:analysis-provider:test',
   ANALYSIS_PROVIDER_MODELS: 'markuprx:analysis-provider:models',
+
+  // ---------------------------------------------------------------------------
+  // CLI Bridge Channels (Renderer -> Main)
+  // ---------------------------------------------------------------------------
+  CLI_BRIDGE_STATUS: 'markuprx:cli-bridge:status',
+  CLI_BRIDGE_PAIR: 'markuprx:cli-bridge:pair',
+  CLI_BRIDGE_FORGET: 'markuprx:cli-bridge:forget',
 
   // ---------------------------------------------------------------------------
   // Permissions Channels (Renderer -> Main)
