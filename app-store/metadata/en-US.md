@@ -12,8 +12,8 @@ Circle the bug. Give your AI the whole story. MarkuprPlus turns each mark and sp
 ## Keywords
 bug report,screen recorder,AI feedback,annotation,transcription,Markdown,QA,code review,screenshot
 
-## What's New in Version 3.1.0
-CLI report integrations are back in the Mac App Store app through an optional local companion. Connect Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, or Aider from Advanced Settings. This update also adds secure Keychain pairing, bridge status diagnostics, and stricter report-transport limits. Local Rules remains available with no setup or network connection.
+## What's New in Version 3.1.1
+Marked screenshots now appear directly inside the matching AI-generated issue, keeping each finding's visual evidence beside its title, narration, and timestamp. Evidence that cannot be matched confidently is preserved in an Unmatched Marked Evidence section. This update also includes the CLI integrations and secure optional local companion introduced in version 3.1.0.
 
 ## Description
 Circle the bug. Give your AI the whole story.

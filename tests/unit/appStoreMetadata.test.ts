@@ -70,6 +70,8 @@ describe('App Store public metadata', () => {
     expect(fields.description).toMatch(/Codex CLI/);
     expect(fields.description).toMatch(/optional local companion/i);
     expect(fields.description).not.toMatch(/App Store app (?:directly )?(?:runs|executes|launches).*CLI/is);
-    expect(section(metadata, "What's New in Version 3.1.0").length).toBeLessThanOrEqual(4_000);
+    const releaseNotes = section(metadata, "What's New in Version 3.1.1");
+    expect(releaseNotes.length).toBeGreaterThan(0);
+    expect(releaseNotes.length).toBeLessThanOrEqual(4_000);
   });
 });

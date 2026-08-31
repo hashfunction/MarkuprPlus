@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Notarization no longer skips silently: missing credentials, a non-Developer ID certificate, or a failed submission now fail the release build.
 - Release notes now list the real `markuprplus-*` artifact names and no longer overwrite the curated changelog.
 
+## 3.1.1 - 2026-08-30
+
+### Fixed
+
+- AI-analyzed reports now place each marked screenshot directly inside its matching feedback item, beside the finding's narration and metadata.
+- Marked evidence that cannot be matched confidently is preserved in an Unmatched Marked Evidence section instead of being discarded.
+
+### Changed
+
+- Bumped the Mac App Store bundle to version 3.1.1, build 4.
+
 ## 3.1.0 - 2026-08-30
 
 ### Added

@@ -11,28 +11,40 @@ const lifecycleCommands = [
 ];
 
 describe('CLI Bridge release documentation', () => {
-  it('sets version 3.1.0 and Mac App Store build 3', async () => {
+  it('sets version 3.1.1 and Mac App Store build 4', async () => {
     const [packageJson, lockJson, masConfig] = await Promise.all([
       readFile('package.json', 'utf8').then(JSON.parse),
       readFile('package-lock.json', 'utf8').then(JSON.parse),
       readFile('electron-builder.mas.yml', 'utf8'),
     ]);
 
-    expect(packageJson.version).toBe('3.1.0');
-    expect(lockJson.version).toBe('3.1.0');
-    expect(lockJson.packages[''].version).toBe('3.1.0');
-    expect(masConfig).toMatch(/^buildVersion: "3"$/m);
+    expect(packageJson.version).toBe('3.1.1');
+    expect(lockJson.version).toBe('3.1.1');
+    expect(lockJson.packages[''].version).toBe('3.1.1');
+    expect(masConfig).toMatch(/^buildVersion: "4"$/m);
   });
 
   it('documents the complete optional companion lifecycle and fixed loopback endpoint', async () => {
     const readme = await readFile('README.md', 'utf8');
     expect(readme).toMatch(/optional.*companion/is);
     expect(readme).toContain(
-      'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz',
+      'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
     );
     for (const command of lifecycleCommands) expect(readme).toContain(command);
     expect(readme).toContain('127.0.0.1:49647');
     expect(readme).toMatch(/App Store app does not (?:run|execute|launch) shell commands/i);
+  });
+
+  it('publishes the versioned companion package as a required release asset', async () => {
+    const workflow = await readFile('.github/workflows/release.yml', 'utf8');
+
+    expect(workflow).toMatch(/^  build-companion:$/m);
+    expect(workflow).toContain('npm run build:cli');
+    expect(workflow).toContain('npm run build:mcp');
+    expect(workflow).toContain('markuprx-${VERSION}.tgz');
+    expect(workflow).toContain('name: release-companion');
+    expect(workflow).toContain('artifacts/release-companion/*.tgz');
+    expect(workflow).toContain('Verify companion release asset');
   });
 
   it('discloses bridge data flow in Store copy, privacy copy, and review notes', async () => {
@@ -48,14 +60,14 @@ describe('CLI Bridge release documentation', () => {
       expect(content).toMatch(/companion/i);
       expect(content).toMatch(/(?:localhost|loopback|127\.0\.0\.1)/i);
     }
-    expect(metadata).toContain("## What's New in Version 3.1.0");
-    expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.0');
+    expect(metadata).toContain("## What's New in Version 3.1.1");
+    expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.1');
     expect(reviewNotes).toContain(
-      'https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz',
+      'https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
     );
     expect(reviewNotes.indexOf('Local Rules')).toBeLessThan(reviewNotes.indexOf('Optional CLI Bridge'));
     expect(reviewNotes).toMatch(/does not execute external.*inside.*sandbox/is);
     expect(privacyPage).toMatch(/transcript.*selected screenshots.*companion/is);
-    expect(changelog).toMatch(/^## 3\.1\.0 - 2026-08-30$/m);
+    expect(changelog).toMatch(/^## 3\.1\.1 - 2026-08-30$/m);
   });
 });

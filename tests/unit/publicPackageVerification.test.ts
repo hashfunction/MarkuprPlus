@@ -430,12 +430,12 @@ describe('public package verification', () => {
   });
 
   it.each([
-    'markuprplus-3.1.0-arm64.dmg',
-    'MarkuprPlus-3.1.0-arm64-mac.zip',
-    'markuprplus-Setup-3.1.0.exe',
-    'MarkuprPlus 3.1.0.exe',
-    'markuprplus-3.1.0-x86_64.AppImage',
-    'markuprplus-3.1.0-amd64.deb',
+    'markuprplus-3.1.1-arm64.dmg',
+    'MarkuprPlus-3.1.1-arm64-mac.zip',
+    'markuprplus-Setup-3.1.1.exe',
+    'MarkuprPlus 3.1.1.exe',
+    'markuprplus-3.1.1-x86_64.AppImage',
+    'markuprplus-3.1.1-amd64.deb',
   ])('accepts the canonical filename contract before runtime verification: %s', (name) => {
     const root = fixture();
     writeFileSync(join(root, name), 'fixture');

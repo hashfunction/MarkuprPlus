@@ -5,7 +5,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { styles } from './settingsStyles';
 
 export const CLI_BRIDGE_SETUP_COMMANDS = [
-  'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.0/markuprx-3.1.0.tgz',
+  'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
   'markuprx bridge install',
   'markuprx bridge token',
 ] as const;
