@@ -49,6 +49,10 @@ mac:
   icon: build/icon.icns
   hardenedRuntime: true
   gatekeeperAssess: false
+  # scripts/notarize.cjs is the single notarization path. Disabling
+  # electron-builder's built-in pass prevents it from consuming the same
+  # credentials before the afterSign hook runs.
+  notarize: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.inherit.plist
   # Hide from dock and Cmd+Tab - pure menu bar app

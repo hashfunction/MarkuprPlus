@@ -36,6 +36,10 @@ describe('public packaging identity', () => {
       appId: 'com.eddiesanjuan.markuprx',
       productName: 'MarkuprPlus',
       executableName: 'MarkuprPlus',
+      afterSign: 'scripts/notarize.cjs',
+      mac: {
+        notarize: false,
+      },
       extraResources: [
         {
           from: 'assets',
