@@ -112,9 +112,9 @@ jobs:
                  -y test-recording.mp4
           echo "Generated test video: $(ls -lh test-recording.mp4)"
 
-      - name: Run markuprx analyze directly
+      - name: Run MarkuprPlus analyze directly
         run: |
-          npx --yes markuprx@latest analyze test-recording.mp4 \
+          npx --yes markuprplus@latest analyze test-recording.mp4 \
             --output ./test-output \
             --verbose || echo "::warning::Analysis exited with non-zero (expected for synthetic video)"
 

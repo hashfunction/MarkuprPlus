@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased — MarkuprPlus
 
 - Rebranded the public desktop experience and documentation as MarkuprPlus.
-- Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.
+- Published the CLI and MCP server as `markuprplus`, with `markuprplus` and `markuprplus-mcp` binaries.
+- Preserved existing `.markuprx` project files, IPC namespaces, storage paths, and application identifiers for compatibility.
 - Added a portrait-first taskbar popover experience and new README screenshot gallery.
 - Removed the Ko-fi donation surface: in-app donate button, tray menu entry, generated report and HTML footers, funding metadata, and all sponsor copy across the docs and site.
 - Updated the documentation and website branding from MarkuprX to MarkuprPlus, including the site wordmark and the markuprplus.com domain.

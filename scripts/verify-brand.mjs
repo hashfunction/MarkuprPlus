@@ -83,7 +83,7 @@ export function findBrandViolations(files, readFile, packageJson) {
   }
 
   const expectedPackageFields = {
-    name: 'markuprx',
+    name: 'markuprplus',
     productName: 'MarkuprPlus',
     version: '3.1.1',
     homepage: 'https://markuprplus.com',
@@ -94,7 +94,7 @@ export function findBrandViolations(files, readFile, packageJson) {
     bugs: {
       url: 'https://github.com/hashfunction/MarkuprPlus/issues',
     },
-    mcpName: 'com.markuprx/markuprx',
+    mcpName: 'com.markuprplus/markuprplus',
   };
   for (const [field, expected] of Object.entries(expectedPackageFields)) {
     if (JSON.stringify(packageJson[field]) !== JSON.stringify(expected)) {
@@ -106,10 +106,10 @@ export function findBrandViolations(files, readFile, packageJson) {
       violations.push(`package.json: script ${name} must not publish to an unconfigured update provider`);
     }
   }
-  if (packageJson.bin?.markuprx !== './dist/cli/index.mjs'
-    || packageJson.bin?.['markuprx-mcp'] !== './dist/mcp/index.mjs'
+  if (packageJson.bin?.markuprplus !== 'dist/cli/index.mjs'
+    || packageJson.bin?.['markuprplus-mcp'] !== 'dist/mcp/index.mjs'
     || Object.keys(packageJson.bin || {}).length !== 2) {
-    violations.push('package.json: public binaries must be exactly markuprx and markuprx-mcp');
+    violations.push('package.json: public binaries must be exactly markuprplus and markuprplus-mcp');
   }
   for (const requiredPath of requiredPaths) {
     if (!repositoryFileSet.has(requiredPath)) violations.push(`${requiredPath}: missing canonical file`);

@@ -354,7 +354,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=${{ needs.validate-tag.outputs.version }}
-          PACKAGE="markuprx-${VERSION}.tgz"
+          PACKAGE="markuprplus-${VERSION}.tgz"
 
           npm pack
           test -f "$PACKAGE"
@@ -367,13 +367,13 @@ jobs:
 
           PREFIX="$RUNNER_TEMP/companion-prefix"
           npm install --global --prefix "$PREFIX" "./$PACKAGE"
-          test "$("$PREFIX/bin/markuprx" --version)" = "$VERSION"
+          test "$("$PREFIX/bin/markuprplus" --version)" = "$VERSION"
 
       - name: Upload companion artifact
         uses: actions/upload-artifact@v6
         with:
           name: release-companion
-          path: markuprx-${{ needs.validate-tag.outputs.version }}.tgz
+          path: markuprplus-${{ needs.validate-tag.outputs.version }}.tgz
           if-no-files-found: error
           retention-days: 30
 
@@ -469,7 +469,7 @@ jobs:
         run: |
           VERSION=${{ needs.validate-tag.outputs.version }}
           gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' \
-            | grep -Fx "markuprx-${VERSION}.tgz"
+            | grep -Fx "markuprplus-${VERSION}.tgz"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

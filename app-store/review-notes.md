@@ -21,7 +21,7 @@ Marked screenshots are now placed directly inside their matching AI-generated fe
 
 Version 3.1.1 includes optional compatibility with Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, and Aider. This feature is not required to complete the review walkthrough above.
 
-To test it, install the versioned package from the public project release in Terminal with `npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz`, run `markuprx bridge install`, then run `markuprx bridge token`. In MarkuprPlus, open Settings → Advanced, paste that token into CLI Integrations, and choose any compatible CLI already installed and signed in for the reviewer. `markuprx bridge status` reports whether the per-user companion is running.
+To test it, install the public package in Terminal with `npm install -g markuprplus`, run `markuprplus bridge install`, then run `markuprplus bridge token`. In MarkuprPlus, open Settings → Advanced, paste that token into CLI Integrations, and choose any compatible CLI already installed and signed in for the reviewer. `markuprplus bridge status` reports whether the per-user companion is running.
 
 The companion binds only to IPv4 loopback at `127.0.0.1:49647`, requires bearer-token authentication, and accepts only a fixed structured report protocol. The Mac App Store app does not execute external command-line tools inside its sandbox, does not accept or send arbitrary shell commands, and does not install the companion. The separately installed companion invokes only the provider explicitly selected by the user.
 

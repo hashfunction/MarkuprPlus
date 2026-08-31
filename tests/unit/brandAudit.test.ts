@@ -11,7 +11,7 @@ type BrandVerifier = {
 };
 
 const compatiblePackageJson = {
-  name: 'markuprx',
+  name: 'markuprplus',
   productName: 'MarkuprPlus',
   version: '3.1.1',
   homepage: 'https://markuprplus.com',
@@ -22,10 +22,10 @@ const compatiblePackageJson = {
   bugs: {
     url: 'https://github.com/hashfunction/MarkuprPlus/issues',
   },
-  mcpName: 'com.markuprx/markuprx',
+  mcpName: 'com.markuprplus/markuprplus',
   bin: {
-    markuprx: './dist/cli/index.mjs',
-    'markuprx-mcp': './dist/mcp/index.mjs',
+    markuprplus: 'dist/cli/index.mjs',
+    'markuprplus-mcp': 'dist/mcp/index.mjs',
   },
   scripts: {},
 };

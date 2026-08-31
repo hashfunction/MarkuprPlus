@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * build-cli.mjs - Build the markuprx CLI bundle
+ * build-cli.mjs - Build the MarkuprPlus CLI bundle
  *
  * Uses esbuild to bundle src/cli/index.ts into a single ESM file at
  * dist/cli/index.mjs. Node built-ins and select npm packages are kept
@@ -19,7 +19,7 @@ const repoRoot = join(__dirname, '..');
 // Read version from package.json
 const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf-8'));
 
-console.log(`[build-cli] Building markuprx CLI v${pkg.version}...`);
+console.log(`[build-cli] Building MarkuprPlus CLI v${pkg.version}...`);
 
 try {
   await build({

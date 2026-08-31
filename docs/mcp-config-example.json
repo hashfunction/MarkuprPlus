@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "markuprx": {
+    "markuprplus": {
       "command": "npx",
-      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
+      "args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]
     }
   }
 }

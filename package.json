@@ -1,13 +1,13 @@
 {
-  "name": "markuprx",
+  "name": "markuprplus",
   "productName": "MarkuprPlus",
   "version": "3.1.1",
   "description": "Record your screen, narrate feedback, get structured Markdown with screenshots. Desktop app, CLI, and MCP server for AI coding agents like Claude Code, Cursor, and Windsurf.",
   "type": "module",
   "main": "dist/main/index.mjs",
   "bin": {
-    "markuprx": "./dist/cli/index.mjs",
-    "markuprx-mcp": "./dist/mcp/index.mjs"
+    "markuprplus": "dist/cli/index.mjs",
+    "markuprplus-mcp": "dist/mcp/index.mjs"
   },
   "files": [
     "dist/cli",
@@ -24,7 +24,7 @@
   "bugs": {
     "url": "https://github.com/hashfunction/MarkuprPlus/issues"
   },
-  "mcpName": "com.markuprx/markuprx",
+  "mcpName": "com.markuprplus/markuprplus",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -54,11 +54,14 @@
     "menu-bar",
     "macos",
     "windows",
-    "markuprx",
+    "markuprplus",
     "github-action"
   ],
   "engines": {
     "node": ">=20.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
@@ -94,6 +97,7 @@
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:ui-electron": "playwright test",
+    "test:mcp:package": "node scripts/smoke-npm-package.mjs",
     "test:package-smoke": "node scripts/smoke-packaged-app.mjs",
     "test:all": "npm run test:ci && npm run build:desktop && npm run test:ui-electron",
     "lint": "eslint src --ext .ts,.tsx",

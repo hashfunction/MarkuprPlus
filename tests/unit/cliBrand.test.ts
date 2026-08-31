@@ -17,7 +17,7 @@ describe('CLI public branding', () => {
     );
   });
 
-  it('keeps the markuprx command while presenting MarkuprPlus help', async () => {
+  it('presents the markuprplus command and preserves compatible project paths', async () => {
     const cacheDirectory = join(process.cwd(), 'node_modules', '.cache');
     await mkdir(cacheDirectory, { recursive: true });
     const outputDirectory = await mkdtemp(join(cacheDirectory, 'markuprplus-cli-help-'));
@@ -39,7 +39,7 @@ describe('CLI public branding', () => {
       cwd: process.cwd(),
     });
 
-    expect(stdout).toContain('Usage: markuprx');
+    expect(stdout).toContain('Usage: markuprplus');
     expect(stdout).toContain('MarkuprPlus');
     expect(stdout).toContain('.markuprx.json');
     expect(stdout).not.toContain('MarkuprX');

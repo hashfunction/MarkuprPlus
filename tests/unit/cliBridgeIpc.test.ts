@@ -112,7 +112,7 @@ describe('CLI bridge IPC', () => {
       status: {
         state: 'not-paired',
         paired: true,
-        diagnostic: 'Enter the 43-character token printed by markuprx bridge token.',
+        diagnostic: 'Enter the 43-character token printed by markuprplus bridge token.',
       },
     });
     expect(deps.discoverProviders).not.toHaveBeenCalled();

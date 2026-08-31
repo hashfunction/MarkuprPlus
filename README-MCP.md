@@ -2,7 +2,7 @@
 
 Give your AI coding agent eyes and ears. The MarkuprPlus MCP server lets Claude Code, Cursor, and Windsurf capture screenshots and screen recordings with voice narration, plus context metadata (cursor, active app/window, focused element hints when available), then processes everything into structured, AI-ready Markdown reports.
 
-**Version:** 3.0.0 | **Platform:** macOS/Windows/Linux | **Protocol:** MCP (Model Context Protocol) over stdio
+**Version:** 3.1.1 | **Platform:** macOS/Windows/Linux | **Protocol:** MCP (Model Context Protocol) over stdio
 
 ---
 
@@ -28,16 +28,16 @@ Give your AI coding agent eyes and ears. The MarkuprPlus MCP server lets Claude 
 Use `npx` -- no global install needed. Your IDE configuration handles the rest:
 
 ```bash
-npx --package markuprx markuprx-mcp
+npx --yes --package markuprplus markuprplus-mcp
 ```
 
 ### Global install
 
 ```bash
-npm install -g markuprx
+npm install -g markuprplus
 ```
 
-This installs both the `MarkuprPlus` CLI and the `markuprx-mcp` server binary.
+This installs both the `markuprplus` CLI and the `markuprplus-mcp` server binary.
 
 > The MCP server is the agent-facing interface. For day-to-day manual capture, the desktop app is the primary workflow.
 
@@ -54,7 +54,7 @@ Add to `~/.claude/settings.json`:
   "mcpServers": {
     "MarkuprPlus": {
       "command": "npx",
-      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
+      "args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]
     }
   }
 }
@@ -69,7 +69,7 @@ Add to `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` globally
   "mcpServers": {
     "MarkuprPlus": {
       "command": "npx",
-      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
+      "args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]
     }
   }
 }
@@ -84,7 +84,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "MarkuprPlus": {
       "command": "npx",
-      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
+      "args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]
     }
   }
 }
@@ -96,7 +96,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 
 ## Tools
 
-The MCP server exposes 6 tools. Your AI agent can call these directly during a conversation.
+The MCP server exposes 9 tools. Your AI agent can call these directly during a conversation.
 
 ### `capture_screenshot`
 
@@ -235,6 +235,50 @@ stop_recording({})
 
 ---
 
+### `describe_screen`
+
+Capture the current display, or read an existing image, and return a structured visual description. Requires an Anthropic API key through `ANTHROPIC_API_KEY` or the `apiKey` parameter.
+
+**Input:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `imagePath` | string | fresh capture | Absolute path to an existing image |
+| `display` | number | `1` | Display number for a fresh capture |
+| `focus` | string | -- | Optional area for the description to emphasize |
+| `apiKey` | string | environment | Anthropic API key |
+
+---
+
+### `push_to_github`
+
+Create one GitHub issue per feedback item, or preview the result with `dryRun: true`.
+
+**Input:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reportPath` | string | -- | Absolute path to a MarkuprPlus Markdown report |
+| `repo` | string | -- | Target repository in `owner/repo` format |
+| `items` | string[] | all | Optional feedback item IDs |
+| `token` | string | environment or `gh` | GitHub token |
+| `dryRun` | boolean | `false` | Preview without creating issues |
+
+---
+
+### `push_to_linear`
+
+Create one Linear issue per feedback item, or preview the result with `dryRun: true`.
+
+**Input:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reportPath` | string | -- | Absolute path to a MarkuprPlus Markdown report |
+| `teamKey` | string | -- | Linear team key such as `ENG` |
+| `projectName` | string | -- | Optional project name |
+| `token` | string | `LINEAR_API_KEY` | Linear API key |
+| `dryRun` | boolean | `false` | Preview without creating issues |
+
+---
+
 ## Resources
 
 The server also exposes MCP resources for querying session data:
@@ -325,8 +369,8 @@ Fix:
 
 If your IDE can't connect to the MCP server:
 
-1. **Verify the config** -- check that `"command": "npx"` and `"args": ["--yes", "--package", "markuprx", "markuprx-mcp"]` are correct
-2. **Test manually** -- run `npx --package markuprx markuprx-mcp` in a terminal. It should start silently (output goes to stderr)
+1. **Verify the config** -- check that `"command": "npx"` and `"args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]` are correct
+2. **Test manually** -- run `npx --yes --package markuprplus markuprplus-mcp` in a terminal. It should start silently (output goes to stderr)
 3. **Check Node.js version** -- `node --version` should be 20.9+
 4. **Restart your IDE** after adding or changing MCP configuration
 

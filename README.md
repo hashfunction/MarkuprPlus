@@ -125,17 +125,18 @@ Download from [markuprplus.com](https://www.markuprplus.com) or the [releases pa
 ### MCP server (for AI coding agents)
 
 ```bash
-npx --package markuprx markuprx-mcp
+npx --yes --package markuprplus markuprplus-mcp
 ```
 
 ### CLI (for recordings you already have)
 
 ```bash
-npx markuprx analyze ./recording.mov
+npx markuprplus analyze ./recording.mov
 ```
 
-> **Naming:** the product is **MarkuprPlus**; the package and its binaries stay
-> `markuprx` / `markuprx-mcp` for compatibility. `npx markuprplus …` is not a thing.
+> **Compatibility:** the public package and commands are `markuprplus` and
+> `markuprplus-mcp`. Existing `.markuprx` project files, storage paths, and app
+> identifiers remain unchanged so upgrades keep their settings and sessions.
 
 ### Optional companion for Mac App Store CLI integrations
 
@@ -144,27 +145,26 @@ The sandboxed Mac App Store app can use AI command-line tools already installed 
 Install and pair it from a Terminal:
 
 ```bash
-npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz
-markuprx bridge install     # installs and starts a per-user LaunchAgent
-markuprx bridge token       # paste this value in Settings → Advanced
-markuprx bridge status
+npm install -g markuprplus
+markuprplus bridge install     # installs and starts a per-user LaunchAgent
+markuprplus bridge token       # paste this value in Settings → Advanced
+markuprplus bridge status
 ```
 
-The versioned package is published with the official GitHub release so the
-companion used by the Store app is reproducible and remains available even
-without an npm registry account.
+The public npm package contains the same versioned CLI and MCP entry points used
+by the source release.
 
 The service listens only on `127.0.0.1:49647`, requires its random pairing token for every provider request, and accepts a fixed structured-report protocol rather than shell text. The App Store app does not run shell commands or launch external tools; the separately installed companion invokes only the provider selected in Settings.
 
 Lifecycle and recovery commands:
 
 ```bash
-markuprx bridge start
-markuprx bridge stop
-markuprx bridge status
-markuprx bridge token
-markuprx bridge rotate-token
-markuprx bridge uninstall
+markuprplus bridge start
+markuprplus bridge stop
+markuprplus bridge status
+markuprplus bridge token
+markuprplus bridge rotate-token
+markuprplus bridge uninstall
 ```
 
 Rotating the token requires pairing again. Uninstall removes the exact LaunchAgent and bridge configuration owned by MarkuprPlus; it does not uninstall your AI CLIs.
@@ -337,7 +337,7 @@ Give your agent eyes and ears. It can capture screenshots, record your screen wi
   "mcpServers": {
     "MarkuprPlus": {
       "command": "npx",
-      "args": ["--yes", "--package", "markuprx", "markuprx-mcp"]
+      "args": ["--yes", "--package", "markuprplus", "markuprplus-mcp"]
     }
   }
 }
@@ -370,24 +370,24 @@ Full MCP documentation: [README-MCP.md](README-MCP.md).
 ## CLI
 
 ```bash
-npx markuprx analyze ./recording.mov
+npx markuprplus analyze ./recording.mov
 ```
 
 | Command | What it does |
 |---|---|
-| `markuprx analyze <video>` | Turn an existing recording into a structured report |
-| `markuprx watch [dir]` | Process new recordings from a folder as they land |
-| `markuprx doctor` | Check your environment for dependencies and configuration |
-| `markuprx init` | Scaffold configuration |
-| `markuprx push github <report>` | Create GitHub issues from a report |
-| `markuprx push linear <report>` | Create Linear issues from a report |
+| `markuprplus analyze <video>` | Turn an existing recording into a structured report |
+| `markuprplus watch [dir]` | Process new recordings from a folder as they land |
+| `markuprplus doctor` | Check your environment for dependencies and configuration |
+| `markuprplus init` | Scaffold configuration |
+| `markuprplus push github <report>` | Create GitHub issues from a report |
+| `markuprplus push linear <report>` | Create Linear issues from a report |
 
 ```bash
-markuprx analyze ./recording.mov --output ./reports
-markuprx analyze ./recording.mov --template github-issue
-markuprx analyze ./recording.mov --no-frames        # transcript only
-markuprx watch ~/Desktop --output ./reports
-markuprx push github ./report.md --repo myorg/myapp --dry-run
+markuprplus analyze ./recording.mov --output ./reports
+markuprplus analyze ./recording.mov --template github-issue
+markuprplus analyze ./recording.mov --no-frames        # transcript only
+markuprplus watch ~/Desktop --output ./reports
+markuprplus push github ./report.md --repo myorg/myapp --dry-run
 ```
 
 **Output templates:** `markdown` (default) · `json` · `github-issue` · `linear` · `jira`

@@ -8,12 +8,12 @@ const parseYaml = (source: string): unknown =>
   (nodeRequire('js-yaml') as { load: (input: string) => unknown }).load(source);
 
 describe('public packaging identity', () => {
-  it('ships MarkuprPlus while retaining machine-facing compatibility', () => {
+  it('ships the MarkuprPlus npm package while retaining runtime compatibility', () => {
     const packageJson = JSON.parse(read('package.json'));
     const builder = read('electron-builder.yml');
     const builderConfig = parseYaml(builder);
 
-    expect(packageJson.name).toBe('markuprx');
+    expect(packageJson.name).toBe('markuprplus');
     expect(packageJson.productName).toBe('MarkuprPlus');
     expect(packageJson.homepage).toBe('https://markuprplus.com');
     expect(packageJson.repository).toEqual({
@@ -24,10 +24,11 @@ describe('public packaging identity', () => {
       url: 'https://github.com/hashfunction/MarkuprPlus/issues',
     });
     expect(packageJson.bin).toEqual({
-      markuprx: './dist/cli/index.mjs',
-      'markuprx-mcp': './dist/mcp/index.mjs',
+      markuprplus: 'dist/cli/index.mjs',
+      'markuprplus-mcp': 'dist/mcp/index.mjs',
     });
-    expect(packageJson.mcpName).toBe('com.markuprx/markuprx');
+    expect(packageJson.mcpName).toBe('com.markuprplus/markuprplus');
+    expect(packageJson.publishConfig).toEqual({ access: 'public' });
     expect(packageJson.scripts['generate:icons']).toContain(
       'node scripts/generate-tray-icons.mjs',
     );
@@ -143,7 +144,10 @@ describe('public packaging identity', () => {
       '- Rebranded the public desktop experience and documentation as MarkuprPlus.',
     );
     expect(changelog).toContain(
-      '- Preserved existing `markuprx` CLI, MCP, IPC, storage, and package compatibility.',
+      '- Published the CLI and MCP server as `markuprplus`, with `markuprplus` and `markuprplus-mcp` binaries.',
+    );
+    expect(changelog).toContain(
+      '- Preserved existing `.markuprx` project files, IPC namespaces, storage paths, and application identifiers for compatibility.',
     );
     expect(changelog).toContain(
       '- Added a portrait-first taskbar popover experience and new README screenshot gallery.',
@@ -236,7 +240,7 @@ describe('public packaging identity', () => {
       getArtifactArchName: (arch: number, extension: string) => string;
     };
     const appInfo = {
-      name: 'markuprx',
+      name: 'markuprplus',
       productName: 'MarkuprPlus',
       sanitizedProductName: 'MarkuprPlus',
       version: '3.0.0',

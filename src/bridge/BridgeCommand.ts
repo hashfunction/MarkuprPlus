@@ -152,7 +152,7 @@ export function registerBridgeCommand(
     if (result.created) {
       write(`Pairing token: ${result.token}`);
     } else {
-      write('Pairing token retained. Run `markuprx bridge token` to display it.');
+      write('Pairing token retained. Run `markuprplus bridge token` to display it.');
     }
   }));
   bridge.command('serve').description('Run the companion in the foreground').action(action(async () => {

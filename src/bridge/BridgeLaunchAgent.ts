@@ -52,7 +52,7 @@ function requireInstallInput(input: BridgeLaunchAgentInput): void {
     throw new Error('Bridge executable paths must be absolute.');
   }
   if (/(?:^|\/)\.npm\/_npx(?:\/|$)/.test(input.cliPath)) {
-    throw new Error('Install markuprx globally before installing the bridge; a temporary npx cache is not stable.');
+    throw new Error('Install markuprplus globally before installing the bridge; a temporary npx cache is not stable.');
   }
 }
 

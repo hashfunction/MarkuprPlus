@@ -5,9 +5,9 @@ import { useTheme } from '../../hooks/useTheme';
 import { styles } from './settingsStyles';
 
 export const CLI_BRIDGE_SETUP_COMMANDS = [
-  'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
-  'markuprx bridge install',
-  'markuprx bridge token',
+  'npm install -g markuprplus',
+  'markuprplus bridge install',
+  'markuprplus bridge token',
 ] as const;
 
 export interface CliBridgeStatusPresentation {
@@ -35,7 +35,7 @@ export function getCliBridgeStatusPresentation(
     case 'offline':
       return {
         label: 'Bridge offline',
-        detail: status.diagnostic || 'Run markuprx bridge start.',
+        detail: status.diagnostic || 'Run markuprplus bridge start.',
         tone: 'warning',
       };
     case 'incompatible':

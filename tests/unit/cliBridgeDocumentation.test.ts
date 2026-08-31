@@ -2,12 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const lifecycleCommands = [
-  'markuprx bridge install',
-  'markuprx bridge start',
-  'markuprx bridge status',
-  'markuprx bridge token',
-  'markuprx bridge rotate-token',
-  'markuprx bridge uninstall',
+  'markuprplus bridge install',
+  'markuprplus bridge start',
+  'markuprplus bridge status',
+  'markuprplus bridge token',
+  'markuprplus bridge rotate-token',
+  'markuprplus bridge uninstall',
 ];
 
 describe('CLI Bridge release documentation', () => {
@@ -27,9 +27,7 @@ describe('CLI Bridge release documentation', () => {
   it('documents the complete optional companion lifecycle and fixed loopback endpoint', async () => {
     const readme = await readFile('README.md', 'utf8');
     expect(readme).toMatch(/optional.*companion/is);
-    expect(readme).toContain(
-      'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
-    );
+    expect(readme).toContain('npm install -g markuprplus');
     for (const command of lifecycleCommands) expect(readme).toContain(command);
     expect(readme).toContain('127.0.0.1:49647');
     expect(readme).toMatch(/App Store app does not (?:run|execute|launch) shell commands/i);
@@ -41,7 +39,8 @@ describe('CLI Bridge release documentation', () => {
     expect(workflow).toMatch(/^  build-companion:$/m);
     expect(workflow).toContain('npm run build:cli');
     expect(workflow).toContain('npm run build:mcp');
-    expect(workflow).toContain('markuprx-${VERSION}.tgz');
+    expect(workflow).toContain('markuprplus-${VERSION}.tgz');
+    expect(workflow).toContain('"$PREFIX/bin/markuprplus" --version');
     expect(workflow).toContain('name: release-companion');
     expect(workflow).toContain('artifacts/release-companion/*.tgz');
     expect(workflow).toContain('Verify companion release asset');
@@ -62,9 +61,7 @@ describe('CLI Bridge release documentation', () => {
     }
     expect(metadata).toContain("## What's New in Version 3.1.1");
     expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.1');
-    expect(reviewNotes).toContain(
-      'https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
-    );
+    expect(reviewNotes).toContain('npm install -g markuprplus');
     expect(reviewNotes.indexOf('Local Rules')).toBeLessThan(reviewNotes.indexOf('Optional CLI Bridge'));
     expect(reviewNotes).toMatch(/does not execute external.*inside.*sandbox/is);
     expect(privacyPage).toMatch(/transcript.*selected screenshots.*companion/is);

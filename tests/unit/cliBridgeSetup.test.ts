@@ -7,9 +7,9 @@ import {
 describe('CLI bridge setup presentation', () => {
   it('provides deterministic install, start, and token commands', () => {
     expect(CLI_BRIDGE_SETUP_COMMANDS).toEqual([
-      'npm install -g https://github.com/hashfunction/MarkuprPlus/releases/download/v3.1.1/markuprx-3.1.1.tgz',
-      'markuprx bridge install',
-      'markuprx bridge token',
+      'npm install -g markuprplus',
+      'markuprplus bridge install',
+      'markuprplus bridge token',
     ]);
   });
 

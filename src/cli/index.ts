@@ -1,12 +1,12 @@
 /**
- * MarkuprX CLI - Analyze screen recordings from the command line
+ * MarkuprPlus CLI - Analyze screen recordings from the command line
  *
  * Usage:
- *   markuprx analyze <video-file> [options]
- *   markuprx doctor
- *   markuprx init
+ *   markuprplus analyze <video-file> [options]
+ *   markuprplus doctor
+ *   markuprplus init
  *
- * Processes a video recording through the MarkuprX pipeline:
+ * Processes a video recording through the MarkuprPlus pipeline:
  *   1. Extract audio from video (or use a separate audio file)
  *   2. Transcribe with local Whisper
  *   3. Detect key moments in transcript
@@ -101,7 +101,7 @@ setupSignalHandlers();
 const program = new Command();
 
 program
-  .name('markuprx')
+  .name('markuprplus')
   .description('Analyze screen recordings and generate AI-ready Markdown reports')
   .version(VERSION, '-v, --version')
   .showHelpAfterError('(use --help for available options)');
@@ -379,9 +379,9 @@ program
     }
     console.log();
     step('Next steps:');
-    console.log('    1. Run `markuprx doctor` to verify your environment');
+    console.log('    1. Run `markuprplus doctor` to verify your environment');
     console.log(`    2. Record a session with the ${PUBLIC_BRAND_NAME} desktop app or screen recorder`);
-    console.log('    3. Run `markuprx analyze <video-file>` to generate a feedback report');
+    console.log('    3. Run `markuprplus analyze <video-file>` to generate a feedback report');
     console.log();
   });
 
