@@ -8,6 +8,15 @@ import type { FeedbackItem as MarkdownFeedbackItem } from './MarkdownGenerator';
 
 const COMMENT_LOOKBACK_MS = 30_000;
 const PRECEDING_FALLBACK_MS = 12_000;
+const INLINE_TIMESTAMP_FALLBACK_MS = 30_000;
+const INLINE_EVIDENCE_BLOCK = /\n?<!-- markuprplus:marked-evidence:(MX-\d{3}):start -->\n[\s\S]*?<!-- markuprplus:marked-evidence:\1:end -->\n?/g;
+const MATCH_STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'been', 'being', 'but', 'by',
+  'can', 'could', 'did', 'do', 'does', 'for', 'from', 'had', 'has', 'have',
+  'i', 'if', 'in', 'is', 'it', 'll', 'm', 'of', 'on', 'or', 're', 's',
+  'should', 'that', 'the', 'this', 'to', 've', 'very', 'was', 'we', 'were',
+  'will', 'with', 'would', 'you', 'your',
+]);
 
 export interface MarkedIssueCommentContext {
   videoStartTime: number;
@@ -23,8 +32,115 @@ interface IndexedSegment {
   midpointAt: number;
 }
 
+interface FeedbackMarkdownBlock {
+  start: number;
+  end: number;
+  quote: string;
+  timestampSeconds?: number;
+}
+
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeForEvidenceMatch(value: string): string {
+  return value
+    .replace(/\\([\\`*_[\]{}()|])/g, '$1')
+    .replace(/\[[^\]]*(?:audio|music|bell)[^\]]*\]/gi, ' ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function meaningfulTokens(value: string): Set<string> {
+  return new Set(normalizeForEvidenceMatch(value)
+    .split(' ')
+    .filter((token) => token.length >= 2 && !MATCH_STOP_WORDS.has(token)));
+}
+
+function evidenceTextScore(quote: string, comment: string | undefined): number {
+  const normalizedQuote = normalizeForEvidenceMatch(quote);
+  const normalizedComment = normalizeForEvidenceMatch(comment || '');
+  if (!normalizedQuote || !normalizedComment) return 0;
+  if (normalizedComment.includes(normalizedQuote)) return 1;
+  if (normalizedComment.length >= 8 && normalizedQuote.includes(normalizedComment)) return 0.95;
+
+  const quoteTokens = meaningfulTokens(normalizedQuote);
+  const commentTokens = meaningfulTokens(normalizedComment);
+  if (quoteTokens.size === 0 || commentTokens.size === 0) return 0;
+  let overlap = 0;
+  for (const token of quoteTokens) {
+    if (commentTokens.has(token)) overlap += 1;
+  }
+  if (overlap < 2) return 0;
+  return overlap / quoteTokens.size;
+}
+
+function parseTimestampSeconds(block: string): number | undefined {
+  const match = block.match(/\*\*Timestamp:\*\*\s*(\d+):([0-5]\d)/);
+  if (!match) return undefined;
+  return Number.parseInt(match[1], 10) * 60 + Number.parseInt(match[2], 10);
+}
+
+function findFeedbackMarkdownBlocks(markdown: string): FeedbackMarkdownBlock[] {
+  const headings = Array.from(markdown.matchAll(/^(?:##|###)\s+[^\n]+$/gm));
+  const blocks: FeedbackMarkdownBlock[] = [];
+  for (let index = 0; index < headings.length; index += 1) {
+    const heading = headings[index];
+    if (!/^### FB-\d{3}:/.test(heading[0])) continue;
+    const start = heading.index ?? 0;
+    const end = headings[index + 1]?.index ?? markdown.length;
+    const block = markdown.slice(start, end);
+    const timestampSeconds = parseTimestampSeconds(block);
+    const quote = block.match(/^>\s+(.+)$/m)?.[1]
+      ?.replace(/^(["“])|(["”])$/g, '')
+      .trim() || '';
+    blocks.push({
+      start,
+      end,
+      quote,
+      ...(timestampSeconds === undefined ? {} : { timestampSeconds }),
+    });
+  }
+  return blocks;
+}
+
+function inlineEvidenceMarkdown(
+  issue: MarkedIssuePayload,
+  screenshotDir: string,
+): string {
+  const displayId = `MX-${String(issue.ordinal).padStart(3, '0')}`;
+  const screenshot = screenshotReference(issue, screenshotDir);
+  const evidence = screenshot
+    ? `![Marked issue ${displayId}](${screenshot})`
+    : `> **Evidence warning:** ${escapeMarkdown(
+        issue.evidenceWarning || 'No marked screenshot could be recovered for this issue.',
+      )}`;
+  return [
+    `<!-- markuprplus:marked-evidence:${displayId}:start -->`,
+    `#### Marked Evidence (${displayId})`,
+    '',
+    evidence,
+    `<!-- markuprplus:marked-evidence:${displayId}:end -->`,
+  ].join('\n');
+}
+
+function insertEvidenceIntoFeedbackBlock(
+  markdown: string,
+  block: FeedbackMarkdownBlock,
+  evidence: MarkedIssuePayload[],
+  screenshotDir: string,
+): string {
+  const blockMarkdown = markdown.slice(block.start, block.end);
+  const metadataOffset = blockMarkdown.search(/^-\s+\*\*[^\n]+$/m);
+  const insertionAt = metadataOffset >= 0 ? block.start + metadataOffset : block.end;
+  const rendered = evidence
+    .map((issue) => inlineEvidenceMarkdown(issue, screenshotDir))
+    .join('\n\n');
+  const before = markdown.slice(0, insertionAt).trimEnd();
+  const after = markdown.slice(insertionAt).trimStart();
+  return `${before}\n\n${rendered}\n\n${after}`;
 }
 
 function unavailableNarrationMessage(context: MarkedIssueCommentContext): string {
@@ -243,18 +359,86 @@ export function renderMarkedIssuesJira(
 }
 
 function removeExistingMarkedSection(markdown: string): string {
-  const lines = markdown.split('\n');
-  const start = lines.findIndex((line) => line.trim() === '## Marked Issues');
-  if (start < 0) return markdown;
-  let end = lines.length;
-  for (let index = start + 1; index < lines.length; index += 1) {
-    if (/^##\s+/.test(lines[index]) || lines[index].trim() === '---') {
-      end = index;
-      break;
+  const lines = markdown.replace(INLINE_EVIDENCE_BLOCK, '\n').split('\n');
+  for (const heading of ['## Marked Issues', '## Unmatched Marked Evidence']) {
+    const start = lines.findIndex((line) => line.trim() === heading);
+    if (start < 0) continue;
+    let end = lines.length;
+    for (let index = start + 1; index < lines.length; index += 1) {
+      if (/^##\s+/.test(lines[index]) || lines[index].trim() === '---') {
+        end = index;
+        break;
+      }
     }
+    lines.splice(start, end - start);
   }
-  lines.splice(start, end - start);
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function matchEvidenceToFeedbackBlocks(
+  blocks: FeedbackMarkdownBlock[],
+  issues: MarkedIssuePayload[],
+): { matches: Map<number, MarkedIssuePayload[]>; unmatched: MarkedIssuePayload[] } {
+  const matches = new Map<number, MarkedIssuePayload[]>();
+  const matchedIssueIds = new Set<string>();
+  const unmatchedBlocks: FeedbackMarkdownBlock[] = [];
+
+  for (const block of blocks) {
+    const candidates = issues
+      .map((issue) => ({ issue, score: evidenceTextScore(block.quote, issue.comment) }))
+      .filter((candidate) => candidate.score >= 0.5)
+      .sort((left, right) => right.score - left.score || left.issue.ordinal - right.issue.ordinal);
+    const best = candidates[0];
+    const nextBest = candidates[1];
+    if (!best || (nextBest && best.score - nextBest.score < 0.15)) {
+      unmatchedBlocks.push(block);
+      continue;
+    }
+    matches.set(block.start, [best.issue]);
+    matchedIssueIds.add(best.issue.id);
+  }
+
+  const unusedIssues = (): MarkedIssuePayload[] => issues
+    .filter((issue) => !matchedIssueIds.has(issue.id));
+  for (const block of unmatchedBlocks
+    .filter((candidate) => candidate.timestampSeconds !== undefined)
+    .sort((left, right) => Number(left.timestampSeconds) - Number(right.timestampSeconds))) {
+    const candidates = unusedIssues()
+      .filter((issue) => !normalizeForEvidenceMatch(issue.comment || ''))
+      .map((issue) => ({
+        issue,
+        distance: Math.abs(
+          Number(block.timestampSeconds) - Math.max(0, issue.fallbackVideoTimestamp),
+        ),
+      }))
+      .filter((candidate) => candidate.distance <= INLINE_TIMESTAMP_FALLBACK_MS / 1_000)
+      .sort((left, right) => left.distance - right.distance || left.issue.ordinal - right.issue.ordinal);
+    const nearest = candidates[0];
+    const nextNearest = candidates[1];
+    if (!nearest || (nextNearest && nextNearest.distance - nearest.distance < 3)) continue;
+    matches.set(block.start, [nearest.issue]);
+    matchedIssueIds.add(nearest.issue.id);
+  }
+
+  return {
+    matches,
+    unmatched: issues.filter((issue) => !matchedIssueIds.has(issue.id)),
+  };
+}
+
+function insertSectionBeforeReportDetails(markdown: string, section: string): string {
+  const markerIndexes = [
+    '## Session Recording',
+    '## Session Info',
+    '## Auto-Extracted Screenshots',
+  ].map((marker) => markdown.indexOf(marker)).filter((index) => index >= 0);
+  const markerIndex = markerIndexes.length > 0 ? Math.min(...markerIndexes) : -1;
+  if (markerIndex < 0) {
+    return `${markdown.trimEnd()}\n\n${section.trimEnd()}\n`;
+  }
+  const before = markdown.slice(0, markerIndex).trimEnd();
+  const after = markdown.slice(markerIndex).trimStart();
+  return `${before}\n\n${section.trimEnd()}\n\n${after}\n`.replace(/\n+$/, '\n');
 }
 
 export function insertMarkedIssuesSection(
@@ -263,6 +447,28 @@ export function insertMarkedIssuesSection(
   screenshotDir = './screenshots',
 ): string {
   const withoutExisting = removeExistingMarkedSection(markdown);
+  const feedbackBlocks = findFeedbackMarkdownBlocks(withoutExisting);
+  const isAiAnalyzedReport = /^> AI-analyzed by\s+/m.test(withoutExisting);
+  if (isAiAnalyzedReport && feedbackBlocks.length > 0 && issues.length > 0) {
+    const { matches, unmatched } = matchEvidenceToFeedbackBlocks(feedbackBlocks, issues);
+    let withInlineEvidence = withoutExisting;
+    for (const block of feedbackBlocks.slice().reverse()) {
+      const evidence = matches.get(block.start);
+      if (!evidence) continue;
+      withInlineEvidence = insertEvidenceIntoFeedbackBlock(
+        withInlineEvidence,
+        block,
+        evidence,
+        screenshotDir,
+      );
+    }
+    if (unmatched.length === 0) {
+      return withInlineEvidence.replace(/\n+$/, '\n');
+    }
+    const unmatchedSection = renderMarkedIssuesMarkdown(unmatched, screenshotDir)
+      .replace(/^## Marked Issues/, '## Unmatched Marked Evidence');
+    return insertSectionBeforeReportDetails(withInlineEvidence, unmatchedSection);
+  }
   const section = renderMarkedIssuesMarkdown(issues, screenshotDir);
   if (!section) return withoutExisting;
   const markerIndex = [
