@@ -9,6 +9,16 @@
 </p>
 
 <p align="center">
+  <a href="marketing-video/markuprplus-explainer-v10b-four-step-tour-natural-agent.mp4">
+    <img src="docs/images/markuprplus/product-tour-v10-poster.png" alt="Watch the 33-second MarkuprPlus product tour" width="900">
+  </a>
+</p>
+
+<p align="center">
+  <a href="marketing-video/markuprplus-explainer-v10b-four-step-tour-natural-agent.mp4"><strong>▶ Watch the 33-second product tour</strong></a>
+</p>
+
+<p align="center">
   Pick a window. Talk through what's wrong. Circle it while it happens.<br>
   Every circle becomes its own issue, with its own screenshot, ready to paste into your coding agent.
 </p>
