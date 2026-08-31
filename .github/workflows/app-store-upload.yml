@@ -91,7 +91,7 @@ jobs:
           set -euo pipefail
           xcrun altool --list-providers \
             --username "$APPLE_ID" \
-            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --app-password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --output-format json > "$RUNNER_TEMP/providers.json"
 
           node <<'NODE'
@@ -128,7 +128,7 @@ jobs:
           set -euo pipefail
           xcrun altool --validate-app "$PACKAGE_PATH" \
             --username "$APPLE_ID" \
-            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --app-password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --provider-public-id "$PROVIDER_PUBLIC_ID" \
             --output-format json
 
@@ -140,7 +140,7 @@ jobs:
           set -euo pipefail
           xcrun altool --upload-package "$PACKAGE_PATH" \
             --username "$APPLE_ID" \
-            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --app-password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --provider-public-id "$PROVIDER_PUBLIC_ID" \
             --wait \
             --output-format json | tee "$RUNNER_TEMP/upload-result.json"
