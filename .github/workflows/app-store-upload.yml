@@ -1,0 +1,150 @@
+name: App Store Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Draft GitHub release containing the signed Mac App Store package
+        required: true
+        type: string
+      package_sha256:
+        description: SHA-256 of the signed package
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-store-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Validate and upload signed package
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD || secrets.APPLE_PASSWORD }}
+    steps:
+      - name: Checkout upload workflow revision
+        uses: actions/checkout@v6
+
+      - name: Require upload credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "$APPLE_ID" ] || missing+=("APPLE_ID")
+          [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] || missing+=("APPLE_APP_SPECIFIC_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf '::error::Missing repository secret: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+      - name: Download signed package
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          mkdir delivery
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.pkg' \
+            --dir delivery
+
+          shopt -s nullglob
+          packages=(delivery/*.pkg)
+          if [ ${#packages[@]} -ne 1 ]; then
+            echo "::error::Expected exactly one .pkg asset, found ${#packages[@]}." >&2
+            exit 1
+          fi
+          echo "PACKAGE_PATH=${packages[0]}" >> "$GITHUB_ENV"
+
+      - name: Verify package identity and checksum
+        shell: bash
+        env:
+          EXPECTED_SHA256: ${{ inputs.package_sha256 }}
+        run: |
+          set -euo pipefail
+          actual_sha256=$(shasum -a 256 "$PACKAGE_PATH" | awk '{print $1}')
+          if [ "$actual_sha256" != "$EXPECTED_SHA256" ]; then
+            echo "::error::Package checksum mismatch." >&2
+            exit 1
+          fi
+
+          signature=$(pkgutil --check-signature "$PACKAGE_PATH")
+          printf '%s\n' "$signature"
+          if ! grep -q '3rd Party Mac Developer Installer' <<<"$signature"; then
+            echo "::error::Package is not signed for Mac App Store distribution." >&2
+            exit 1
+          fi
+          echo "Verified signed package SHA-256: $actual_sha256"
+
+      - name: Discover App Store Connect provider
+        id: provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun altool --list-providers \
+            --username "$APPLE_ID" \
+            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --output-format json > "$RUNNER_TEMP/providers.json"
+
+          node <<'NODE'
+          const fs = require('fs');
+          const providers = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/providers.json', 'utf8'));
+          const ids = new Set();
+          function visit(value) {
+            if (!value || typeof value !== 'object') return;
+            if (Array.isArray(value)) {
+              value.forEach(visit);
+              return;
+            }
+            for (const [key, child] of Object.entries(value)) {
+              if (typeof child === 'string' && /^(provider)?public(id|identifier)$/i.test(key.replace(/[^a-z]/gi, ''))) {
+                ids.add(child);
+              }
+              visit(child);
+            }
+          }
+          visit(providers);
+          if (ids.size !== 1) {
+            throw new Error(`Expected one App Store Connect provider public ID; found ${ids.size}.`);
+          }
+          const [providerId] = ids;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `public_id=${providerId}\n`);
+          console.log('Authenticated to one App Store Connect provider.');
+          NODE
+
+      - name: Validate package with App Store Connect
+        shell: bash
+        env:
+          PROVIDER_PUBLIC_ID: ${{ steps.provider.outputs.public_id }}
+        run: |
+          set -euo pipefail
+          xcrun altool --validate-app "$PACKAGE_PATH" \
+            --username "$APPLE_ID" \
+            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --provider-public-id "$PROVIDER_PUBLIC_ID" \
+            --output-format json
+
+      - name: Upload package to App Store Connect
+        shell: bash
+        env:
+          PROVIDER_PUBLIC_ID: ${{ steps.provider.outputs.public_id }}
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-package "$PACKAGE_PATH" \
+            --username "$APPLE_ID" \
+            --password @env:APPLE_APP_SPECIFIC_PASSWORD \
+            --provider-public-id "$PROVIDER_PUBLIC_ID" \
+            --wait \
+            --output-format json | tee "$RUNNER_TEMP/upload-result.json"
+
+          echo '### Mac App Store delivery' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo "Uploaded the checksum-verified package from \`${{ inputs.release_tag }}\`." >> "$GITHUB_STEP_SUMMARY"
