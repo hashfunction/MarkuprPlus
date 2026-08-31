@@ -35,6 +35,18 @@ describe('CLI Bridge release documentation', () => {
     expect(readme).toMatch(/App Store app does not (?:run|execute|launch) shell commands/i);
   });
 
+  it('publishes the versioned companion package as a required release asset', async () => {
+    const workflow = await readFile('.github/workflows/release.yml', 'utf8');
+
+    expect(workflow).toMatch(/^  build-companion:$/m);
+    expect(workflow).toContain('npm run build:cli');
+    expect(workflow).toContain('npm run build:mcp');
+    expect(workflow).toContain('markuprx-${VERSION}.tgz');
+    expect(workflow).toContain('name: release-companion');
+    expect(workflow).toContain('artifacts/release-companion/*.tgz');
+    expect(workflow).toContain('Verify companion release asset');
+  });
+
   it('discloses bridge data flow in Store copy, privacy copy, and review notes', async () => {
     const [metadata, reviewNotes, privacyAnswers, privacyPage, changelog] = await Promise.all([
       readFile('app-store/metadata/en-US.md', 'utf8'),

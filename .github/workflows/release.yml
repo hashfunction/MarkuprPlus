@@ -326,12 +326,64 @@ jobs:
           retention-days: 30
 
   # ===========================================================================
+  # Build CLI/MCP companion package
+  # ===========================================================================
+  build-companion:
+    name: Build CLI Companion
+    runs-on: ubuntu-latest
+    needs: validate-tag
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CLI and MCP entry points
+        run: |
+          npm run build:cli
+          npm run build:mcp
+
+      - name: Pack and verify companion
+        run: |
+          set -euo pipefail
+          VERSION=${{ needs.validate-tag.outputs.version }}
+          PACKAGE="markuprx-${VERSION}.tgz"
+
+          npm pack
+          test -f "$PACKAGE"
+          tar -tzf "$PACKAGE" | grep -Fx 'package/dist/cli/index.mjs'
+          tar -tzf "$PACKAGE" | grep -Fx 'package/dist/mcp/index.mjs'
+
+          PACKED_VERSION=$(tar -xOf "$PACKAGE" package/package.json \
+            | node -e "let value=''; process.stdin.on('data', chunk => value += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(value).version));")
+          test "$PACKED_VERSION" = "$VERSION"
+
+          PREFIX="$RUNNER_TEMP/companion-prefix"
+          npm install --global --prefix "$PREFIX" "./$PACKAGE"
+          test "$("$PREFIX/bin/markuprx" --version)" = "$VERSION"
+
+      - name: Upload companion artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-companion
+          path: markuprx-${{ needs.validate-tag.outputs.version }}.tgz
+          if-no-files-found: error
+          retention-days: 30
+
+  # ===========================================================================
   # Create GitHub Release
   # ===========================================================================
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [validate-tag, build-macos, build-windows]
+    needs: [validate-tag, build-macos, build-windows, build-companion]
     permissions:
       contents: write
     steps:
@@ -377,6 +429,7 @@ jobs:
           echo "| macOS (Apple Silicon) | \`markuprplus-${VERSION}-arm64.dmg\` |" >> $NOTES
           echo "| macOS (Intel) | \`markuprplus-${VERSION}-x64.dmg\` |" >> $NOTES
           echo "| Windows | \`markuprplus-Setup-${VERSION}.exe\` |" >> $NOTES
+          echo "| CLI / MCP companion | \`markuprx-${VERSION}.tgz\` |" >> $NOTES
           echo "" >> $NOTES
           echo "The macOS builds are signed with a Developer ID Application certificate," >> $NOTES
           echo "notarized by Apple, and stapled, so they open without a Gatekeeper warning." >> $NOTES
@@ -384,7 +437,7 @@ jobs:
           echo "## Checksums" >> $NOTES
           echo "" >> $NOTES
           echo "\`\`\`" >> $NOTES
-          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) -exec sha256sum {} \; >> $NOTES
+          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" -o -name "*.tgz" \) -exec sha256sum {} \; >> $NOTES
           echo "\`\`\`" >> $NOTES
 
           cat $NOTES
@@ -407,9 +460,18 @@ jobs:
             artifacts/release-windows/*.zip
             artifacts/release-windows/*.blockmap
             artifacts/release-windows/*.yml
+            artifacts/release-companion/*.tgz
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify companion release asset
+        run: |
+          VERSION=${{ needs.validate-tag.outputs.version }}
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' \
+            | grep -Fx "markuprx-${VERSION}.tgz"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
         run: |
@@ -420,6 +482,6 @@ jobs:
           echo "**macOS:** signed, notarized, and stapled" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
-          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) | while read f; do
+          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.zip" -o -name "*.tgz" \) | while read f; do
             echo "- $(basename $f)" >> $GITHUB_STEP_SUMMARY
           done
