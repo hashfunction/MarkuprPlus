@@ -186,6 +186,17 @@ describe('public packaging identity', () => {
     expect(script).toContain('Developer ID Application');
   });
 
+  it('signs disk images before notarizing and stapling them', () => {
+    const script = read('scripts/notarize-dmg.mjs');
+
+    expect(script).toContain("run('codesign', signArguments)");
+    expect(script).toContain("run('codesign', ['--verify', '--verbose=2', diskImage])");
+    expect(script).toContain('Developer ID Application');
+    expect(script.indexOf("run('codesign', signArguments)")).toBeLessThan(
+      script.indexOf("run('xcrun', ['notarytool', 'submit'"),
+    );
+  });
+
   it('runs fail-closed package verification after every public packaging command', () => {
     const scripts = JSON.parse(read('package.json')).scripts as Record<string, string>;
     const packagingCommands = [

@@ -7,8 +7,9 @@
  * therefore quarantined) DMG is assessed online at mount time and fails closed
  * when the user has no network.
  *
- * This script submits each built DMG to Apple and staples the ticket to it, so
- * the installer validates offline too.
+ * This script signs each built DMG with the same Developer ID Application
+ * identity, submits it to Apple, and staples the ticket to it, so the installer
+ * validates offline too.
  *
  * Usage: node scripts/notarize-dmg.mjs [releaseRoot]
  *
@@ -99,6 +100,39 @@ function run(command, args, { secretArgs = [] } = {}) {
   return spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
+function developerIdApplicationIdentity() {
+  const keychain = process.env.CSC_KEYCHAIN;
+  const args = ['find-identity', '-v', '-p', 'codesigning', ...(keychain ? [keychain] : [])];
+  const result = spawnSync('security', args, { encoding: 'utf8' });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `Unable to inspect code-signing identities (security exited ${result.status}).\n${result.stderr || ''}`,
+    );
+  }
+
+  const identities = `${result.stdout || ''}\n${result.stderr || ''}`
+    .split('\n')
+    .map((line) => line.match(/"([^"]*Developer ID Application[^"]*)"/)?.[1])
+    .filter(Boolean);
+
+  if (identities.length === 0) {
+    throw new Error(
+      `No Developer ID Application identity found${keychain ? ` in ${keychain}` : ''}. `
+      + 'Refusing to notarize unsigned disk images.',
+    );
+  }
+
+  if (identities.length > 1) {
+    throw new Error(
+      `Found multiple Developer ID Application identities${keychain ? ` in ${keychain}` : ''}; `
+      + 'set CSC_KEYCHAIN to a keychain containing exactly one release identity.',
+    );
+  }
+
+  return identities[0];
+}
+
 async function findDiskImages(root) {
   const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
   return entries
@@ -131,6 +165,8 @@ async function main() {
 
   log.info(`Strategy: ${credentials.strategy}`);
   log.info(`Disk images: ${diskImages.length}`);
+  const signingIdentity = developerIdApplicationIdentity();
+  log.info(`Signing identity: ${signingIdentity}`);
 
   // Values that must never reach the log.
   const secretArgs = [
@@ -141,6 +177,25 @@ async function main() {
   const failures = [];
 
   for (const diskImage of diskImages) {
+    log.progress(`Code signing ${basename(diskImage)}`);
+    const signArguments = ['--force', '--sign', signingIdentity, '--timestamp'];
+    if (process.env.CSC_KEYCHAIN) {
+      signArguments.push('--keychain', process.env.CSC_KEYCHAIN);
+    }
+    signArguments.push(diskImage);
+
+    const signed = run('codesign', signArguments);
+    if (signed.status !== 0) {
+      failures.push(`${basename(diskImage)}: codesign exited ${signed.status}`);
+      continue;
+    }
+
+    const signatureVerified = run('codesign', ['--verify', '--verbose=2', diskImage]);
+    if (signatureVerified.status !== 0) {
+      failures.push(`${basename(diskImage)}: codesign verification exited ${signatureVerified.status}`);
+      continue;
+    }
+
     log.progress(`Notarizing ${basename(diskImage)}`);
 
     const submitted = run('xcrun', ['notarytool', 'submit', diskImage, ...credentials.args, '--wait'], { secretArgs });
