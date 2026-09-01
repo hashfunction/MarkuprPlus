@@ -74,4 +74,18 @@ describe('App Store public metadata', () => {
     expect(releaseNotes.length).toBeGreaterThan(0);
     expect(releaseNotes.length).toBeLessThanOrEqual(4_000);
   });
+
+  it('uses first-party support and never tells customers to strip quarantine metadata', async () => {
+    const [metadata, readme] = await Promise.all([
+      readFile('app-store/metadata/en-US.md', 'utf8'),
+      readFile('README.md', 'utf8'),
+    ]);
+
+    expect(metadata).toContain('## Support URL\nhttps://markuprplus.com/support');
+    expect(section(metadata, 'Support URL')).not.toContain(
+      'github.com/hashfunction/MarkuprPlus/issues/new',
+    );
+    expect(readme).not.toMatch(/xattr\s+-dr\s+com\.apple\.quarantine/);
+    expect(readme).toMatch(/signed, notarized, and stapled/i);
+  });
 });

@@ -114,8 +114,7 @@ Everything for the session goes in one folder: the report, the screenshots, the 
 
 Download from [markuprplus.com](https://www.markuprplus.com) or the [releases page](https://github.com/hashfunction/MarkuprPlus/releases/latest). macOS on Apple Silicon and Intel, plus Windows.
 
-> **macOS install note:** Apple notarization is still rolling out. If macOS warns on first launch, use **Right-click → Open** once to trust the app. If needed:
-> `xattr -dr com.apple.quarantine /Applications/MarkuprPlus.app`
+> **macOS install note:** Direct downloads from GitHub Releases are signed, notarized, and stapled. If Gatekeeper rejects an artifact, use [MarkuprPlus support](https://markuprplus.com/support) so the release can be investigated.
 
 1. Press `Cmd+Shift+F` (macOS) or `Ctrl+Shift+F` (Windows) and click the window you want.
 2. Narrate what you see. Hold `Cmd` / `Ctrl` and drag to mark the live screen.

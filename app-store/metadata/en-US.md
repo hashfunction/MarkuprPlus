@@ -52,7 +52,7 @@ No MarkuprPlus account. No developer-operated telemetry. Recordings, audio, scre
 https://markuprplus.com
 
 ## Support URL
-https://github.com/hashfunction/MarkuprPlus/issues/new
+https://markuprplus.com/support
 
 ## Privacy Policy URL
 https://markuprplus.com/privacy
