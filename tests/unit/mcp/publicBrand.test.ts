@@ -62,7 +62,7 @@ function captureRegistrations(): RegisteredTool[] {
 }
 
 describe('MCP public branding', () => {
-  it('brands public tool descriptions without changing registered tool IDs', () => {
+  it('keeps public tool IDs and removes the legacy brand from descriptions', () => {
     const tools = captureRegistrations();
 
     expect(tools.map(({ name }) => name)).toEqual([
@@ -73,7 +73,6 @@ describe('MCP public branding', () => {
       'push_to_linear',
     ]);
     for (const tool of tools) {
-      expect(tool.description).toContain('MarkuprPlus');
       expect(tool.description).not.toContain('MarkuprX');
     }
   });

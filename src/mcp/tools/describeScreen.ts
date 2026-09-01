@@ -59,7 +59,7 @@ Flag anything that looks like a problem: error dialogs, red indicators, broken l
 export function register(server: McpServer): void {
   server.tool(
     'describe_screen',
-    'Capture a screenshot (or read an existing image) and return a structured text description of what is visible on screen. Useful for giving AI agents visual context about UI state, errors, layout, and text content.',
+    'Returns a structured visual description of a fresh screen capture or supplied image, including UI, text, layout, and notable issues.',
     {
       imagePath: z
         .string()

@@ -18,7 +18,7 @@ import { captureContextSnapshot } from '../utils/CaptureContext.js';
 export function register(server: McpServer): void {
   server.tool(
     'capture_screenshot',
-    'Take a screenshot of the current screen, optimize it, and save to the session directory. Returns a markdown image reference.',
+    'Returns a saved PNG path, markdown image reference, and captured cursor/window context for the current screen.',
     {
       label: z.string().optional().describe('Optional label for the screenshot'),
       display: z.number().optional().default(1).describe('Display number (1-indexed)'),

@@ -13,12 +13,11 @@ import { sessionStore } from '../session/SessionStore.js';
 import { log } from '../utils/Logger.js';
 import { CLIPipeline } from '../../cli/CLIPipeline.js';
 import { templateRegistry } from '../../main/output/templates/index.js';
-import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 
 export function register(server: McpServer): void {
   server.tool(
     'analyze_video',
-    `Process an existing video file through the ${PUBLIC_BRAND_NAME} pipeline. Generates a structured markdown report with transcript, key moments, and extracted frames.`,
+    'Returns a structured report path plus transcript, extracted-frame, and processing counts for an existing video file.',
     {
       videoPath: z.string().describe('Absolute path to the video file'),
       audioPath: z.string().optional().describe('Separate audio file path (if not embedded)'),

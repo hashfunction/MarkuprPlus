@@ -15,7 +15,6 @@ import { CLIPipeline } from '../../cli/CLIPipeline.js';
 import { templateRegistry } from '../../main/output/templates/index.js';
 import { captureContextSnapshot } from '../utils/CaptureContext.js';
 import type { CaptureContextSnapshot } from '../../shared/types.js';
-import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 
 function toSharedCaptureContext(
   context: Awaited<ReturnType<typeof captureContextSnapshot>> | undefined
@@ -49,7 +48,7 @@ function toSharedCaptureContext(
 export function register(server: McpServer): void {
   server.tool(
     'stop_recording',
-    `Stop an active recording and run the full ${PUBLIC_BRAND_NAME} pipeline on the captured video.`,
+    'Returns the completed report path plus transcript, frame, and processing counts for the active recording session.',
     {
       sessionId: z.string().optional().describe('Session ID (default: current active recording)'),
       skipFrames: z.boolean().optional().default(false).describe('Skip frame extraction'),

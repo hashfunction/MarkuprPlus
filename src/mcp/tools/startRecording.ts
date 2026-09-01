@@ -17,7 +17,7 @@ import { captureContextSnapshot } from '../utils/CaptureContext.js';
 export function register(server: McpServer): void {
   server.tool(
     'start_recording',
-    'Start a long-form screen+voice recording session. Returns a session ID that can be used with stop_recording.',
+    'Returns a session ID and recording status for a new long-form screen-and-voice session.',
     {
       label: z.string().optional().describe('Session label for organization'),
     },

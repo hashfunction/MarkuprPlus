@@ -16,7 +16,7 @@ import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand.js';
 export function register(server: McpServer): void {
   server.tool(
     'push_to_linear',
-    `Push a ${PUBLIC_BRAND_NAME} feedback report to Linear. Creates one issue per feedback item with priority mapping, labels, and full context.`,
+    'Returns created Linear issue identifiers and URLs, or a dry-run preview, with one issue per report finding.',
     {
       reportPath: z
         .string()

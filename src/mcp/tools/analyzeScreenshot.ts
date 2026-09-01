@@ -19,7 +19,7 @@ import { log } from '../utils/Logger.js';
 export function register(server: McpServer): void {
   server.tool(
     'analyze_screenshot',
-    'Take a screenshot and return it as an image for the AI to analyze visually. Returns the image data directly for vision analysis.',
+    'Returns the captured screen as image data with its MIME type so a vision-capable agent can inspect it directly.',
     {
       display: z.number().optional().default(1).describe('Display number (1-indexed)'),
       question: z.string().optional().describe('What to look for in the screenshot'),
