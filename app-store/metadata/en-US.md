@@ -12,8 +12,8 @@ Circle the bug. Give your AI the whole story. MarkuprPlus turns each mark and sp
 ## Keywords
 bug report,screen recorder,AI feedback,annotation,transcription,Markdown,QA,code review,screenshot
 
-## What's New in Version 3.1.1
-Marked screenshots now appear directly inside the matching AI-generated issue, keeping each finding's visual evidence beside its title, narration, and timestamp. Evidence that cannot be matched confidently is preserved in an Unmatched Marked Evidence section. This update also includes the CLI integrations and secure optional local companion introduced in version 3.1.0.
+## What's New in Version 3.1.2
+Optional CLI integrations now use the public `markuprplus` companion package and commands throughout setup and review instructions. Install it with `npm install -g markuprplus`, then pair from Settings → Advanced. This maintenance update preserves the screenshot-to-finding placement and unmatched-evidence safeguards introduced in version 3.1.1.
 
 ## Description
 Circle the bug. Give your AI the whole story.

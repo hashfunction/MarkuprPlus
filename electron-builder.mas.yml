@@ -2,7 +2,7 @@ appId: com.eddiesanjuan.markuprx
 productName: MarkuprPlus
 executableName: MarkuprPlus
 copyright: Copyright 2026 Trieflow LLC
-buildVersion: "4"
+buildVersion: "5"
 
 directories:
   output: release-mas

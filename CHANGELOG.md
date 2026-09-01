@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Notarization no longer skips silently: missing credentials, a non-Developer ID certificate, or a failed submission now fail the release build.
 - Release notes now list the real `markuprplus-*` artifact names and no longer overwrite the curated changelog.
 
+## 3.1.2 - 2026-08-31
+
+### Changed
+
+- Updated the optional CLI companion setup and review instructions to use the public `markuprplus` package and `markuprplus bridge` commands.
+- Bumped the Mac App Store bundle to version 3.1.2, build 5.
+
 ## 3.1.1 - 2026-08-30
 
 ### Fixed

@@ -11,17 +11,17 @@ const lifecycleCommands = [
 ];
 
 describe('CLI Bridge release documentation', () => {
-  it('sets version 3.1.1 and Mac App Store build 4', async () => {
+  it('sets version 3.1.2 and Mac App Store build 5', async () => {
     const [packageJson, lockJson, masConfig] = await Promise.all([
       readFile('package.json', 'utf8').then(JSON.parse),
       readFile('package-lock.json', 'utf8').then(JSON.parse),
       readFile('electron-builder.mas.yml', 'utf8'),
     ]);
 
-    expect(packageJson.version).toBe('3.1.1');
-    expect(lockJson.version).toBe('3.1.1');
-    expect(lockJson.packages[''].version).toBe('3.1.1');
-    expect(masConfig).toMatch(/^buildVersion: "4"$/m);
+    expect(packageJson.version).toBe('3.1.2');
+    expect(lockJson.version).toBe('3.1.2');
+    expect(lockJson.packages[''].version).toBe('3.1.2');
+    expect(masConfig).toMatch(/^buildVersion: "5"$/m);
   });
 
   it('documents the complete optional companion lifecycle and fixed loopback endpoint', async () => {
@@ -59,12 +59,12 @@ describe('CLI Bridge release documentation', () => {
       expect(content).toMatch(/companion/i);
       expect(content).toMatch(/(?:localhost|loopback|127\.0\.0\.1)/i);
     }
-    expect(metadata).toContain("## What's New in Version 3.1.1");
-    expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.1');
+    expect(metadata).toContain("## What's New in Version 3.1.2");
+    expect(reviewNotes).toContain('# App Review Notes — MarkuprPlus 3.1.2');
     expect(reviewNotes).toContain('npm install -g markuprplus');
     expect(reviewNotes.indexOf('Local Rules')).toBeLessThan(reviewNotes.indexOf('Optional CLI Bridge'));
     expect(reviewNotes).toMatch(/does not execute external.*inside.*sandbox/is);
     expect(privacyPage).toMatch(/transcript.*selected screenshots.*companion/is);
-    expect(changelog).toMatch(/^## 3\.1\.1 - 2026-08-30$/m);
+    expect(changelog).toMatch(/^## 3\.1\.2 - 2026-08-31$/m);
   });
 });

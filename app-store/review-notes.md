@@ -1,4 +1,4 @@
-# App Review Notes — MarkuprPlus 3.1.1
+# App Review Notes — MarkuprPlus 3.1.2
 
 MarkuprPlus is a menu bar app for creating structured visual-feedback reports for AI coding agents. It does not require an account and has no developer-operated telemetry.
 
@@ -13,13 +13,13 @@ MarkuprPlus is a menu bar app for creating structured visual-feedback reports fo
 7. Press Command-Shift-F again to stop. MarkuprPlus writes a local report and opens the review surface.
 8. Edit or reorder findings, preview the Markdown, and export or copy the report path.
 
-## Version 3.1.1 fix
+## Version 3.1.2 maintenance update
 
-Marked screenshots are now placed directly inside their matching AI-generated feedback items. When a screenshot cannot be matched confidently, the evidence remains available in an Unmatched Marked Evidence section instead of being discarded.
+Optional companion setup and review instructions now use the public `markuprplus` package and `markuprplus bridge` commands. The marked-screenshot matching fix from version 3.1.1 remains included: screenshots are placed directly inside matching AI-generated feedback items, while evidence that cannot be matched confidently remains available in an Unmatched Marked Evidence section.
 
 ## Optional CLI Bridge
 
-Version 3.1.1 includes optional compatibility with Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, and Aider. This feature is not required to complete the review walkthrough above.
+Version 3.1.2 includes optional compatibility with Codex CLI, Claude Code CLI, OpenCode, Cursor Agent, Qwen Code, Goose, Amp, Kiro, and Aider. This feature is not required to complete the review walkthrough above.
 
 To test it, install the public package in Terminal with `npm install -g markuprplus`, run `markuprplus bridge install`, then run `markuprplus bridge token`. In MarkuprPlus, open Settings → Advanced, paste that token into CLI Integrations, and choose any compatible CLI already installed and signed in for the reviewer. `markuprplus bridge status` reports whether the per-user companion is running.
 

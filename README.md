@@ -26,7 +26,7 @@
 <p align="center">
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml/badge.svg?branch=main" alt="Deployment status"></a>
-  <img src="https://img.shields.io/badge/version-3.1.1-f59e0b?style=flat-square" alt="Version 3.1.1">
+  <img src="https://img.shields.io/badge/version-3.1.2-f59e0b?style=flat-square" alt="Version 3.1.2">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>

@@ -1,7 +1,7 @@
 {
   "name": "markuprplus",
   "productName": "MarkuprPlus",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Record your screen, narrate feedback, get structured Markdown with screenshots. Desktop app, CLI, and MCP server for AI coding agents like Claude Code, Cursor, and Windsurf.",
   "type": "module",
   "main": "dist/main/index.mjs",

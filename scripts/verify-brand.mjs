@@ -85,7 +85,7 @@ export function findBrandViolations(files, readFile, packageJson) {
   const expectedPackageFields = {
     name: 'markuprplus',
     productName: 'MarkuprPlus',
-    version: '3.1.1',
+    version: '3.1.2',
     homepage: 'https://markuprplus.com',
     repository: {
       type: 'git',
