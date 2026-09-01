@@ -1,18 +1,22 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "com.markuprx/markuprx",
-  "description": "Screen capture and voice recording MCP server for AI coding agents.",
-  "version": "3.0.0",
+  "name": "io.github.hashfunction/markuprplus",
+  "title": "MarkuprPlus",
+  "description": "Records your screen and voice, returns one annotated screenshot and finding per mark.",
+  "repository": {
+    "url": "https://github.com/hashfunction/MarkuprPlus",
+    "source": "github"
+  },
+  "version": "3.1.2",
+  "websiteUrl": "https://markuprplus.com",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "markuprx",
-      "version": "3.0.0",
+      "identifier": "markuprplus",
+      "version": "3.1.2",
       "transport": {
         "type": "stdio"
-      },
-      "runtime": "node",
-      "runtimeArgs": []
+      }
     }
   ]
 }

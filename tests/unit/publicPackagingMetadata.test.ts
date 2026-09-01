@@ -27,7 +27,7 @@ describe('public packaging identity', () => {
       markuprplus: 'dist/cli/index.mjs',
       'markuprplus-mcp': 'dist/mcp/index.mjs',
     });
-    expect(packageJson.mcpName).toBe('com.markuprplus/markuprplus');
+    expect(packageJson.mcpName).toBe('io.github.hashfunction/markuprplus');
     expect(packageJson.publishConfig).toEqual({ access: 'public' });
     expect(packageJson.scripts['generate:icons']).toContain(
       'node scripts/generate-tray-icons.mjs',

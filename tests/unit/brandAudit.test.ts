@@ -22,7 +22,7 @@ const compatiblePackageJson = {
   bugs: {
     url: 'https://github.com/hashfunction/MarkuprPlus/issues',
   },
-  mcpName: 'com.markuprplus/markuprplus',
+  mcpName: 'io.github.hashfunction/markuprplus',
   bin: {
     markuprplus: 'dist/cli/index.mjs',
     'markuprplus-mcp': 'dist/mcp/index.mjs',

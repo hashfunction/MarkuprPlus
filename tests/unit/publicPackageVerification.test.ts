@@ -3,6 +3,7 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -552,5 +553,34 @@ describe('packaged application smoke entry point', () => {
       mode: 'startup',
       startupReady: true,
     });
+  });
+});
+
+describe('official MCP Registry metadata', () => {
+  it('binds the public npm package to the GitHub-owned registry namespace', () => {
+    const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8'));
+    const serverJson = JSON.parse(readFileSync(resolve('server.json'), 'utf8'));
+
+    expect(packageJson.mcpName).toBe('io.github.hashfunction/markuprplus');
+    expect(serverJson).toMatchObject({
+      name: 'io.github.hashfunction/markuprplus',
+      title: 'MarkuprPlus',
+      description:
+        'Records your screen and voice, returns one annotated screenshot and finding per mark.',
+      repository: {
+        url: 'https://github.com/hashfunction/MarkuprPlus',
+        source: 'github',
+      },
+      version: packageJson.version,
+      websiteUrl: 'https://markuprplus.com',
+    });
+    expect(serverJson.packages).toEqual([
+      {
+        registryType: 'npm',
+        identifier: 'markuprplus',
+        version: packageJson.version,
+        transport: { type: 'stdio' },
+      },
+    ]);
   });
 });

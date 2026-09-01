@@ -94,7 +94,7 @@ export function findBrandViolations(files, readFile, packageJson) {
     bugs: {
       url: 'https://github.com/hashfunction/MarkuprPlus/issues',
     },
-    mcpName: 'com.markuprplus/markuprplus',
+    mcpName: 'io.github.hashfunction/markuprplus',
   };
   for (const [field, expected] of Object.entries(expectedPackageFields)) {
     if (JSON.stringify(packageJson[field]) !== JSON.stringify(expected)) {

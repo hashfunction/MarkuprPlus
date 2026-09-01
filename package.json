@@ -24,7 +24,7 @@
   "bugs": {
     "url": "https://github.com/hashfunction/MarkuprPlus/issues"
   },
-  "mcpName": "com.markuprplus/markuprplus",
+  "mcpName": "io.github.hashfunction/markuprplus",
   "keywords": [
     "mcp",
     "mcp-server",
