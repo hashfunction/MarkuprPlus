@@ -112,28 +112,28 @@ Expected: no whitespace errors, version `3.1.2`, build `5`, and no changes to us
 ### Task 3: Signed Universal MAS Package
 
 **Files:**
-- Generated: `release-mas/MarkuprPlus.app`
-- Generated: `release-mas/markuprplus-3.1.2-mas.pkg`
+- Generated: `release-mas/mas-universal/MarkuprPlus.app`
+- Generated: `release-mas/mas-universal/markuprplus-3.1.2-mas.pkg`
 - Consumes: `/Users/hashfunction/Downloads/MarkuprPlus_Mac_App_Store.provisionprofile`
 
 **Interfaces:**
 - Consumes: verified Task 2 source and locally installed Apple Distribution/Installer identities.
 - Produces: signed universal MAS app and installer package for build 5.
 
-- [ ] **Step 1: Build and run repository MAS verification**
+- [x] **Step 1: Build and run repository MAS verification**
 
 Run: `MARKUPRPLUS_MAS_PROVISIONING_PROFILE=/Users/hashfunction/Downloads/MarkuprPlus_Mac_App_Store.provisionprofile npm run package:mas`
 
 Expected: package command exits zero and `verify:mas` reports one signed universal sandbox bundle.
 
-- [ ] **Step 2: Independently verify binary identity**
+- [x] **Step 2: Independently verify binary identity**
 
 ```bash
-codesign --verify --deep --strict --verbose=2 release-mas/MarkuprPlus.app
-pkgutil --check-signature release-mas/markuprplus-3.1.2-mas.pkg
-lipo -archs release-mas/MarkuprPlus.app/Contents/MacOS/MarkuprPlus
-plutil -extract CFBundleShortVersionString raw -o - release-mas/MarkuprPlus.app/Contents/Info.plist
-plutil -extract CFBundleVersion raw -o - release-mas/MarkuprPlus.app/Contents/Info.plist
+codesign --verify --deep --strict --verbose=2 release-mas/mas-universal/MarkuprPlus.app
+pkgutil --check-signature release-mas/mas-universal/markuprplus-3.1.2-mas.pkg
+lipo -archs release-mas/mas-universal/MarkuprPlus.app/Contents/MacOS/MarkuprPlus
+plutil -extract CFBundleShortVersionString raw -o - release-mas/mas-universal/MarkuprPlus.app/Contents/Info.plist
+plutil -extract CFBundleVersion raw -o - release-mas/mas-universal/MarkuprPlus.app/Contents/Info.plist
 ```
 
 Expected: valid signatures, `x86_64 arm64`, version `3.1.2`, and build `5`.
@@ -149,13 +149,13 @@ Expected: valid signatures, `x86_64 arm64`, version `3.1.2`, and build `5`.
 - Consumes: verified Task 3 installer package and authenticated Apple account.
 - Produces: uploaded and processed build selectable on version 3.1.2.
 
-- [ ] **Step 1: Upload the package using authenticated Apple delivery tooling**
+- [x] **Step 1: Upload the package using authenticated Apple delivery tooling**
 
-Run the available uploader against `release-mas/markuprplus-3.1.2-mas.pkg` without exposing credentials.
+Run the available uploader against `release-mas/mas-universal/markuprplus-3.1.2-mas.pkg` without exposing credentials.
 
 Expected: Apple returns a successful delivery identifier for bundle `com.eddiesanjuan.markuprx`, version `3.1.2`, build `5`.
 
-- [ ] **Step 2: Wait for processing**
+- [x] **Step 2: Wait for processing**
 
 Monitor App Store Connect until build `3.1.2 (5)` has completed processing and is selectable.
 
@@ -172,20 +172,36 @@ Expected: no validation or processing errors.
 - Consumes: processed Task 4 build and Task 1 release/review copy.
 - Produces: App Review submission for version `3.1.2 (5)`.
 
-- [ ] **Step 1: Fill and save version metadata**
+- [x] **Step 1: Fill and save version metadata**
 
 Use `app-store/metadata/en-US.md` for What's New and `app-store/review-notes.md` for App Review Notes. Preserve screenshots, automatic release, immediate rollout, pricing, privacy answers, and existing categories.
 
-- [ ] **Step 2: Select build 5 and resolve compliance prompts**
+- [x] **Step 2: Select build 5 and resolve compliance prompts**
 
 Select `3.1.2 (5)` and confirm the existing `ITSAppUsesNonExemptEncryption=false` declaration remains consistent.
 
-- [ ] **Step 3: Add the version for review and submit**
+- [x] **Step 3: Add the version for review and submit**
 
 Invoke App Store Connect Add for Review, then Submit to App Review.
 
 Expected: App Review page shows version `3.1.2` with build `5` in Waiting for Review or the current post-submission review state.
 
-- [ ] **Step 4: Record final evidence**
+- [x] **Step 4: Record final evidence**
 
 Report source commit, version/build tuple, package path and checksum, signature/architecture results, Apple delivery identifier, processing state, selected build, and final review state without secrets.
+
+## Release Evidence
+
+- Source commit: `88a7d04` (`release: prepare 3.1.2`)
+- Version/build: `3.1.2 (5)`
+- Package: `release-mas/mas-universal/markuprplus-3.1.2-mas.pkg`
+- SHA-256: `0e5071b6afc89e5dcfc6a60e3cabd7beb4595c36c1caa525214c037f9be1b3a8`
+- App signature: valid Apple Distribution signature; sandbox entitlements verified
+- Package signature: valid Mac App Distribution Installer signature
+- Architectures: `x86_64 arm64`
+- Apple delivery identifier: `8b85946c-6936-411d-8394-54f5b1f11f51`
+- Apple import state: `VALID`; App Store eligible; non-exempt encryption `false`
+- App Review submission ID: `bd0206c1-516c-4f79-b5f2-9a11097e6ca4`
+- Submitted: August 31, 2026 at 10:26 PM PDT
+- Final review state: `Waiting for Review`
+- Release policy: automatic release after approval; immediate rollout
