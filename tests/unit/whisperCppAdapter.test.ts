@@ -24,6 +24,47 @@ describe('Whisper.cpp adapter', () => {
     ]);
   });
 
+  it('passes the configured vocabulary prompt to whisper.cpp', () => {
+    expect(buildWhisperCppArguments({
+      modelPath: '/tmp/ggml-medium.bin',
+      wavPath: '/tmp/input.wav',
+      outputBasePath: '/tmp/result',
+      language: 'zh',
+      threads: 4,
+      translateToEnglish: false,
+      initialPrompt: '遊戲開發回饋：icon、按鈕、動態、動畫。',
+    })).toContain('--prompt');
+
+    expect(buildWhisperCppArguments({
+      modelPath: '/tmp/ggml-medium.bin',
+      wavPath: '/tmp/input.wav',
+      outputBasePath: '/tmp/result',
+      language: 'zh',
+      threads: 4,
+      translateToEnglish: false,
+      initialPrompt: '遊戲開發回饋：icon、按鈕、動態、動畫。',
+    })).toEqual(expect.arrayContaining([
+      '--prompt', '遊戲開發回饋：icon、按鈕、動態、動畫。',
+    ]));
+  });
+
+  it('enables local VAD when a Silero model is available', () => {
+    expect(buildWhisperCppArguments({
+      modelPath: '/tmp/ggml-medium.bin',
+      wavPath: '/tmp/input.wav',
+      outputBasePath: '/tmp/result',
+      language: 'zh',
+      threads: 4,
+      translateToEnglish: false,
+      vadModelPath: '/tmp/ggml-silero-v5.1.2.bin',
+    })).toEqual(expect.arrayContaining([
+      '--vad',
+      '-vm', '/tmp/ggml-silero-v5.1.2.bin',
+      '-vt', '0.85',
+      '-vsd', '1000',
+    ]));
+  });
+
   it('parses whisper.cpp JSON offsets into absolute transcript seconds', () => {
     const segments = parseWhisperCppJson(JSON.stringify({
       transcription: [

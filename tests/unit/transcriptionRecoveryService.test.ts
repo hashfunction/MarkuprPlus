@@ -174,6 +174,31 @@ describe('recoverTranscript outcomes', () => {
     expect(result).toEqual({ events: [event] });
   });
 
+  it('uses local Whisper for recovery sessions longer than eight minutes', async () => {
+    const event = transcriptEvent('The local model should continue processing this session.');
+    const durationSeconds = 8 * 60 + 1;
+    const audio = {
+      capturedAudioAsset: null,
+      capturedAudioBuffer: Buffer.alloc(16_000 * durationSeconds * 4),
+    } satisfies RecoveryAudioData;
+    let receivedSamples = 0;
+
+    const result = await recoverTranscript(
+      sessionStartSec,
+      audio,
+      dependencies({
+        isLocalModelAvailable: () => true,
+        recoverWithWhisper: async (samples) => {
+          receivedSamples = samples.length;
+          return success([event]);
+        },
+      }),
+    );
+
+    expect(receivedSamples).toBe(16_000 * durationSeconds);
+    expect(result).toEqual({ events: [event] });
+  });
+
   it('returns OpenAI events without a failure', async () => {
     const event = transcriptEvent('The navigation label is unclear.');
     const result = await recoverTranscript(

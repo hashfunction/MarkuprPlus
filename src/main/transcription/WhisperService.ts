@@ -12,7 +12,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { basename, join } from 'path';
+import { basename, dirname, join } from 'path';
 // NOTE: 'electron' is NOT imported at the top level. This allows WhisperService
 // to be used in non-Electron environments (e.g. the CLI). The `app` reference
 // is lazily required inside getModelsDirectory() with a try/catch fallback.
@@ -26,6 +26,7 @@ import * as os from 'os';
 import type { WhisperTranscriptResult, WhisperConfig, ErrorCallback } from './types';
 import { getAvailableMemoryBytes } from '../system/AvailableMemory';
 import { runWhisperCppOnSamples } from './WhisperCppRunner';
+import { DEFAULT_WHISPER_INITIAL_PROMPT } from '../../shared/whisperPrompt';
 
 const execFileAsync = promisify(execFile);
 
@@ -45,9 +46,10 @@ export interface WhisperServiceOptions extends Partial<WhisperConfig> {
 
 const DEFAULT_CONFIG: WhisperConfig = {
   modelPath: '', // Set dynamically
-  language: 'en',
+  language: 'auto',
   threads: Math.max(1, Math.floor(os.cpus().length / 2)), // Half CPU cores
   translateToEnglish: false,
+  initialPrompt: DEFAULT_WHISPER_INITIAL_PROMPT,
 };
 
 // Audio buffer configuration
@@ -57,14 +59,17 @@ const MAX_BUFFER_SIZE_BYTES = 500 * 1024; // 500KB cap as per audit
 const SAMPLE_RATE = 16000; // 16kHz mono
 const FILE_CHUNK_DURATION_SEC = 30; // 30 seconds per chunk for file transcription
 const FILE_CHUNK_SAMPLES = FILE_CHUNK_DURATION_SEC * SAMPLE_RATE;
+const VAD_MODEL_FILENAME = 'ggml-silero-v5.1.2.bin';
 const MODEL_MEMORY_REQUIREMENTS_BYTES: Record<string, number> = {
   'ggml-tiny.bin': 450 * 1024 * 1024,
   'ggml-base.bin': 800 * 1024 * 1024,
   'ggml-small.bin': 1400 * 1024 * 1024,
   'ggml-medium.bin': 2800 * 1024 * 1024,
+  'ggml-large-v3-turbo-q5_0.bin': 3600 * 1024 * 1024,
   'ggml-large-v3.bin': 5200 * 1024 * 1024,
 };
 const MODEL_PREFERENCE = [
+  'ggml-large-v3-turbo-q5_0.bin',
   'ggml-medium.bin',
   'ggml-small.bin',
   'ggml-base.bin',
@@ -157,7 +162,7 @@ export class WhisperService extends EventEmitter {
   }
 
   /**
-   * Get the best available model path, defaulting to whisper-medium's location.
+   * Get the best available locally downloaded model path.
    */
   getDefaultModelPath(): string {
     return resolveDownloadedWhisperModelPath(this.modelsDirectory)
@@ -171,6 +176,27 @@ export class WhisperService extends EventEmitter {
     this.config.modelPath = modelPath;
     this.autoDiscoverModelPath = false;
     this.isInitialized = false; // Need to reinitialize with new model
+  }
+
+  /**
+   * Set the vocabulary/style hint used by local Whisper.
+   * Changing the prompt does not require reloading the model.
+   */
+  setInitialPrompt(initialPrompt: string): void {
+    this.config.initialPrompt = initialPrompt.trim();
+  }
+
+  /**
+   * Return the optional local Silero VAD model when it has been installed.
+   * Whisper still works without it; VAD only removes long silent intervals and
+   * reduces the chance of silence hallucinations.
+   */
+  private getVadModelPath(): string | undefined {
+    const candidates = [
+      join(this.modelsDirectory, VAD_MODEL_FILENAME),
+      this.config.modelPath ? join(dirname(this.config.modelPath), VAD_MODEL_FILENAME) : '',
+    ];
+    return candidates.find((candidate) => candidate && isUsableModelFile(candidate));
   }
 
   /**
@@ -230,6 +256,8 @@ export class WhisperService extends EventEmitter {
         language: this.config.language,
         threads: this.config.threads,
         translateToEnglish: this.config.translateToEnglish,
+        initialPrompt: this.config.initialPrompt,
+        vadModelPath: this.getVadModelPath(),
       });
 
       this.isInitialized = true;
@@ -369,6 +397,8 @@ export class WhisperService extends EventEmitter {
       language: this.config.language,
       threads: this.config.threads,
       translateToEnglish: this.config.translateToEnglish,
+      initialPrompt: this.config.initialPrompt,
+      vadModelPath: this.getVadModelPath(),
       timeoutMs: 60_000,
     });
   }

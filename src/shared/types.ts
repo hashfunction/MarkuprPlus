@@ -2,6 +2,8 @@
  * Shared types for MarkuprX
  */
 
+import { DEFAULT_WHISPER_INITIAL_PROMPT } from './whisperPrompt';
+
 /**
  * Represents a single screenshot captured during a feedback session
  */
@@ -264,6 +266,8 @@ export interface AppSettings {
   // Transcription
   transcriptionService: 'openai';
   language: string;
+  /** Local Whisper vocabulary/style hint. Empty disables the hint. */
+  localWhisperPrompt: string;
   enableKeywordTriggers: boolean;
 
   // Hotkeys
@@ -351,7 +355,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // Transcription
   transcriptionService: 'openai',
-  language: 'en',
+  language: 'auto',
+  localWhisperPrompt: DEFAULT_WHISPER_INITIAL_PROMPT,
   enableKeywordTriggers: false,
 
   // Hotkeys

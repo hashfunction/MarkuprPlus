@@ -19,6 +19,8 @@ export interface WhisperCppArgumentsInput {
   language: string;
   threads: number;
   translateToEnglish: boolean;
+  initialPrompt?: string;
+  vadModelPath?: string;
 }
 
 export interface WhisperCppRunInput {
@@ -28,6 +30,8 @@ export interface WhisperCppRunInput {
   language: string;
   threads: number;
   translateToEnglish: boolean;
+  initialPrompt?: string;
+  vadModelPath?: string;
   timeoutMs?: number;
 }
 
@@ -53,6 +57,25 @@ export function buildWhisperCppArguments(input: WhisperCppArgumentsInput): strin
 
   if (input.translateToEnglish) {
     args.push('-tr');
+  }
+
+  const initialPrompt = input.initialPrompt?.trim();
+  if (initialPrompt) {
+    args.push('--prompt', initialPrompt);
+  }
+
+  const vadModelPath = input.vadModelPath?.trim();
+  if (vadModelPath) {
+    args.push(
+      '--vad',
+      '-vm', vadModelPath,
+      '-vt', '0.85',
+      '-vspd', '300',
+      '-vsd', '1000',
+      '-vmsd', '30',
+      '-vp', '30',
+      '-vo', '0.1',
+    );
   }
 
   args.push('-oj', '-of', input.outputBasePath);
@@ -166,6 +189,8 @@ export async function runWhisperCppOnSamples(
       language: input.language,
       threads: input.threads,
       translateToEnglish: input.translateToEnglish,
+      initialPrompt: input.initialPrompt,
+      vadModelPath: input.vadModelPath,
     });
 
     try {

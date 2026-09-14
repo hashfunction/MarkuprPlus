@@ -174,6 +174,21 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     lineHeight: 1.4,
   },
 
+  textarea: {
+    width: '100%',
+    minHeight: 110,
+    padding: '10px 12px',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 8,
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    lineHeight: 1.5,
+    resize: 'vertical',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+  },
+
   // Toggle
   toggle: {
     width: 44,

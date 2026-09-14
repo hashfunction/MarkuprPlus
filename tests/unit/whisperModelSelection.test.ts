@@ -46,6 +46,14 @@ describe('Whisper model selection', () => {
     expect(resolveDownloadedWhisperModelPath(directory)).toBe(smallPath);
   });
 
+  it('prefers the locally installed large-v3 turbo model over medium', async () => {
+    const directory = await createModelsDirectory();
+    await createModel(directory, 'ggml-medium.bin');
+    const turboPath = await createModel(directory, 'ggml-large-v3-turbo-q5_0.bin');
+
+    expect(resolveDownloadedWhisperModelPath(directory)).toBe(turboPath);
+  });
+
   it('ignores zero-byte models and uses Large when it is the only valid model', async () => {
     const directory = await createModelsDirectory();
     await writeFile(join(directory, 'ggml-medium.bin'), Buffer.alloc(0));
@@ -77,5 +85,23 @@ describe('Whisper model selection', () => {
 
     expect(service.isModelAvailable()).toBe(true);
     expect(service.getConfig().modelPath).toBe(explicitPath);
+  });
+
+  it('auto-detects the spoken language by default', () => {
+    const service = new WhisperService();
+
+    expect(service.getConfig().language).toBe('auto');
+    expect(service.getConfig().initialPrompt).toContain('icon');
+    expect(service.getConfig().initialPrompt).toContain('按鈕');
+  });
+
+  it('keeps an explicit model path while allowing adjacent VAD discovery', async () => {
+    const directory = await createModelsDirectory();
+    const modelPath = await createModel(directory, 'custom.bin');
+    await createModel(directory, 'ggml-silero-v5.1.2.bin');
+    const service = new WhisperService({ modelPath, modelsDirectory: directory });
+
+    expect(service.getConfig().modelPath).toBe(modelPath);
+    expect(service.isModelAvailable()).toBe(true);
   });
 });

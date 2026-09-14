@@ -40,6 +40,7 @@ const MODEL_MEMORY_REQUIREMENT_BYTES: Record<WhisperModel, number> = {
   base: 800 * 1024 * 1024,
   small: 1400 * 1024 * 1024,
   medium: 2800 * 1024 * 1024,
+  'large-turbo': 3600 * 1024 * 1024,
   large: 5200 * 1024 * 1024,
 };
 

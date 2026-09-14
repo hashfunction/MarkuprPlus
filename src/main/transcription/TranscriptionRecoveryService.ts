@@ -19,7 +19,10 @@ export type { TranscriptionFailure, TranscriptionFailureCode } from '../../share
 // =============================================================================
 
 const WHISPER_RECOVERY_CHUNK_SECONDS = 30;
-const MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC = 8 * 60;
+// Match the maximum recording session duration. Recovery still processes the
+// audio in 30-second chunks, so long sessions do not need one large Whisper
+// invocation.
+const MAX_POST_SESSION_LOCAL_RECOVERY_DURATION_SEC = 30 * 60;
 
 // =============================================================================
 // Types

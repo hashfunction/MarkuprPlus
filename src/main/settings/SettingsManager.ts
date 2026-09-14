@@ -35,6 +35,7 @@ import {
 } from '../migration/LegacyBrandMigration';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
+import { DEFAULT_WHISPER_INITIAL_PROMPT } from '../../shared/whisperPrompt';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -118,7 +119,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 
   // Transcription
   transcriptionService: 'openai',
-  language: 'en',
+  language: 'auto',
+  localWhisperPrompt: DEFAULT_WHISPER_INITIAL_PROMPT,
   enableKeywordTriggers: false,
 
   // Hotkeys
@@ -159,6 +161,7 @@ const SETTINGS_SCHEMA = {
   maxImageWidth: { type: 'number', minimum: 800, maximum: 2400 },
   transcriptionService: { type: 'string', enum: ['openai'] },
   language: { type: 'string' },
+  localWhisperPrompt: { type: 'string', maxLength: 2000 },
   enableKeywordTriggers: { type: 'boolean' },
   hotkeys: {
     type: 'object',
