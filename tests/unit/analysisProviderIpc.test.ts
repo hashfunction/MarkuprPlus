@@ -14,6 +14,7 @@ import type { AnalysisProviderAdapter } from '../../src/main/ai/providers/types'
 const providerIds = [
   'codex-cli',
   'claude-cli',
+  'github-copilot-cli',
   'opencode-cli',
   'cursor-cli',
   'qwen-cli',
@@ -91,6 +92,7 @@ describe('analysis provider IPC', () => {
     expect(statuses.map(({ id }) => id)).toEqual([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
       'opencode-cli',
       'cursor-cli',
       'qwen-cli',
@@ -124,6 +126,7 @@ describe('analysis provider IPC', () => {
     'anthropic-api',
     'codex-cli',
     'claude-cli',
+    'github-copilot-cli',
     'opencode-cli',
     'cursor-cli',
     'qwen-cli',
@@ -158,6 +161,9 @@ describe('analysis provider IPC', () => {
 
     await expect(handler({}, 'ollama', true)).resolves.toEqual([
       { id: 'ollama-model', name: 'ollama model', source: 'discovered' },
+    ]);
+    await expect(handler({}, 'github-copilot-cli', true)).resolves.toEqual([
+      { id: 'github-copilot-cli-model', name: 'github-copilot-cli model', source: 'discovered' },
     ]);
     expect(adapters.find(({ id }) => id === 'ollama')?.discover).toHaveBeenCalledWith(true);
     expect(adapters.find(({ id }) => id === 'codex-cli')?.discover).not.toHaveBeenCalled();
