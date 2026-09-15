@@ -14,6 +14,7 @@ describe('analysis provider options', () => {
     expect(PROVIDER_OPTIONS.map(({ id }) => id)).toEqual([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
       'opencode-cli',
       'cursor-cli',
       'qwen-cli',
@@ -27,7 +28,7 @@ describe('analysis provider options', () => {
       'rules',
     ]);
     expect(PROVIDER_OPTIONS.map(({ connectionBadge }) => connectionBadge)).toEqual([
-      'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
+      'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI', 'CLI',
       'Local', 'Local', 'Cloud', 'Local',
     ]);
   });
@@ -36,6 +37,7 @@ describe('analysis provider options', () => {
     expect(providerOptionsForDistribution('mas').map(({ id }) => id)).toEqual([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
       'opencode-cli',
       'cursor-cli',
       'qwen-cli',
@@ -64,6 +66,7 @@ describe('analysis provider options', () => {
     expect(getModelControlMode('lmstudio')).toBe('discovered-only');
     expect(getModelControlMode('codex-cli')).toBe('default-or-custom');
     expect(getModelControlMode('claude-cli')).toBe('default-or-custom');
+    expect(getModelControlMode('github-copilot-cli')).toBe('default-or-custom');
     expect(getModelControlMode('anthropic-api')).toBe('default-or-custom');
     expect(getModelControlMode('amp-cli')).toBe('none');
     expect(getModelControlMode('kiro-cli')).toBe('none');
@@ -73,6 +76,7 @@ describe('analysis provider options', () => {
   it('uses provider-specific default model labels', () => {
     expect(getModelDefaultLabel('codex-cli')).toBe('Codex default');
     expect(getModelDefaultLabel('claude-cli')).toBe('Claude Code default');
+    expect(getModelDefaultLabel('github-copilot-cli')).toBe('GitHub Copilot default');
     expect(getModelDefaultLabel('anthropic-api')).toBe('Anthropic default');
   });
 

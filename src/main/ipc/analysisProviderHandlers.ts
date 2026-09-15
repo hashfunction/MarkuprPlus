@@ -18,6 +18,7 @@ import type { IpcContext } from './types';
 const PROVIDER_ORDER: AnalysisProvider[] = [
   'codex-cli',
   'claude-cli',
+  'github-copilot-cli',
   'opencode-cli',
   'cursor-cli',
   'qwen-cli',
@@ -35,6 +36,7 @@ const MODEL_PROVIDERS = new Set<ModelAnalysisProvider>([
   'anthropic-api',
   'codex-cli',
   'claude-cli',
+  'github-copilot-cli',
   'opencode-cli',
   'cursor-cli',
   'qwen-cli',

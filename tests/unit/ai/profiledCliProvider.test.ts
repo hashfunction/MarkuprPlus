@@ -1,4 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { Session } from '../../../src/main/SessionController';
 import type { CliProcessOptions, CliProcessResult } from '../../../src/main/ai/CliProcessRunner';
@@ -47,15 +49,14 @@ function result(overrides: Partial<CliProcessResult> = {}): CliProcessResult {
 describe('CLI provider profiles', () => {
   it('does not register headless CLIs whose tool restrictions can be bypassed', () => {
     expect(CLI_PROVIDER_PROFILES.map(({ id }) => id)).not.toContain('gemini-cli');
-    expect(CLI_PROVIDER_PROFILES.map(({ id }) => id)).not.toContain('github-copilot-cli');
   });
 
   it('does not advertise excluded headless CLIs as available providers', async () => {
     const readme = await readFile('README.md', 'utf8');
 
     expect(readme).not.toContain('| **Gemini CLI**');
-    expect(readme).not.toContain('| **GitHub Copilot CLI**');
-    expect(readme).toContain('Codex CLI and OpenCode can receive captured screenshots.');
+    expect(readme).toContain('| **GitHub Copilot CLI**');
+    expect(readme).toContain('Codex CLI, GitHub Copilot CLI, and OpenCode can receive captured screenshots.');
   });
 
   it('defines every additional CLI with a unique executable and safe invocation', () => {
@@ -64,6 +65,7 @@ describe('CLI provider profiles', () => {
       name,
       executable: executables[0],
     }))).toEqual([
+      { id: 'github-copilot-cli', name: 'GitHub Copilot CLI', executable: 'copilot' },
       { id: 'opencode-cli', name: 'OpenCode', executable: 'opencode2' },
       { id: 'cursor-cli', name: 'Cursor Agent CLI', executable: 'agent' },
       { id: 'qwen-cli', name: 'Qwen Code', executable: 'qwen' },
@@ -99,7 +101,7 @@ describe('CLI provider profiles', () => {
   });
 
   it('discovers an executable from PATH and reports its version', async () => {
-    const profile = CLI_PROVIDER_PROFILES[0];
+    const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'opencode-cli')!;
     const run = vi.fn(async (options: CliProcessOptions) => {
       expect(options.executable).toBe('/tools/opencode2');
       expect(options.args).toEqual(['--version']);
@@ -122,6 +124,131 @@ describe('CLI provider profiles', () => {
       version: 'opencode 2.2.3',
       models: [{ id: '', name: 'OpenCode default', source: 'default' }],
     }));
+  });
+
+  describe('GitHub Copilot CLI report generation', () => {
+    function provider(run: (options: CliProcessOptions) => Promise<CliProcessResult>, home = '/missing') {
+      const profile = CLI_PROVIDER_PROFILES.find(({ id }) => id === 'github-copilot-cli');
+      expect(profile).toBeDefined();
+      return new ProfiledCliProvider(profile!, {
+        env: { PATH: '/tools', COPILOT_HOME: home },
+        homeDirectory: '/home/tester',
+        isExecutable: async (path) => path === '/tools/copilot',
+        realpath: async (path) => path,
+        run,
+      });
+    }
+
+    it.each(['1.0.82', '0.0.400', 'unknown'])('rejects unsupported version %s', async (version) => {
+      const copilot = provider(async () => result({ stdout: `GitHub Copilot CLI ${version}.` }));
+      await expect(copilot.discover()).resolves.toMatchObject({
+        installed: true,
+        ready: false,
+        diagnostic: expect.stringContaining('1.0.83'),
+      });
+    });
+
+    it('preserves login identity and default model without loading user tools, hooks or permissions', async () => {
+      const home = await mkdtemp(join(tmpdir(), 'markuprplus-copilot-test-'));
+      const account = { host: 'https://github.com', login: 'tester' };
+      let reportDirectory = '';
+      try {
+        const sourceConfig = JSON.stringify({
+          loggedInUsers: [account],
+          lastLoggedInUser: account,
+          installedPlugins: [{ name: 'unsafe-plugin' }],
+          trustedFolders: ['/'],
+          hooks: { sessionStart: [{ command: 'must-not-run' }] },
+        });
+        await writeFile(join(home, 'config.json'), `// Copilot uses JSONC\n${sourceConfig}`);
+        await writeFile(join(home, 'settings.json'), `{
+            "model": "gpt-5-mini",
+            "enabledPlugins": { "unsafe-plugin": true },
+            "disableAllHooks": false,
+          }`);
+        const copilot = provider(async (options) => {
+          if (options.args[0] === '--version') return result({ stdout: 'GitHub Copilot CLI 1.0.83.' });
+          reportDirectory = options.cwd!;
+          expect(options.args).toEqual(expect.arrayContaining([
+            '--excluded-tools=builtin:*,mcp:*,custom:*', '--disable-builtin-mcps', '--no-custom-instructions',
+            '--no-ask-user', '--no-auto-update', '--no-remote', '--no-remote-export',
+            '--silent', '--stream', 'off', '--model', 'gpt-5.4',
+            '--output-format', 'json',
+          ]));
+          expect(options.args.join(' ')).not.toContain('The primary action is hard to find.');
+          expect(options.args).not.toContain('-p');
+          expect(options.args).not.toContain('--prompt');
+          expect(options.stdin).toContain('The primary action is hard to find.');
+          const isolatedHome = options.env!.COPILOT_HOME!;
+          expect(isolatedHome).toBe(join(reportDirectory, 'copilot-home'));
+          const config = JSON.parse(await readFile(join(isolatedHome, 'config.json'), 'utf8'));
+          expect(config).toEqual({ loggedInUsers: [account], lastLoggedInUser: account });
+          const settings = JSON.parse(await readFile(join(isolatedHome, 'settings.json'), 'utf8'));
+          expect(settings).toMatchObject({
+            model: 'gpt-5-mini',
+            disableAllHooks: true,
+            memory: false,
+            'ide': { autoConnect: false },
+          });
+          expect(settings.enabledPlugins).toBeUndefined();
+          expect((await stat(join(isolatedHome, 'config.json'))).mode & 0o777).toBe(0o600);
+          return result({ stdout: JSON.stringify(analysis) });
+        }, home);
+        await expect(copilot.analyze(session, 'gpt-5.4')).resolves.toEqual(analysis);
+        await expect(access(reportDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(await readFile(join(home, 'config.json'), 'utf8')).toBe(`// Copilot uses JSONC\n${sourceConfig}`);
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    });
+
+    it('attaches screenshots in index order even without a transcript', async () => {
+      const copilot = provider(async (options) => {
+        if (options.args[0] === '--version') return result({ stdout: '1.0.83' });
+        const imagePaths = options.args.flatMap((arg, index) => (
+          arg === '--attachment' ? [options.args[index + 1]] : []
+        ));
+        expect(imagePaths).toEqual([
+          join(options.cwd!, 'screenshot-000.png'),
+          join(options.cwd!, 'screenshot-001.png'),
+        ]);
+        expect(await readFile(imagePaths[0])).toEqual(Buffer.from('first-image'));
+        expect(await readFile(imagePaths[1])).toEqual(Buffer.from('second-image'));
+        expect(options.stdin).toContain('Screenshot 1 was captured at 00:02.');
+        return result({ stdout: JSON.stringify(analysis) });
+      });
+      await expect(copilot.analyze({
+        ...session,
+        transcriptBuffer: [],
+        screenshotBuffer: ['first-image', 'second-image'].map((image, index) => ({
+          id: `shot-${index}`, timestamp: session.startTime + (index + 1) * 1000,
+          buffer: Buffer.from(image), width: 10, height: 10,
+        })),
+      })).resolves.toEqual(analysis);
+    });
+
+    it('surfaces invalid user configuration rather than silently ignoring it', async () => {
+      const home = await mkdtemp(join(tmpdir(), 'markuprplus-copilot-test-'));
+      try {
+        await writeFile(join(home, 'config.json'), '{broken');
+        const run = vi.fn(async () => result({ stdout: '1.0.83' }));
+        await expect(provider(run, home).analyze(session)).rejects.toThrow(/Copilot.*config.json/);
+        expect(run).toHaveBeenCalledTimes(1);
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    });
+
+    it('surfaces sign-in failures and removes temporary context on failure', async () => {
+      let directory = '';
+      const copilot = provider(async (options) => {
+        if (options.args[0] === '--version') return result({ stdout: '1.0.83' });
+        directory = options.cwd!;
+        return result({ exitCode: 1, stderr: 'Authentication required. Run copilot login.' });
+      });
+      await expect(copilot.analyze(session)).rejects.toThrow(/copilot login/);
+      await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
   });
 
   it('returns an actionable diagnostic when a CLI is not installed', async () => {
@@ -379,6 +506,35 @@ describe('CLI provider profiles', () => {
 });
 
 describe('extractCliAnalysisResult', () => {
+  it('extracts the final Copilot assistant message only after a successful completion', () => {
+    const output = [
+      { type: 'user.message', data: { content: 'Ignore echoed input' } },
+      { type: 'assistant.message', data: { content: JSON.stringify(analysis), toolRequests: [] } },
+      { type: 'assistant.turn_end', data: {} },
+      { type: 'result', exitCode: 0, usage: {} },
+    ].map((event) => JSON.stringify(event)).join('\n');
+    expect(extractCliAnalysisResult(output)).toEqual(analysis);
+  });
+
+  it.each([
+    { completion: [] },
+    { completion: [{ type: 'result', exitCode: 1 }] },
+  ])('rejects Copilot messages without successful completion', ({ completion }) => {
+    const output = [
+      { type: 'assistant.message', data: { content: JSON.stringify(analysis) } },
+      ...completion,
+    ].map((event) => JSON.stringify(event)).join('\n');
+    expect(() => extractCliAnalysisResult(output)).toThrow('Invalid structured CLI output');
+  });
+
+  it('rejects a Copilot message that requests tools rather than finishing the report', () => {
+    const output = [
+      { type: 'assistant.message', data: { content: JSON.stringify(analysis), toolRequests: [{ name: 'bash' }] } },
+      { type: 'result', exitCode: 0 },
+    ].map((event) => JSON.stringify(event)).join('\n');
+    expect(() => extractCliAnalysisResult(output)).toThrow('Invalid structured CLI output');
+  });
+
   it.each([
     JSON.stringify(analysis),
     `\`\`\`json\n${JSON.stringify(analysis)}\n\`\`\``,
