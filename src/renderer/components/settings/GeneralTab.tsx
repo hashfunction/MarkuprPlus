@@ -1,7 +1,8 @@
 import React from 'react';
 import { PUBLIC_BRAND_NAME } from '../../../shared/publicBrand';
 import type { AppSettings } from '../../../shared/types';
-import { SettingsSection, ToggleSetting, DirectoryPicker } from '../primitives';
+import { UI_LANGUAGES, normalizeUiLanguage } from '../../../shared/uiLanguage';
+import { SettingsSection, ToggleSetting, DirectoryPicker, DropdownSetting } from '../primitives';
 import { styles } from './settingsStyles';
 
 export const GeneralTab: React.FC<{
@@ -10,6 +11,16 @@ export const GeneralTab: React.FC<{
   onResetSection: () => void;
 }> = ({ settings, onSettingChange, onResetSection }) => (
   <div style={styles.tabContent}>
+    <SettingsSection title="Language">
+      <DropdownSetting
+        label="Interface language"
+        description="English by default. Changes apply immediately."
+        value={settings.uiLanguage}
+        options={UI_LANGUAGES.map(({ id, name }) => ({ value: id, label: name }))}
+        onChange={(value) => onSettingChange('uiLanguage', normalizeUiLanguage(value))}
+      />
+    </SettingsSection>
+
     <SettingsSection
       title="Output"
       description="Where your feedback sessions are saved"

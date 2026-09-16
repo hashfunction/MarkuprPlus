@@ -303,7 +303,7 @@ export function CrashRecoveryDialog({
               marginBottom: i < arr.length - 1 ? 8 : 0,
             }}>
               <span style={{ color: colors.text.secondary }}>{row.label}:</span>
-              <span style={{
+              <span translate={row.label === 'Source' && session.sourceName ? 'no' : undefined} style={{
                 color: colors.text.primary,
                 fontWeight: 500,
                 minWidth: 0,
@@ -417,7 +417,7 @@ export function CrashRecoveryDialog({
                           [img]
                         </span>
                       )}
-                      {item.text || '[No text]'}
+                      <span translate={item.text ? 'no' : undefined}>{item.text || '[No text]'}</span>
                     </li>
                   ))}
                   {session.feedbackItems.length > 3 && (

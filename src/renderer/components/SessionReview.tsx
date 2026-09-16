@@ -463,7 +463,7 @@ const FeedbackItemCard: React.FC<FeedbackItemCardProps> = ({
             placeholder="Enter feedback text..."
           />
         ) : (
-          <p style={styles.transcription}>{item.transcription}</p>
+          <p translate="no" style={styles.transcription}>{item.transcription}</p>
         )}
 
         {/* Screenshot Thumbnails */}

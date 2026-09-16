@@ -132,6 +132,10 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
   // Load settings on mount
   // ---------------------------------------------------------------------------
 
+  useEffect(() => window.markuprx.settings.onUiLanguageChange((uiLanguage) => {
+    setSettings((previous) => ({ ...previous, uiLanguage }));
+  }), []);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -191,7 +195,7 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const handleSettingChange = useCallback(
     async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-      setSettings((prev) => ({ ...prev, [key]: value }));
+      if (key !== 'uiLanguage') setSettings((prev) => ({ ...prev, [key]: value }));
       setSaveStatus('saving');
       setSaveError(null);
       try {
@@ -471,11 +475,12 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   const resetGeneralSection = useCallback(async () => {
     const defaults = {
+      uiLanguage: DEFAULT_SETTINGS.uiLanguage,
       outputDirectory: DEFAULT_SETTINGS.outputDirectory,
       launchAtLogin: DEFAULT_SETTINGS.launchAtLogin,
       checkForUpdates: DEFAULT_SETTINGS.checkForUpdates,
     };
-    setSettings((prev) => ({ ...prev, ...defaults }));
+    setSettings((prev) => ({ ...prev, ...defaults, uiLanguage: prev.uiLanguage }));
     setSaveStatus('saving');
     setSaveError(null);
     try {

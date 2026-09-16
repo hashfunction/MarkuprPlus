@@ -604,7 +604,7 @@ const SourceItem: React.FC<SourceItemProps> = ({
       </div>
 
       {/* Name with resolution info for screens */}
-      <div style={styles.sourceName}>
+      <div translate="no" style={styles.sourceName}>
         {source.type === 'screen' ? (
           <span style={styles.sourceNameWithBadge}>
             {source.display?.label || source.name}

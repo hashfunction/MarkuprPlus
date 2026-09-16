@@ -12,6 +12,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { UiLanguage } from '../shared/uiLanguage';
 import {
   IPC_CHANNELS,
   type AppSettings,
@@ -535,6 +536,12 @@ const markuprxApi = {
   // Settings API
   // ===========================================================================
   settings: {
+    onUiLanguageChange: (callback: (language: UiLanguage) => void): Unsubscribe => {
+      const handler = (_event: Electron.IpcRendererEvent, language: UiLanguage) => callback(language);
+      ipcRenderer.on(IPC_CHANNELS.UI_LANGUAGE_CHANGED, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.UI_LANGUAGE_CHANGED, handler);
+    },
+
     /**
      * Get a specific setting
      */

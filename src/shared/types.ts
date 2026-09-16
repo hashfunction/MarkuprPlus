@@ -1,6 +1,7 @@
 /**
  * Shared types for MarkuprX
  */
+import { DEFAULT_UI_LANGUAGE, type UiLanguage } from './uiLanguage';
 
 /**
  * Represents a single screenshot captured during a feedback session
@@ -245,6 +246,7 @@ export interface AnalysisProviderStatus {
  */
 export interface AppSettings {
   // General
+  uiLanguage: UiLanguage;
   outputDirectory: string;
   launchAtLogin: boolean;
   checkForUpdates: boolean;
@@ -333,6 +335,7 @@ export interface CliBridgePairResult {
  */
 export const DEFAULT_SETTINGS: AppSettings = {
   // General
+  uiLanguage: DEFAULT_UI_LANGUAGE,
   outputDirectory: '', // Set dynamically by SettingsManager
   launchAtLogin: false,
   checkForUpdates: true,
@@ -476,6 +479,7 @@ export const IPC_CHANNELS = {
   // Settings Channels (Renderer -> Main)
   // ---------------------------------------------------------------------------
   SETTINGS_GET: 'markuprx:settings:get',
+  UI_LANGUAGE_CHANGED: 'markuprx:ui-language-changed',
   SETTINGS_GET_ALL: 'markuprx:settings:get-all',
   SETTINGS_SET: 'markuprx:settings:set',
   SETTINGS_GET_API_KEY: 'markuprx:settings:get-api-key',

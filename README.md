@@ -275,6 +275,23 @@ Marked issues are numbered `MX-001…`; items that come from narration alone are
   </tr>
 </table>
 
+## Interface Language
+
+The desktop interface defaults to **English**, including when upgrading from an
+installation that previously displayed Traditional Chinese automatically.
+Choose **Settings > General > Language > Interface language** to opt into
+**Traditional Chinese** or switch back to English. The preference is saved and
+applies immediately across open windows without restarting or interrupting a
+recording. Resetting General settings restores English.
+
+Interface language is separate from transcription language. Feedback text,
+recordings, and generated reports are not translated by this setting.
+
+To add another interface language, register its identifier and display name in
+`src/shared/uiLanguage.ts` and its translation catalog in
+`src/renderer/i18n/catalogs.ts`. English labels are the source and fallback for
+missing translations; mark user-content regions with `translate="no"`.
+
 ## Report Providers
 
 Pick the model that turns a capture into a structured report. MarkuprPlus checks each one **before** you record and shows you what it actually found.

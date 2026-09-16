@@ -46,6 +46,7 @@ import type {
   ReviewSession,
 } from '../../shared/types';
 import type { ElectronTestAPI } from '../../shared/electronTestHarness';
+import type { UiLanguage } from '../../shared/uiLanguage';
 
 type Unsubscribe = () => void;
 
@@ -194,6 +195,7 @@ interface ProcessingAPI {
  * Settings API
  */
 interface SettingsAPI {
+  onUiLanguageChange: (callback: (language: UiLanguage) => void) => Unsubscribe;
   get: <K extends keyof AppSettings>(key: K) => Promise<AppSettings[K]>;
   getAll: () => Promise<AppSettings>;
   set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<AppSettings>;

@@ -18,7 +18,7 @@
 
 import Store from 'electron-store';
 import * as keytar from 'keytar';
-import { app, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
 import { join } from 'path';
 import { chmod } from 'fs/promises';
 import {
@@ -35,6 +35,7 @@ import {
 } from '../migration/LegacyBrandMigration';
 import { isElectronTestHarnessAllowed } from '../e2e/ElectronTestHarness';
 import { PUBLIC_BRAND_NAME } from '../../shared/publicBrand';
+import { DEFAULT_UI_LANGUAGE, UI_LANGUAGES, isUiLanguage } from '../../shared/uiLanguage';
 
 // AppSettings is imported from '../../shared/types' (single source of truth)
 
@@ -100,6 +101,7 @@ const DEFAULT_HOTKEY_CONFIG: HotkeyConfig = {
  */
 const DEFAULT_SETTINGS: AppSettings = {
   // General
+  uiLanguage: DEFAULT_UI_LANGUAGE,
   outputDirectory: '', // Set dynamically in constructor
   launchAtLogin: false,
   checkForUpdates: true,
@@ -146,6 +148,7 @@ const DEFAULT_SETTINGS: AppSettings = {
  * Schema for electron-store validation
  */
 const SETTINGS_SCHEMA = {
+  uiLanguage: { type: 'string', enum: UI_LANGUAGES.map(({ id }) => id) },
   outputDirectory: { type: 'string' },
   launchAtLogin: { type: 'boolean' },
   checkForUpdates: { type: 'boolean' },
@@ -314,6 +317,9 @@ export class SettingsManager implements ISettingsManager {
    */
   private validateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): boolean {
     switch (key) {
+      case 'uiLanguage':
+        return isUiLanguage(value);
+
       case 'pauseThreshold':
         return typeof value === 'number' && value >= 500 && value <= 3000;
 
@@ -613,6 +619,13 @@ export class SettingsManager implements ISettingsManager {
    * Emit a change event to all subscribers
    */
   private emitChange(key: string, newValue: unknown, oldValue: unknown): void {
+    if (key === 'uiLanguage' && isUiLanguage(newValue)) {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) {
+          window.webContents.send(IPC_CHANNELS.UI_LANGUAGE_CHANGED, newValue);
+        }
+      }
+    }
     for (const callback of this.changeCallbacks) {
       try {
         callback(key, newValue, oldValue);

@@ -157,6 +157,7 @@ export const TranscriptionPreview: React.FC<TranscriptionPreviewProps> = ({
               {formatTimestamp(segment.startTime)}
             </span>
             <p
+              translate="no"
               style={{
                 fontSize: 13,
                 lineHeight: 1.45,

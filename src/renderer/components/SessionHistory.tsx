@@ -230,7 +230,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
       {/* Content */}
       <div style={styles.sessionContent}>
         <div style={styles.sessionHeader}>
-          <span style={styles.sessionName}>{session.sourceName || 'Untitled Session'}</span>
+          <span translate={session.sourceName ? 'no' : undefined} style={styles.sessionName}>{session.sourceName || 'Untitled Session'}</span>
           <span style={styles.sessionDate}>{formatRelativeDate(session.startTime)}</span>
         </div>
         <div style={styles.sessionMeta}>
@@ -260,7 +260,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
           </span>
         </div>
         {session.transcriptionPreview && (
-          <p style={styles.transcriptionPreview}>
+          <p translate="no" style={styles.transcriptionPreview}>
             {session.transcriptionPreview.slice(0, 80)}
             {session.transcriptionPreview.length > 80 ? '...' : ''}
           </p>
