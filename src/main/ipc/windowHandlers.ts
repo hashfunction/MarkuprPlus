@@ -7,7 +7,7 @@
 
 import { ipcMain, app } from 'electron';
 import { tierManager } from '../transcription/TierManager';
-import { modelDownloadManager } from '../transcription/ModelDownloadManager';
+import { DEFAULT_DOWNLOAD_MODEL, modelDownloadManager } from '../transcription/ModelDownloadManager';
 import { whisperService } from '../transcription/WhisperService';
 import type { WhisperModel } from '../transcription/types';
 import { POPOVER_SIZES } from '../windows';
@@ -18,8 +18,24 @@ import {
 } from '../../shared/types';
 import type { IpcContext } from './types';
 
-export function registerWindowHandlers(ctx: IpcContext): void {
+export function registerWindowHandlers(ctx: Pick<IpcContext, 'getMainWindow' | 'getPopover' | 'getWindowsTaskbar'>): void {
   const { getMainWindow, getPopover, getWindowsTaskbar } = ctx;
+
+  const sendDownloadEvent = (channel: string, payload: unknown): void => {
+    const window = getMainWindow();
+    if (window && !window.isDestroyed()) window.webContents.send(channel, payload);
+  };
+  // Startup downloads have no invoking renderer, so observe the manager globally.
+  modelDownloadManager.onProgress((progress) => {
+    sendDownloadEvent(IPC_CHANNELS.WHISPER_DOWNLOAD_PROGRESS, progress);
+  });
+  modelDownloadManager.onComplete((result) => {
+    if (result.success) whisperService.setModelPath(result.path);
+    sendDownloadEvent(IPC_CHANNELS.WHISPER_DOWNLOAD_COMPLETE, { model: result.model, path: result.path });
+  });
+  modelDownloadManager.onError((error, model) => {
+    sendDownloadEvent(IPC_CHANNELS.WHISPER_DOWNLOAD_ERROR, { model, error: error.message });
+  });
 
   // -------------------------------------------------------------------------
   // App Version
@@ -216,8 +232,8 @@ export function registerWindowHandlers(ctx: IpcContext): void {
     }
 
     const defaultModel = hasAnyModel ? modelDownloadManager.getDefaultModel() : null;
-    const recommendedModel = 'tiny';
-    const recommendedInfo = modelDownloadManager.getModelInfo('tiny');
+    const recommendedModel = DEFAULT_DOWNLOAD_MODEL;
+    const recommendedInfo = modelDownloadManager.getModelInfo(recommendedModel);
 
     return {
       hasAnyModel,
@@ -225,6 +241,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       downloadedModels,
       recommendedModel,
       recommendedModelSizeMB: recommendedInfo.sizeMB,
+      downloadStatus: modelDownloadManager.getDownloadStatus(recommendedModel),
     };
   });
 
@@ -251,43 +268,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       return { success: false, error: 'Invalid model name' };
     }
     try {
-      const unsubProgress = modelDownloadManager.onProgress((progress) => {
-        getMainWindow()?.webContents.send(IPC_CHANNELS.WHISPER_DOWNLOAD_PROGRESS, {
-          model: progress.model,
-          downloadedBytes: progress.downloadedBytes,
-          totalBytes: progress.totalBytes,
-          percent: progress.percent,
-          speedBps: progress.speedBps,
-          estimatedSecondsRemaining: progress.estimatedSecondsRemaining,
-        });
-      });
-
-      const unsubComplete = modelDownloadManager.onComplete((result) => {
-        getMainWindow()?.webContents.send(IPC_CHANNELS.WHISPER_DOWNLOAD_COMPLETE, {
-          model: result.model,
-          path: result.path,
-        });
-        unsubProgress();
-        unsubComplete();
-        unsubError();
-      });
-
-      const unsubError = modelDownloadManager.onError((error, errorModel) => {
-        getMainWindow()?.webContents.send(IPC_CHANNELS.WHISPER_DOWNLOAD_ERROR, {
-          model: errorModel,
-          error: error.message,
-        });
-        unsubProgress();
-        unsubComplete();
-        unsubError();
-      });
-
       const result = await modelDownloadManager.downloadModel(model as WhisperModel);
-
-      if (result.success) {
-        whisperService.setModelPath(result.path);
-      }
-
       return { success: result.success };
     } catch (error) {
       console.error('[Main] Failed to download Whisper model:', error);

@@ -13,6 +13,8 @@ import { app } from 'electron';
 import { createWriteStream, existsSync, statSync, unlinkSync, mkdirSync, renameSync } from 'fs';
 import { join } from 'path';
 import * as https from 'https';
+import type { IncomingMessage } from 'http';
+import type { WhisperModelDownloadStatus } from '../../shared/types';
 import type {
   WhisperModel,
   ModelInfo,
@@ -27,6 +29,7 @@ import type {
 // ============================================================================
 
 const HUGGINGFACE_BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';
+export const DEFAULT_DOWNLOAD_MODEL: WhisperModel = 'tiny';
 
 const MODEL_INFO: Record<WhisperModel, ModelInfo> = {
   tiny: {
@@ -83,6 +86,9 @@ const MODEL_INFO: Record<WhisperModel, ModelInfo> = {
 export class ModelDownloadManager extends EventEmitter {
   private modelsDir: string;
   private activeDownloads: Map<WhisperModel, { abort: () => void; request?: ReturnType<typeof https.get> }> = new Map();
+  private pendingDownloads = new Map<WhisperModel, Promise<DownloadResult>>();
+  private downloadProgress = new Map<WhisperModel, DownloadProgress>();
+  private downloadErrors = new Map<WhisperModel, string>();
 
   // Callbacks
   private progressCallbacks: ProgressCallback[] = [];
@@ -138,16 +144,19 @@ export class ModelDownloadManager extends EventEmitter {
    * Check if a model is downloaded and valid
    */
   isModelDownloaded(model: WhisperModel): boolean {
-    const path = this.getModelPath(model);
+    return this.isModelFileValid(model, this.getModelPath(model));
+  }
+
+  private isModelFileValid(model: WhisperModel, path: string): boolean {
     if (!existsSync(path)) {
       return false;
     }
 
     // Check file size matches expected (with 5% variance for compression differences)
     const stats = statSync(path);
-    const expectedSize = MODEL_INFO[model].sizeBytes;
+    const expectedSize = this.getModelInfo(model).sizeBytes;
     const variance = expectedSize * 0.05;
-    return Math.abs(stats.size - expectedSize) < variance;
+    return stats.isFile() && Math.abs(stats.size - expectedSize) < variance;
   }
 
   /**
@@ -155,7 +164,7 @@ export class ModelDownloadManager extends EventEmitter {
    */
   getDefaultModel(): WhisperModel {
     // Prefer medium, fall back to smaller models
-    const preference: WhisperModel[] = ['medium', 'small', 'base', 'tiny'];
+    const preference: WhisperModel[] = ['medium', 'small', 'base', 'tiny', 'large'];
 
     for (const model of preference) {
       if (this.isModelDownloaded(model)) {
@@ -175,205 +184,161 @@ export class ModelDownloadManager extends EventEmitter {
   }
 
   /**
-   * Download a model with progress tracking
+   * Provision a small model without replacing an existing installation.
    */
-  async downloadModel(model: WhisperModel): Promise<DownloadResult> {
-    const info = MODEL_INFO[model];
-    const targetPath = this.getModelPath(model);
-    const tempPath = `${targetPath}.download`;
+  async ensureDefaultModel(): Promise<DownloadResult | null> {
+    if (this.hasAnyModel()) return null;
+    return this.downloadModel(DEFAULT_DOWNLOAD_MODEL);
+  }
 
-    // Check if already downloaded
+  getDownloadStatus(model: WhisperModel): WhisperModelDownloadStatus {
+    return {
+      model,
+      isDownloading: this.isDownloading(model),
+      percent: this.downloadProgress.get(model)?.percent ?? null,
+      error: this.downloadErrors.get(model) ?? null,
+    };
+  }
+
+  async downloadModel(model: WhisperModel): Promise<DownloadResult> {
     if (this.isModelDownloaded(model)) {
       this.log(`Model ${model} already downloaded`);
-      return { success: true, model, path: targetPath };
+      return { success: true, model, path: this.getModelPath(model) };
     }
-
-    // Check if download already in progress
-    if (this.activeDownloads.has(model)) {
-      throw new Error(`Download already in progress for ${model}`);
+    const pending = this.pendingDownloads.get(model);
+    if (pending) return pending;
+    const download = this.performDownload(model);
+    this.pendingDownloads.set(model, download);
+    try {
+      return await download;
+    } finally {
+      this.pendingDownloads.delete(model);
     }
+  }
 
+  private performDownload(model: WhisperModel): Promise<DownloadResult> {
+    const info = this.getModelInfo(model);
+    const targetPath = this.getModelPath(model);
+    const tempPath = `${targetPath}.download`;
+    this.downloadErrors.delete(model);
+    this.downloadProgress.delete(model);
     this.log(`Starting download: ${model} (${info.sizeMB}MB)`);
 
     return new Promise((resolve, reject) => {
-      let downloadedBytes = 0;
+      let downloadedBytes = existsSync(tempPath) ? statSync(tempPath).size : 0;
       let lastProgressTime = Date.now();
-      let lastDownloadedBytes = 0;
-      let aborted = false;
+      let lastDownloadedBytes = downloadedBytes;
+      let settled = false;
+      let responseStream: IncomingMessage | undefined;
+      let writeStream: ReturnType<typeof createWriteStream> | undefined;
 
-      // Create abort controller
-      const abort = (): void => {
-        aborted = true;
-        const download = this.activeDownloads.get(model);
-        if (download?.request) {
-          download.request.destroy();
-        }
-        // Keep partial download for resume
-        this.activeDownloads.delete(model);
-        this.log(`Download cancelled: ${model}`);
+      const fail = (error: Error): void => {
+        if (settled) return;
+        settled = true;
+        this.activeDownloads.get(model)?.request?.destroy();
+        responseStream?.destroy();
+        writeStream?.destroy();
+        this.handleDownloadError(error, model, tempPath);
+        reject(error);
       };
+      this.activeDownloads.set(model, { abort: () => fail(new Error(`Download cancelled: ${model}`)) });
 
-      this.activeDownloads.set(model, { abort });
-
-      // Check for partial download (resume support)
-      if (existsSync(tempPath)) {
-        const stats = statSync(tempPath);
-        downloadedBytes = stats.size;
-        lastDownloadedBytes = downloadedBytes;
-        this.log(`Resuming download from ${Math.round(downloadedBytes / 1024 / 1024)}MB`);
-      }
-
-      // Create write stream (append mode if resuming)
-      const writeStream = createWriteStream(tempPath, {
-        flags: downloadedBytes > 0 ? 'a' : 'w',
-      });
-
-      const handleResponse = (response: import('http').IncomingMessage, redirectCount: number = 0): void => {
-        if (aborted) {
-          return;
-        }
-
-        // Handle redirects (Hugging Face uses redirects)
-        if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307) {
-          if (redirectCount > 5) {
-            const error = new Error('Too many redirects');
-            this.handleDownloadError(error, model, tempPath);
-            reject(error);
-            return;
-          }
-
-          const redirectUrl = response.headers.location;
-          if (redirectUrl) {
-            this.log(`Following redirect to: ${redirectUrl.substring(0, 50)}...`);
-            const redirectRequest = https.get(
-              redirectUrl,
-              {
-                headers: downloadedBytes > 0 ? { Range: `bytes=${downloadedBytes}-` } : {},
-              },
-              (redirectResponse) => {
-                handleResponse(redirectResponse, redirectCount + 1);
-              }
-            );
-
-            redirectRequest.on('error', (error) => {
-              this.handleDownloadError(error, model, tempPath);
-              reject(error);
-            });
-
-            // Store request for abort
-            const download = this.activeDownloads.get(model);
-            if (download) {
-              download.request = redirectRequest;
-            }
-            return;
-          }
-        }
-
-        // Handle partial content (resume) or full content
-        if (response.statusCode !== 200 && response.statusCode !== 206) {
-          const error = new Error(`Download failed: HTTP ${response.statusCode}`);
-          this.handleDownloadError(error, model, tempPath);
-          reject(error);
-          return;
-        }
-
-        const contentLength = parseInt(response.headers['content-length'] || '0', 10);
-        const totalBytes = downloadedBytes + contentLength;
-
-        response.on('data', (chunk: Buffer) => {
-          if (aborted) {
+      const request = (url: string, redirects = 0): void => {
+        if (settled) return;
+        const current = https.get(url, {
+          headers: downloadedBytes > 0 ? { Range: `bytes=${downloadedBytes}-` } : {},
+        }, (response) => {
+          if (settled) {
             response.destroy();
             return;
           }
+          responseStream = response;
+          response.on('error', fail);
+          response.on('aborted', () => fail(new Error('Whisper model download interrupted')));
+          if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
+            const location = response.headers.location;
+            if (!location || redirects >= 5) {
+              fail(new Error('Invalid or excessive model download redirects'));
+              return;
+            }
+            response.resume();
+            try {
+              request(new URL(location, url).href, redirects + 1);
+            } catch (error) {
+              fail(error instanceof Error ? error : new Error(String(error)));
+            }
+            return;
+          }
+          if (response.statusCode !== 200 && response.statusCode !== 206) {
+            if (response.statusCode === 416 && downloadedBytes > 0) {
+              downloadedBytes = 0;
+              response.resume();
+              request(info.url);
+              return;
+            }
+            fail(new Error(`Download failed: HTTP ${response.statusCode}`));
+            return;
+          }
 
-          downloadedBytes += chunk.length;
-
-          // Calculate progress
-          const now = Date.now();
-          const timeDelta = (now - lastProgressTime) / 1000;
-
-          if (timeDelta >= 0.1) {
-            // Update every 100ms
-            const bytesDelta = downloadedBytes - lastDownloadedBytes;
-            const speedBps = timeDelta > 0 ? bytesDelta / timeDelta : 0;
-            const remainingBytes = totalBytes - downloadedBytes;
-            const estimatedSecondsRemaining = speedBps > 0 ? remainingBytes / speedBps : 0;
-
+          // A server may ignore Range and send the entire file again.
+          if (response.statusCode === 200) downloadedBytes = 0;
+          lastDownloadedBytes = downloadedBytes;
+          const totalBytes = downloadedBytes + Number(response.headers['content-length'] || 0);
+          writeStream = createWriteStream(tempPath, { flags: downloadedBytes > 0 ? 'a' : 'w' });
+          writeStream.on('error', fail);
+          response.on('data', (chunk: Buffer) => {
+            if (settled) return;
+            downloadedBytes += chunk.length;
+            const now = Date.now();
+            const timeDelta = (now - lastProgressTime) / 1000;
+            if (timeDelta < 0.1) return;
+            const speedBps = (downloadedBytes - lastDownloadedBytes) / timeDelta;
             const progress: DownloadProgress = {
               model,
               downloadedBytes,
               totalBytes,
-              percent: totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0,
+              percent: totalBytes > 0 ? Math.min(100, Math.round(downloadedBytes / totalBytes * 100)) : 0,
               speedBps: Math.round(speedBps),
-              estimatedSecondsRemaining: Math.round(estimatedSecondsRemaining),
+              estimatedSecondsRemaining: speedBps > 0 ? Math.max(0, (totalBytes - downloadedBytes) / speedBps) : 0,
             };
-
-            this.progressCallbacks.forEach((cb) => cb(progress));
+            this.downloadProgress.set(model, progress);
+            this.progressCallbacks.forEach((callback) => callback(progress));
             this.emit('progress', progress);
-
             lastProgressTime = now;
             lastDownloadedBytes = downloadedBytes;
-          }
-        });
+          });
 
-        response.pipe(writeStream);
-
-        writeStream.on('finish', () => {
-          if (aborted) {
-            return;
-          }
-
-          this.activeDownloads.delete(model);
-
-          // Rename temp file to final
-          try {
-            renameSync(tempPath, targetPath);
-          } catch (renameError) {
-            this.handleDownloadError(renameError as Error, model, tempPath);
-            reject(renameError);
-            return;
-          }
-
-          // Verify download
-          if (this.isModelDownloaded(model)) {
+          writeStream.on('finish', () => {
+            if (settled) return;
+            try {
+              if (!this.isModelFileValid(model, tempPath)) {
+                fail(new Error('Downloaded file size mismatch - download may be corrupted'));
+                return;
+              }
+              renameSync(tempPath, targetPath);
+            } catch (error) {
+              fail(error instanceof Error ? error : new Error(String(error)));
+              return;
+            }
+            settled = true;
+            this.activeDownloads.delete(model);
             const result: DownloadResult = { success: true, model, path: targetPath };
             this.completeCallbacks.forEach((cb) => cb(result));
             this.emit('complete', result);
             this.log(`Download complete: ${model}`);
             resolve(result);
-          } else {
-            const error = new Error('Downloaded file size mismatch - download may be corrupted');
-            this.handleDownloadError(error, model, targetPath);
-            reject(error);
-          }
+          });
+          response.pipe(writeStream);
         });
-
-        writeStream.on('error', (error) => {
-          this.handleDownloadError(error, model, tempPath);
-          reject(error);
-        });
+        current.on('error', fail);
+        current.setTimeout(30_000, () => fail(new Error('Whisper model download timed out')));
+        const active = this.activeDownloads.get(model);
+        if (active) active.request = current;
       };
-
-      // Make initial HTTP request
-      const request = https.get(
-        info.url,
-        {
-          headers: downloadedBytes > 0 ? { Range: `bytes=${downloadedBytes}-` } : {},
-        },
-        (response) => {
-          handleResponse(response);
-        }
-      );
-
-      request.on('error', (error) => {
-        this.handleDownloadError(error, model, tempPath);
-        reject(error);
-      });
-
-      // Store request for abort
-      const download = this.activeDownloads.get(model);
-      if (download) {
-        download.request = request;
+      try {
+        request(info.url);
+      } catch (error) {
+        fail(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
@@ -469,10 +434,11 @@ export class ModelDownloadManager extends EventEmitter {
 
   private handleDownloadError(error: Error, model: WhisperModel, _tempPath: string): void {
     this.activeDownloads.delete(model);
+    this.downloadErrors.set(model, error.message);
 
     // Keep partial download for resume (don't delete tempPath)
     this.errorCallbacks.forEach((cb) => cb(error, model));
-    this.emit('error', error, model);
+    if (this.listenerCount('error') > 0) this.emit('error', error, model);
     this.logError(`Download failed: ${model}`, error);
   }
 

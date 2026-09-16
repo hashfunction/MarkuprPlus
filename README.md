@@ -275,6 +275,15 @@ Marked issues are numbered `MX-001…`; items that come from narration alone are
   </tr>
 </table>
 
+## Local Transcription
+
+On desktop startup, MarkuprPlus downloads the multilingual Whisper **tiny**
+model (~75 MB) in the background if no local model is installed. Existing
+models are reused. Download progress and retryable errors appear under
+**Settings > Advanced > Local Transcription**. Interrupted downloads resume on
+the next startup; offline or failed downloads do not block opening the app.
+Once downloaded, local transcription works without an internet connection.
+
 ## Interface Language
 
 The desktop interface defaults to **English**, including when upgrading from an

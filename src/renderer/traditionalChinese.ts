@@ -6,6 +6,7 @@ import type { UiTranslationCatalog } from './i18n/catalogs';
 
 const EXACT_TRANSLATIONS: Record<string, string> = {
   'Interface language': '介面語言',
+  'Downloading local transcription model': '正在下載本機轉錄模型',
   'English by default. Changes apply immediately.': '預設為英文。變更會立即套用。',
   'Recording Active': '正在錄製',
   'Latest Report Path': '最新報告位置',
@@ -531,6 +532,7 @@ const EXACT_TRANSLATIONS: Record<string, string> = {
 };
 
 const FRAGMENT_TRANSLATIONS: Array<[string, string]> = [
+  ['You can keep using the app.', '您可以繼續使用應用程式。'],
   ['Welcome to ', '歡迎使用 '],
   [' and intelligent screenshots.', ' 與智慧螢幕截圖。'],
   ['MarkuprPlus needs microphone access to transcribe your voice narration as you', 'MarkuprPlus 需要麥克風權限，才能在你'],
