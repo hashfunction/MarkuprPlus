@@ -18,7 +18,7 @@ export type TranscriptionTier = 'whisper' | 'timer-only';
 /**
  * Whisper model sizes available for download
  */
-export type WhisperModel = 'tiny' | 'base' | 'small' | 'medium' | 'large';
+export type WhisperModel = 'tiny' | 'base' | 'small' | 'medium' | 'large' | 'large-turbo';
 
 /**
  * Status of a transcription tier
@@ -83,6 +83,8 @@ export interface WhisperConfig {
   language: string;
   threads: number;
   translateToEnglish: boolean;
+  /** Vocabulary/style hint passed to whisper.cpp as its initial prompt. */
+  initialPrompt: string;
 }
 
 // ============================================================================

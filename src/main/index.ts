@@ -63,6 +63,7 @@ import { getSettingsManager, type SettingsManager } from './settings';
 import { fileManager, clipboardService, generateDocumentForFileManager, adaptSessionForReview } from './output';
 import { processSession as aiProcessSession } from './ai';
 import { modelDownloadManager } from './transcription/ModelDownloadManager';
+import { whisperService } from './transcription/WhisperService';
 import { errorHandler } from './ErrorHandler';
 import { crashRecovery, type RecoverableFeedbackItem } from './CrashRecovery';
 import {
@@ -1902,6 +1903,13 @@ app.whenReady().then(async () => {
     });
     fileManager.setOutputDirectory(outputRoot);
   }
+  const localWhisperPrompt = settingsManager.get('localWhisperPrompt');
+  whisperService.setInitialPrompt(localWhisperPrompt);
+  settingsManager.onChange((key, value) => {
+    if (key === 'localWhisperPrompt' && typeof value === 'string') {
+      whisperService.setInitialPrompt(value);
+    }
+  });
   console.log('[Main] Settings loaded');
 
   // 3. Determine onboarding readiness from persisted flag or BYOK keys + transcription path

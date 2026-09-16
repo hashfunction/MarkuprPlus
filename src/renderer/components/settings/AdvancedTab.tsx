@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type {
   AnalysisProviderStatus,
   AppSettings,
@@ -76,6 +76,18 @@ export const AdvancedTab: React.FC<{
   onResetSection,
 }) => {
   const { colors } = useTheme();
+  const [whisperPromptDraft, setWhisperPromptDraft] = useState(settings.localWhisperPrompt);
+
+  useEffect(() => {
+    setWhisperPromptDraft(settings.localWhisperPrompt);
+  }, [settings.localWhisperPrompt]);
+
+  const saveWhisperPrompt = () => {
+    if (whisperPromptDraft !== settings.localWhisperPrompt) {
+      onSettingChange('localWhisperPrompt', whisperPromptDraft);
+    }
+  };
+
   return (
   <div style={styles.tabContent}>
     {currentDistribution() === 'mas' && (
@@ -137,6 +149,33 @@ export const AdvancedTab: React.FC<{
             {isRepairingLocalTranscription ? 'Downloading…' : 'Repair local transcription'}
           </button>
         )}
+      </div>
+    </SettingsSection>
+
+    <SettingsSection
+      title="Whisper Vocabulary Hints"
+      description="Give local Whisper the terms and context you use most often. Changes apply to the next transcription."
+    >
+      <div style={styles.settingRowVertical}>
+        <div style={styles.settingInfo}>
+          <span style={styles.settingLabel}>Game and UI terminology</span>
+          <span style={styles.settingDescription}>
+            Add terms such as icon, button, animation, HUD, card, potion, and other project-specific words. Separate terms with commas or sentences.
+          </span>
+        </div>
+        <textarea
+          value={whisperPromptDraft}
+          onChange={(event) => setWhisperPromptDraft(event.target.value)}
+          onBlur={saveWhisperPrompt}
+          maxLength={2000}
+          rows={5}
+          spellCheck={false}
+          aria-label="Whisper vocabulary hints"
+          style={styles.textarea}
+        />
+        <span style={styles.settingDescription}>
+          {whisperPromptDraft.length}/2000 · This hint is stored locally and sent only to your local Whisper process.
+        </span>
       </div>
     </SettingsSection>
 

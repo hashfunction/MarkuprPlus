@@ -207,7 +207,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
   ipcMain.handle(IPC_CHANNELS.WHISPER_CHECK_MODEL, () => {
     const hasAnyModel = modelDownloadManager.hasAnyModel();
     const downloadedModels: string[] = [];
-    const models: WhisperModel[] = ['tiny', 'base', 'small', 'medium', 'large'];
+    const models: WhisperModel[] = ['tiny', 'base', 'small', 'medium', 'large-turbo', 'large'];
 
     for (const model of models) {
       if (modelDownloadManager.isModelDownloaded(model)) {
@@ -244,7 +244,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
     }));
   });
 
-  const ALLOWED_WHISPER_MODELS = new Set<string>(['tiny', 'base', 'small', 'medium', 'large']);
+  const ALLOWED_WHISPER_MODELS = new Set<string>(['tiny', 'base', 'small', 'medium', 'large-turbo', 'large']);
 
   ipcMain.handle(IPC_CHANNELS.WHISPER_DOWNLOAD_MODEL, async (_, model: unknown) => {
     if (typeof model !== 'string' || !ALLOWED_WHISPER_MODELS.has(model)) {

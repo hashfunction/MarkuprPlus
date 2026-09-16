@@ -65,6 +65,15 @@ const MODEL_INFO: Record<WhisperModel, ModelInfo> = {
     quality: 'High - Recommended default',
     url: `${HUGGINGFACE_BASE_URL}/ggml-medium.bin`,
   },
+  'large-turbo': {
+    name: 'large-turbo',
+    filename: 'ggml-large-v3-turbo-q5_0.bin',
+    sizeBytes: 574_000_000,
+    sizeMB: 574,
+    ramRequired: '~3.6GB',
+    quality: 'Very high - Fast large-v3 variant',
+    url: `${HUGGINGFACE_BASE_URL}/ggml-large-v3-turbo-q5_0.bin`,
+  },
   large: {
     name: 'large',
     filename: 'ggml-large-v3.bin',
@@ -154,8 +163,8 @@ export class ModelDownloadManager extends EventEmitter {
    * Get the default (best available) model
    */
   getDefaultModel(): WhisperModel {
-    // Prefer medium, fall back to smaller models
-    const preference: WhisperModel[] = ['medium', 'small', 'base', 'tiny'];
+    // Prefer the highest-quality locally available model.
+    const preference: WhisperModel[] = ['large-turbo', 'medium', 'small', 'base', 'tiny', 'large'];
 
     for (const model of preference) {
       if (this.isModelDownloaded(model)) {
@@ -170,7 +179,7 @@ export class ModelDownloadManager extends EventEmitter {
    * Check if any Whisper model is downloaded
    */
   hasAnyModel(): boolean {
-    const models: WhisperModel[] = ['tiny', 'base', 'small', 'medium', 'large'];
+    const models: WhisperModel[] = ['tiny', 'base', 'small', 'medium', 'large-turbo', 'large'];
     return models.some((model) => this.isModelDownloaded(model));
   }
 
