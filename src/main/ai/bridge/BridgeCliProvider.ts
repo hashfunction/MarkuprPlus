@@ -8,6 +8,7 @@ import { CliBridgeClient, CliBridgeClientError } from './CliBridgeClient';
 export const BRIDGE_CLI_PROVIDER_NAMES: Record<CliBridgeProvider, string> = {
   'codex-cli': 'Codex CLI',
   'claude-cli': 'Claude Code CLI',
+  'github-copilot-cli': 'GitHub Copilot CLI',
   'opencode-cli': 'OpenCode',
   'cursor-cli': 'Cursor Agent CLI',
   'qwen-cli': 'Qwen Code',

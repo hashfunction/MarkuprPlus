@@ -41,6 +41,7 @@ describe('CLI bridge protocol', () => {
     expect(CLI_BRIDGE_PROVIDER_IDS).toEqual([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
       'opencode-cli',
       'cursor-cli',
       'qwen-cli',
@@ -57,6 +58,10 @@ describe('CLI bridge protocol', () => {
     });
     expect(() => parseBridgeAnalyzeRequest(request({ provider: 'ollama' as never })))
       .toThrow(/unsupported provider/i);
+    expect(parseBridgeAnalyzeRequest(request({
+      provider: 'github-copilot-cli',
+      modelId: 'gpt-5-mini',
+    }))).toMatchObject({ provider: 'github-copilot-cli', modelId: 'gpt-5-mini' });
   });
 
   it('rejects unknown properties and unsafe model identifiers', () => {

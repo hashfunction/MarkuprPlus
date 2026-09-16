@@ -17,6 +17,7 @@ import { runCliProcess } from '../CliProcessRunner';
 import type { CliProcessOptions, CliProcessResult } from '../CliProcessRunner';
 import type { AIAnalysisResult } from '../types';
 import type { AnalysisProviderAdapter } from './types';
+import { prepareCopilotEnvironment } from './CopilotCliConfig';
 
 const PROBE_TIMEOUT_MS = 5_000;
 const ANALYSIS_TIMEOUT_MS = 180_000;
@@ -29,6 +30,7 @@ export interface CliProviderProfile {
   executables: string[];
   versionArgs?: string[];
   minimumMajorVersion?: number;
+  minimumVersion?: string;
   promptViaStdin?: boolean;
   supportsImages?: boolean;
   requiredEnvironmentVariable?: string;
@@ -51,6 +53,31 @@ function addImages(args: string[], imagePaths: string[], flag: string): string[]
 }
 
 export const CLI_PROVIDER_PROFILES: CliProviderProfile[] = [
+  {
+    id: 'github-copilot-cli',
+    name: 'GitHub Copilot CLI',
+    executables: ['copilot'],
+    minimumVersion: '1.0.83',
+    promptViaStdin: true,
+    supportsImages: true,
+    buildArgs: ({ modelId, imagePaths }) => addModel(addImages([
+      // Omit -p: Copilot reads piped stdin only when no prompt argument is supplied.
+      // An empty --available-tools list means "all" in Copilot, not "none".
+      '--excluded-tools=builtin:*,mcp:*,custom:*',
+      '--disable-builtin-mcps',
+      '--no-custom-instructions',
+      '--no-ask-user',
+      '--no-auto-update',
+      '--no-remote',
+      '--no-remote-export',
+      '--no-experimental',
+      '--no-bash-env',
+      '--silent',
+      '--output-format', 'json',
+      '--stream', 'off',
+      '--log-level', 'none',
+    ], imagePaths, '--attachment'), modelId),
+  },
   {
     id: 'opencode-cli',
     name: 'OpenCode',
@@ -158,6 +185,15 @@ const strictAnalysisSchema = z.object({
   }).strict(),
 }).strict();
 
+const copilotCompletionSchema = z.object({ type: z.literal('result'), exitCode: z.literal(0) });
+const copilotMessageSchema = z.object({
+  type: z.literal('assistant.message'),
+  data: z.object({
+    content: z.string(),
+    toolRequests: z.array(z.unknown()).max(0).optional(),
+  }),
+});
+
 function tryAnalysis(candidate: string): AIAnalysisResult | null {
   try {
     strictAnalysisSchema.parse(JSON.parse(candidate));
@@ -222,6 +258,17 @@ export function extractCliAnalysisResult(output: string): AIAnalysisResult {
 
   const values = parseJsonValues(trimmed);
   const records = values.flatMap((value) => Array.isArray(value) ? value : [value]);
+  if (copilotCompletionSchema.safeParse(records.at(-1)).success) {
+    const lastMessage = [...records].reverse().find((record) => (
+      record !== null && typeof record === 'object'
+      && 'type' in record && record.type === 'assistant.message'
+    ));
+    const message = copilotMessageSchema.safeParse(lastMessage);
+    if (message.success) {
+      const parsed = tryAnalysis(message.data.data.content);
+      if (parsed) return parsed;
+    }
+  }
   const terminalCandidates = records
     .map(terminalCandidate)
     .filter((candidate): candidate is string => candidate !== null);
@@ -302,6 +349,17 @@ function sanitizeCliDetail(value: string): string {
     .slice(0, 240);
 }
 
+function meetsMinimumVersion(version: string, minimum: string): boolean {
+  const match = version.match(/(?:^|\s)(\d+)\.(\d+)\.(\d+)(?=[\s.]|$)/);
+  if (!match) return false;
+  const actual = match.slice(1).map(Number);
+  const required = minimum.split('.').map(Number);
+  for (let index = 0; index < required.length; index += 1) {
+    if (actual[index] !== required[index]) return actual[index] > required[index];
+  }
+  return true;
+}
+
 function openCodeConfiguration(): object {
   return {
     $schema: 'https://opencode.ai/config.json',
@@ -379,6 +437,20 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
       });
     }
     const version = versionResult.stdout.trim().split(/\r?\n/, 1)[0];
+    if (this.profile.minimumVersion && !meetsMinimumVersion(version, this.profile.minimumVersion)) {
+      return this.cache({
+        id: this.id,
+        name: this.name,
+        connection: 'cli',
+        installed: true,
+        executablePath,
+        ...(version ? { version } : {}),
+        authenticated: false,
+        ready: false,
+        models: [defaultModel],
+        diagnostic: `${this.name} ${this.profile.minimumVersion} or newer is required for tool-free report generation. Update ${this.profile.executables[0]}, then scan again.`,
+      });
+    }
     if (this.profile.minimumMajorVersion) {
       const majorVersion = Number.parseInt(version.match(/\d+/)?.[0] || '', 10);
       if (!Number.isFinite(majorVersion) || majorVersion < this.profile.minimumMajorVersion) {
@@ -434,7 +506,7 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
       throw new Error('The session has no transcript or screenshots to analyze.');
     }
     if (transcript === '[No transcript available]' && !this.profile.supportsImages) {
-      throw new Error(`${this.name} cannot analyze a screenshot-only session. Choose Codex CLI or OpenCode.`);
+      throw new Error(`${this.name} cannot analyze a screenshot-only session. Choose Codex CLI, GitHub Copilot CLI, or OpenCode.`);
     }
 
     const temporaryDirectory = await mkdtemp(join(tmpdir(), `markuprx-${this.id}-`));
@@ -479,6 +551,13 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
             OPENCODE_CONFIG_CONTENT: JSON.stringify(openCodeConfiguration()),
           }
         : {};
+      const copilotEnvironment = this.profile.id === 'github-copilot-cli'
+        ? await prepareCopilotEnvironment(
+            temporaryDirectory,
+            this.dependencies.env,
+            this.dependencies.homeDirectory,
+          )
+        : {};
       const result = await this.dependencies.run({
         executable: status.executablePath,
         args: this.profile.buildArgs({
@@ -493,6 +572,7 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
           ...buildCliEnvironment(status.executablePath, this.dependencies.env),
           ...this.profile.environment,
           ...openCodeEnvironment,
+          ...copilotEnvironment,
           CI: '1',
           NO_COLOR: '1',
         },

@@ -104,6 +104,7 @@ describe('AnalysisProviderRegistry', () => {
     expect([
       'codex-cli',
       'claude-cli',
+      'github-copilot-cli',
       'opencode-cli',
       'cursor-cli',
       'qwen-cli',
@@ -114,6 +115,7 @@ describe('AnalysisProviderRegistry', () => {
     ].map((id) => registry.get(id as never))).toMatchObject([
       { id: 'codex-cli', name: 'Codex CLI', connection: 'cli' },
       { id: 'claude-cli', name: 'Claude Code CLI', connection: 'cli' },
+      { id: 'github-copilot-cli', name: 'GitHub Copilot CLI', connection: 'cli' },
       { id: 'opencode-cli', name: 'OpenCode', connection: 'cli' },
       { id: 'cursor-cli', name: 'Cursor Agent CLI', connection: 'cli' },
       { id: 'qwen-cli', name: 'Qwen Code', connection: 'cli' },
@@ -139,6 +141,7 @@ describe('AnalysisProviderRegistry', () => {
 
     expect(registry.get('codex-cli')).toBeInstanceOf(BridgeCliProvider);
     expect(registry.get('claude-cli')).toBeInstanceOf(BridgeCliProvider);
+    expect(registry.get('github-copilot-cli')).toBeInstanceOf(BridgeCliProvider);
     expect(registry.get('opencode-cli')).toBeInstanceOf(BridgeCliProvider);
     expect(registry.get('ollama')).toMatchObject({ id: 'ollama' });
     expect(registry.get('lmstudio')).toMatchObject({ id: 'lmstudio' });
@@ -155,6 +158,7 @@ describe('AnalysisProviderRegistry', () => {
     });
 
     expect(registry.get('codex-cli')).not.toBeInstanceOf(BridgeCliProvider);
+    expect(registry.get('github-copilot-cli')).not.toBeInstanceOf(BridgeCliProvider);
     expect(registry.get('opencode-cli')).not.toBeInstanceOf(BridgeCliProvider);
   });
 });

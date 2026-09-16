@@ -13,6 +13,7 @@ export const CLI_BRIDGE_MAX_SESSION_ITEMS = 2_000;
 export const CLI_BRIDGE_PROVIDER_IDS = [
   'codex-cli',
   'claude-cli',
+  'github-copilot-cli',
   'opencode-cli',
   'cursor-cli',
   'qwen-cli',
