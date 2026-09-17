@@ -187,6 +187,7 @@ export const styles: Record<string, ExtendedCSSProperties> = {
     resize: 'vertical',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
+    overflow: 'hidden',
   },
 
   // Toggle

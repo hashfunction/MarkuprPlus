@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AnalysisProviderStatus,
   AppSettings,
@@ -77,10 +77,26 @@ export const AdvancedTab: React.FC<{
 }) => {
   const { colors } = useTheme();
   const [whisperPromptDraft, setWhisperPromptDraft] = useState(settings.localWhisperPrompt);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const resizeTextarea = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(110, el.scrollHeight)}px`;
+  }, []);
+
+  const setTextareaRef = useCallback((el: HTMLTextAreaElement | null) => {
+    textareaRef.current = el;
+    resizeTextarea(el);
+  }, [resizeTextarea]);
 
   useEffect(() => {
     setWhisperPromptDraft(settings.localWhisperPrompt);
   }, [settings.localWhisperPrompt]);
+
+  useEffect(() => {
+    resizeTextarea(textareaRef.current);
+  }, [whisperPromptDraft, resizeTextarea]);
 
   const saveWhisperPrompt = () => {
     if (whisperPromptDraft !== settings.localWhisperPrompt) {
@@ -164,11 +180,13 @@ export const AdvancedTab: React.FC<{
           </span>
         </div>
         <textarea
+          ref={setTextareaRef}
           value={whisperPromptDraft}
-          onChange={(event) => setWhisperPromptDraft(event.target.value)}
+          onChange={(event) => {
+            setWhisperPromptDraft(event.target.value);
+          }}
           onBlur={saveWhisperPrompt}
           maxLength={2000}
-          rows={5}
           spellCheck={false}
           aria-label="Whisper vocabulary hints"
           style={styles.textarea}
