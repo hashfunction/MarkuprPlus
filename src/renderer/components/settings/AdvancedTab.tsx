@@ -104,6 +104,9 @@ export const AdvancedTab: React.FC<{
     }
   };
 
+  const downloadStatus = whisperModelStatus?.downloadStatus;
+  const downloading = isRepairingLocalTranscription || Boolean(downloadStatus?.isDownloading);
+  const downloadError = localTranscriptionError || downloadStatus?.error;
   return (
   <div style={styles.tabContent}>
     {currentDistribution() === 'mas' && (
@@ -138,20 +141,24 @@ export const AdvancedTab: React.FC<{
           <span style={styles.settingLabel}>
             {whisperModelStatus?.hasAnyModel
               ? 'Local transcription ready'
-              : whisperModelStatus
+              : downloading
+                ? 'Downloading local transcription model'
+                : whisperModelStatus
                 ? 'Local transcription needs repair'
                 : 'Checking local transcription…'}
           </span>
           <span style={styles.settingDescription}>
             {whisperModelStatus?.hasAnyModel
               ? `Managed model: ${whisperModelStatus.defaultModel ?? whisperModelStatus.downloadedModels[0]}`
-              : whisperModelStatus
+              : downloading
+                ? `Downloading ${downloadStatus?.model ?? 'tiny'}${downloadStatus?.percent != null ? ` (${downloadStatus.percent}%)` : ''}. You can keep using the app.`
+                : whisperModelStatus
                 ? `Download the managed ${whisperModelStatus.recommendedModel} model for automatic local transcription.`
                 : 'Checking the managed local transcription model.'}
           </span>
-          {localTranscriptionError && (
+          {downloadError && (
             <span style={{ ...styles.settingDescription, color: colors.status.error }}>
-              {localTranscriptionError}
+              {downloadError}
             </span>
           )}
         </div>
@@ -160,9 +167,9 @@ export const AdvancedTab: React.FC<{
             type="button"
             style={styles.secondaryButton}
             onClick={onRepairLocalTranscription}
-            disabled={isRepairingLocalTranscription}
+            disabled={downloading}
           >
-            {isRepairingLocalTranscription ? 'Downloading…' : 'Repair local transcription'}
+            {downloading ? 'Downloading…' : 'Repair local transcription'}
           </button>
         )}
       </div>

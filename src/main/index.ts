@@ -2043,6 +2043,13 @@ app.whenReady().then(async () => {
   setupIPC();
   setupElectronTestHarnessIPC();
 
+  if ((!electronTestHarnessAllowed() || process.env.MARKUPRX_E2E_DOWNLOAD_MODELS === '1')
+    && process.env.MARKUPRX_PACKAGE_SMOKE !== '1') {
+    void modelDownloadManager.ensureDefaultModel().catch((error: unknown) => {
+      console.warn('[Main] Automatic Whisper download failed. Retry in Settings > Advanced > Local Transcription:', error);
+    });
+  }
+
   // 11. Configure session controller event callbacks
   sessionController.setEventCallbacks({
     onStateChange: handleSessionStateChange,
@@ -2090,6 +2097,9 @@ app.on('window-all-closed', () => {
 // Handle before quit
 app.on('before-quit', () => {
   isQuitting = true;
+  for (const model of modelDownloadManager.getAvailableModels()) {
+    modelDownloadManager.cancelDownload(model.name);
+  }
 });
 
 // Handle app quit

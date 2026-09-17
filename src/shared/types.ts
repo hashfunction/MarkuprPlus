@@ -884,12 +884,20 @@ export interface WhisperModelInfoPayload {
 /**
  * Whisper model check result
  */
+export interface WhisperModelDownloadStatus {
+  model: string;
+  isDownloading: boolean;
+  percent: number | null;
+  error: string | null;
+}
+
 export interface WhisperModelCheckResult {
   hasAnyModel: boolean;
   defaultModel: string | null;
   downloadedModels: string[];
   recommendedModel: string;
   recommendedModelSizeMB: number;
+  downloadStatus?: WhisperModelDownloadStatus;
 }
 
 /**

@@ -138,6 +138,39 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
 
   useEffect(() => {
     if (!isOpen) return;
+    let active = true;
+    const refresh = () => {
+      void window.markuprx.whisper.checkModel().then((status) => {
+        if (active) setWhisperModelStatus(status);
+      }).catch((error: unknown) => {
+        if (active) setLocalTranscriptionError(
+          error instanceof Error ? error.message : 'Unable to check the local transcription model.',
+        );
+      });
+    };
+    const unsubscribeProgress = window.markuprx.whisper.onDownloadProgress((progress) => {
+      setLocalTranscriptionError(null);
+      setWhisperModelStatus((previous) => previous && ({
+        ...previous,
+        downloadStatus: { model: progress.model, isDownloading: true, percent: progress.percent, error: null },
+      }));
+    });
+    const unsubscribeComplete = window.markuprx.whisper.onDownloadComplete(refresh);
+    const unsubscribeError = window.markuprx.whisper.onDownloadError(({ error }) => {
+      setLocalTranscriptionError(error);
+      refresh();
+    });
+    refresh();
+    return () => {
+      active = false;
+      unsubscribeProgress();
+      unsubscribeComplete();
+      unsubscribeError();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const loadSettings = async () => {
       try {
@@ -145,11 +178,10 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
         const loadedSettings = { ...DEFAULT_SETTINGS, ...allSettings };
         setSettings(loadedSettings);
 
-        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, localModelStatus, bridgeStatus] = await Promise.all([
+        const [devices, providerStatuses, { hasOpenAiKey, hasAnthropicKey }, bridgeStatus] = await Promise.all([
           window.markuprx.audio.getDevices(),
           refreshAnalysisProviders(false),
           getApiKeyPresence(),
-          window.markuprx.whisper.checkModel().catch(() => null),
           IS_MAS_DISTRIBUTION
             ? window.markuprx.cliBridge.status().catch((): CliBridgeConnectionStatus => ({
                 state: 'offline',
@@ -159,7 +191,6 @@ export function useSettingsPanel(isOpen: boolean, onClose: () => void, initialTa
             : Promise.resolve(null),
         ]);
         setAudioDevices(devices);
-        setWhisperModelStatus(localModelStatus);
         setCliBridgeStatus(bridgeStatus);
         if (hasOpenAiKey) {
           setOpenAiApiKey((prev) => ({ ...prev, value: MASKED_API_KEY_PLACEHOLDER, valid: true }));
