@@ -28,7 +28,7 @@
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/nightly.yml"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/nightly.yml/badge.svg" alt="Nightly"></a>
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml/badge.svg?branch=main" alt="Deploy"></a>
   <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/test-action.yml"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/test-action.yml/badge.svg" alt="Action"></a>
-  <a href="https://codecov.io/gh/hashfunction/MarkuprPlus"><img src="https://codecov.io/gh/hashfunction/MarkuprPlus/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/hashfunction/MarkuprPlus/badges/coverage.json" alt="Coverage"></a>
 </p>
 
 <p align="center">

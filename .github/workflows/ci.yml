@@ -78,13 +78,45 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:ci
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
-          verbose: true
+      - name: Coverage summary
+        run: |
+          SUMMARY=$(node -e "
+            const r = require('./coverage/coverage-summary.json').total;
+            const fmt = (m) => m.pct.toFixed(1) + '%';
+            console.log('| Metric | Coverage |');
+            console.log('|--------|----------|');
+            console.log('| Statements | ' + fmt(r.statements) + ' |');
+            console.log('| Branches   | ' + fmt(r.branches) + ' |');
+            console.log('| Functions  | ' + fmt(r.functions) + ' |');
+            console.log('| Lines      | ' + fmt(r.lines) + ' |');
+          ")
+          echo "### Coverage" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update coverage badge
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          LINES_PCT=$(node -p "require('./coverage/coverage-summary.json').total.lines.pct")
+          # Pick badge color
+          COLOR="red"
+          if (( $(echo "$LINES_PCT >= 80" | bc -l) )); then COLOR="brightgreen"
+          elif (( $(echo "$LINES_PCT >= 60" | bc -l) )); then COLOR="green"
+          elif (( $(echo "$LINES_PCT >= 40" | bc -l) )); then COLOR="yellowgreen"
+          elif (( $(echo "$LINES_PCT >= 20" | bc -l) )); then COLOR="yellow"
+          elif (( $(echo "$LINES_PCT >= 10" | bc -l) )); then COLOR="orange"
+          fi
+          mkdir -p /tmp/badges
+          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${LINES_PCT}%\",\"color\":\"${COLOR}\"}" \
+            > /tmp/badges/coverage.json
+          # Push to badges branch
+          cd /tmp/badges
+          git init
+          git checkout -b badges
+          git add coverage.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Update coverage badge: ${LINES_PCT}%"
+          git push --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" badges
 
   # ===========================================================================
   # Real Electron UI & Media Pipeline
