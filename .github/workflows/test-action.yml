@@ -156,6 +156,7 @@ jobs:
 
       - name: Generate test video
         run: |
+          mkdir -p recordings
           ffmpeg -f lavfi -i "color=c=red:s=640x480:d=3" \
                  -f lavfi -i "anullsrc=r=44100:cl=mono" \
                  -shortest -c:v libx264 -preset ultrafast -c:a aac \
