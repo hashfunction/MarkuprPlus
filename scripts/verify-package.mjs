@@ -96,22 +96,40 @@ function plistString(plist, key) {
   return match?.[1] ?? null;
 }
 
+async function probeMacExecutableArch(resources) {
+  const appDir = dirname(dirname(resources));
+  const macosDir = join(appDir, 'Contents', 'MacOS');
+  const entries = await readdir(macosDir).catch(() => []);
+  const executable = entries.find((name) => !name.startsWith('.'));
+  if (!executable) return null;
+  const binary = await readFile(join(macosDir, executable));
+  const architectures = nativeBinaryArchitectures(binary);
+  if (architectures.includes('x64') && architectures.includes('arm64')) return 'mac-universal';
+  if (architectures.includes('arm64')) return 'mac-arm64';
+  if (architectures.includes('x64')) return 'mac-x64';
+  return null;
+}
+
 function packagedLayout(resources) {
   const normalized = resources.replaceAll('\\', '/').toLowerCase();
   const layouts = [
     ['mac-universal', /\/(?:mac|mas)-universal\/[^/]+\.app\/contents\/resources$/],
     ['mac-arm64', /\/mac-arm64\/[^/]+\.app\/contents\/resources$/],
-    ['mac-native', /\/mac\/[^/]+\.app\/contents\/resources$/],
+    ['mac-probe', /\/mac\/[^/]+\.app\/contents\/resources$/],
     ['win-arm64', /\/win-arm64-unpacked\/resources$/],
     ['win-x64', /\/win-unpacked\/resources$/],
     ['linux-arm64', /\/linux-arm64-unpacked\/resources$/],
     ['linux-x64', /\/linux-unpacked\/resources$/],
   ];
-  const match = layouts.find(([, pattern]) => pattern.test(normalized))?.[0] ?? null;
-  if (match === 'mac-native') {
-    return process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64';
+  return layouts.find(([, pattern]) => pattern.test(normalized))?.[0] ?? null;
+}
+
+async function resolvedPackagedLayout(resources) {
+  const layout = packagedLayout(resources);
+  if (layout === 'mac-probe') {
+    return await probeMacExecutableArch(resources) ?? 'mac-x64';
   }
-  return match;
+  return layout;
 }
 
 async function assertPublicPackageLayout(resources) {
@@ -253,8 +271,8 @@ async function assertRuntimeAssets(resources) {
   }
 }
 
-function expectedNativeRuntime(resources) {
-  const layout = packagedLayout(resources);
+async function expectedNativeRuntime(resources) {
+  const layout = await resolvedPackagedLayout(resources);
   if (layout === 'mac-universal') {
     return {
       architectures: ['x64', 'arm64'],
@@ -364,7 +382,7 @@ for (const resources of resourceDirectories) {
   await assertRuntimeAssets(resources);
   const unpacked = join(resources, 'app.asar.unpacked', 'node_modules');
   const keytar = join(unpacked, 'keytar', 'build', 'Release', 'keytar.node');
-  const nativeRuntime = expectedNativeRuntime(resources);
+  const nativeRuntime = await expectedNativeRuntime(resources);
   const sharpRuntimes = nativeRuntime.sharp.map((runtime) => ({
     ...runtime,
     addonRoot: join(unpacked, '@img', runtime.addon),
