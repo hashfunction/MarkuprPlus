@@ -148,11 +148,9 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Build unsigned for nightly
+      # Build unsigned for nightly (unset WIN_CSC_LINK so electron-builder skips signing)
       - name: Package Windows (unsigned)
         run: npm run package:win
-        env:
-          WIN_CSC_LINK: ''
 
       - name: Rename artifacts with nightly suffix
         shell: pwsh

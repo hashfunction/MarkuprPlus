@@ -101,13 +101,17 @@ function packagedLayout(resources) {
   const layouts = [
     ['mac-universal', /\/(?:mac|mas)-universal\/[^/]+\.app\/contents\/resources$/],
     ['mac-arm64', /\/mac-arm64\/[^/]+\.app\/contents\/resources$/],
-    ['mac-x64', /\/mac\/[^/]+\.app\/contents\/resources$/],
+    ['mac-native', /\/mac\/[^/]+\.app\/contents\/resources$/],
     ['win-arm64', /\/win-arm64-unpacked\/resources$/],
     ['win-x64', /\/win-unpacked\/resources$/],
     ['linux-arm64', /\/linux-arm64-unpacked\/resources$/],
     ['linux-x64', /\/linux-unpacked\/resources$/],
   ];
-  return layouts.find(([, pattern]) => pattern.test(normalized))?.[0] ?? null;
+  const match = layouts.find(([, pattern]) => pattern.test(normalized))?.[0] ?? null;
+  if (match === 'mac-native') {
+    return process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64';
+  }
+  return match;
 }
 
 async function assertPublicPackageLayout(resources) {
