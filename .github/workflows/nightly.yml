@@ -94,11 +94,14 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Build unsigned for nightly (no code signing)
+      # Build unsigned for nightly (no code signing, arm64 only on ARM runner)
       - name: Package macOS (unsigned)
-        run: npm run package:mac:unsigned
+        run: |
+          CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --arm64 --publish never --config electron-builder.yml
+          npm run verify:package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          USE_HARD_LINKS: 'false'
 
       - name: Rename artifacts with nightly suffix
         run: |
