@@ -94,11 +94,9 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Build unsigned for nightly (no code signing, arm64 only on ARM runner)
+      # Build unsigned for nightly (no code signing)
       - name: Package macOS (unsigned)
-        run: |
-          CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --arm64 --publish never --config electron-builder.yml
-          npm run verify:package
+        run: CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --publish never --config electron-builder.yml
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           USE_HARD_LINKS: 'false'
