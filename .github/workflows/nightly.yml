@@ -158,8 +158,8 @@ jobs:
         run: |
           cd release
           Get-ChildItem -Filter "*.exe" | ForEach-Object {
-            $newName = $_.BaseName + "-nightly" + $_.Extension
-            Rename-Item $_.FullName $newName
+            $sanitized = ($_.BaseName -replace ' ', '-') + "-nightly" + $_.Extension
+            Rename-Item $_.FullName $sanitized
           }
           Get-ChildItem
 
