@@ -1,6 +1,6 @@
 # MarkuprPlus MCP Server
 
-Give your AI coding agent eyes and ears. The MarkuprPlus MCP server lets Claude Code, Cursor, and Windsurf capture screenshots and screen recordings with voice narration, plus context metadata (cursor, active app/window, focused element hints when available), then processes everything into structured, AI-ready Markdown reports.
+Give your AI coding agent eyes and ears. The MarkuprPlus MCP server lets GitHub Copilot CLI, the Claude Mac app, Codex, Claude Code, Cursor, and Windsurf capture screenshots and screen recordings with voice narration, plus context metadata (cursor, active app/window, focused element hints when available), then processes everything into structured, AI-ready Markdown reports.
 
 **Version:** 3.1.2 | **Platform:** macOS/Windows/Linux | **Protocol:** MCP (Model Context Protocol) over stdio
 
@@ -43,11 +43,54 @@ This installs both the `markuprplus` CLI and the `markuprplus-mcp` server binary
 
 ---
 
-## IDE Configuration
+## Client Configuration
+
+Install a persistent copy of the CLI and MCP server, then configure the clients you use:
+
+```bash
+npm install -g markuprplus
+markuprplus integrate copilot
+markuprplus integrate claude-desktop
+markuprplus integrate codex
+```
+
+The setup command uses absolute paths to Node.js and the installed MCP server so Mac apps launched from Finder can start it. It also supplies a PATH for dependencies such as ffmpeg. Prefer a global installation to running setup through a temporary npm cache. Re-run setup with `--force` if you move the installation or Node.js runtime.
+
+| Client | Configuration updated | Available workflow |
+|---|---|---|
+| GitHub Copilot CLI | `~/.copilot/mcp-config.json` (honors `COPILOT_HOME`) | Capture, record, analyze, and read session resources in Copilot |
+| Claude Mac app | `~/Library/Application Support/Claude/claude_desktop_config.json` and `~/.claude.json` | MCP access in Chat and local Code sessions |
+| Codex Mac app and CLI | `~/.codex/config.toml` (honors `CODEX_HOME`) | MCP access in local Codex sessions |
+
+Use `markuprplus integrate claude-code` to configure only Claude Code. The Mac app command configures Chat and Code separately because they use different MCP settings; it does not configure Cowork or cloud sessions. See [Claude's shared configuration documentation](https://code.claude.com/docs/en/desktop#shared-configuration).
+
+Add `--dry-run` to print the target paths and server entry without writing files. Setup preserves other servers and settings, creates a uniquely named `.bak` copy before changing an existing file, and rejects malformed JSON. Repeating setup is a no-op when the entry matches. Use `--force` to replace a conflicting `markuprplus` entry. Codex setup uses `codex mcp add` to preserve its TOML settings and comments; it requires Codex CLI or a discoverable Codex Mac app, but does not require login to write configuration.
+
+After setup, fully quit and restart the client. Ask it to use MarkuprPlus to capture a screenshot, or record narrated feedback with `capture_with_voice`. Approve macOS Screen Recording and Microphone access for the client when prompted. The clients retain their normal tool approval controls. [Copilot MCP setup](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers), [Claude local MCP setup](https://modelcontextprotocol.io/docs/develop/connect-local-servers), [Codex MCP configuration](https://developers.openai.com/codex/mcp).
+
+### Analysis inside MarkuprPlus
+
+MCP lets the client operate MarkuprPlus. To have MarkuprPlus generate a report with one of these providers, select it in **Settings > Advanced**:
+
+- **GitHub Copilot CLI:** requires standalone `copilot` 1.0.83 or newer and `copilot login`. Supports narration and screenshot attachments, including screenshot-only sessions. Each run uses a temporary report agent and isolated configuration that retains authentication and model preferences, with hooks and tools disabled. Unrelated MCP servers and plugins are not loaded. Only report events are collected from its JSON stream, then validated. Choose the CLI default model or enter a model ID available to your account.
+- **Codex CLI / Mac app:** uses the existing Codex provider and ChatGPT login. Discovery checks PATH and common CLI locations, then the bundled `Contents/Resources/codex` executable in `Codex.app` or `ChatGPT.app` under `/Applications` and `~/Applications`. The bundled executable must support the same report flags as the CLI.
+- **Claude Mac app:** supports MCP access in the app. Automatic report generation inside MarkuprPlus requires the separately installed Claude Code CLI; the desktop app does not expose scripting and automation. See [Claude's desktop/CLI comparison](https://code.claude.com/docs/en/desktop#feature-comparison).
+
+Mac App Store builds run analysis providers through the optional MarkuprPlus CLI Bridge. Update the companion along with the app to use Copilot. If an analysis provider fails, MarkuprPlus preserves the capture and generates the Local Rules report with the failure reason recorded.
+
+### Development checkout
+
+```bash
+npm run build:cli
+npm run build:mcp
+node dist/cli/index.mjs integrate claude-desktop --dry-run
+```
+
+Remove `--dry-run` to register the local build. Use `copilot` or `codex` instead of `claude-desktop` for those clients. Keep this checkout in place while clients use it.
 
 ### Claude Code
 
-Add to `~/.claude/settings.json`:
+For manual setup, merge into `~/.claude.json` (user scope) or `.mcp.json` in your project:
 
 ```json
 {

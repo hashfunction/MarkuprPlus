@@ -539,6 +539,7 @@ describe('extractCliAnalysisResult', () => {
     JSON.stringify(analysis),
     `\`\`\`json\n${JSON.stringify(analysis)}\n\`\`\``,
     JSON.stringify({ response: JSON.stringify(analysis) }),
+    JSON.stringify({ type: 'assistant.message', data: { content: JSON.stringify(analysis), toolRequests: [] } }),
     JSON.stringify([{ type: 'result', result: JSON.stringify(analysis) }]),
     `${JSON.stringify({ type: 'step', text: 'working' })}\n${JSON.stringify({ type: 'result', result: JSON.stringify(analysis) })}`,
     JSON.stringify({ type: 'text', part: { type: 'text', text: JSON.stringify(analysis) } }),
@@ -555,6 +556,13 @@ describe('extractCliAnalysisResult', () => {
       type: 'progress',
       text: JSON.stringify(analysis),
     }))).toThrow('Invalid structured CLI output');
+  });
+
+  it('rejects Copilot tool calls and user message echoes', () => {
+    for (const value of [
+      { type: 'assistant.message', data: { content: JSON.stringify(analysis), toolRequests: [{ name: 'bash' }] } },
+      { type: 'user.message', data: { content: JSON.stringify(analysis) } },
+    ]) expect(() => extractCliAnalysisResult(JSON.stringify(value))).toThrow();
   });
 
   it('strictly rejects incomplete analysis objects', () => {

@@ -18,6 +18,7 @@ function dependencies(
   overrides: Partial<CodexCliDiscoveryDependencies> = {},
 ): CodexCliDiscoveryDependencies {
   return {
+    platform: 'darwin',
     env: { PATH: '/custom/bin:/usr/bin' },
     homeDirectory: '/Users/tester',
     shell: '/bin/zsh',
@@ -40,6 +41,27 @@ function dependencies(
 }
 
 describe('CodexCliDiscovery', () => {
+  it.each([
+    '/Applications/Codex.app/Contents/Resources/codex',
+    '/Users/tester/Applications/Codex.app/Contents/Resources/codex',
+    '/Applications/ChatGPT.app/Contents/Resources/codex',
+    '/Users/tester/Applications/ChatGPT.app/Contents/Resources/codex',
+  ])('finds an app-bundled Codex executable at %s', async (executablePath) => {
+    const discovery = new CodexCliDiscovery(dependencies({
+      isExecutable: async (path) => path === executablePath,
+    }));
+    await expect(discovery.discover()).resolves.toMatchObject({ executablePath, ready: true });
+  });
+
+  it('does not search macOS app bundles on other platforms', async () => {
+    const checked: string[] = [];
+    const discovery = new CodexCliDiscovery(dependencies({
+      platform: 'linux',
+      isExecutable: async (path) => { checked.push(path); return false; },
+    }));
+    await discovery.discover();
+    expect(checked.some((path) => path.includes('.app/'))).toBe(false);
+  });
   it('reports the resolved version and authentication state for a PATH installation', async () => {
     const discovery = new CodexCliDiscovery(dependencies());
 

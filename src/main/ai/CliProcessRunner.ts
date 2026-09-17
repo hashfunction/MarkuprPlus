@@ -8,6 +8,8 @@ export interface CliProcessOptions {
   stdin?: string;
   timeoutMs: number;
   maxOutputBytes: number;
+  /** Capture only these JSONL event types; the event's first property must be type. */
+  stdoutJsonlTypes?: string[];
 }
 
 export interface CliProcessResult {
@@ -105,6 +107,39 @@ function createBoundedOutput(maxBytes: number): BoundedOutput {
   };
 }
 
+/** Inspect a bounded ASCII header, then stream or discard the rest of each line. */
+function createJsonlOutput(maxBytes: number, eventTypes: string[]): BoundedOutput {
+  const output = createBoundedOutput(maxBytes);
+  const allowed = new Set(eventTypes);
+  let prefix = Buffer.alloc(0);
+  let selected: boolean | undefined;
+  return {
+    append(chunk) {
+      let offset = 0;
+      while (offset < chunk.length) {
+        const newline = chunk.indexOf(10, offset);
+        const end = newline < 0 ? chunk.length : newline + 1;
+        let segment = chunk.subarray(offset, end);
+        if (selected === undefined) {
+          const count = Math.min(segment.length, 256 - prefix.length);
+          prefix = Buffer.concat([prefix, segment.subarray(0, count)]);
+          segment = segment.subarray(count);
+          const match = prefix.toString('utf8').match(/^\s*\{\s*"type"\s*:\s*"([^"]+)"/);
+          if (match) selected = allowed.has(match[1]);
+          else if (prefix.length === 256 || newline >= 0) selected = false;
+          if (selected) output.append(prefix);
+          if (selected !== undefined) prefix = Buffer.alloc(0);
+        }
+        if (selected) output.append(segment);
+        if (newline >= 0) { selected = undefined; prefix = Buffer.alloc(0); }
+        offset = end;
+      }
+    },
+    text: () => output.text(),
+    get truncated() { return output.truncated; },
+  };
+}
+
 export function resolveProcessTreeTermination(
   pid: number,
   platform: NodeJS.Platform = process.platform,
@@ -161,7 +196,9 @@ function terminateProcess(pid: number | undefined): void {
  */
 export function runCliProcess(options: CliProcessOptions): Promise<CliProcessResult> {
   return new Promise((resolve) => {
-    const stdout = createBoundedOutput(Math.max(0, options.maxOutputBytes));
+    const stdout = options.stdoutJsonlTypes
+      ? createJsonlOutput(Math.max(0, options.maxOutputBytes), options.stdoutJsonlTypes)
+      : createBoundedOutput(Math.max(0, options.maxOutputBytes));
     const stderr = createBoundedOutput(Math.max(0, options.maxOutputBytes));
     let timedOut = false;
     let settled = false;

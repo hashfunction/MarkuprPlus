@@ -224,6 +224,12 @@ function terminalCandidate(value: unknown): string | null {
   const object = value as Record<string, unknown>;
   if (object.error || object.is_error === true || object.subtype === 'error') return null;
 
+  if (object.type === 'assistant.message' && object.data && typeof object.data === 'object') {
+    const data = object.data as Record<string, unknown>;
+    if (!Array.isArray(data.toolRequests) || data.toolRequests.length > 0) return null;
+    return typeof data.content === 'string' ? data.content : null;
+  }
+
   if (typeof object.response === 'string' && object.type === undefined) return object.response;
   if (typeof object.structured_output === 'string') return object.structured_output;
   if (typeof object.structuredOutput === 'string') return object.structuredOutput;
@@ -579,6 +585,9 @@ export class ProfiledCliProvider implements AnalysisProviderAdapter {
         ...(this.profile.promptViaStdin ? { stdin: prompt } : {}),
         timeoutMs: ANALYSIS_TIMEOUT_MS,
         maxOutputBytes: MAX_OUTPUT_BYTES,
+        ...(this.profile.id === 'github-copilot-cli'
+          ? { stdoutJsonlTypes: ['assistant.message', 'result'] }
+          : {}),
       });
       if (result.timedOut) throw new Error(`${this.name} analysis timed out after 180 seconds.`);
       if (result.exitCode !== 0) {

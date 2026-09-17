@@ -46,6 +46,40 @@ describe('resolveProcessTreeTermination', () => {
 });
 
 describe('runCliProcess', () => {
+  it('filters echoed attachments out of bounded JSONL output before collecting a report', async () => {
+    const result = await runCliProcess({
+      executable: process.execPath,
+      args: ['-e', [
+        "process.stdout.write(JSON.stringify({type:'user.message',data:{content:'x'.repeat(2*1024*1024)}})+'\\n');",
+        "process.stdout.write(JSON.stringify({type:'assistant.message',data:{content:'Report ✓'}})+'\\n');",
+        "process.stdout.write(JSON.stringify({type:'result',exitCode:0}));",
+      ].join(' ')],
+      stdoutJsonlTypes: ['assistant.message', 'result'],
+      timeoutMs: 2_000,
+      maxOutputBytes: 1_024,
+    });
+    expect(result.truncated).toBe(false);
+    expect(result.stdout.split('\n').filter(Boolean).map((line) => JSON.parse(line))).toEqual([
+      { type: 'assistant.message', data: { content: 'Report ✓' } },
+      { type: 'result', exitCode: 0 },
+    ]);
+  });
+
+  it('handles fragmented JSONL type headers and still bounds selected records', async () => {
+    const result = await runCliProcess({
+      executable: process.execPath,
+      args: ['-e', [
+        "process.stdout.write('{\"ty');",
+        "setTimeout(() => process.stdout.write('pe\":\"assistant.message\",\"data\":\"'+'x'.repeat(4096)+'\"}\\n'), 30);",
+      ].join(' ')],
+      stdoutJsonlTypes: ['assistant.message'],
+      timeoutMs: 2_000,
+      maxOutputBytes: 256,
+    });
+    expect(result.truncated).toBe(true);
+    expect(Buffer.byteLength(result.stdout)).toBe(256);
+  });
+
   it('delivers stdin and captures command output without a shell', async () => {
     const result = await runCliProcess({
       executable: process.execPath,

@@ -24,8 +24,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
-  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml/badge.svg?branch=main" alt="Deployment status"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/nightly.yml"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/nightly.yml/badge.svg" alt="Nightly"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml?query=branch%3Amain"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/deploy-landing.yml/badge.svg?branch=main" alt="Deploy"></a>
+  <a href="https://github.com/hashfunction/MarkuprPlus/actions/workflows/test-action.yml"><img src="https://github.com/hashfunction/MarkuprPlus/actions/workflows/test-action.yml/badge.svg" alt="Action"></a>
+  <a href="https://codecov.io/gh/hashfunction/MarkuprPlus"><img src="https://codecov.io/gh/hashfunction/MarkuprPlus/branch/main/graph/badge.svg" alt="Coverage"></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/version-3.1.2-f59e0b?style=flat-square" alt="Version 3.1.2">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
@@ -300,7 +306,7 @@ In the Mac App Store app, CLI providers use the optional local companion describ
 
 | Provider | Kind | What it uses |
 |---|---|---|
-| **Codex CLI** | CLI | Your installed Codex CLI and existing ChatGPT login, in a read-only ephemeral session |
+| **Codex CLI** | CLI | Your installed CLI or the Codex Mac app's bundled CLI and existing ChatGPT login, in a read-only ephemeral session |
 | **Claude Code CLI** | CLI | The Claude Code CLI you're already signed in to |
 | **GitHub Copilot CLI** | CLI | Copilot CLI 1.0.83+ with your existing GitHub login, in an isolated tool-free session |
 | **OpenCode** | CLI | Your configured OpenCode provider, with a per-run agent that denies every tool action |
@@ -362,7 +368,18 @@ credential fallbacks are not copied into the temporary configuration.
 
 Give your agent eyes and ears. It can capture screenshots, record your screen with voice, and receive structured reports mid-conversation.
 
-**Claude Code** (`~/.claude/settings.json`), Cursor, and Windsurf all take the same shape:
+Connect GitHub Copilot CLI, the Claude Mac app, or Codex with the setup command:
+
+```bash
+npm install -g markuprplus
+markuprplus integrate copilot
+markuprplus integrate claude-desktop
+markuprplus integrate codex
+```
+
+Run the command for each client you use, then restart that client. Claude setup covers both Chat and Code. Codex shares its configuration with its CLI. Add `--dry-run` to preview; existing settings and other servers are preserved, and changed files are backed up. An existing conflicting `markuprplus` entry requires `--force`. See [client setup and capabilities](README-MCP.md#client-configuration) for details.
+
+For manual setup, **Claude Code** (`~/.claude.json` or project `.mcp.json`), Cursor, and Windsurf take the same shape:
 
 ```json
 {

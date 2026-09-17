@@ -33,8 +33,8 @@ const PROVIDER_NAMES: Record<AnalysisProvider, string> = {
 function checkingDetail(provider: Exclude<AnalysisProvider, 'rules'>): string {
   switch (provider) {
     case 'codex-cli': return 'Scanning for an installed and authenticated Codex CLI.';
-    case 'claude-cli': return 'Scanning for an installed and authenticated Claude Code CLI.';
     case 'github-copilot-cli': return 'Scanning for an installed GitHub Copilot CLI.';
+    case 'claude-cli': return 'Scanning for an installed and authenticated Claude Code CLI.';
     case 'opencode-cli': return 'Scanning for an installed OpenCode CLI.';
     case 'cursor-cli': return 'Scanning for an installed Cursor Agent CLI.';
     case 'qwen-cli': return 'Scanning for an installed Qwen Code CLI.';

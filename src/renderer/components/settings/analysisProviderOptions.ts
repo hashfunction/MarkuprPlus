@@ -23,7 +23,7 @@ const ALL_PROVIDER_OPTIONS: AnalysisProviderOption[] = [
   {
     id: 'codex-cli',
     title: 'Codex CLI',
-    description: 'Use your installed Codex CLI and existing ChatGPT login.',
+    description: 'Use Codex CLI or the Codex Mac app’s bundled CLI with your ChatGPT login.',
     connectionBadge: 'CLI',
     recommended: true,
   },

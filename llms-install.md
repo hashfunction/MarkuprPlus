@@ -41,11 +41,22 @@ No additional setup, build steps, or configuration files are needed beyond the M
 
 ## MCP Server Configuration
 
+For GitHub Copilot CLI, Claude on Mac, and Codex on Mac, install the current package and run the appropriate setup command:
+
+```bash
+npm install -g markuprplus
+markuprplus integrate copilot
+markuprplus integrate claude-desktop
+markuprplus integrate codex
+```
+
+Each command preserves existing settings and backs up changed configuration files. Add `--dry-run` for a preview. Claude setup covers both Chat and Code; Codex setup uses its shared CLI/app configuration. Restart the client afterward. See [README-MCP.md](README-MCP.md#client-configuration) for report provider requirements and manual alternatives.
+
 Add the following to the appropriate MCP configuration file for your IDE:
 
 ### Claude Code
 
-File: `~/.claude/settings.json`
+File: `~/.claude.json` (user scope) or project `.mcp.json`
 
 ```json
 {

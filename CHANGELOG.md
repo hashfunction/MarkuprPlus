@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased — MarkuprPlus
 
+- Added GitHub Copilot CLI 1.0.83+ report analysis with screenshot attachments, model selection, and support through the Mac App Store CLI Bridge.
+- Added `markuprplus integrate` setup for GitHub Copilot CLI, Claude's Mac app (Chat and Code), and Codex, with configuration previews and backups.
+- Codex analysis now discovers the CLI bundled with Codex and ChatGPT Mac applications.
 - Rebranded the public desktop experience and documentation as MarkuprPlus.
 - Published the CLI and MCP server as `markuprplus`, with `markuprplus` and `markuprplus-mcp` binaries.
 - Preserved existing `.markuprx` project files, IPC namespaces, storage paths, and application identifiers for compatibility.

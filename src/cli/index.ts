@@ -31,6 +31,7 @@ import { runInit, CONFIG_FILENAME } from './init';
 import { templateRegistry } from '../main/output/templates/index';
 import { PUBLIC_BRAND_NAME } from '../shared/publicBrand';
 import { registerBridgeCommand } from '../bridge/BridgeCommand';
+import { registerIntegrationCommand } from './McpIntegration';
 
 // Read version from package.json at build time (injected by esbuild)
 declare const __MARKUPRX_VERSION__: string;
@@ -222,6 +223,7 @@ program
   });
 
 registerBridgeCommand(program, { bridgeVersion: VERSION });
+registerIntegrationCommand(program);
 
 // ============================================================================
 // watch command

@@ -57,7 +57,7 @@ describe('analysis provider options', () => {
       PROVIDER_OPTIONS.map(({ id }) => id),
     );
     expect(providerOptionsForDistribution('direct')[0].description).toBe(
-      'Use your installed Codex CLI and existing ChatGPT login.',
+      'Use Codex CLI or the Codex Mac app’s bundled CLI with your ChatGPT login.',
     );
   });
 

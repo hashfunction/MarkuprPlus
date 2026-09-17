@@ -42,6 +42,7 @@ function parseModelCatalog(result: CliProcessResult): AnalysisModelOption[] {
 }
 
 export interface CodexCliDiscoveryDependencies {
+  platform: NodeJS.Platform;
   env: NodeJS.ProcessEnv;
   homeDirectory: string;
   shell: string;
@@ -52,6 +53,7 @@ export interface CodexCliDiscoveryDependencies {
 
 function defaultDependencies(): CodexCliDiscoveryDependencies {
   return {
+    platform: process.platform,
     env: process.env,
     homeDirectory: homedir(),
     shell: process.env.SHELL || (process.platform === 'win32' ? 'cmd.exe' : '/bin/zsh'),
@@ -84,7 +86,7 @@ export function buildCliEnvironment(
   };
 }
 
-function directCandidates(environment: NodeJS.ProcessEnv, homeDirectory: string): string[] {
+function directCandidates(environment: NodeJS.ProcessEnv, homeDirectory: string, platform: NodeJS.Platform): string[] {
   const pathCandidates = (environment.PATH || '')
     .split(delimiter)
     .filter(Boolean)
@@ -95,6 +97,12 @@ function directCandidates(environment: NodeJS.ProcessEnv, homeDirectory: string)
     '/opt/homebrew/bin/codex',
     '/usr/local/bin/codex',
     join(homeDirectory, '.local', 'bin', 'codex'),
+    ...(platform === 'darwin' ? [
+      '/Applications/Codex.app/Contents/Resources/codex',
+      join(homeDirectory, 'Applications', 'Codex.app', 'Contents', 'Resources', 'codex'),
+      '/Applications/ChatGPT.app/Contents/Resources/codex',
+      join(homeDirectory, 'Applications', 'ChatGPT.app', 'Contents', 'Resources', 'codex'),
+    ] : []),
   ])];
 }
 
@@ -177,13 +185,13 @@ export class CodexCliDiscovery {
   }
 
   private async resolveExecutable(): Promise<string | null> {
-    for (const candidate of directCandidates(this.dependencies.env, this.dependencies.homeDirectory)) {
+    for (const candidate of directCandidates(this.dependencies.env, this.dependencies.homeDirectory, this.dependencies.platform)) {
       if (await this.validateCandidate(candidate)) {
         return candidate;
       }
     }
 
-    if (process.platform === 'win32') {
+    if (this.dependencies.platform === 'win32') {
       return null;
     }
 
