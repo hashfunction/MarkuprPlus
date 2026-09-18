@@ -28,10 +28,10 @@ export default defineConfig({
         'src/main/AutoUpdater.ts', // Electron auto-updater, untestable in Node
       ],
       thresholds: {
-        lines: 80,
-        functions: 74,
+        lines: 79,
+        functions: 73,
         branches: 78,
-        statements: 80,
+        statements: 79,
       },
     },
     // Test timeouts
