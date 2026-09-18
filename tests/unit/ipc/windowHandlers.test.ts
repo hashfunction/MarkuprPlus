@@ -26,15 +26,17 @@ vi.mock('../../../src/main/transcription/TierManager', () => ({
 }));
 
 vi.mock('../../../src/main/transcription/ModelDownloadManager', () => ({
+  DEFAULT_DOWNLOAD_MODEL: 'tiny',
   modelDownloadManager: {
     hasAnyModel: vi.fn(() => true),
     isModelDownloaded: vi.fn((model: string) => model === 'tiny'),
     getDefaultModel: vi.fn(() => 'tiny'),
     getModelInfo: vi.fn(() => ({ sizeMB: 75 })),
+    getDownloadStatus: vi.fn(() => null),
     getAvailableModels: vi.fn(() => [
       { name: 'tiny', filename: 'tiny.bin', sizeMB: 75, ramRequired: '1GB', quality: 'basic' },
     ]),
-    downloadModel: vi.fn(async () => ({ success: true, path: '/models/tiny.bin' })),
+    downloadModel: vi.fn(async () => ({ success: true })),
     cancelDownload: vi.fn(),
     onProgress: vi.fn(() => vi.fn()),
     onComplete: vi.fn(() => vi.fn()),
@@ -54,7 +56,6 @@ import { registerWindowHandlers } from '../../../src/main/ipc/windowHandlers';
 import { IPC_CHANNELS } from '../../../src/shared/types';
 import { tierManager } from '../../../src/main/transcription/TierManager';
 import { modelDownloadManager } from '../../../src/main/transcription/ModelDownloadManager';
-import { whisperService } from '../../../src/main/transcription/WhisperService';
 import type { IpcContext } from '../../../src/main/ipc/types';
 
 function makeMockWindow() {
@@ -280,10 +281,10 @@ describe('registerWindowHandlers', () => {
       expect(result.success).toBe(false);
     });
 
-    it('downloads valid model and sets path', async () => {
+    it('downloads valid model', async () => {
       const result = await handlers.get(IPC_CHANNELS.WHISPER_DOWNLOAD_MODEL)!({}, 'tiny') as { success: boolean };
       expect(result.success).toBe(true);
-      expect(whisperService.setModelPath).toHaveBeenCalledWith('/models/tiny.bin');
+      expect(modelDownloadManager.downloadModel).toHaveBeenCalledWith('tiny');
     });
 
     it('handles download failure', async () => {
