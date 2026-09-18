@@ -12,20 +12,26 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'text-summary', 'json', 'json-summary', 'html', 'lcov'],
       reportsDirectory: './coverage',
+      include: ['src/main/**', 'src/shared/**', 'src/cli/**', 'src/mcp/**', 'src/bridge/**'],
       exclude: [
         'node_modules/**',
         'dist/**',
         'tests/**',
+        '.worktrees/**',
+        'coverage/**',
         '**/*.d.ts',
         '**/types.ts',
         '**/*.config.ts',
         '**/index.ts', // Re-exports
+        'src/main/platform/**', // Platform-specific, tested in Electron UI
+        'src/main/windows/**', // Window management, tested in Electron UI
+        'src/main/AutoUpdater.ts', // Electron auto-updater, untestable in Node
       ],
       thresholds: {
-        lines: 8,
-        functions: 30,
-        branches: 55,
-        statements: 8,
+        lines: 80,
+        functions: 74,
+        branches: 78,
+        statements: 80,
       },
     },
     // Test timeouts
