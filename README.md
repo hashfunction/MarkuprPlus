@@ -9,6 +9,18 @@
 </p>
 
 <p align="center">
+  <strong>A Windows and macOS desktop app, CLI, and MCP server for visual feedback.</strong><br>
+  Record and annotate from your desktop, process recordings from the terminal, or give your AI agent screen capture tools.
+</p>
+
+<p align="center">
+  <a href="https://github.com/hashfunction/MarkuprPlus/releases/latest"><strong>Download for Windows or macOS</strong></a> &middot;
+  <a href="#cli">Use the CLI</a> &middot;
+  <a href="#mcp-server">Connect an MCP client</a> &middot;
+  <a href="markuprx-action/README.md">GitHub Action</a>
+</p>
+
+<p align="center">
   <a href="marketing-video/markuprplus-explainer-v10b-four-step-tour-natural-agent.mp4">
     <img src="docs/images/markuprplus/product-tour-v10-poster.png" alt="Watch the 33-second MarkuprPlus product tour" width="900">
   </a>
@@ -33,7 +45,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-3.2.0-f59e0b?style=flat-square" alt="Version 3.2.0">
-  <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/desktop-Windows%20%7C%20macOS-lightgrey?style=flat-square" alt="Desktop app for Windows and macOS">
+  <a href="#cli"><img src="https://img.shields.io/badge/CLI-markuprplus-blue?style=flat-square" alt="MarkuprPlus CLI"></a>
+  <a href="#mcp-server"><img src="https://img.shields.io/badge/MCP-server-blue?style=flat-square" alt="MCP server for AI agents"></a>
   <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
 </p>
@@ -57,7 +71,7 @@
 </p>
 
 <p align="center">
-  <em>Hold <code>Cmd</code>, circle the problem, keep talking. That stroke becomes <code>MX-001</code>.</em>
+  <em>Hold <code>Ctrl</code> on Windows or <code>Cmd</code> on macOS, circle the problem, keep talking. That stroke becomes <code>MX-001</code>.</em>
 </p>
 
 ## The Problem
@@ -66,15 +80,26 @@ Your coding agent can't see your screen. So you stop working and start transcrib
 
 ## The Solution
 
-MarkuprPlus is a menu bar app. It records the exact window you point at, listens while you narrate, and lets you draw on the live screen without blocking your clicks. When you stop, it transcribes on-device, aligns your words to each mark, and writes a report your agent can act on — one finding per circle, each with its own annotated frame.
+MarkuprPlus is a **Windows and macOS desktop app**, with a **CLI**, **MCP server**, and **GitHub Action** for automated workflows. The desktop app lives in the Windows system tray or macOS menu bar. It records the exact window you point at, listens while you narrate, and lets you draw on the live screen without blocking your clicks. When you stop, it transcribes on-device, aligns your words to each mark, and writes a report your agent can act on — one finding per circle, each with its own annotated frame.
+
+| Use MarkuprPlus as | What you can do | Get started |
+|---|---|---|
+| **Windows desktop app** | Record your screen and voice, draw live annotations, and review reports from the system tray. | [Download for Windows](https://github.com/hashfunction/MarkuprPlus/releases/latest) |
+| **macOS desktop app** | Capture and annotate from the menu bar on Apple Silicon or Intel Macs. | [Download for macOS](https://github.com/hashfunction/MarkuprPlus/releases/latest) |
+| **CLI** | Analyze existing recordings, watch folders, and generate reports in scripts. | [CLI commands](#cli) |
+| **MCP server** | Let an AI coding agent capture screenshots, record sessions, and receive structured reports. | [Connect your agent](#mcp-server) |
+| **GitHub Action** | Process recordings in your GitHub Actions workflows. | [Action setup](markuprx-action/README.md) |
 
 ```
-Cmd+Shift+F  →  talk  →  Cmd-drag  →  Cmd+Shift+F  →  paste into your agent
+Windows: Ctrl+Shift+F → talk → Ctrl-drag → Ctrl+Shift+F → paste into your agent
+macOS:   Cmd+Shift+F  → talk → Cmd-drag  → Cmd+Shift+F  → paste into your agent
 ```
 
 ## The Loop
 
-### 1. Press `Cmd+Shift+F` and pick your target
+### 1. Press the capture shortcut and pick your target
+
+Use `Ctrl+Shift+F` on Windows or `Cmd+Shift+F` on macOS.
 
 <img src="docs/images/markuprplus/popover-ready.png" alt="The MarkuprPlus popover in its Ready To Capture state" width="320" align="right">
 
@@ -82,7 +107,7 @@ The picker opens above every window. Whatever is under your cursor lights up —
 
 If the window's identity or native geometry ever becomes ambiguous mid-session, capture **stops** rather than widening to whatever is behind it. You never ship a frame you didn't mean to share.
 
-The whole app lives in this one portrait popover. No window to manage, no dock icon.
+The capture controls live in one portrait popover, accessible from the Windows system tray or macOS menu bar.
 
 <br clear="right">
 
@@ -92,19 +117,19 @@ Keep clicking through your app as usual. MarkuprPlus records the window and your
 
 The picker, the drawing canvas, and the recording HUD are all excluded from screen capture at the OS level — **nothing MarkuprPlus draws ends up in your video.** Only your app does, plus the strokes you meant to leave.
 
-### 3. Hold `Cmd` and draw
+### 3. Hold `Ctrl` (Windows) or `Cmd` (macOS) and draw
 
 <img src="docs/images/markuprplus/marked-issue-003.png" alt="A red hand-drawn ellipse around the tab bar of the app under review" width="250" align="right">
 
-Command-drag paints straight onto the live screen — freehand, circle, or highlight, in a colour you choose. Let go of the key and your next normal click both reaches the app underneath **and** saves that mark, clearing the canvas for the next one.
-
-On Windows, hold `Ctrl` instead.
+Hold the modifier key and drag to paint straight onto the live screen — freehand, circle, or highlight, in a colour you choose. Let go of the key and your next normal click both reaches the app underneath **and** saves that mark, clearing the canvas for the next one.
 
 Three circles means three issues, not one screenshot with three scribbles on it. Each finding carries its own PNG, timestamp, tool, and colour.
 
 <br clear="right">
 
-### 4. Press `Cmd+Shift+F` again
+### 4. Press the capture shortcut again to stop
+
+Use `Ctrl+Shift+F` on Windows or `Cmd+Shift+F` on macOS.
 
 <img src="docs/images/markuprplus/popover-report.png" alt="The popover showing Report Ready with the markdown path copied to the clipboard" width="320" align="right">
 
@@ -116,9 +141,9 @@ Everything for the session goes in one folder: the report, the screenshots, the 
 
 ## Quick Start
 
-### Desktop app (recommended)
+### Windows and macOS desktop app (recommended)
 
-Download from [markuprplus.com](https://www.markuprplus.com) or the [releases page](https://github.com/hashfunction/MarkuprPlus/releases/latest). macOS on Apple Silicon and Intel, plus Windows.
+Download from [markuprplus.com](https://www.markuprplus.com) or the [releases page](https://github.com/hashfunction/MarkuprPlus/releases/latest). Choose the **Windows installer (`.exe`)** or the **macOS disk image (`.dmg`)** for Apple Silicon or Intel.
 
 > **macOS install note:** Direct downloads from GitHub Releases are signed, notarized, and stapled. If Gatekeeper rejects an artifact, use [MarkuprPlus support](https://markuprplus.com/support) so the release can be investigated.
 
@@ -369,7 +394,7 @@ credential fallbacks are not copied into the temporary configuration.
 
 **It doesn't film itself.** The picker, the drawing canvas, and the recording HUD are content-protected at the OS level. Your marks reach the report; the app's own chrome never reaches the video.
 
-**Works everywhere.** Desktop app for daily flow, CLI for scripts and CI, MCP server for agents, GitHub Action for pull requests. One pipeline, four front doors.
+**Fits your workflow.** Windows and macOS desktop apps for daily capture, a CLI for scripts and CI, an MCP server for agents, and a GitHub Action for pull requests.
 
 **Open source.** MIT licensed. Read it, fork it, ship it.
 
