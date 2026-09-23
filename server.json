@@ -7,13 +7,13 @@
     "url": "https://github.com/hashfunction/MarkuprPlus",
     "source": "github"
   },
-  "version": "3.1.2",
+  "version": "3.2.0",
   "websiteUrl": "https://markuprplus.com",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "markuprplus",
-      "version": "3.1.2",
+      "version": "3.2.0",
       "transport": {
         "type": "stdio"
       }

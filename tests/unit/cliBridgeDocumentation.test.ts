@@ -11,16 +11,16 @@ const lifecycleCommands = [
 ];
 
 describe('CLI Bridge release documentation', () => {
-  it('sets version 3.1.2 and Mac App Store build 5', async () => {
+  it('sets release version 3.2.0 and preserves Mac App Store build 5', async () => {
     const [packageJson, lockJson, masConfig] = await Promise.all([
       readFile('package.json', 'utf8').then(JSON.parse),
       readFile('package-lock.json', 'utf8').then(JSON.parse),
       readFile('electron-builder.mas.yml', 'utf8'),
     ]);
 
-    expect(packageJson.version).toBe('3.1.2');
-    expect(lockJson.version).toBe('3.1.2');
-    expect(lockJson.packages[''].version).toBe('3.1.2');
+    expect(packageJson.version).toBe('3.2.0');
+    expect(lockJson.version).toBe('3.2.0');
+    expect(lockJson.packages[''].version).toBe('3.2.0');
     expect(masConfig).toMatch(/^buildVersion: "5"$/m);
   });
 

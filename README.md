@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1.2-f59e0b?style=flat-square" alt="Version 3.1.2">
+  <img src="https://img.shields.io/badge/version-3.2.0-f59e0b?style=flat-square" alt="Version 3.2.0">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-desktop-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/transcription-local%20Whisper-4ade80?style=flat-square" alt="Local Whisper transcription">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>

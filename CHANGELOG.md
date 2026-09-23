@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased — MarkuprPlus
 
-- Added GitHub Copilot CLI 1.0.83+ report analysis with screenshot attachments, model selection, and support through the Mac App Store CLI Bridge.
-- Added `markuprplus integrate` setup for GitHub Copilot CLI, Claude's Mac app (Chat and Code), and Codex, with configuration previews and backups.
-- Codex analysis now discovers the CLI bundled with Codex and ChatGPT Mac applications.
 - Rebranded the public desktop experience and documentation as MarkuprPlus.
 - Published the CLI and MCP server as `markuprplus`, with `markuprplus` and `markuprplus-mcp` binaries.
 - Preserved existing `.markuprx` project files, IPC namespaces, storage paths, and application identifiers for compatibility.
@@ -28,6 +25,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The release pipeline no longer falls back to an unsigned macOS build when signing secrets are absent; it now fails with the list of missing secrets instead of publishing an app macOS refuses to open.
 - Notarization no longer skips silently: missing credentials, a non-Developer ID certificate, or a failed submission now fail the release build.
 - Release notes now list the real `markuprplus-*` artifact names and no longer overwrite the curated changelog.
+
+## 3.2.0 - 2026-09-23
+
+### Added
+
+- Selectable English and Traditional Chinese interface languages, with English as the default.
+- GitHub Copilot CLI 1.0.83+ report analysis with screenshot attachments, model selection, and support through the Mac App Store CLI Bridge.
+- `markuprplus integrate` setup for GitHub Copilot CLI, Claude's Mac app (Chat and Code), and Codex, with configuration previews and backups.
+- Local Whisper vocabulary hints and support for longer transcription sessions.
+- Automatic Whisper model downloads on startup, with download progress in Settings.
+
+### Fixed
+
+- Codex analysis now discovers the CLI bundled with Codex and ChatGPT Mac applications.
+- The Whisper vocabulary prompt resizes automatically to avoid nested scrolling.
+- Updated `fast-uri` to address a high-severity dependency vulnerability.
+- Fixed macOS ARM nightly packaging and architecture detection, Windows nightly artifact filenames, and recording directory creation in action tests.
+
+### Changed
+
+- Expanded IPC handler, audio utility, language, Copilot, and transcription test coverage.
+- Replaced Codecov with a self-hosted coverage badge and updated CI status documentation.
 
 ## 3.1.2 - 2026-08-31
 
